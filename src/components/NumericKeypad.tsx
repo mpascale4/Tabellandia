@@ -21,7 +21,12 @@ export default function NumericKeypad({
 }: NumericKeypadProps) {
   const handleDigitClick = (digit: string) => {
     if (value.length < maxDigits) {
-      onChange(value + digit);
+      const newValue = value + digit;
+      onChange(newValue);
+      // Auto-submit when reaching maxDigits (e.g., 4 digits for PIN)
+      if (newValue.length === maxDigits) {
+        setTimeout(() => onSubmit(), 100);
+      }
     }
   };
 
@@ -96,16 +101,18 @@ export default function NumericKeypad({
         </motion.button>
       </div>
 
-      {/* Submit Button */}
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={onSubmit}
-        disabled={disabled || value.length === 0}
-        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-sans"
-      >
-        {submitLabel}
-      </motion.button>
+      {/* Submit Button - Hidden when maxDigits is 4 (PIN auto-submit) */}
+      {maxDigits !== 4 && (
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onSubmit}
+          disabled={disabled || value.length === 0}
+          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-sans"
+        >
+          {submitLabel}
+        </motion.button>
+      )}
     </div>
   );
 }
