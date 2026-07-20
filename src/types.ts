@@ -4,7 +4,7 @@
  */
 
 export interface AvatarConfig {
-  gender: 'kid1' | 'kid2';
+  gender: 'bambino' | 'bambina' | 'cucciolo' | 'robot';
   hairStyle: string;
   hairColor: string;
   shirtColor: string;

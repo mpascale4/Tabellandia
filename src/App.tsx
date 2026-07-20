@@ -36,7 +36,7 @@ const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   coins: 10, // Starting coins to explore customization
   lightDrops: 0,
   avatar: {
-    gender: 'kid1',
+    gender: 'bambino',
     hairStyle: 'Nessuno',
     hairColor: '#f59e0b',
     shirtColor: '#3b82f6',
@@ -66,7 +66,7 @@ const createProfileId = () => {
   return `profile-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 };
 
-const createProfile = (name: string, birthYear: number | null, gender: 'kid1' | 'kid2'): ProfileRecord => {
+const createProfile = (name: string, birthYear: number | null, gender: 'bambino' | 'bambina' | 'cucciolo' | 'robot'): ProfileRecord => {
   return {
     ...BASE_PROFILE,
     id: createProfileId(),
@@ -128,9 +128,9 @@ export default function App() {
   const isPhoneMode = deviceMode === 'phone';
 
   // Setup Wizard State
-  const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: intro, 2: story, 3: char_create, 4: ready
+  const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: char_create, 2: ready
   const [heroNameInput, setHeroNameInput] = useState<string>("");
-  const [newProfileGender, setNewProfileGender] = useState<'kid1' | 'kid2'>('kid1');
+  const [newProfileGender, setNewProfileGender] = useState<'bambino' | 'bambina' | 'cucciolo' | 'robot'>('bambino');
   const [newProfileBirthYear, setNewProfileBirthYear] = useState<number>(CURRENT_YEAR - 8);
   const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
 
@@ -263,7 +263,7 @@ export default function App() {
 
   const handleStartWizard = () => {
     sound.playPowerUp();
-    setWizardStep(2);
+    setWizardStep(1);
   };
 
   const handleCreateHero = (e: React.FormEvent) => {
@@ -273,7 +273,7 @@ export default function App() {
     const nextProfile = createProfile(finalName, nextBirthYear, newProfileGender);
     setDraftProfile(nextProfile);
     sound.playLevelUp();
-    setWizardStep(4);
+    setWizardStep(2);
   };
 
   const handleFinishWizard = () => {
@@ -309,7 +309,7 @@ export default function App() {
   const handleStartProfileCreation = () => {
     sound.playPowerUp();
     setHeroNameInput('');
-    setNewProfileGender('kid1');
+    setNewProfileGender('bambino');
     setNewProfileBirthYear(CURRENT_YEAR - 8);
     setDraftProfile(null);
     setWizardStep(1);
@@ -366,7 +366,7 @@ export default function App() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-orange-400 border-2 border-white shadow-inner flex items-center justify-center text-2xl shrink-0">
-                      {p.avatar?.gender === 'kid2' ? '👧' : '🧒'}
+                      {p.avatar?.gender === 'bambina' ? '👧' : p.avatar?.gender === 'cucciolo' ? '🐶' : p.avatar?.gender === 'robot' ? '🤖' : '👦'}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-black text-slate-900 truncate">{p.name}</p>
@@ -411,46 +411,6 @@ export default function App() {
           className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative z-10 flex flex-col justify-between min-h-[400px] border-2 border-indigo-200"
         >
           {wizardStep === 1 && (
-            <div className="text-center space-y-6 flex-1 flex flex-col justify-center">
-              <div className="text-6xl animate-bounce">🏰</div>
-              <div>
-                <h1 className="text-3xl font-black text-indigo-950 tracking-wide font-sans">Tabellandia</h1>
-                <p className="text-sm text-indigo-700 font-medium mt-1 uppercase tracking-wider">Un Regno di Numeri e Magia</p>
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto font-sans">
-                Benvenuto! Sei pronto ad intraprendere un viaggio straordinario dove le tabelline diventano alleate fedeli, magie e creature leggendarie?
-              </p>
-              <button
-                onClick={handleStartWizard}
-                className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
-                id="wizard-start-btn"
-              >
-                Inizia l'Avventura!
-              </button>
-            </div>
-          )}
-
-          {wizardStep === 2 && (
-            <div className="space-y-6 flex-1 flex flex-col justify-center text-center">
-              <div className="text-5xl">🌪️⚡📓</div>
-              <h2 className="text-xl font-bold text-slate-800 font-sans">La Tempesta Matematica</h2>
-              <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                Un'antica tempesta di vento sconosciuto ha colpito Tabellandia, disperdendo tutti i numeri e rubando l'energia vitale al regno!
-              </p>
-              <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                Per riportare la luce, dovrai superare i sentieri delle 9 Terre, sbloccare le magiche Creature Matematiche e ricostruire i grandi monumenti!
-              </p>
-              <button
-                onClick={() => { sound.playClick(); setWizardStep(3); }}
-                className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
-                id="wizard-next-btn"
-              >
-                Crea il tuo Eroe
-              </button>
-            </div>
-          )}
-
-          {wizardStep === 3 && (
             <div className="space-y-5 flex-1 flex flex-col justify-center">
               <div className="text-center">
                 <div className="text-4xl mb-2">🎒🛡️</div>
@@ -490,27 +450,51 @@ export default function App() {
                 </label>
 
                 <div>
-                  <span className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Base avatar</span>
+                  <span className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Scegli il tuo eroe</span>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setNewProfileGender('kid1')}
-                      className={`p-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 ${
-                        newProfileGender === 'kid1' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                      onClick={() => setNewProfileGender('bambino')}
+                      className={`p-4 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                        newProfileGender === 'bambino' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                       }`}
-                      id="setup-gender-kid1-btn"
+                      id="setup-gender-bambino-btn"
                     >
-                      🧒 Bimbo 1
+                      <span className="text-4xl">👦</span>
+                      <span>Bambino</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setNewProfileGender('kid2')}
-                      className={`p-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 ${
-                        newProfileGender === 'kid2' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                      onClick={() => setNewProfileGender('bambina')}
+                      className={`p-4 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                        newProfileGender === 'bambina' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                       }`}
-                      id="setup-gender-kid2-btn"
+                      id="setup-gender-bambina-btn"
                     >
-                      👧 Bimbo 2
+                      <span className="text-4xl">👧</span>
+                      <span>Bambina</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewProfileGender('cucciolo')}
+                      className={`p-4 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                        newProfileGender === 'cucciolo' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                      }`}
+                      id="setup-gender-cucciolo-btn"
+                    >
+                      <span className="text-4xl">🐶</span>
+                      <span>Cucciolo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewProfileGender('robot')}
+                      className={`p-4 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                        newProfileGender === 'robot' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                      }`}
+                      id="setup-gender-robot-btn"
+                    >
+                      <span className="text-4xl">🤖</span>
+                      <span>Robot</span>
                     </button>
                   </div>
                 </div>
@@ -530,7 +514,7 @@ export default function App() {
             </div>
           )}
 
-          {wizardStep === 4 && (
+          {wizardStep === 2 && (
             <div className="text-center space-y-6 flex-1 flex flex-col justify-center">
               <div className="text-6xl animate-pulse">🌟✨🐉</div>
               <h2 className="text-xl font-bold text-emerald-600 font-sans">Sei Pronto, {draftProfile?.name || heroNameInput || 'Eroe'}!</h2>
