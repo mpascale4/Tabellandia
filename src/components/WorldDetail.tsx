@@ -13,6 +13,7 @@ import StepRulesModal from './StepRulesModal';
 import RewardPopup from './RewardPopup';
 import NumericKeypad from './NumericKeypad';
 import RewardsTutorial from './RewardsTutorial';
+import MonumentArea from './MonumentArea';
 
 interface WorldDetailProps {
   world: WorldConfig;
@@ -42,6 +43,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
   const [costruiscoBalloons, setCostruiscoBalloons] = useState<number[]>([]);
   const [selectedFactor, setSelectedFactor] = useState<number | null>(null);
+  const [completedMonuments, setCompletedMonuments] = useState<string[]>([]); // Track completed monuments
 
   // Trucchi (Step 4) state
   const [trucchiQuestionSolved, setTrucchiQuestionSolved] = useState<boolean>(false);
@@ -199,6 +201,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const answers = Array.from({ length: 10 }).map((_, i) => world.id * (i + 1));
     setCostruiscoBalloons(answers.sort(() => Math.random() - 0.5));
     setSelectedFactor(null);
+    setCompletedMonuments([]); // Reset monuments when restarting
   };
 
   const handleSaltoSelect = (val: number) => {
@@ -235,8 +238,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         setCostruiscoBalloons(prev => prev.filter(b => b !== val));
         setSelectedFactor(null);
 
+        // Erigere un monumento per ogni operazione completata (max 3 monumenti)
+        const updatedProgress = { ...costruiscoProgress, [selectedFactor]: val };
+        const completedCount = Object.values(updatedProgress).filter(v => v !== null).length;
+        
+        // Determina quale monumento erigere in base al numero di operazioni completate
+        if (world.monuments && world.monuments.length > 0) {
+          const monumentIndex = Math.min(Math.floor((completedCount - 1) / 4), world.monuments.length - 1);
+          const monumentId = world.monuments[monumentIndex].id;
+          
+          if (completedCount % 4 === 1 && !completedMonuments.includes(monumentId)) {
+            // Nuovo monumento ogni 4 operazioni (1, 5, 9)
+            sound.playPowerUp();
+            setCompletedMonuments(prev => [...prev, monumentId]);
+          }
+        }
+
         // Check if finished
-        const completedCount = Object.values({ ...costruiscoProgress, [selectedFactor]: val }).filter(v => v !== null).length;
         if (completedCount === 10) {
           sound.playLevelUp();
           saveStepCompleted('costruisco');
@@ -1048,6 +1066,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 );
               })}
             </div>
+
+            {/* Monument Building Area - NEW FEATURE */}
+            <MonumentArea world={world} completedMonuments={completedMonuments} />
 
             {/* Bubble balloons selection at the bottom */}
             <div>
