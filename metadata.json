@@ -1,0 +1,6 @@
+{
+  "name": "Tabellandia",
+  "description": "Un'avventura educativa interattiva per imparare le tabelline divertendosi con metodi pedagogici e gamification per bambini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
