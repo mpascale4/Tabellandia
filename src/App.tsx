@@ -138,6 +138,7 @@ export default function App() {
   const [pinInput, setPinInput] = useState<string>("");
   const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
   const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
+  const [pinError, setPinError] = useState<string>("");
 
   const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
 
@@ -341,18 +342,36 @@ export default function App() {
 
   const handlePINSubmit = () => {
     sound.playClick();
+    setPinError("");
     const storedPIN = localStorage.getItem('tabellandia_parent_pin');
     
     if (isSettingPIN) {
       // Setting PIN for first time
       if (pinInput.length === 4) {
-        localStorage.setItem('tabellandia_parent_pin', pinInput);
-        sound.playPowerUp();
-        setParentAuthenticated(true);
-        setShowPINModal(false);
-        setPinInput("");
-      } else {
-        sound.playError();
+        if (pinInput === '0000') {
+          // First time with 0000 - propose change
+          setPinError("PIN predefinito! Cambialo ora.");
+          setTimeout(() => {
+            const newPIN = prompt('Inserisci il nuovo PIN (4 cifre):', '');
+            if (newPIN && newPIN.length === 4 && /^\d+$/.test(newPIN)) {
+              localStorage.setItem('tabellandia_parent_pin', newPIN);
+              sound.playPowerUp();
+              setParentAuthenticated(true);
+              setShowPINModal(false);
+              setPinInput("");
+              setPinError("");
+            } else {
+              setPinError("PIN non valido!");
+            }
+          }, 600);
+        } else {
+          localStorage.setItem('tabellandia_parent_pin', pinInput);
+          sound.playPowerUp();
+          setParentAuthenticated(true);
+          setShowPINModal(false);
+          setPinInput("");
+          setPinError("");
+        }
       }
     } else {
       // Verifying existing PIN
@@ -361,9 +380,14 @@ export default function App() {
         setParentAuthenticated(true);
         setShowPINModal(false);
         setPinInput("");
+        setPinError("");
       } else {
         sound.playError();
-        setPinInput("");
+        setPinError("PIN errato!");
+        setTimeout(() => {
+          setPinInput("");
+          setPinError("");
+        }, 1500);
       }
     }
   };
@@ -372,6 +396,7 @@ export default function App() {
     sound.playClick();
     setShowPINModal(false);
     setPinInput("");
+    setPinError("");
     setParentAuthenticated(false);
     setActiveTab('adventure');
   };
@@ -838,14 +863,31 @@ export default function App() {
                 {/* PIN Display */}
                 <div className="flex justify-center gap-2 mb-6">
                   {[0, 1, 2, 3].map(i => (
-                    <div
+                    <motion.div
                       key={i}
-                      className="w-12 h-12 rounded-full bg-indigo-100 border-2 border-indigo-300 flex items-center justify-center font-black text-lg text-indigo-700"
+                      animate={pinError ? { x: [-5, 5, -5, 0] } : {}}
+                      transition={{ duration: 0.3 }}
+                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-lg transition-all ${
+                        pinError
+                          ? 'bg-red-100 border-red-400 text-red-600'
+                          : 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                      }`}
                     >
                       {pinInput[i] ? '●' : '-'}
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
+
+                {/* Error Message */}
+                {pinError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center mb-4 text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
+                  >
+                    {pinError}
+                  </motion.div>
+                )}
 
                 {/* Numeric Keypad */}
                 <NumericKeypad
