@@ -703,10 +703,10 @@ export default function App() {
                 <span className="text-xs font-black text-sky-950 leading-none">{profile.lightDrops}</span>
               </div>
 
-              <div className="ml-auto flex items-center gap-1 bg-white/65 rounded-full border border-white/80 px-2.5 py-1 pr-3">
+              <div className="ml-auto flex items-center gap-2 bg-white/65 rounded-full border border-white/80 px-3 py-1.5">
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
-                  className={`w-7 h-7 rounded-full border transition-colors cursor-pointer flex items-center justify-center ${
+                  className={`w-8 h-8 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
                     musicEnabled
                       ? 'bg-amber-100 border-amber-300 text-amber-700'
                       : 'bg-white/70 border-slate-200 text-slate-400'
@@ -715,14 +715,14 @@ export default function App() {
                   title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
                 >
                   <span className="relative flex items-center justify-center">
-                    <Music2 className="w-3.5 h-3.5" />
+                    <Music2 className="w-4 h-4" />
                     {!musicEnabled && <X className="w-2 h-2 absolute -right-1 -bottom-1 stroke-[3.2]" />}
                   </span>
                 </button>
 
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleEffects(); }}
-                  className={`w-7 h-7 rounded-full border transition-colors cursor-pointer flex items-center justify-center ${
+                  className={`w-8 h-8 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
                     effectsEnabled
                       ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600'
                       : 'bg-white/70 border-slate-200 text-slate-400'
@@ -731,7 +731,7 @@ export default function App() {
                   title={effectsEnabled ? "Disattiva effetti click" : "Attiva effetti click"}
                 >
                   <span className="relative flex items-center justify-center">
-                    <Volume2 className="w-3.5 h-3.5" />
+                    <Volume2 className="w-4 h-4" />
                     {!effectsEnabled && <X className="w-2 h-2 absolute -right-1 -bottom-1 stroke-[3.2]" />}
                   </span>
                 </button>
