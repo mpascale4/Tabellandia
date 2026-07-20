@@ -11,6 +11,9 @@ import { sound } from './components/SoundManager';
 import AvatarCreator from './components/AvatarCreator';
 import ParentDashboard from './components/ParentDashboard';
 import WorldDetail from './components/WorldDetail';
+import FontSizeControl from './components/FontSizeControl';
+import VoiceToggle from './components/VoiceToggle';
+import RewardsTutorial from './components/RewardsTutorial';
 import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, Smartphone, RefreshCw, Zap, Music2, X, Coins, Droplets } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
@@ -101,8 +104,8 @@ export default function App() {
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'avatar' | 'parents'>('adventure');
   const [selectedWorldId, setSelectedWorldId] = useState<number | null>(null);
-  const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState<boolean>(false);
-  const [showProfilePicker, setShowProfilePicker] = useState<boolean>(true);
+  const [showLanding, setShowLanding] = useState<boolean>(true);
+  const [showProfilePicker, setShowProfilePicker] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
     const raw = localStorage.getItem(AUDIO_SETTINGS_KEY);
@@ -126,6 +129,10 @@ export default function App() {
   });
   const [deviceMode, setDeviceMode] = useState<'phone' | 'tablet'>('phone');
   const isPhoneMode = deviceMode === 'phone';
+  const [showRewardsTutorial, setShowRewardsTutorial] = useState<boolean>(() => {
+    const seen = localStorage.getItem('tabellandia_rewards_tutorial_seen');
+    return !seen; // Show if never seen before
+  });
 
   // Setup Wizard State
   const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: char_create, 2: ready
@@ -175,7 +182,8 @@ export default function App() {
     const store = loadStore();
     setProfiles(store.profiles);
     setActiveProfileId(store.activeProfileId);
-    setShowProfilePicker(true);
+    setShowLanding(true);
+    setShowProfilePicker(false);
     setWizardStep(0);
     setIsLoaded(true);
   }, []);
@@ -290,7 +298,6 @@ export default function App() {
     setShowProfilePicker(false);
     setActiveTab('adventure');
     setSelectedWorldId(null);
-    setIsProfilePopoverOpen(false);
   };
 
   const handleSelectProfile = (selectedId: string) => {
@@ -303,7 +310,6 @@ export default function App() {
     setHeroNameInput('');
     setSelectedWorldId(null);
     setActiveTab('adventure');
-    setIsProfilePopoverOpen(false);
   };
 
   const handleStartProfileCreation = () => {
@@ -320,7 +326,6 @@ export default function App() {
     sound.playClick();
     setShowProfilePicker(true);
     setWizardStep(0);
-    setIsProfilePopoverOpen(false);
   };
 
   if (!isLoaded) {
@@ -330,6 +335,90 @@ export default function App() {
           <RefreshCw className="w-10 h-10 animate-spin text-indigo-400 mx-auto" />
           <p className="text-sm font-bold font-sans">Caricamento di Tabellandia...</p>
         </div>
+        <FontSizeControl />
+      </div>
+    );
+  }
+
+  if (showLanding) {
+    return (
+      <div className="w-full h-screen bg-gradient-to-b from-purple-100 to-indigo-100 flex items-center justify-center p-4 overflow-hidden relative" id="landing-screen">
+        {/* Decorative clouds */}
+        <div className="absolute top-8 left-1/4 w-32 h-12 bg-white/60 rounded-full blur-xl"></div>
+        <div className="absolute top-24 right-1/3 w-40 h-14 bg-white/50 rounded-full blur-2xl"></div>
+        
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center max-w-lg w-full space-y-8 relative z-10"
+        >
+          {/* Castle Logo */}
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 3, repeat: Infinity }}
+            className="text-7xl filter drop-shadow-lg"
+          >
+            🏰
+          </motion.div>
+
+          {/* Title */}
+          <div className="text-center space-y-2">
+            <h1 className="text-5xl md:text-6xl font-black text-indigo-950 tracking-wider font-sans">
+              Tabellandia
+            </h1>
+            <p className="text-sm md:text-base font-bold text-indigo-600 tracking-widest uppercase">
+              Un Regno di Numeri e Magia
+            </p>
+          </div>
+
+          {/* Welcome Message */}
+          <p className="text-center text-sm md:text-base text-indigo-900/80 leading-relaxed max-w-md font-medium">
+            Benvenuto! Sei pronto ad intraprendere un viaggio straordinario dove le tabelline diventano alleate fedeli, magie e creature leggendarie?
+          </p>
+
+          {/* Start Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              sound.playPowerUp();
+              setShowLanding(false);
+              setShowProfilePicker(true);
+            }}
+            className="w-full max-w-xs py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-lg shadow-2xl cursor-pointer transition-all"
+            id="landing-start-btn"
+          >
+            Inizia l'Avventura!
+          </motion.button>
+
+          {/* Info Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRewardsTutorial(true)}
+            className="w-full max-w-xs py-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black text-base shadow-lg cursor-pointer transition-all flex items-center justify-center gap-2"
+            id="landing-info-btn"
+          >
+            <Coins className="w-5 h-5" />
+            Come Guadagnare Premi
+          </motion.button>
+
+          {/* Decorative stars */}
+          <div className="flex gap-3 mt-4">
+            <span className="text-2xl animate-bounce" style={{ animationDelay: '0s' }}>✨</span>
+            <span className="text-2xl animate-bounce" style={{ animationDelay: '0.3s' }}>⭐</span>
+            <span className="text-2xl animate-bounce" style={{ animationDelay: '0.6s' }}>✨</span>
+          </div>
+        </motion.div>
+
+        {/* Rewards Tutorial Modal */}
+        <RewardsTutorial
+          isOpen={showRewardsTutorial}
+          onClose={() => {
+            setShowRewardsTutorial(false);
+            localStorage.setItem('tabellandia_rewards_tutorial_seen', 'true');
+          }}
+        />
       </div>
     );
   }
@@ -342,16 +431,16 @@ export default function App() {
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-3xl p-6 md:p-8 max-w-4xl w-full shadow-2xl relative z-10 border-2 border-indigo-200"
+          className="bg-white rounded-3xl p-4 sm:p-6 md:p-8 max-w-4xl w-full shadow-2xl relative z-10 border-2 border-indigo-200 max-h-[90vh] overflow-hidden flex flex-col"
         >
-          <div className="text-center space-y-3 mb-6">
-            <h1 className="text-2xl md:text-3xl font-black text-indigo-950 tracking-wide font-sans">Chi entra a Tabellandia?</h1>
-            <p className="text-xs md:text-sm text-slate-500 leading-relaxed max-w-2xl mx-auto font-sans">
+          <div className="text-center space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-indigo-950 tracking-wide font-sans">Chi entra a Tabellandia?</h1>
+            <p className="text-[11px] sm:text-xs md:text-sm text-slate-500 leading-relaxed max-w-2xl mx-auto font-sans">
               Scegli un profilo esistente oppure creane uno nuovo. Ogni profilo conserva progressi, monete, gocce e dettagli di crescita.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[52vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pr-1 flex-1">
             {profiles.map(p => {
               const age = p.birthYear ? CURRENT_YEAR - p.birthYear : null;
               const isActive = activeProfileId === p.id;
@@ -408,7 +497,7 @@ export default function App() {
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative z-10 flex flex-col justify-between min-h-[400px] border-2 border-indigo-200"
+          className="bg-white rounded-3xl p-4 sm:p-6 md:p-8 max-w-lg w-full shadow-2xl relative z-10 flex flex-col justify-between min-h-[400px] border-2 border-indigo-200"
         >
           {wizardStep === 1 && (
             <div className="space-y-5 flex-1 flex flex-col justify-center">
@@ -586,12 +675,11 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   sound.playClick();
-                  setIsProfilePopoverOpen(!isProfilePopoverOpen);
+                  handleSwitchProfile();
                 }}
                 className="flex flex-col items-center justify-center w-14 shrink-0 cursor-pointer"
                 id="profile-icon-btn"
-                aria-expanded={isProfilePopoverOpen}
-                title="Apri profilo"
+                title="Cambia profilo"
               >
                 <div className="w-11 h-11 bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center text-2xl">
                   🦁
@@ -647,57 +735,10 @@ export default function App() {
                     {!effectsEnabled && <X className="w-2 h-2 absolute -right-1 -bottom-1 stroke-[3.2]" />}
                   </span>
                 </button>
+
+                <VoiceToggle />
               </div>
             </div>
-
-            {isProfilePopoverOpen && (
-              <div className="absolute left-0 top-full mt-2 w-full max-w-2xl rounded-3xl border border-white/70 bg-white/95 backdrop-blur-md shadow-2xl p-3 z-50">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-full bg-orange-400 border-2 border-white shadow-inner flex items-center justify-center text-2xl shrink-0">
-                      🦁
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-sky-950 uppercase tracking-wider leading-none">{profile.name}</p>
-                      <p className="text-[10px] font-semibold text-sky-900/70 mt-1">
-                        {profile.birthYear ? `Nato nel ${profile.birthYear}` : 'Anno di nascita da impostare'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsProfilePopoverOpen(false)}
-                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer"
-                    aria-label="Chiudi profilo"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="rounded-2xl bg-amber-50 border border-amber-100 px-3 py-2 text-center">
-                    <span className="block text-[9px] font-bold uppercase tracking-wide text-amber-700">Monete</span>
-                    <span className="block text-sm font-black text-slate-950 leading-none mt-1">{profile.coins}</span>
-                  </div>
-                  <div className="rounded-2xl bg-sky-50 border border-sky-100 px-3 py-2 text-center">
-                    <span className="block text-[9px] font-bold uppercase tracking-wide text-sky-700">Gocce</span>
-                    <span className="block text-sm font-black text-slate-950 leading-none mt-1">{profile.lightDrops}</span>
-                  </div>
-                  <div className="rounded-2xl bg-fuchsia-50 border border-fuchsia-100 px-3 py-2 text-center">
-                    <span className="block text-[9px] font-bold uppercase tracking-wide text-fuchsia-700">Audio</span>
-                    <span className="block text-[10px] font-black text-slate-950 leading-none mt-1">{musicEnabled ? 'ON' : 'OFF'} / {effectsEnabled ? 'ON' : 'OFF'}</span>
-                  </div>
-                </div>
-                <div className="mt-3 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleSwitchProfile}
-                    className="text-[10px] font-black uppercase tracking-wide text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-full px-3 py-1 cursor-pointer"
-                  >
-                    Cambia profilo
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </header>
 
@@ -740,24 +781,26 @@ export default function App() {
             <AnimatePresence mode="wait">
               {selectedWorldId !== null ? (
                 // Selected World Detail gameplay view
-                <motion.div
-                  key="world-detail"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="w-full h-full"
-                >
-                  <WorldDetail
-                    world={WORLDS_DATA.find(w => w.id === selectedWorldId)!}
-                    profile={profile}
-                    updateProfile={handleUpdateProfile}
-                    compactLayout={isPhoneMode}
-                    onBack={() => {
-                      sound.playClick();
-                      setSelectedWorldId(null);
-                    }}
-                  />
-                </motion.div>
+                profile ? (
+                  <motion.div
+                    key="world-detail"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="w-full h-full"
+                  >
+                    <WorldDetail
+                      world={WORLDS_DATA.find(w => w.id === selectedWorldId)!}
+                      profile={profile}
+                      updateProfile={handleUpdateProfile}
+                      compactLayout={isPhoneMode}
+                      onBack={() => {
+                        sound.playClick();
+                        setSelectedWorldId(null);
+                      }}
+                    />
+                  </motion.div>
+                ) : null
               ) : (
                 // Main Area Tabs
                 <motion.div

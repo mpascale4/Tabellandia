@@ -9,6 +9,10 @@ import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
 import { Sparkles, HelpCircle, ArrowLeft, Check, AlertCircle, Award, Timer, BookOpen, Trophy, Compass, ShieldAlert } from 'lucide-react';
 import GroupVisualizer from './GroupVisualizer';
+import StepRulesModal from './StepRulesModal';
+import RewardPopup from './RewardPopup';
+import NumericKeypad from './NumericKeypad';
+import RewardsTutorial from './RewardsTutorial';
 
 interface WorldDetailProps {
   world: WorldConfig;
@@ -20,6 +24,10 @@ interface WorldDetailProps {
 
 export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false }: WorldDetailProps) {
   const [activeStep, setActiveStep] = useState<string>('intro'); // intro, comprendo, salto, costruisco, trucchi, pratico, sfida
+  const [showStepRulesModal, setShowStepRulesModal] = useState<string | null>(null); // null o il nome dello step
+  const [hasSeenStepRules, setHasSeenStepRules] = useState<Set<string>>(new Set()); // Track which steps have been seen
+  const [hasReadRulesMandatory, setHasReadRulesMandatory] = useState<Set<string>>(new Set()); // Track mandatory rule reading
+  const [showRewardPopup, setShowRewardPopup] = useState<{ step: string; coins: number; drops: number } | null>(null);
   
   // States for sub-games
   const [stepScore, setStepScore] = useState<number>(0);
@@ -71,17 +79,32 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     resetCostruisco();
   }, [world]);
 
+  // Show rules modal when entering a new step
+  useEffect(() => {
+    if (activeStep !== 'intro' && !hasSeenStepRules.has(activeStep)) {
+      // First time seeing this step - show modal automatically
+      setShowStepRulesModal(activeStep);
+      setHasSeenStepRules(prev => new Set([...prev, activeStep]));
+    }
+  }, [activeStep, hasSeenStepRules]);
+
   // Generate options for Salto mode
   const generateSaltoOptions = () => {
     const currentCorrect = world.id * (saltoIndex + 1);
     // Create random wrong options
     const optionsSet = new Set<number>([currentCorrect]);
-    while (optionsSet.size < 4) {
+    let attempts = 0;
+    while (optionsSet.size < 4 && attempts < 50) {
       const offset = (Math.floor(Math.random() * 5) - 2) * world.id;
       const wrongVal = currentCorrect + (offset === 0 ? world.id * 2 : offset);
       if (wrongVal > 0 && wrongVal <= world.id * 12) {
         optionsSet.add(wrongVal);
       }
+      attempts++;
+    }
+    // Fallback if not enough options generated
+    while (optionsSet.size < 4) {
+      optionsSet.add(currentCorrect + Math.floor(Math.random() * 20) + 1);
     }
     setSaltoOptions(Array.from(optionsSet).sort((a, b) => a - b));
   };
@@ -132,7 +155,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const generateQuizOptions = (a: number, b: number) => {
     const correct = a * b;
     const options = new Set<number>([correct]);
-    while (options.size < 4) {
+    
+    // Add mistakes with attempt limit to avoid infinite loop
+    let attempts = 0;
+    const maxAttempts = 50;
+    
+    while (options.size < 4 && attempts < maxAttempts) {
       // typical mistakes: close answers, off by one multiplier, or commute errors
       const mistakes = [
         correct + a,
@@ -148,7 +176,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       if (randMistake > 0 && randMistake !== correct) {
         options.add(randMistake);
       }
+      attempts++;
     }
+    
     // Fallback if set is too small
     while (options.size < 4) {
       options.add(correct + Math.floor(Math.random() * 10) + 1);
@@ -465,6 +495,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Helper to save completed sub-steps offline and evolve creature
   const saveStepCompleted = (stepName: string) => {
+    // Rewards based on step
+    const rewardMap: { [key: string]: { coins: number; drops: number } } = {
+      comprendo: { coins: 20, drops: 0 },
+      salto: { coins: 20, drops: 0 },
+      costruisco: { coins: 20, drops: 0 },
+      trucchi: { coins: 20, drops: 0 },
+      pratico: { coins: 30, drops: 10 },
+      sfida: { coins: 50, drops: 20 }
+    };
+    
+    const reward = rewardMap[stepName] || { coins: 20, drops: 0 };
+
     updateProfile(p => {
       const worldProg = p.worldProgress[world.id] || {
         worldId: world.id,
@@ -482,7 +524,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
       // XP and Coin rewards for world steps completed! (Gamification)
       let nextXP = p.xp + 50;
-      let nextCoins = p.coins + 20; // major coin bonus!
+      let nextCoins = p.coins + reward.coins;
+      let nextLightDrops = p.lightDrops + reward.drops;
       let nextLevel = p.level;
       if (nextXP >= nextLevel * 100) nextLevel += 1;
 
@@ -505,6 +548,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         ...p,
         xp: nextXP,
         coins: nextCoins,
+        lightDrops: nextLightDrops,
         level: nextLevel,
         unlockedWorlds: nextUnlocked,
         worldProgress: {
@@ -517,6 +561,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         }
       };
     });
+
+    // Show reward popup
+    setShowRewardPopup({ step: stepName, coins: reward.coins, drops: reward.drops });
   };
 
   const handleRebuildMonument = (monId: string, cost: number) => {
@@ -564,9 +611,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const isSfidaLocked = !worldProg.completedSteps.includes('pratico');
 
   return (
-    <div className="w-full h-full bg-transparent flex flex-col" id={`world-panel-${world.id}`}>
+    <div className="w-full h-full bg-transparent flex flex-col overflow-hidden" id={`world-panel-${world.id}`}>
+      {/* Step-contextual Rules Modal */}
+      <AnimatePresence>
+        {showStepRulesModal && (
+          <StepRulesModal 
+            step={showStepRulesModal} 
+            world={world} 
+            onClose={() => {
+              setShowStepRulesModal(null);
+              setHasReadRulesMandatory(prev => new Set([...prev, showStepRulesModal]));
+            }} 
+            isMandatory={!hasReadRulesMandatory.has(showStepRulesModal)}
+          />
+        )}
+      </AnimatePresence>
+      
       {/* Top action bar */}
-      <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 ${compactLayout ? 'gap-2' : ''}`}>
+      <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
         <button
           onClick={() => { sound.playClick(); onBack(); }}
           className="flex items-center gap-1.5 text-xs font-bold text-sky-950 hover:text-sky-900 bg-white/40 border border-white/60 px-3.5 py-1.5 rounded-xl cursor-pointer shadow-sm transition-colors"
@@ -579,15 +641,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           <span className="text-xl select-none leading-none">{world.symbol}</span>
           <span className="text-sm font-black text-sky-950 font-sans">{world.name}</span>
         </div>
-
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1.5 text-sky-950 bg-white/40 px-3 py-1.5 border border-white/60 rounded-full text-xs font-black shadow-sm">
-            🪙 {profile.coins}
-          </div>
-          <div className="flex items-center gap-1.5 text-sky-950 bg-white/40 px-3 py-1.5 border border-white/60 rounded-full text-xs font-black shadow-sm">
-            💧 {profile.lightDrops}
-          </div>
-        </div>
       </div>
 
       {/* Main Container */}
@@ -595,7 +648,19 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'intro' && (
           <div className="max-w-4xl mx-auto w-full space-y-6 flex-1 flex flex-col justify-between">
             {/* Mascot Banner Card */}
-            <div className={`rounded-3xl bg-gradient-to-r ${world.color} p-5 md:p-6 text-white shadow-xl relative overflow-hidden`}>
+            <div 
+              className={`rounded-3xl bg-gradient-to-r ${
+                world.id === 2 ? 'from-emerald-500 to-green-600' :
+                world.id === 3 ? 'from-sky-500 to-blue-600' :
+                world.id === 4 ? 'from-amber-600 to-orange-700' :
+                world.id === 5 ? 'from-yellow-500 to-amber-500' :
+                world.id === 6 ? 'from-red-500 to-rose-600' :
+                world.id === 7 ? 'from-purple-600 to-indigo-700' :
+                world.id === 8 ? 'from-pink-500 to-rose-600' :
+                world.id === 9 ? 'from-teal-500 to-cyan-600' :
+                'from-yellow-600 to-amber-600'
+              } p-5 md:p-6 text-white shadow-xl relative overflow-hidden`}
+            >
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full translate-x-12 -translate-y-12 filter blur-xl"></div>
               
               <div className="flex flex-col md:flex-row gap-4 items-center relative z-10">
@@ -620,7 +685,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">
                   🎶 La Filastrocca del {world.id}
                 </span>
-                <p className="text-xs italic text-white/90 leading-relaxed mt-1 font-serif">
+                <p className="text-sm not-italic text-white leading-relaxed mt-2 font-sans font-medium">
                   {world.filastrocca}
                 </p>
               </div>
@@ -637,16 +702,20 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 </h3>
 
                 {[
-                  { id: 'comprendo', title: '1. Comprendo', desc: 'Rappresentazione visuale e concettuale dei gruppi.', icon: '🍎' },
-                  { id: 'salto', title: '2. Salto', desc: 'Salto e conteggio ritmico lungo il ruscello.', icon: '🐸' },
-                  { id: 'costruisco', title: '3. Costruisco', desc: 'Sblocca e componi la griglia dei moltiplicatori.', icon: '🧱' },
-                  { id: 'trucchi', title: '4. Trucchi', desc: 'Istruzione cognitiva e regole associative.', icon: '🧠' },
-                  { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Libera la nebbia del regno rispondendo ai quiz.', icon: '🛡️' },
-                  { id: 'sfida', title: '6. Sfida (Cronometro)', desc: 'Test di velocità per guadagnare stelle d\'oro.', icon: '⚡' }
+                  { id: 'comprendo', title: '1. Comprendo', desc: 'Rappresentazione visuale e concettuale dei gruppi.', icon: '🍎', coins: 20, drops: 0 },
+                  { id: 'salto', title: '2. Salto', desc: 'Salto e conteggio ritmico lungo il ruscello.', icon: '🐸', coins: 20, drops: 0 },
+                  { id: 'costruisco', title: '3. Costruisco', desc: 'Sblocca e componi la griglia dei moltiplicatori.', icon: '🧱', coins: 20, drops: 0 },
+                  { id: 'trucchi', title: '4. Trucchi', desc: 'Istruzione cognitiva e regole associative.', icon: '🧠', coins: 20, drops: 0 },
+                  { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Libera la nebbia del regno rispondendo ai quiz.', icon: '🛡️', coins: 30, drops: 10 },
+                  { id: 'sfida', title: '6. Sfida (Cronometro)', desc: 'Test di velocità per guadagnare stelle d\'oro.', icon: '⚡', coins: 50, drops: 20 }
                 ].map((step, idx) => {
                   const isDone = worldProg.completedSteps.includes(step.id);
                   const isSfida = step.id === 'sfida';
-                  const isLocked = isSfida && isSfidaLocked;
+                   
+                  // Step progression: each step is locked until previous is completed
+                  const prevStep = idx > 0 ? worldProg.completedSteps.includes(['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'][idx - 1]) : true;
+                  const isLocked = !prevStep || (isSfida && isSfidaLocked);
+                  const lockReason = !prevStep ? `Completa ${['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico'][idx - 1]}` : 'Sblocca 5';
 
                   return (
                     <button
@@ -670,13 +739,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       }`}
                       id={`step-btn-${step.id}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl select-none ${
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl select-none flex-shrink-0 ${
                           isLocked ? 'bg-slate-100' : isDone ? 'bg-emerald-100/50' : 'bg-indigo-50'
                         }`}>
                           {isLocked ? '🔒' : step.icon}
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h4 className={`text-xs font-bold font-sans ${isDone ? 'text-emerald-900' : 'text-slate-800'}`}>
                             {step.title}
                           </h4>
@@ -684,9 +753,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                        {/* Rewards box */}
+                        {!isLocked && (
+                          <div className="text-[9px] font-bold text-amber-700 bg-amber-100/60 px-2 py-1 rounded-lg flex items-center gap-1 whitespace-nowrap">
+                            {step.coins > 0 && <span>🪙 {step.coins}</span>}
+                            {step.drops > 0 && <span>💧 {step.drops}</span>}
+                          </div>
+                        )}
+                         
+                        {/* Status badge */}
                         {isLocked ? (
-                          <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Sblocca 5</span>
+                          <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{lockReason}</span>
                         ) : isDone ? (
                           <span className="text-xs font-bold text-emerald-600 bg-emerald-100/60 px-2.5 py-0.5 rounded-full flex items-center gap-0.5 font-sans">
                             ✓ Fatto
@@ -774,9 +852,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'comprendo' && (
           <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
             <div className="text-center">
-              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
-                Passo 1: Comprendo il concetto
-              </span>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
+                  Passo 1: Comprendo il concetto
+                </span>
+                <button
+                  onClick={() => setShowStepRulesModal('comprendo')}
+                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+                    !hasReadRulesMandatory.has('comprendo')
+                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
+                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                  }`}
+                  title="Visualizza regole"
+                  aria-label="Visualizza regole"
+                >
+                  <HelpCircle className={!hasReadRulesMandatory.has('comprendo') ? 'w-5 h-5' : 'w-4 h-4'} />
+                </button>
+              </div>
               <h3 className="text-lg font-black text-slate-800 mt-1 font-sans">
                 Che cos'è {world.id} x 4?
               </h3>
@@ -815,14 +907,28 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {/* STEP 2: SALTO (Skip Counting) */}
         {activeStep === 'salto' && (
           <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            <div className="text-center">
-              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
-                Passo 2: Conteggio per salti
-              </span>
-              <h3 className="text-lg font-black text-slate-800 mt-1">
-                Aiuta {world.mascotName} a saltare i sassi!
+            <div className="text-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-5 border-2 border-indigo-200 shadow-md">
+              <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
+                <span className="text-[11px] font-black text-indigo-700 bg-indigo-100/80 px-3 py-1 rounded-full font-sans uppercase tracking-wider">
+                  Passo 2: Conteggio per salti
+                </span>
+                <button
+                  onClick={() => setShowStepRulesModal('salto')}
+                  className={`flex-shrink-0 rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+                    !hasReadRulesMandatory.has('salto')
+                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
+                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                  }`}
+                  title="Visualizza regole"
+                  aria-label="Visualizza regole"
+                >
+                  <HelpCircle className={!hasReadRulesMandatory.has('salto') ? 'w-5 h-5' : 'w-4 h-4'} />
+                </button>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-3 font-sans leading-tight">
+                🐸 Aiuta {world.mascotName} a saltare i sassi!
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-sm font-bold text-indigo-800 mt-3 leading-relaxed bg-white/60 rounded-xl p-3 inline-block">
                 Tocca il numero successivo corretto per completare la sequenza della tabellina.
               </p>
             </div>
@@ -889,9 +995,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'costruisco' && (
           <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
             <div className="text-center">
-              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
-                Passo 3: Costruisci la Tabellina
-              </span>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+                  Passo 3: Costruisci la Tabellina
+                </span>
+                <button
+                  onClick={() => setShowStepRulesModal('costruisco')}
+                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+                    !hasReadRulesMandatory.has('costruisco')
+                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
+                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                  }`}
+                  title="Visualizza regole"
+                  aria-label="Visualizza regole"
+                >
+                  <HelpCircle className={!hasReadRulesMandatory.has('costruisco') ? 'w-5 h-5' : 'w-4 h-4'} />
+                </button>
+              </div>
               <h3 className="text-lg font-black text-slate-800 mt-1">
                 Completa i risultati mancanti!
               </h3>
@@ -972,9 +1092,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'trucchi' && (
           <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-5">
             <div className="text-center">
-              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
-                Passo 4: Il Trucco Mnemonico
-              </span>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+                  Passo 4: Il Trucco Mnemonico
+                </span>
+                <button
+                  onClick={() => setShowStepRulesModal('trucchi')}
+                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+                    !hasReadRulesMandatory.has('trucchi')
+                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
+                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                  }`}
+                  title="Visualizza regole"
+                  aria-label="Visualizza regole"
+                >
+                  <HelpCircle className={!hasReadRulesMandatory.has('trucchi') ? 'w-5 h-5' : 'w-4 h-4'} />
+                </button>
+              </div>
               <h3 className="text-lg font-black text-slate-800 mt-1 font-sans">
                 {world.trickTitle}
               </h3>
@@ -1003,35 +1137,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
             {/* Mini quiz using the trick */}
             <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50">
-              <h4 className="text-xs font-bold text-slate-700 mb-3">
+              <h4 className="text-sm sm:text-base font-bold text-slate-700 mb-4 text-center">
                 Mettiamolo in pratica! Quanto fa <strong>{world.id} x 8</strong>?
               </h4>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  placeholder="Scrivi il risultato..."
-                  value={trucchiAnswer}
-                  onChange={e => setTrucchiAnswer(e.target.value)}
-                  className="flex-1 py-2.5 px-4 rounded-xl border border-indigo-100 font-mono font-bold text-slate-800 text-sm focus:outline-none focus:border-indigo-500 bg-white"
-                  id="trick-input"
-                />
-                <button
-                  onClick={() => {
-                    if (parseInt(trucchiAnswer.trim(), 10) === world.id * 8) {
-                      sound.playSuccess();
-                      setTrucchiQuestionSolved(true);
-                    } else {
-                      sound.playError();
-                    }
-                  }}
-                  className="py-2.5 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md cursor-pointer transition-colors"
-                  id="trick-submit-btn"
-                >
-                  Verifica
-                </button>
-              </div>
+              <NumericKeypad
+                value={trucchiAnswer}
+                onChange={setTrucchiAnswer}
+                onSubmit={() => {
+                  if (parseInt(trucchiAnswer.trim(), 10) === world.id * 8) {
+                    sound.playSuccess();
+                    setTrucchiQuestionSolved(true);
+                  } else {
+                    sound.playError();
+                    setTrucchiAnswer('');
+                  }
+                }}
+                submitLabel="Verifica"
+                maxDigits={3}
+              />
               {trucchiQuestionSolved && (
-                <p className="text-xs font-bold text-emerald-600 mt-2 flex items-center gap-1">
+                <p className="text-xs font-bold text-emerald-600 mt-4 flex items-center justify-center gap-1">
                   ✓ Eccellente! Risposta corretta. Ora puoi procedere.
                 </p>
               )}
@@ -1059,14 +1184,28 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {/* STEP 5: PRATICO (QUIZ MODE with ADAPTIVE assistance) */}
         {activeStep === 'pratico' && quizQuestions.length > 0 && (
           <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            {/* Quiz progress indicator */}
+            {/* Progress and help button */}
             <div className="flex justify-between items-center text-xs text-slate-400">
               <span className="font-bold font-sans">
                 Liberazione Nebbia: {currentQuizIdx + 1} di {quizQuestions.length}
               </span>
-              <span className="font-bold font-mono text-emerald-600">
-                Corrette: {quizCorrectCount}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold font-mono text-emerald-600">
+                  Corrette: {quizCorrectCount}
+                </span>
+                <button
+                  onClick={() => setShowStepRulesModal('pratico')}
+                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+                    !hasReadRulesMandatory.has('pratico')
+                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
+                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                  }`}
+                  title="Visualizza regole"
+                  aria-label="Visualizza regole"
+                >
+                  <HelpCircle className={!hasReadRulesMandatory.has('pratico') ? 'w-5 h-5' : 'w-4 h-4'} />
+                </button>
+              </div>
             </div>
 
             {/* Quiz question card */}
@@ -1101,7 +1240,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 className="text-xs text-slate-500 font-bold hover:underline cursor-pointer"
                 id="quiz-exit-btn"
               >
-                Arrenditi ed esci
+                ← Torna al menu principale
               </button>
             </div>
           </div>
@@ -1117,10 +1256,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Tempo: {sfidaTimer}s
               </div>
 
-              {/* Sfida score */}
-              <div className="flex items-center gap-1.5 text-amber-600 font-bold font-mono bg-amber-50 px-3 py-1 rounded-full text-sm">
-                <Trophy className="w-4 h-4" />
-                Punti: {sfidaScore}
+              {/* Score + Help */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-amber-600 font-bold font-mono bg-amber-50 px-3 py-1 rounded-full text-sm">
+                  <Trophy className="w-4 h-4" />
+                  Punti: {sfidaScore}
+                </div>
+                <button
+                  onClick={() => setShowStepRulesModal('sfida')}
+                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+                    !hasReadRulesMandatory.has('sfida')
+                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
+                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                  }`}
+                  title="Visualizza regole"
+                  aria-label="Visualizza regole"
+                >
+                  <HelpCircle className={!hasReadRulesMandatory.has('sfida') ? 'w-5 h-5' : 'w-4 h-4'} />
+                </button>
               </div>
             </div>
 
@@ -1236,6 +1389,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           </div>
         )}
       </AnimatePresence>
+
+      {/* Reward Popup */}
+      {showRewardPopup && (
+        <RewardPopup
+          isOpen={!!showRewardPopup}
+          stepName={showRewardPopup.step}
+          coins={showRewardPopup.coins}
+          drops={showRewardPopup.drops}
+          onClose={() => setShowRewardPopup(null)}
+        />
+      )}
     </div>
   );
 }

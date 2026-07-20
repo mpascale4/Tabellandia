@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { sound } from './SoundManager';
+import { useVoice } from '../contexts/VoiceContext';
 
 interface GroupVisualizerProps {
   a: number; // multiplier, e.g. 3
@@ -17,6 +18,7 @@ interface GroupVisualizerProps {
 export default function GroupVisualizer({ a, b, itemEmoji, accentClass }: GroupVisualizerProps) {
   // Track which items have been tapped/counted by the child
   const [tappedItems, setTappedItems] = useState<{ [key: string]: boolean }>({});
+  const { speak } = useVoice();
   
   // Reset tapped items when values change
   useEffect(() => {
@@ -26,6 +28,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, accentClass }: GroupV
   const handleItemTap = (groupIndex: number, itemIndex: number, globalIndex: number) => {
     const key = `${groupIndex}-${itemIndex}`;
     sound.playClick();
+    speak(globalIndex.toString());
     setTappedItems(prev => ({
       ...prev,
       [key]: !prev[key]
@@ -58,12 +61,12 @@ export default function GroupVisualizer({ a, b, itemEmoji, accentClass }: GroupV
       </div>
 
       {/* Grid of Groups */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center max-h-[300px] overflow-y-auto p-2">
+      <div className="w-full flex flex-wrap items-center justify-center gap-3 p-2">
         {Array.from({ length: a }).map((_, groupIdx) => {
           return (
             <div 
               key={groupIdx} 
-              className="bg-sky-50/50 rounded-xl p-3 border-2 border-dashed border-sky-200 w-full max-w-[150px] flex flex-col items-center shadow-sm"
+              className="bg-sky-50/50 rounded-xl p-3 border-2 border-dashed border-sky-200 flex flex-col items-center shadow-sm flex-shrink-0 overflow-hidden relative"
               id={`visual-group-${groupIdx}`}
             >
               <div className="text-xs font-bold text-sky-700/80 mb-2 uppercase tracking-wide">
@@ -93,9 +96,13 @@ export default function GroupVisualizer({ a, b, itemEmoji, accentClass }: GroupV
                       
                       {/* Interactive Tap Count Indicator */}
                       {isTapped && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white font-mono text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-bounce shadow-sm">
+                        <motion.span
+                          initial={{ scale: 0.5, y: -10 }}
+                          animate={{ scale: 1, y: 0 }}
+                          className="absolute -top-2 -right-2 bg-gradient-to-br from-amber-400 to-amber-600 text-white font-mono text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg border-2 border-amber-200 ring-2 ring-white"
+                        >
                           {globalIdx}
-                        </span>
+                        </motion.span>
                       )}
                     </motion.button>
                   );
