@@ -13,9 +13,10 @@ import { Sparkles, Coins, ShoppingBag, Palette, Shirt, Award, Check } from 'luci
 interface AvatarCreatorProps {
   profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
+  compactLayout?: boolean;
 }
 
-export default function AvatarCreator({ profile, updateProfile }: AvatarCreatorProps) {
+export default function AvatarCreator({ profile, updateProfile, compactLayout = false }: AvatarCreatorProps) {
   const [activeTab, setActiveTab] = useState<'customize' | 'shop'>('customize');
   const [shopCategory, setShopCategory] = useState<'hair' | 'shirt' | 'pants' | 'hat' | 'backpack'>('hair');
   const [custCategory, setCustCategory] = useState<'base' | 'hair' | 'shirt' | 'pants' | 'hat' | 'backpack' | 'mascot'>('base');
@@ -182,9 +183,9 @@ export default function AvatarCreator({ profile, updateProfile }: AvatarCreatorP
   };
 
   return (
-    <div className="w-full flex flex-col md:flex-row gap-6 p-1 h-full" id="avatar-creator-panel">
+    <div className={`w-full flex flex-col gap-4 p-1 h-full ${compactLayout ? '' : 'md:flex-row md:gap-6'}`} id="avatar-creator-panel">
       {/* Left side: Avatar Preview & Stats */}
-      <div className="flex flex-col items-center bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl md:w-1/3 justify-center min-w-[240px]">
+      <div className={`flex flex-col items-center bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl justify-center ${compactLayout ? 'w-full' : 'md:w-1/3 min-w-[240px]'}`}>
         <h3 className="text-lg font-bold text-indigo-950 flex items-center gap-1.5 mb-1 font-sans">
           <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500" />
           Il Mio Eroe

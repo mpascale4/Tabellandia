@@ -11,9 +11,10 @@ import { sound } from './components/SoundManager';
 import AvatarCreator from './components/AvatarCreator';
 import ParentDashboard from './components/ParentDashboard';
 import WorldDetail from './components/WorldDetail';
-import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, VolumeX, Smartphone, RefreshCw, Zap } from 'lucide-react';
+import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, Smartphone, RefreshCw, Zap, Music2, X, Coins, Droplets } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
+const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
 
 const DEFAULT_PROFILE: UserProfile = {
   name: "Eroe",
@@ -43,8 +44,28 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'avatar' | 'parents'>('adventure');
   const [selectedWorldId, setSelectedWorldId] = useState<number | null>(null);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [showAndroidBezel, setShowAndroidBezel] = useState<boolean>(true);
+  const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
+    const raw = localStorage.getItem(AUDIO_SETTINGS_KEY);
+    if (!raw) return true;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.musicEnabled !== false;
+    } catch {
+      return true;
+    }
+  });
+  const [effectsEnabled, setEffectsEnabled] = useState<boolean>(() => {
+    const raw = localStorage.getItem(AUDIO_SETTINGS_KEY);
+    if (!raw) return true;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.effectsEnabled !== false;
+    } catch {
+      return true;
+    }
+  });
+  const [deviceMode, setDeviceMode] = useState<'phone' | 'tablet'>('phone');
+  const isPhoneMode = deviceMode === 'phone';
 
   // Setup Wizard State
   const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: intro, 2: story, 3: char_create, 4: ready
@@ -72,6 +93,34 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    sound.setMusicEnabled(musicEnabled);
+    sound.setEffectsEnabled(effectsEnabled);
+    localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify({ musicEnabled, effectsEnabled }));
+    if (musicEnabled) {
+      sound.startBackgroundMusic();
+    } else {
+      sound.stopBackgroundMusic();
+    }
+  }, [musicEnabled, effectsEnabled]);
+
+  useEffect(() => {
+    const unlockAudio = () => {
+      sound.primeAudio();
+      if (musicEnabled) {
+        sound.startBackgroundMusic();
+      }
+    };
+
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, [musicEnabled]);
+
   // Sync back to local storage helper
   const handleUpdateProfile = (updater: (p: UserProfile) => UserProfile) => {
     setProfile(p => {
@@ -82,11 +131,22 @@ export default function App() {
     });
   };
 
-  const toggleMute = () => {
-    const nextState = !isMuted;
-    setIsMuted(nextState);
-    sound.setMuted(nextState);
+  const toggleMusic = () => {
+    const nextState = !musicEnabled;
+    sound.primeAudio();
+    if (nextState) {
+      sound.startBackgroundMusic();
+    } else {
+      sound.stopBackgroundMusic();
+    }
+    setMusicEnabled(nextState);
     sound.playClick();
+  };
+
+  const toggleEffects = () => {
+    const nextState = !effectsEnabled;
+    setEffectsEnabled(nextState);
+    sound.setEffectsEnabled(nextState);
   };
 
   const handleStartWizard = () => {
@@ -234,22 +294,22 @@ export default function App() {
       
       {/* Device frame toggle for responsive showcase */}
       <div className="mb-2 text-xs font-bold text-slate-400 flex items-center gap-3">
-        <span>Dimostratore Android "Tabellandia"</span>
+        <span>{isPhoneMode ? 'Vista smartphone' : 'Dimostratore Android "Tabellandia"'}</span>
         <button
-          onClick={() => setShowAndroidBezel(!showAndroidBezel)}
+          onClick={() => setDeviceMode(isPhoneMode ? 'tablet' : 'phone')}
           className="flex items-center gap-1 bg-slate-800 text-white px-2 py-1 rounded hover:bg-slate-700 cursor-pointer"
           id="bezel-toggle"
         >
           <Smartphone className="w-3.5 h-3.5" />
-          {showAndroidBezel ? "Nascondi Bezel Tablet" : "Mostra Bezel Tablet"}
+          {isPhoneMode ? "Passa alla vista tablet" : "Passa alla vista smartphone"}
         </button>
       </div>
 
       {/* Main Container mimicking tablet bezel */}
       <div className={`w-full transition-all relative ${
-        showAndroidBezel 
-          ? 'max-w-5xl aspect-[4/3] min-h-[600px] border-[14px] border-slate-800 rounded-[36px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800' 
-          : 'max-w-7xl w-full min-h-screen bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col rounded-3xl overflow-hidden text-slate-800'
+        isPhoneMode 
+          ? 'max-w-[430px] w-full h-[min(88vh,860px)] border-[12px] border-slate-800 rounded-[42px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800'
+          : 'max-w-5xl aspect-[4/3] min-h-[600px] border-[14px] border-slate-800 rounded-[36px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800' 
       }`}>
         
         {/* Sky Background Elements */}
@@ -257,7 +317,7 @@ export default function App() {
         <div className="absolute top-28 right-36 w-48 h-16 bg-white/15 rounded-full blur-2xl pointer-events-none z-0"></div>
         
         {/* Android status bar simulation if bezel is shown */}
-        {showAndroidBezel && (
+        {isPhoneMode && (
           <div className="bg-slate-950/40 text-slate-200 px-6 py-1 text-[10px] flex items-center justify-between select-none font-sans border-b border-white/10 z-10 backdrop-blur-sm">
             <div className="flex items-center gap-1.5 font-bold text-emerald-300">
               <span>● Google Android OS</span>
@@ -273,55 +333,74 @@ export default function App() {
         )}
 
         {/* Outer Frame Header */}
-        <header className="bg-white/30 backdrop-blur-md border-b border-white/40 px-6 py-4 flex justify-between items-center z-10 shadow-lg text-sky-950">
-          <div className="flex items-center gap-4 bg-white/40 backdrop-blur-sm p-1.5 pr-5 rounded-full border-2 border-white/60 shadow-md">
-            <div className="w-11 h-11 bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center text-2xl">
-              🦁
-            </div>
-            <div>
-              <p className="text-xs font-black text-sky-950 uppercase tracking-wider leading-none">{profile.name}</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[9px] bg-sky-900/10 text-sky-950 px-2 py-0.5 rounded-full font-black">LV {profile.level}</span>
-                <span className="text-[9px] text-sky-950/70 font-semibold">{profile.xp % 100}/100 XP</span>
+        <header className={`bg-white/30 backdrop-blur-md border-b border-white/40 z-10 shadow-lg text-sky-950 ${isPhoneMode ? 'px-4 py-3 flex flex-col gap-3 items-stretch' : 'px-6 py-4 flex items-center justify-between gap-4'}`}>
+          <div className={`w-full ${isPhoneMode ? '' : 'max-w-4xl'}`}>
+            <div className="w-full flex items-center gap-3 bg-white/40 backdrop-blur-sm p-1.5 rounded-full border-2 border-white/60 shadow-md overflow-hidden flex-nowrap">
+              <div className="flex flex-col items-center justify-center w-14 shrink-0">
+                <div className="w-11 h-11 bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center text-2xl">
+                  🦁
+                </div>
+                <p className="text-[10px] font-black text-sky-950 uppercase tracking-wider leading-none mt-1">{profile.name}</p>
+              </div>
+
+              <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 min-w-[92px] bg-white/65 rounded-full border border-white/80 px-3 py-1.5">
+                <div className="flex items-center gap-1.5 text-amber-600">
+                  <Coins className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-sky-950/60">Monete</span>
+                </div>
+                <span className="text-xs font-black text-sky-950 leading-none">{profile.coins}</span>
+              </div>
+
+              <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 min-w-[92px] bg-white/65 rounded-full border border-white/80 px-3 py-1.5">
+                <div className="flex items-center gap-1.5 text-sky-500">
+                  <Droplets className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-sky-950/60">Gocce</span>
+                </div>
+                <span className="text-xs font-black text-sky-950 leading-none">{profile.lightDrops}</span>
+              </div>
+
+              <div className="ml-auto flex items-center gap-1 bg-white/65 rounded-full border border-white/80 px-2.5 py-1 pr-3">
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
+                  className={`w-7 h-7 rounded-full border transition-colors cursor-pointer flex items-center justify-center ${
+                    musicEnabled
+                      ? 'bg-amber-100 border-amber-300 text-amber-700'
+                      : 'bg-white/70 border-slate-200 text-slate-400'
+                  }`}
+                  id="music-toggle"
+                  title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
+                >
+                  <span className="relative flex items-center justify-center">
+                    <Music2 className="w-3.5 h-3.5" />
+                    {!musicEnabled && <X className="w-2 h-2 absolute -right-1 -bottom-1 stroke-[3.2]" />}
+                  </span>
+                </button>
+
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleEffects(); }}
+                  className={`w-7 h-7 rounded-full border transition-colors cursor-pointer flex items-center justify-center ${
+                    effectsEnabled
+                      ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600'
+                      : 'bg-white/70 border-slate-200 text-slate-400'
+                  }`}
+                  id="sfx-toggle"
+                  title={effectsEnabled ? "Disattiva effetti click" : "Attiva effetti click"}
+                >
+                  <span className="relative flex items-center justify-center">
+                    <Volume2 className="w-3.5 h-3.5" />
+                    {!effectsEnabled && <X className="w-2 h-2 absolute -right-1 -bottom-1 stroke-[3.2]" />}
+                  </span>
+                </button>
               </div>
             </div>
-          </div>
-
-          {/* Quick Stats & Audio controller */}
-          <div className="flex items-center gap-3">
-            {/* Coins */}
-            <div className="bg-white/40 backdrop-blur-sm px-4 py-2 rounded-full border-2 border-white/60 flex items-center gap-2 shadow-md">
-              <span className="text-lg leading-none">🪙</span>
-              <span className="text-xs font-black text-sky-950">{profile.coins}</span>
-            </div>
-
-            {/* Light Drops */}
-            <div className="bg-white/40 backdrop-blur-sm px-4 py-2 rounded-full border-2 border-white/60 flex items-center gap-2 shadow-md">
-              <span className="text-lg leading-none">💧</span>
-              <span className="text-xs font-black text-sky-950">{profile.lightDrops}</span>
-            </div>
-
-            {/* Audio Toggle */}
-            <button
-              onClick={toggleMute}
-              className={`p-2.5 rounded-full border-2 transition-colors cursor-pointer shadow-md ${
-                isMuted 
-                  ? 'bg-rose-100/50 border-rose-300 text-rose-600 hover:bg-rose-200' 
-                  : 'bg-white/40 border-white/60 text-sky-950 hover:bg-white/60'
-              }`}
-              id="audio-mute-toggle"
-              title={isMuted ? "Riapri audio" : "Silenzia"}
-            >
-              {isMuted ? <VolumeX className="w-4.5 h-4.5" /> : <Volume2 className="w-4.5 h-4.5" />}
-            </button>
           </div>
         </header>
 
         {/* Content Panel Area */}
-        <div className="flex-1 overflow-hidden flex flex-row relative z-10">
+        <div className={`flex-1 overflow-hidden flex relative z-10 ${isPhoneMode ? 'flex-col' : 'flex-row'}`}>
           
           {/* Left Sidebar Navigation (Kid-Friendly Rail) */}
-          {selectedWorldId === null && (
+          {selectedWorldId === null && !isPhoneMode && (
             <div className="w-24 bg-white/20 backdrop-blur-md rounded-[32px] border-4 border-white/40 flex flex-col items-center py-8 gap-8 shadow-2xl z-20 m-4 md:flex hidden">
               {[
                 { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
@@ -367,6 +446,7 @@ export default function App() {
                     world={WORLDS_DATA.find(w => w.id === selectedWorldId)!}
                     profile={profile}
                     updateProfile={handleUpdateProfile}
+                    compactLayout={isPhoneMode}
                     onBack={() => {
                       sound.playClick();
                       setSelectedWorldId(null);
@@ -380,12 +460,12 @@ export default function App() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="w-full h-full overflow-y-auto p-4 md:p-6"
+                  className={`w-full h-full overflow-y-auto ${isPhoneMode ? 'p-3' : 'p-4 md:p-6'}`}
                 >
                   {/* TAB 1: AVVENTURA (Main map with levels) */}
                   {activeTab === 'adventure' && (
                     <div className="space-y-6">
-                      <div className="text-center md:text-left bg-white/40 backdrop-blur-sm p-4 rounded-3xl border border-white/40 shadow-sm max-w-xl">
+                      <div className={`text-center ${isPhoneMode ? '' : 'md:text-left'} bg-white/40 backdrop-blur-sm p-4 rounded-3xl border border-white/40 shadow-sm max-w-xl`}>
                         <span className="text-[10px] font-black uppercase tracking-wider text-sky-800 bg-sky-200/50 px-3 py-1 rounded-full font-sans">
                           Modalità Avventura (Percorso Guidato)
                         </span>
@@ -398,7 +478,7 @@ export default function App() {
                       </div>
 
                       {/* Map staggered layout of 9 worlds styled as a beautiful 3D-feeling interactive island grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pb-8 justify-items-center">
+                      <div className={`grid ${isPhoneMode ? 'grid-cols-1 gap-5 pb-6' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pb-8'} justify-items-center`}>
                         {WORLDS_DATA.map(world => {
                           const isUnlocked = profile.unlockedWorlds.includes(world.id);
                           const worldProg = profile.worldProgress[world.id] || {
@@ -490,7 +570,7 @@ export default function App() {
                   {/* TAB 2: ALLENAMENTO (Unrestricted escolha libre) */}
                   {activeTab === 'training' && (
                     <div className="space-y-6">
-                      <div className="text-center md:text-left bg-white/40 backdrop-blur-sm p-4 rounded-3xl border border-white/40 shadow-sm max-w-xl">
+                      <div className={`text-center ${isPhoneMode ? '' : 'md:text-left'} bg-white/40 backdrop-blur-sm p-4 rounded-3xl border border-white/40 shadow-sm max-w-xl`}>
                         <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full font-sans">
                           Allenamento Libero (Nessun Blocco)
                         </span>
@@ -502,7 +582,7 @@ export default function App() {
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
+                      <div className={`grid ${isPhoneMode ? 'grid-cols-2 gap-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4'}`}>
                         {WORLDS_DATA.map(world => (
                           <button
                             key={world.id}
@@ -548,6 +628,7 @@ export default function App() {
                     <AvatarCreator
                       profile={profile}
                       updateProfile={handleUpdateProfile}
+                      compactLayout={isPhoneMode}
                     />
                   )}
 
@@ -556,6 +637,7 @@ export default function App() {
                     <ParentDashboard
                       profile={profile}
                       updateProfile={handleUpdateProfile}
+                      compactLayout={isPhoneMode}
                       onClose={() => {
                         sound.playClick();
                         setActiveTab('adventure');
@@ -568,7 +650,7 @@ export default function App() {
           </main>
 
           {/* Right Profile Panel (Quick View) */}
-          {selectedWorldId === null && (
+          {selectedWorldId === null && !isPhoneMode && (
             <div className="w-72 bg-white/20 backdrop-blur-md rounded-[36px] border-4 border-white/40 shadow-2xl p-5 flex flex-col items-center m-4 md:flex hidden justify-between text-slate-800 shrink-0">
               <div className="w-full space-y-4">
                 <p className="text-xs font-black text-sky-950 uppercase tracking-widest text-center">La tua Squadra</p>
@@ -621,8 +703,8 @@ export default function App() {
         </div>
 
         {/* Global Bottom Navigation bar for mobile screens */}
-        {selectedWorldId === null && (
-          <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-2 flex justify-around items-center z-10 shadow-xl shrink-0 md:hidden">
+        {selectedWorldId === null && isPhoneMode && (
+          <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-2 flex justify-around items-center z-10 shadow-xl shrink-0">
             {[
               { id: 'adventure', name: 'Mappa Avventura', emoji: '🗺️', label: 'Mappa' },
               { id: 'training', name: 'Allenamento', emoji: '🎒', label: 'Allenamento' },
@@ -654,6 +736,7 @@ export default function App() {
       </div>
 
       {/* Production specifications panel at the very bottom (collapsible documentation of architecture/MVP for the reviewers!) */}
+      {!isPhoneMode && (
       <div className="mt-8 max-w-4xl w-full bg-slate-800 rounded-3xl p-5 md:p-6 border border-slate-700 shadow-xl space-y-4">
         <h3 className="text-base font-black text-white flex items-center gap-1.5">
           <Settings className="w-5 h-5 text-indigo-400" />
@@ -703,6 +786,7 @@ export default function App() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

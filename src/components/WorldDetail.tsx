@@ -15,9 +15,10 @@ interface WorldDetailProps {
   profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onBack: () => void;
+  compactLayout?: boolean;
 }
 
-export default function WorldDetail({ world, profile, updateProfile, onBack }: WorldDetailProps) {
+export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false }: WorldDetailProps) {
   const [activeStep, setActiveStep] = useState<string>('intro'); // intro, comprendo, salto, costruisco, trucchi, pratico, sfida
   
   // States for sub-games
@@ -565,7 +566,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack }: W
   return (
     <div className="w-full h-full bg-transparent flex flex-col" id={`world-panel-${world.id}`}>
       {/* Top action bar */}
-      <div className="bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950">
+      <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 ${compactLayout ? 'gap-2' : ''}`}>
         <button
           onClick={() => { sound.playClick(); onBack(); }}
           className="flex items-center gap-1.5 text-xs font-bold text-sky-950 hover:text-sky-900 bg-white/40 border border-white/60 px-3.5 py-1.5 rounded-xl cursor-pointer shadow-sm transition-colors"
@@ -590,7 +591,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack }: W
       </div>
 
       {/* Main Container */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col">
+      <div className={`flex-1 overflow-y-auto flex flex-col ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
         {activeStep === 'intro' && (
           <div className="max-w-4xl mx-auto w-full space-y-6 flex-1 flex flex-col justify-between">
             {/* Mascot Banner Card */}
@@ -626,7 +627,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack }: W
             </div>
 
             {/* Steps & Monuments Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`grid grid-cols-1 gap-6 ${compactLayout ? '' : 'md:grid-cols-2'}`}>
               
               {/* Left Side: Sub-game stages */}
               <div className="space-y-3">
@@ -859,7 +860,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack }: W
             </div>
 
             {/* Answer buttons */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${compactLayout ? 'grid-cols-1' : 'grid-cols-2'}`}>
               {saltoOptions.map((opt, idx) => (
                 <button
                   key={idx}
@@ -1081,7 +1082,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack }: W
             </div>
 
             {/* Question options */}
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className={`grid gap-3.5 ${compactLayout ? 'grid-cols-1' : 'grid-cols-2'}`}>
               {quizOptions.map((opt, idx) => (
                 <button
                   key={idx}
@@ -1130,7 +1131,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack }: W
             </div>
 
             {/* Answers options */}
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className={`grid gap-3.5 ${compactLayout ? 'grid-cols-1' : 'grid-cols-2'}`}>
               {sfidaOptions.map((opt, idx) => (
                 <button
                   key={idx}
