@@ -345,7 +345,6 @@ export default function App() {
 
   const handlePINSubmit = (pinValue?: string) => {
     const pin = pinValue || pinInput;
-    console.log('handlePINSubmit called with pin =', pin, 'isSettingPIN =', isSettingPIN);
     sound.playClick();
     setPinError("");
     const storedPIN = localStorage.getItem('tabellandia_parent_pin');
@@ -362,6 +361,7 @@ export default function App() {
           sound.playPowerUp();
           setParentAuthenticated(true);
           setShowPINModal(false);
+          setActiveTab('parents');
           setPinInput("");
           setPinError("");
         }
@@ -369,14 +369,13 @@ export default function App() {
     } else {
       // Verifying existing PIN
       if (pin === storedPIN) {
-        console.log('PIN corretto!');
         sound.playPowerUp();
         setParentAuthenticated(true);
         setShowPINModal(false);
+        setActiveTab('parents');
         setPinInput("");
         setPinError("");
       } else {
-        console.log('PIN errato! storedPIN =', storedPIN);
         sound.playError();
         setPinError("PIN errato!");
         setTimeout(() => {

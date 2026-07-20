@@ -22,14 +22,11 @@ export default function NumericKeypad({
   const handleDigitClick = (digit: string) => {
     if (value.length < maxDigits) {
       const newValue = value + digit;
-      console.log('NumericKeypad: new value =', newValue, 'maxDigits =', maxDigits);
       onChange(newValue);
       // Auto-submit when reaching maxDigits (e.g., 4 digits for PIN)
       if (newValue.length === maxDigits) {
-        console.log('NumericKeypad: auto-submitting at maxDigits');
         // Call onSubmit with the complete value
         setTimeout(() => {
-          console.log('NumericKeypad: calling onSubmit with value =', newValue);
           onSubmit(newValue);
         }, 300);
       }
