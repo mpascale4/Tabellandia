@@ -669,7 +669,7 @@ export default function App() {
 
         {/* Outer Frame Header */}
         <header className={`sticky top-0 relative bg-white/30 backdrop-blur-md border-b border-white/40 z-40 shadow-lg text-sky-950 px-${isPhoneMode ? '2' : '6'} py-${isPhoneMode ? '2' : '4'}`}>
-          <div className="w-full flex items-center gap-${isPhoneMode ? '1.5' : '3'} bg-white/40 backdrop-blur-sm p-${isPhoneMode ? '1' : '1.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap">
+          <div className={`w-full flex items-center ${isPhoneMode ? 'gap-1.5' : 'gap-3'} bg-white/40 backdrop-blur-sm ${isPhoneMode ? 'px-3 py-2' : 'px-5 py-2.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap`}>
             {/* Profile Avatar */}
             <button
               type="button"
