@@ -14,38 +14,11 @@ interface ParentDashboardProps {
   profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onClose: () => void;
+  onChangePIN?: () => void;
   compactLayout?: boolean;
 }
 
-export default function ParentDashboard({ profile, updateProfile, onClose, compactLayout = false }: ParentDashboardProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [pinAnswer, setPinAnswer] = useState("");
-  const [pinError, setPinError] = useState(false);
-
-  // Simple math challenge for parental protection: e.g. 14 x 3 or 9 x 8
-  const [challenge, setChallenge] = useState({ q: "8 x 9", a: 72 });
-
-  const handleVerifyPin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (parseInt(pinAnswer.trim(), 10) === challenge.a) {
-      sound.playSuccess();
-      setIsAuthenticated(true);
-      setPinError(false);
-    } else {
-      sound.playError();
-      setPinError(true);
-      // Generate a new simple challenge
-      const randoms = [
-        { q: "7 x 8", a: 56 },
-        { q: "9 x 6", a: 54 },
-        { q: "12 x 3", a: 36 },
-        { q: "15 x 2", a: 30 }
-      ];
-      const nextCh = randoms[Math.floor(Math.random() * randoms.length)];
-      setChallenge(nextCh);
-      setPinAnswer("");
-    }
-  };
+export default function ParentDashboard({ profile, updateProfile, onClose, onChangePIN, compactLayout = false }: ParentDashboardProps) {
 
   // Seeding simulated stats for demonstrative purposes (if history is empty, help the parent understand how it looks!)
   const handleSeedMockData = () => {
@@ -202,68 +175,8 @@ export default function ParentDashboard({ profile, updateProfile, onClose, compa
     return advice;
   };
 
-  // Safe PIN Screen
-  if (!isAuthenticated) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-indigo-950/40 p-4" id="parent-lock-screen">
-        <motion.div 
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full border border-indigo-100 flex flex-col items-center text-center"
-        >
-          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-3xl mb-4 text-indigo-600 border border-indigo-100">
-            🔐
-          </div>
-          <h2 className="text-xl font-bold text-slate-800">Area Genitori</h2>
-          <p className="text-xs text-slate-500 mt-1 mb-5">
-            Per accedere alla dashboard dei progressi scolastici, dimostra di essere un adulto risolvendo questa moltiplicazione:
-          </p>
-
-          <form onSubmit={handleVerifyPin} className="w-full">
-            <div className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 mb-4">
-              <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">Domanda</span>
-              <span className="text-2xl font-black text-indigo-700 font-mono">{challenge.q}</span>
-            </div>
-
-            <input
-              type="number"
-              placeholder="Scrivi il risultato..."
-              value={pinAnswer}
-              onChange={e => { setPinAnswer(e.target.value); setPinError(false); }}
-              className="w-full text-center text-lg font-bold font-mono py-3 px-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none mb-3 bg-white"
-              id="parent-pin-input"
-              autoFocus
-            />
-
-            {pinError && (
-              <p className="text-xs text-rose-500 font-bold mb-3 animate-bounce">
-                ❌ Risposta errata! Riprova con il nuovo calcolo.
-              </p>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-                id="parent-cancel-btn"
-              >
-                Annulla
-              </button>
-              <button
-                type="submit"
-                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-md cursor-pointer transition-colors"
-                id="parent-submit-btn"
-              >
-                Entra
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </div>
-    );
-  }
-
+  // Safe PIN Screen - REMOVED, now goes directly to dashboard since authenticated via PIN modal
+  
   return (
     <div className={`w-full h-full bg-slate-50 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`} id="parent-dashboard-panel">
       {/* Header */}
@@ -278,6 +191,14 @@ export default function ParentDashboard({ profile, updateProfile, onClose, compa
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={onChangePIN}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors"
+            id="parent-change-pin-btn"
+            title="Modifica il PIN"
+          >
+            🔑 Modifica PIN
+          </button>
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors"
