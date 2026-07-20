@@ -14,9 +14,22 @@ import WorldDetail from './components/WorldDetail';
 import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, Smartphone, RefreshCw, Zap, Music2, X, Coins, Droplets } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
+const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
 
-const DEFAULT_PROFILE: UserProfile = {
+type ProfileRecord = UserProfile & {
+  id: string;
+  birthYear: number | null;
+};
+
+type ProfileStore = {
+  activeProfileId: string | null;
+  profiles: ProfileRecord[];
+};
+
+const CURRENT_YEAR = new Date().getFullYear();
+
+const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   name: "Eroe",
   level: 1,
   xp: 0,
@@ -40,10 +53,57 @@ const DEFAULT_PROFILE: UserProfile = {
   history: []
 };
 
+const DEFAULT_PROFILE: ProfileRecord = {
+  ...BASE_PROFILE,
+  id: "default-profile",
+  birthYear: null
+};
+
+const createProfileId = () => {
+  if (window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `profile-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+};
+
+const createProfile = (name: string, birthYear: number | null, gender: 'kid1' | 'kid2'): ProfileRecord => {
+  return {
+    ...BASE_PROFILE,
+    id: createProfileId(),
+    name,
+    birthYear,
+    avatar: {
+      ...BASE_PROFILE.avatar,
+      gender
+    }
+  };
+};
+
+const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string): ProfileRecord => {
+  return {
+    ...BASE_PROFILE,
+    ...profile,
+    id: profile.id || fallbackId || createProfileId(),
+    birthYear: typeof profile.birthYear === 'number' ? profile.birthYear : null,
+    avatar: {
+      ...BASE_PROFILE.avatar,
+      ...(profile.avatar || {})
+    },
+    unlockedWorlds: profile.unlockedWorlds ? [...profile.unlockedWorlds] : [...BASE_PROFILE.unlockedWorlds],
+    unlockedAccessories: profile.unlockedAccessories ? [...profile.unlockedAccessories] : [...BASE_PROFILE.unlockedAccessories],
+    history: profile.history ? [...profile.history] : [],
+    worldProgress: profile.worldProgress ? { ...profile.worldProgress } : { ...BASE_PROFILE.worldProgress }
+  };
+};
+
 export default function App() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profiles, setProfiles] = useState<ProfileRecord[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'avatar' | 'parents'>('adventure');
   const [selectedWorldId, setSelectedWorldId] = useState<number | null>(null);
+  const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState<boolean>(false);
+  const [showProfilePicker, setShowProfilePicker] = useState<boolean>(true);
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
     const raw = localStorage.getItem(AUDIO_SETTINGS_KEY);
     if (!raw) return true;
@@ -70,27 +130,54 @@ export default function App() {
   // Setup Wizard State
   const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: intro, 2: story, 3: char_create, 4: ready
   const [heroNameInput, setHeroNameInput] = useState<string>("");
+  const [newProfileGender, setNewProfileGender] = useState<'kid1' | 'kid2'>('kid1');
+  const [newProfileBirthYear, setNewProfileBirthYear] = useState<number>(CURRENT_YEAR - 8);
+  const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
+
+  const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
 
   // Load profile on start
   useEffect(() => {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        // Fallback for missing properties
-        if (!parsed.unlockedAccessories) parsed.unlockedAccessories = [];
-        if (!parsed.avatar) parsed.avatar = DEFAULT_PROFILE.avatar;
-        setProfile(parsed);
-        setWizardStep(0); // already registered
-      } catch (e) {
-        console.error("Error loading profile", e);
-        setProfile(DEFAULT_PROFILE);
-        setWizardStep(1); // show tutorial wizard
+    const loadStore = (): ProfileStore => {
+      const storeRaw = localStorage.getItem(PROFILE_STORE_KEY);
+      if (storeRaw) {
+        try {
+          const parsed = JSON.parse(storeRaw) as ProfileStore;
+          const nextProfiles = Array.isArray(parsed.profiles)
+            ? parsed.profiles.map(p => normalizeProfile(p))
+            : [];
+          return {
+            activeProfileId: parsed.activeProfileId || nextProfiles[0]?.id || null,
+            profiles: nextProfiles
+          };
+        } catch (e) {
+          console.error("Error loading profile store", e);
+        }
       }
-    } else {
-      setProfile(DEFAULT_PROFILE);
-      setWizardStep(1); // first-time wizard
-    }
+
+      const legacyRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (legacyRaw) {
+        try {
+          const parsed = JSON.parse(legacyRaw) as UserProfile;
+          const legacyProfile = normalizeProfile(parsed, 'legacy-profile');
+          return {
+            activeProfileId: legacyProfile.id,
+            profiles: [legacyProfile]
+          };
+        } catch (e) {
+          console.error("Error loading legacy profile", e);
+        }
+      }
+
+      return { activeProfileId: null, profiles: [] };
+    };
+
+    const store = loadStore();
+    setProfiles(store.profiles);
+    setActiveProfileId(store.activeProfileId);
+    setShowProfilePicker(true);
+    setWizardStep(0);
+    setIsLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -121,13 +208,38 @@ export default function App() {
     };
   }, [musicEnabled]);
 
+  const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
+    localStorage.setItem(
+      PROFILE_STORE_KEY,
+      JSON.stringify({
+        activeProfileId: nextActiveProfileId,
+        profiles: nextProfiles
+      } as ProfileStore)
+    );
+
+    const currentProfile = nextActiveProfileId ? nextProfiles.find(p => p.id === nextActiveProfileId) || null : null;
+    if (currentProfile) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentProfile));
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+  };
+
   // Sync back to local storage helper
   const handleUpdateProfile = (updater: (p: UserProfile) => UserProfile) => {
-    setProfile(p => {
-      if (!p) return null;
-      const updated = updater(p);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-      return updated;
+    if (!activeProfileId) return;
+
+    setProfiles(prev => {
+      const next = prev.map(p => {
+        if (p.id !== activeProfileId) return p;
+        const updated = normalizeProfile({
+          ...p,
+          ...updater(p)
+        }, p.id);
+        return updated;
+      });
+      persistProfileStore(next, activeProfileId);
+      return next;
     });
   };
 
@@ -157,26 +269,131 @@ export default function App() {
   const handleCreateHero = (e: React.FormEvent) => {
     e.preventDefault();
     const finalName = heroNameInput.trim() || "Fulmine";
+    const nextBirthYear = Number.isFinite(newProfileBirthYear) ? newProfileBirthYear : CURRENT_YEAR - 8;
+    const nextProfile = createProfile(finalName, nextBirthYear, newProfileGender);
+    setDraftProfile(nextProfile);
     sound.playLevelUp();
-    handleUpdateProfile(p => ({
-      ...p,
-      name: finalName
-    }));
     setWizardStep(4);
   };
 
   const handleFinishWizard = () => {
+    if (!draftProfile) return;
+
+    const nextProfiles = [...profiles, draftProfile];
+    setProfiles(nextProfiles);
+    setActiveProfileId(draftProfile.id);
+    persistProfileStore(nextProfiles, draftProfile.id);
+
     sound.playPowerUp();
-    setWizardStep(0); // Closes wizard
+    setDraftProfile(null);
+    setWizardStep(0);
+    setShowProfilePicker(false);
+    setActiveTab('adventure');
+    setSelectedWorldId(null);
+    setIsProfilePopoverOpen(false);
   };
 
-  if (!profile) {
+  const handleSelectProfile = (selectedId: string) => {
+    sound.playClick();
+    setActiveProfileId(selectedId);
+    persistProfileStore(profiles, selectedId);
+    setShowProfilePicker(false);
+    setWizardStep(0);
+    setDraftProfile(null);
+    setHeroNameInput('');
+    setSelectedWorldId(null);
+    setActiveTab('adventure');
+    setIsProfilePopoverOpen(false);
+  };
+
+  const handleStartProfileCreation = () => {
+    sound.playPowerUp();
+    setHeroNameInput('');
+    setNewProfileGender('kid1');
+    setNewProfileBirthYear(CURRENT_YEAR - 8);
+    setDraftProfile(null);
+    setWizardStep(1);
+    setShowProfilePicker(false);
+  };
+
+  const handleSwitchProfile = () => {
+    sound.playClick();
+    setShowProfilePicker(true);
+    setWizardStep(0);
+    setIsProfilePopoverOpen(false);
+  };
+
+  if (!isLoaded) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-slate-900 text-white">
         <div className="text-center space-y-3">
           <RefreshCw className="w-10 h-10 animate-spin text-indigo-400 mx-auto" />
           <p className="text-sm font-bold font-sans">Caricamento di Tabellandia...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (showProfilePicker) {
+    return (
+      <div className="w-full h-screen bg-indigo-950 flex items-center justify-center p-4 overflow-hidden relative" id="profile-picker-screen">
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-400 via-indigo-900 to-indigo-950 z-0"></div>
+
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-white rounded-3xl p-6 md:p-8 max-w-4xl w-full shadow-2xl relative z-10 border-2 border-indigo-200"
+        >
+          <div className="text-center space-y-3 mb-6">
+            <h1 className="text-2xl md:text-3xl font-black text-indigo-950 tracking-wide font-sans">Chi entra a Tabellandia?</h1>
+            <p className="text-xs md:text-sm text-slate-500 leading-relaxed max-w-2xl mx-auto font-sans">
+              Scegli un profilo esistente oppure creane uno nuovo. Ogni profilo conserva progressi, monete, gocce e dettagli di crescita.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[52vh] overflow-y-auto pr-1">
+            {profiles.map(p => {
+              const age = p.birthYear ? CURRENT_YEAR - p.birthYear : null;
+              const isActive = activeProfileId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelectProfile(p.id)}
+                  className={`text-left rounded-3xl border-2 p-4 shadow-sm transition-all cursor-pointer hover:shadow-md ${
+                    isActive ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                  id={`profile-card-${p.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-orange-400 border-2 border-white shadow-inner flex items-center justify-center text-2xl shrink-0">
+                      {p.avatar?.gender === 'kid2' ? '👧' : '🧒'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black text-slate-900 truncate">{p.name}</p>
+                      <p className="text-[10px] font-semibold text-slate-500">
+                        {p.birthYear ? `Nato nel ${p.birthYear}${age ? ` · ${age} anni` : ''}` : 'Anno di nascita da impostare'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <span>LV {p.level}</span>
+                    <span>{p.unlockedWorlds.length} mondi</span>
+                  </div>
+                </button>
+              );
+            })}
+
+            <button
+              onClick={handleStartProfileCreation}
+              className="rounded-3xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 text-center shadow-sm hover:bg-indigo-50 hover:shadow-md cursor-pointer transition-colors flex flex-col items-center justify-center min-h-[120px]"
+              id="profile-create-btn"
+            >
+              <span className="text-4xl">➕</span>
+              <span className="mt-2 text-sm font-black text-indigo-950">Crea nuovo profilo</span>
+              <span className="text-[11px] text-slate-500 mt-1">Scegli base avatar e anno di nascita</span>
+            </button>
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -237,8 +454,8 @@ export default function App() {
             <div className="space-y-5 flex-1 flex flex-col justify-center">
               <div className="text-center">
                 <div className="text-4xl mb-2">🎒🛡️</div>
-                <h2 className="text-lg font-bold text-slate-800">Scegli il tuo Nome</h2>
-                <p className="text-xs text-slate-400 mt-1">Con quale nome ti conosceranno i saggi del regno?</p>
+                <h2 className="text-lg font-bold text-slate-800">Crea il profilo</h2>
+                <p className="text-xs text-slate-400 mt-1">Scegli nome, anno di nascita e base avatar.</p>
               </div>
 
               <form onSubmit={handleCreateHero} className="space-y-4">
@@ -252,9 +469,54 @@ export default function App() {
                   id="hero-name-input"
                   required
                 />
+
+                <label className="block">
+                  <span className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Anno di nascita</span>
+                  <select
+                    value={newProfileBirthYear}
+                    onChange={e => setNewProfileBirthYear(parseInt(e.target.value, 10))}
+                    className="w-full py-3 px-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white"
+                    id="birth-year-select"
+                  >
+                    {Array.from({ length: 12 }).map((_, idx) => {
+                      const year = CURRENT_YEAR - 4 - idx;
+                      return (
+                        <option key={year} value={year}>
+                          {year} (circa {CURRENT_YEAR - year} anni)
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+
+                <div>
+                  <span className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Base avatar</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setNewProfileGender('kid1')}
+                      className={`p-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 ${
+                        newProfileGender === 'kid1' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                      }`}
+                      id="setup-gender-kid1-btn"
+                    >
+                      🧒 Bimbo 1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewProfileGender('kid2')}
+                      className={`p-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 ${
+                        newProfileGender === 'kid2' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                      }`}
+                      id="setup-gender-kid2-btn"
+                    >
+                      👧 Bimbo 2
+                    </button>
+                  </div>
+                </div>
                 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px] text-slate-500 leading-relaxed">
-                  💡 <strong>Suggerimento:</strong> Potrai personalizzare i vestiti, il colore dei capelli, i cappelli magici e le mascotte nell'Armadio Magico in qualsiasi momento del viaggio!
+                  💡 <strong>Suggerimento:</strong> Potrai personalizzare abiti e accessori nell'Armadio Magico in qualsiasi momento del viaggio.
                 </div>
 
                 <button
@@ -271,9 +533,9 @@ export default function App() {
           {wizardStep === 4 && (
             <div className="text-center space-y-6 flex-1 flex flex-col justify-center">
               <div className="text-6xl animate-pulse">🌟✨🐉</div>
-              <h2 className="text-xl font-bold text-emerald-600 font-sans">Sei Pronto, {profile.name}!</h2>
+              <h2 className="text-xl font-bold text-emerald-600 font-sans">Sei Pronto, {draftProfile?.name || heroNameInput || 'Eroe'}!</h2>
               <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto font-sans">
-                La foresta del 2 ti sta aspettando. Rispondi correttamente alle domande per guadagnare <strong>Monete 🪙</strong> da spendere in abiti speciali e <strong>Gocce di Luce 💧</strong> per riparare il regno!
+                La foresta del 2 ti sta aspettando. Il tuo anno di nascita ci aiuterà a proporre contenuti più adatti in futuro.
               </p>
               <button
                 onClick={handleFinishWizard}
@@ -333,15 +595,25 @@ export default function App() {
         )}
 
         {/* Outer Frame Header */}
-        <header className={`bg-white/30 backdrop-blur-md border-b border-white/40 z-10 shadow-lg text-sky-950 ${isPhoneMode ? 'px-4 py-3 flex flex-col gap-3 items-stretch' : 'px-6 py-4 flex items-center justify-between gap-4'}`}>
-          <div className={`w-full ${isPhoneMode ? '' : 'max-w-4xl'}`}>
-            <div className="w-full flex items-center gap-3 bg-white/40 backdrop-blur-sm p-1.5 rounded-full border-2 border-white/60 shadow-md overflow-hidden flex-nowrap">
-              <div className="flex flex-col items-center justify-center w-14 shrink-0">
+        <header className={`sticky top-0 relative bg-white/30 backdrop-blur-md border-b border-white/40 z-40 shadow-lg text-sky-950 ${isPhoneMode ? 'px-4 py-3 flex flex-col gap-3 items-stretch' : 'px-6 py-4 flex items-center justify-between gap-4'}`}>
+          <div className={`relative w-full ${isPhoneMode ? '' : 'max-w-4xl'}`}>
+            <div className="w-full flex items-center gap-3 bg-white/40 backdrop-blur-sm p-1.5 rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap">
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  setIsProfilePopoverOpen(!isProfilePopoverOpen);
+                }}
+                className="flex flex-col items-center justify-center w-14 shrink-0 cursor-pointer"
+                id="profile-icon-btn"
+                aria-expanded={isProfilePopoverOpen}
+                title="Apri profilo"
+              >
                 <div className="w-11 h-11 bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center text-2xl">
                   🦁
                 </div>
                 <p className="text-[10px] font-black text-sky-950 uppercase tracking-wider leading-none mt-1">{profile.name}</p>
-              </div>
+              </button>
 
               <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 min-w-[92px] bg-white/65 rounded-full border border-white/80 px-3 py-1.5">
                 <div className="flex items-center gap-1.5 text-amber-600">
@@ -393,6 +665,55 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {isProfilePopoverOpen && (
+              <div className="absolute left-0 top-full mt-2 w-full max-w-2xl rounded-3xl border border-white/70 bg-white/95 backdrop-blur-md shadow-2xl p-3 z-50">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 rounded-full bg-orange-400 border-2 border-white shadow-inner flex items-center justify-center text-2xl shrink-0">
+                      🦁
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-sky-950 uppercase tracking-wider leading-none">{profile.name}</p>
+                      <p className="text-[10px] font-semibold text-sky-900/70 mt-1">
+                        {profile.birthYear ? `Nato nel ${profile.birthYear}` : 'Anno di nascita da impostare'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsProfilePopoverOpen(false)}
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer"
+                    aria-label="Chiudi profilo"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div className="rounded-2xl bg-amber-50 border border-amber-100 px-3 py-2 text-center">
+                    <span className="block text-[9px] font-bold uppercase tracking-wide text-amber-700">Monete</span>
+                    <span className="block text-sm font-black text-slate-950 leading-none mt-1">{profile.coins}</span>
+                  </div>
+                  <div className="rounded-2xl bg-sky-50 border border-sky-100 px-3 py-2 text-center">
+                    <span className="block text-[9px] font-bold uppercase tracking-wide text-sky-700">Gocce</span>
+                    <span className="block text-sm font-black text-slate-950 leading-none mt-1">{profile.lightDrops}</span>
+                  </div>
+                  <div className="rounded-2xl bg-fuchsia-50 border border-fuchsia-100 px-3 py-2 text-center">
+                    <span className="block text-[9px] font-bold uppercase tracking-wide text-fuchsia-700">Audio</span>
+                    <span className="block text-[10px] font-black text-slate-950 leading-none mt-1">{musicEnabled ? 'ON' : 'OFF'} / {effectsEnabled ? 'ON' : 'OFF'}</span>
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleSwitchProfile}
+                    className="text-[10px] font-black uppercase tracking-wide text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-full px-3 py-1 cursor-pointer"
+                  >
+                    Cambia profilo
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </header>
 

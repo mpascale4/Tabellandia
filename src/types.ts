@@ -39,6 +39,8 @@ export interface QuestionAttempt {
 }
 
 export interface UserProfile {
+  id?: string;
+  birthYear?: number | null;
   name: string;
   level: number;
   xp: number;

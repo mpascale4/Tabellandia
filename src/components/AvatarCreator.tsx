@@ -284,26 +284,17 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
               {custCategory === 'base' && (
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Genere Avatar</h4>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleEquipItem('gender', 'kid1')}
-                        className={`flex-1 p-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 ${
-                          profile.avatar.gender === 'kid1' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                        }`}
-                        id="gender-kid1-btn"
-                      >
-                        🧒 Bimbo 1 (Morbido)
-                      </button>
-                      <button
-                        onClick={() => handleEquipItem('gender', 'kid2')}
-                        className={`flex-1 p-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 ${
-                          profile.avatar.gender === 'kid2' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                        }`}
-                        id="gender-kid2-btn"
-                      >
-                        👧 Bimbo 2 (Dorato)
-                      </button>
+                    <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Base del profilo</h4>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-600 leading-relaxed">
+                      La base del profilo si sceglie all'ingresso. Qui puoi solo vedere il modello attivo.
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className={`p-3 rounded-xl border-2 text-center font-bold ${profile.avatar.gender === 'kid1' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500'}`}>
+                          🧒 Bimbo 1
+                        </div>
+                        <div className={`p-3 rounded-xl border-2 text-center font-bold ${profile.avatar.gender === 'kid2' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500'}`}>
+                          👧 Bimbo 2
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
