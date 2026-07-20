@@ -5,7 +5,7 @@ import { Delete } from 'lucide-react';
 interface NumericKeypadProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (value: string) => void;
   submitLabel?: string;
   maxDigits?: number;
   disabled?: boolean;
@@ -22,10 +22,16 @@ export default function NumericKeypad({
   const handleDigitClick = (digit: string) => {
     if (value.length < maxDigits) {
       const newValue = value + digit;
+      console.log('NumericKeypad: new value =', newValue, 'maxDigits =', maxDigits);
       onChange(newValue);
       // Auto-submit when reaching maxDigits (e.g., 4 digits for PIN)
       if (newValue.length === maxDigits) {
-        setTimeout(() => onSubmit(), 100);
+        console.log('NumericKeypad: auto-submitting at maxDigits');
+        // Call onSubmit with the complete value
+        setTimeout(() => {
+          console.log('NumericKeypad: calling onSubmit with value =', newValue);
+          onSubmit(newValue);
+        }, 300);
       }
     }
   };
