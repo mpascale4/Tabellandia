@@ -13,6 +13,7 @@ import WorldDetail from './components/WorldDetail';
 import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
 import RewardsTutorial from './components/RewardsTutorial';
+import NumericKeypad from './components/NumericKeypad';
 import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, Smartphone, RefreshCw, Zap, Music2, X, Coins, Droplets } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
@@ -131,6 +132,12 @@ export default function App() {
   const [newProfileAvatarEmoji, setNewProfileAvatarEmoji] = useState<string>('👦');
   const [newProfileBirthYear, setNewProfileBirthYear] = useState<number>(CURRENT_YEAR - 8);
   const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
+
+  // Parent PIN State
+  const [showPINModal, setShowPINModal] = useState<boolean>(false);
+  const [pinInput, setPinInput] = useState<string>("");
+  const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
+  const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
 
   const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
 
@@ -317,6 +324,56 @@ export default function App() {
     sound.playClick();
     setShowProfilePicker(true);
     setWizardStep(0);
+  };
+
+  const handleAccessParentArea = () => {
+    const storedPIN = localStorage.getItem('tabellandia_parent_pin');
+    if (!storedPIN) {
+      // First time - set up PIN
+      setIsSettingPIN(true);
+    } else {
+      // Already has PIN - ask to enter
+      setIsSettingPIN(false);
+    }
+    setShowPINModal(true);
+    setPinInput("");
+  };
+
+  const handlePINSubmit = () => {
+    sound.playClick();
+    const storedPIN = localStorage.getItem('tabellandia_parent_pin');
+    
+    if (isSettingPIN) {
+      // Setting PIN for first time
+      if (pinInput.length === 4) {
+        localStorage.setItem('tabellandia_parent_pin', pinInput);
+        sound.playPowerUp();
+        setParentAuthenticated(true);
+        setShowPINModal(false);
+        setPinInput("");
+      } else {
+        sound.playError();
+      }
+    } else {
+      // Verifying existing PIN
+      if (pinInput === storedPIN) {
+        sound.playPowerUp();
+        setParentAuthenticated(true);
+        setShowPINModal(false);
+        setPinInput("");
+      } else {
+        sound.playError();
+        setPinInput("");
+      }
+    }
+  };
+
+  const handleClosePINModal = () => {
+    sound.playClick();
+    setShowPINModal(false);
+    setPinInput("");
+    setParentAuthenticated(false);
+    setActiveTab('adventure');
   };
 
   if (!isLoaded) {
@@ -753,6 +810,62 @@ export default function App() {
           </div>
         </header>
 
+        {/* PIN Authentication Modal */}
+        <AnimatePresence>
+          {showPINModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={handleClosePINModal}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="text-center mb-4">
+                  <div className="text-4xl mb-2">🔐</div>
+                  <h2 className="text-xl font-black text-indigo-950">Area Genitori</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isSettingPIN ? "Crea un PIN a 4 cifre" : "Inserisci il PIN"}
+                  </p>
+                </div>
+
+                {/* PIN Display */}
+                <div className="flex justify-center gap-2 mb-6">
+                  {[0, 1, 2, 3].map(i => (
+                    <div
+                      key={i}
+                      className="w-12 h-12 rounded-full bg-indigo-100 border-2 border-indigo-300 flex items-center justify-center font-black text-lg text-indigo-700"
+                    >
+                      {pinInput[i] ? '●' : '-'}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Numeric Keypad */}
+                <NumericKeypad
+                  value={pinInput}
+                  onInput={v => setPinInput(v.slice(0, 4))}
+                  onSubmit={handlePINSubmit}
+                  maxLength={4}
+                />
+
+                <button
+                  onClick={handleClosePINModal}
+                  className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  Annulla
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Content Panel Area */}
         <div className={`flex-1 overflow-hidden flex relative z-10 ${isPhoneMode ? 'flex-col' : 'flex-row'}`}>
           
@@ -770,7 +883,11 @@ export default function App() {
                     key={tab.id}
                     onClick={() => {
                       sound.playClick();
-                      setActiveTab(tab.id as any);
+                      if (tab.id === 'parents') {
+                        handleAccessParentArea();
+                      } else {
+                        setActiveTab(tab.id as any);
+                      }
                     }}
                     className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-110 active:scale-95 transition-all ${
                       isActive 
@@ -982,13 +1099,14 @@ export default function App() {
                   )}
 
                   {/* TAB 4: PARENT AREA */}
-                  {activeTab === 'parents' && (
+                  {activeTab === 'parents' && parentAuthenticated && (
                     <ParentDashboard
                       profile={profile}
                       updateProfile={handleUpdateProfile}
                       compactLayout={isPhoneMode}
                       onClose={() => {
                         sound.playClick();
+                        setParentAuthenticated(false);
                         setActiveTab('adventure');
                       }}
                     />
@@ -1039,7 +1157,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     sound.playClick();
-                    setActiveTab('parents');
+                    handleAccessParentArea();
                   }}
                   className="flex items-center gap-1.5 text-[10px] font-black text-sky-950/70 hover:text-sky-950 transition-colors cursor-pointer bg-white/40 px-3.5 py-1.5 rounded-full border border-white/50"
                   id="portal-quick-btn"
@@ -1065,7 +1183,11 @@ export default function App() {
                   key={tab.id}
                   onClick={() => {
                     sound.playClick();
-                    setActiveTab(tab.id as any);
+                    if (tab.id === 'parents') {
+                      handleAccessParentArea();
+                    } else {
+                      setActiveTab(tab.id as any);
+                    }
                   }}
                   className={`flex flex-col items-center py-2 px-4 rounded-2xl transition-all cursor-pointer ${
                     isActive 
