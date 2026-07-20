@@ -131,7 +131,6 @@ export default function App() {
   const [newProfileAvatarEmoji, setNewProfileAvatarEmoji] = useState<string>('👦');
   const [newProfileBirthYear, setNewProfileBirthYear] = useState<number>(CURRENT_YEAR - 8);
   const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
-  const [showAvatarPicker, setShowAvatarPicker] = useState<boolean>(false);
 
   const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
 
@@ -307,7 +306,7 @@ export default function App() {
   const handleStartProfileCreation = () => {
     sound.playPowerUp();
     setHeroNameInput('');
-    setNewProfileGender('bambino');
+    setNewProfileAvatarEmoji('👦');
     setNewProfileBirthYear(CURRENT_YEAR - 8);
     setDraftProfile(null);
     setWizardStep(1);
@@ -678,18 +677,14 @@ export default function App() {
           <div className={`w-full flex items-center ${isPhoneMode ? 'gap-1.5' : 'gap-3'} bg-white/40 backdrop-blur-sm ${isPhoneMode ? 'px-3 py-2' : 'px-5 py-2.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap`}>
             {/* Profile Avatar */}
             <button
-              type="button"
-              onClick={() => {
-                sound.playClick();
-               if (profile) {
-                 setShowAvatarPicker(true);
-               } else {
-                 handleSwitchProfile();
-               }
+             type="button"
+             onClick={() => {
+               sound.playClick();
+               handleSwitchProfile();
              }}
              className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
              id="profile-icon-btn"
-             title={profile ? "Cambia avatar" : "Cambia profilo"}
+             title="Cambia profilo"
             >
              <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
                {profile?.avatar?.emoji || '👦'}
@@ -760,117 +755,6 @@ export default function App() {
 
         {/* Content Panel Area */}
         <div className={`flex-1 overflow-hidden flex relative z-10 ${isPhoneMode ? 'flex-col' : 'flex-row'}`}>
-          
-          {/* Avatar Picker Modal */}
-          <AnimatePresence>
-            {showAvatarPicker && profile && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                onClick={() => setShowAvatarPicker(false)}
-              >
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <h2 className="text-xl font-black text-indigo-950 mb-1">Scegli Avatar</h2>
-                  <p className="text-xs text-slate-500 mb-4">Cambia il tuo avatar quando vuoi!</p>
-                  
-                  <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                    {/* Bambini */}
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Bambini</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {AVATARS.filter(a => a.category === 'boy').map(avatar => (
-                          <button
-                            key={avatar.id}
-                            onClick={() => {
-                              sound.playClick();
-                              handleUpdateProfile(p => ({
-                                ...p,
-                                avatar: { emoji: avatar.emoji }
-                              }));
-                              setShowAvatarPicker(false);
-                            }}
-                            className={`p-2 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                              profile.avatar.emoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                            }`}
-                          >
-                            <span className="text-xl">{avatar.emoji}</span>
-                            <span className="line-clamp-1 text-[8px]">{avatar.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bambine */}
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Bambine</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {AVATARS.filter(a => a.category === 'girl').map(avatar => (
-                          <button
-                            key={avatar.id}
-                            onClick={() => {
-                              sound.playClick();
-                              handleUpdateProfile(p => ({
-                                ...p,
-                                avatar: { emoji: avatar.emoji }
-                              }));
-                              setShowAvatarPicker(false);
-                            }}
-                            className={`p-2 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                              profile.avatar.emoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                            }`}
-                          >
-                            <span className="text-xl">{avatar.emoji}</span>
-                            <span className="line-clamp-1 text-[8px]">{avatar.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Animali */}
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Animali</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {AVATARS.filter(a => a.category === 'pet').map(avatar => (
-                          <button
-                            key={avatar.id}
-                            onClick={() => {
-                              sound.playClick();
-                              handleUpdateProfile(p => ({
-                                ...p,
-                                avatar: { emoji: avatar.emoji }
-                              }));
-                              setShowAvatarPicker(false);
-                            }}
-                            className={`p-2 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                              profile.avatar.emoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                            }`}
-                          >
-                            <span className="text-xl">{avatar.emoji}</span>
-                            <span className="line-clamp-1 text-[8px]">{avatar.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowAvatarPicker(false)}
-                    className="w-full mt-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer transition-colors"
-                  >
-                    Chiudi
-                  </button>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
           
           {/* Left Sidebar Navigation (Kid-Friendly Rail) */}
           {selectedWorldId === null && !isPhoneMode && (
