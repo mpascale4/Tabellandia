@@ -4,14 +4,7 @@
  */
 
 export interface AvatarConfig {
-  gender: 'bambino' | 'bambina' | 'cucciolo' | 'robot';
-  hairStyle: string;
-  hairColor: string;
-  shirtColor: string;
-  pantsColor: string;
-  hat: string;
-  backpack: string;
-  mascot: string; // ID of the companion creature active
+  emoji: string; // Avatar emoji
 }
 
 export interface RebuiltMonument {

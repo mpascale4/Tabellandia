@@ -235,3 +235,21 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "backpack_2", name: "Guscio di Tartaruga Saggia", category: "backpack", cost: 30, value: "🐢 Guscio", previewEmoji: "🎒" },
   { id: "backpack_3", name: "Scudo del Drago", category: "backpack", cost: 40, value: "🛡️ Scudo Drago", previewEmoji: "🛡️" }
 ];
+
+export const AVATARS = [
+  // Bambini
+  { id: "avatar_boy1", emoji: "👦", name: "Bambino", category: "boy" },
+  { id: "avatar_boy2", emoji: "🧒", name: "Bambino Curioso", category: "boy" },
+  { id: "avatar_boy3", emoji: "🎨", name: "Artista", category: "boy" },
+  { id: "avatar_boy4", emoji: "🚀", name: "Astronauta", category: "boy" },
+  
+  // Bambine
+  { id: "avatar_girl1", emoji: "👧", name: "Bambina", category: "girl" },
+  { id: "avatar_girl2", emoji: "👱", name: "Bionda", category: "girl" },
+  { id: "avatar_girl3", emoji: "🏃", name: "Sportiva", category: "girl" },
+  { id: "avatar_girl4", emoji: "🧙", name: "Maga", category: "girl" },
+  
+  // Animali
+  { id: "avatar_pet1", emoji: "🐶", name: "Cucciolo", category: "pet" },
+  { id: "avatar_pet2", emoji: "🤖", name: "Robot", category: "pet" }
+];

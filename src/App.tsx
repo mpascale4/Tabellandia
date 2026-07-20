@@ -6,9 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, WorldProgress } from './types';
-import { WORLDS_DATA } from './data';
+import { WORLDS_DATA, AVATARS } from './data';
 import { sound } from './components/SoundManager';
-import AvatarCreator from './components/AvatarCreator';
 import ParentDashboard from './components/ParentDashboard';
 import WorldDetail from './components/WorldDetail';
 import FontSizeControl from './components/FontSizeControl';
@@ -39,14 +38,7 @@ const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   coins: 10, // Starting coins to explore customization
   lightDrops: 0,
   avatar: {
-    gender: 'bambino',
-    hairStyle: 'Nessuno',
-    hairColor: '#f59e0b',
-    shirtColor: '#3b82f6',
-    pantsColor: '#4b5563',
-    hat: 'Nessuno',
-    backpack: 'Nessuno',
-    mascot: 'Nessuna'
+    emoji: '👦'
   },
   unlockedWorlds: [2], // Starts with Table of 2 unlocked
   unlockedAccessories: [],
@@ -69,15 +61,14 @@ const createProfileId = () => {
   return `profile-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 };
 
-const createProfile = (name: string, birthYear: number | null, gender: 'bambino' | 'bambina' | 'cucciolo' | 'robot'): ProfileRecord => {
+const createProfile = (name: string, birthYear: number | null, avatarEmoji: string): ProfileRecord => {
   return {
     ...BASE_PROFILE,
     id: createProfileId(),
     name,
     birthYear,
     avatar: {
-      ...BASE_PROFILE.avatar,
-      gender
+      emoji: avatarEmoji
     }
   };
 };
@@ -102,7 +93,7 @@ const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string):
 export default function App() {
   const [profiles, setProfiles] = useState<ProfileRecord[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'avatar' | 'parents'>('adventure');
+  const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'parents'>('adventure');
   const [selectedWorldId, setSelectedWorldId] = useState<number | null>(null);
   const [showLanding, setShowLanding] = useState<boolean>(true);
   const [showProfilePicker, setShowProfilePicker] = useState<boolean>(false);
@@ -137,9 +128,10 @@ export default function App() {
   // Setup Wizard State
   const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: char_create, 2: ready
   const [heroNameInput, setHeroNameInput] = useState<string>("");
-  const [newProfileGender, setNewProfileGender] = useState<'bambino' | 'bambina' | 'cucciolo' | 'robot'>('bambino');
+  const [newProfileAvatarEmoji, setNewProfileAvatarEmoji] = useState<string>('👦');
   const [newProfileBirthYear, setNewProfileBirthYear] = useState<number>(CURRENT_YEAR - 8);
   const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
+  const [showAvatarPicker, setShowAvatarPicker] = useState<boolean>(false);
 
   const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
 
@@ -278,7 +270,7 @@ export default function App() {
     e.preventDefault();
     const finalName = heroNameInput.trim() || "Fulmine";
     const nextBirthYear = Number.isFinite(newProfileBirthYear) ? newProfileBirthYear : CURRENT_YEAR - 8;
-    const nextProfile = createProfile(finalName, nextBirthYear, newProfileGender);
+    const nextProfile = createProfile(finalName, nextBirthYear, newProfileAvatarEmoji);
     setDraftProfile(nextProfile);
     sound.playLevelUp();
     setWizardStep(2);
@@ -455,7 +447,7 @@ export default function App() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-orange-400 border-2 border-white shadow-inner flex items-center justify-center text-2xl shrink-0">
-                      {p.avatar?.gender === 'bambina' ? '👧' : p.avatar?.gender === 'cucciolo' ? '🐶' : p.avatar?.gender === 'robot' ? '🤖' : '👦'}
+                      {p.avatar?.emoji || '👦'}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-black text-slate-900 truncate">{p.name}</p>
@@ -539,57 +531,71 @@ export default function App() {
                 </label>
 
                 <div>
-                  <span className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Scegli il tuo eroe</span>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setNewProfileGender('bambino')}
-                      className={`p-4 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                        newProfileGender === 'bambino' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                      }`}
-                      id="setup-gender-bambino-btn"
-                    >
-                      <span className="text-4xl">👦</span>
-                      <span>Bambino</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewProfileGender('bambina')}
-                      className={`p-4 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                        newProfileGender === 'bambina' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                      }`}
-                      id="setup-gender-bambina-btn"
-                    >
-                      <span className="text-4xl">👧</span>
-                      <span>Bambina</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewProfileGender('cucciolo')}
-                      className={`p-4 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                        newProfileGender === 'cucciolo' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                      }`}
-                      id="setup-gender-cucciolo-btn"
-                    >
-                      <span className="text-4xl">🐶</span>
-                      <span>Cucciolo</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewProfileGender('robot')}
-                      className={`p-4 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                        newProfileGender === 'robot' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                      }`}
-                      id="setup-gender-robot-btn"
-                    >
-                      <span className="text-4xl">🤖</span>
-                      <span>Robot</span>
-                    </button>
+                  <span className="block text-xs font-bold text-slate-700 mb-3 uppercase tracking-wide">Scegli il tuo avatar</span>
+                  <div className="space-y-3">
+                    {/* Bambini */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Bambini</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {AVATARS.filter(a => a.category === 'boy').map(avatar => (
+                          <button
+                            key={avatar.id}
+                            type="button"
+                            onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
+                            className={`p-3 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
+                              newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                            }`}
+                            id={`setup-avatar-${avatar.id}`}
+                          >
+                            <span className="text-2xl">{avatar.emoji}</span>
+                            <span className="line-clamp-1">{avatar.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bambine */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Bambine</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {AVATARS.filter(a => a.category === 'girl').map(avatar => (
+                          <button
+                            key={avatar.id}
+                            type="button"
+                            onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
+                            className={`p-3 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
+                              newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                            }`}
+                            id={`setup-avatar-${avatar.id}`}
+                          >
+                            <span className="text-2xl">{avatar.emoji}</span>
+                            <span className="line-clamp-1">{avatar.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Animali */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Animali</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {AVATARS.filter(a => a.category === 'pet').map(avatar => (
+                          <button
+                            key={avatar.id}
+                            type="button"
+                            onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
+                            className={`p-3 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
+                              newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                            }`}
+                            id={`setup-avatar-${avatar.id}`}
+                          >
+                            <span className="text-2xl">{avatar.emoji}</span>
+                            <span className="line-clamp-1">{avatar.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px] text-slate-500 leading-relaxed">
-                  💡 <strong>Suggerimento:</strong> Potrai personalizzare abiti e accessori nell'Armadio Magico in qualsiasi momento del viaggio.
                 </div>
 
                 <button
@@ -675,16 +681,20 @@ export default function App() {
               type="button"
               onClick={() => {
                 sound.playClick();
-                handleSwitchProfile();
-              }}
-              className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0 cursor-pointer`}
-              id="profile-icon-btn"
-              title="Cambia profilo"
+               if (profile) {
+                 setShowAvatarPicker(true);
+               } else {
+                 handleSwitchProfile();
+               }
+             }}
+             className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
+             id="profile-icon-btn"
+             title={profile ? "Cambia avatar" : "Cambia profilo"}
             >
-              <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
-                🦁
-              </div>
-              <p className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}>{profile.name}</p>
+             <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
+               {profile?.avatar?.emoji || '👦'}
+             </div>
+             <p className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}>{profile?.name || 'Eroe'}</p>
             </button>
 
             {/* Monete */}
@@ -751,14 +761,124 @@ export default function App() {
         {/* Content Panel Area */}
         <div className={`flex-1 overflow-hidden flex relative z-10 ${isPhoneMode ? 'flex-col' : 'flex-row'}`}>
           
+          {/* Avatar Picker Modal */}
+          <AnimatePresence>
+            {showAvatarPicker && profile && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={() => setShowAvatarPicker(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <h2 className="text-xl font-black text-indigo-950 mb-1">Scegli Avatar</h2>
+                  <p className="text-xs text-slate-500 mb-4">Cambia il tuo avatar quando vuoi!</p>
+                  
+                  <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                    {/* Bambini */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Bambini</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {AVATARS.filter(a => a.category === 'boy').map(avatar => (
+                          <button
+                            key={avatar.id}
+                            onClick={() => {
+                              sound.playClick();
+                              handleUpdateProfile(p => ({
+                                ...p,
+                                avatar: { emoji: avatar.emoji }
+                              }));
+                              setShowAvatarPicker(false);
+                            }}
+                            className={`p-2 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
+                              profile.avatar.emoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                            }`}
+                          >
+                            <span className="text-xl">{avatar.emoji}</span>
+                            <span className="line-clamp-1 text-[8px]">{avatar.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bambine */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Bambine</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {AVATARS.filter(a => a.category === 'girl').map(avatar => (
+                          <button
+                            key={avatar.id}
+                            onClick={() => {
+                              sound.playClick();
+                              handleUpdateProfile(p => ({
+                                ...p,
+                                avatar: { emoji: avatar.emoji }
+                              }));
+                              setShowAvatarPicker(false);
+                            }}
+                            className={`p-2 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
+                              profile.avatar.emoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                            }`}
+                          >
+                            <span className="text-xl">{avatar.emoji}</span>
+                            <span className="line-clamp-1 text-[8px]">{avatar.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Animali */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Animali</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {AVATARS.filter(a => a.category === 'pet').map(avatar => (
+                          <button
+                            key={avatar.id}
+                            onClick={() => {
+                              sound.playClick();
+                              handleUpdateProfile(p => ({
+                                ...p,
+                                avatar: { emoji: avatar.emoji }
+                              }));
+                              setShowAvatarPicker(false);
+                            }}
+                            className={`p-2 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
+                              profile.avatar.emoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                            }`}
+                          >
+                            <span className="text-xl">{avatar.emoji}</span>
+                            <span className="line-clamp-1 text-[8px]">{avatar.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowAvatarPicker(false)}
+                    className="w-full mt-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer transition-colors"
+                  >
+                    Chiudi
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
           {/* Left Sidebar Navigation (Kid-Friendly Rail) */}
           {selectedWorldId === null && !isPhoneMode && (
             <div className="w-24 bg-white/20 backdrop-blur-md rounded-[32px] border-4 border-white/40 flex flex-col items-center py-8 gap-8 shadow-2xl z-20 m-4 md:flex hidden">
               {[
-                { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
-                { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
-                { id: 'avatar', emoji: '🧑', color: 'bg-emerald-400 border-emerald-600' },
-                { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' }
+               { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
+               { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
+               { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' }
               ].map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -977,15 +1097,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* TAB 3: CUSTOMIZE (Hero creation and emporio shop) */}
-                  {activeTab === 'avatar' && (
-                    <AvatarCreator
-                      profile={profile}
-                      updateProfile={handleUpdateProfile}
-                      compactLayout={isPhoneMode}
-                    />
-                  )}
-
                   {/* TAB 4: PARENT AREA */}
                   {activeTab === 'parents' && (
                     <ParentDashboard
@@ -1009,15 +1120,15 @@ export default function App() {
               <div className="w-full space-y-4">
                 <p className="text-xs font-black text-sky-950 uppercase tracking-widest text-center">La tua Squadra</p>
                 
-                {/* Creature Card */}
+                {/* Profile Card */}
                 <div className="w-full bg-white/40 backdrop-blur-sm rounded-3xl p-4 border-2 border-white/50 flex flex-col items-center">
                   <div className="w-20 h-20 bg-white rounded-full shadow-inner flex items-center justify-center text-4xl mb-2 border-2 border-sky-200 select-none">
-                    {profile.avatar.mascot !== 'Nessuna' ? '🦕' : '🦖'}
+                    {profile.avatar?.emoji || '👦'}
                   </div>
                   <p className="font-black text-sky-950 text-sm">
-                    {profile.avatar.mascot !== 'Nessuna' ? profile.avatar.mascot : 'Triplo-Saur'}
+                    {profile.name}
                   </p>
-                  <p className="text-[9px] text-sky-900/60 font-bold uppercase tracking-tighter">Grado: Socio d'Avventura</p>
+                  <p className="text-[9px] text-sky-900/60 font-bold uppercase tracking-tighter">Livello {profile.level}</p>
                   <div className="w-full h-1.5 bg-white/50 rounded-full mt-3 overflow-hidden">
                     <div className="h-full bg-sky-500 rounded-full" style={{ width: `${(profile.level % 1) * 100 || 65}%` }}></div>
                   </div>
@@ -1059,12 +1170,11 @@ export default function App() {
         {/* Global Bottom Navigation bar for mobile screens */}
         {selectedWorldId === null && isPhoneMode && (
           <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-2 flex justify-around items-center z-10 shadow-xl shrink-0">
-            {[
-              { id: 'adventure', name: 'Mappa Avventura', emoji: '🗺️', label: 'Mappa' },
-              { id: 'training', name: 'Allenamento', emoji: '🎒', label: 'Allenamento' },
-              { id: 'avatar', name: 'Armadio & Emporio', emoji: '🧑', label: 'Eroe' },
-              { id: 'parents', name: 'Area Genitori', emoji: '🔐', label: 'Genitori' }
-            ].map(tab => {
+           {[
+             { id: 'adventure', name: 'Mappa Avventura', emoji: '🗺️', label: 'Mappa' },
+             { id: 'training', name: 'Allenamento', emoji: '🎒', label: 'Allenamento' },
+             { id: 'parents', name: 'Area Genitori', emoji: '🔐', label: 'Genitori' }
+           ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
