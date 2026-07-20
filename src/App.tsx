@@ -139,6 +139,9 @@ export default function App() {
   const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
   const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
   const [pinError, setPinError] = useState<string>("");
+  const [showChangePINForm, setShowChangePINForm] = useState<boolean>(false);
+  const [newPINInput, setNewPINInput] = useState<string>("");
+  const [confirmPINInput, setConfirmPINInput] = useState<string>("");
 
   const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
 
@@ -351,21 +354,9 @@ export default function App() {
       // Setting PIN for first time
       if (pin.length === 4) {
         if (pin === '0000') {
-          // First time with 0000 - propose change
+          // First time with 0000 - show change PIN form
           setPinError("PIN predefinito! Cambialo ora.");
-          setTimeout(() => {
-            const newPIN = prompt('Inserisci il nuovo PIN (4 cifre):', '');
-            if (newPIN && newPIN.length === 4 && /^\d+$/.test(newPIN)) {
-              localStorage.setItem('tabellandia_parent_pin', newPIN);
-              sound.playPowerUp();
-              setParentAuthenticated(true);
-              setShowPINModal(false);
-              setPinInput("");
-              setPinError("");
-            } else {
-              setPinError("PIN non valido!");
-            }
-          }, 600);
+          setShowChangePINForm(true);
         } else {
           localStorage.setItem('tabellandia_parent_pin', pin);
           sound.playPowerUp();
@@ -401,8 +392,37 @@ export default function App() {
     setShowPINModal(false);
     setPinInput("");
     setPinError("");
+    setShowChangePINForm(false);
+    setNewPINInput("");
+    setConfirmPINInput("");
     setParentAuthenticated(false);
     setActiveTab('adventure');
+  };
+
+  const handleSaveNewPIN = () => {
+    sound.playClick();
+    
+    // Validate inputs
+    if (newPINInput.length !== 4 || !newPINInput.match(/^\d+$/)) {
+      setPinError("Nuovo PIN deve essere 4 cifre!");
+      return;
+    }
+    
+    if (newPINInput !== confirmPINInput) {
+      setPinError("I PIN non corrispondono!");
+      return;
+    }
+    
+    // Save new PIN and proceed
+    localStorage.setItem('tabellandia_parent_pin', newPINInput);
+    sound.playPowerUp();
+    setParentAuthenticated(true);
+    setShowPINModal(false);
+    setPinInput("");
+    setShowChangePINForm(false);
+    setNewPINInput("");
+    setConfirmPINInput("");
+    setPinError("");
   };
 
   if (!isLoaded) {
@@ -860,53 +880,127 @@ export default function App() {
                   <div className="text-4xl mb-2">🔐</div>
                   <h2 className="text-xl font-black text-indigo-950">Area Genitori</h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    {isSettingPIN ? "Crea un PIN a 4 cifre" : "Inserisci il PIN"}
+                    {showChangePINForm ? "Imposta un nuovo PIN" : isSettingPIN ? "Crea un PIN a 4 cifre" : "Inserisci il PIN"}
                   </p>
                 </div>
 
-                {/* PIN Display */}
-                <div className="flex justify-center gap-2 mb-6">
-                  {[0, 1, 2, 3].map(i => (
-                    <motion.div
-                      key={i}
-                      animate={pinError ? { x: [-5, 5, -5, 0] } : {}}
-                      transition={{ duration: 0.3 }}
-                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-lg transition-all ${
-                        pinError
-                          ? 'bg-red-100 border-red-400 text-red-600'
-                          : 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                      }`}
-                    >
-                      {pinInput[i] ? '●' : '-'}
-                    </motion.div>
-                  ))}
-                </div>
+                {/* Show Change PIN Form or Normal PIN Entry */}
+                {showChangePINForm ? (
+                  <>
+                    {/* Change PIN Form */}
+                    <div className="space-y-4">
+                      {/* New PIN Input */}
+                      <div>
+                        <label className="text-xs font-bold text-indigo-700 block mb-2">Nuovo PIN (4 cifre)</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={newPINInput}
+                          onChange={e => setNewPINInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-center text-2xl font-black tracking-widest focus:outline-none focus:border-indigo-600"
+                          placeholder="••••"
+                        />
+                      </div>
 
-                {/* Error Message */}
-                {pinError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center mb-4 text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
-                  >
-                    {pinError}
-                  </motion.div>
+                      {/* Confirm PIN Input */}
+                      <div>
+                        <label className="text-xs font-bold text-indigo-700 block mb-2">Conferma PIN</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={confirmPINInput}
+                          onChange={e => setConfirmPINInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-center text-2xl font-black tracking-widest focus:outline-none focus:border-indigo-600"
+                          placeholder="••••"
+                        />
+                      </div>
+
+                      {/* Error Message */}
+                      {pinError && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-center text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
+                        >
+                          {pinError}
+                        </motion.div>
+                      )}
+
+                      {/* Buttons */}
+                      <div className="flex gap-3 mt-6">
+                        <button
+                          onClick={() => {
+                            setShowChangePINForm(false);
+                            setNewPINInput("");
+                            setConfirmPINInput("");
+                            setPinError("");
+                            setPinInput("");
+                          }}
+                          className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black rounded-lg transition-colors"
+                        >
+                          Annulla
+                        </button>
+                        <button
+                          onClick={handleSaveNewPIN}
+                          disabled={newPINInput.length !== 4 || confirmPINInput.length !== 4}
+                          className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Salva
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* PIN Display */}
+                    <div className="flex justify-center gap-2 mb-6">
+                      {[0, 1, 2, 3].map(i => (
+                        <motion.div
+                          key={i}
+                          animate={pinError ? { x: [-5, 5, -5, 0] } : {}}
+                          transition={{ duration: 0.3 }}
+                          className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-lg transition-all ${
+                            pinError
+                              ? 'bg-red-100 border-red-400 text-red-600'
+                              : 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                          }`}
+                        >
+                          {pinInput[i] ? '●' : '-'}
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* Error Message */}
+                    {pinError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center mb-4 text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
+                      >
+                        {pinError}
+                      </motion.div>
+                    )}
+
+                    {/* Numeric Keypad */}
+                    <NumericKeypad
+                      value={pinInput}
+                      onChange={v => setPinInput(v.slice(0, 4))}
+                      onSubmit={handlePINSubmit}
+                      maxDigits={4}
+                    />
+                  </>
                 )}
 
-                {/* Numeric Keypad */}
-                <NumericKeypad
-                  value={pinInput}
-                  onChange={v => setPinInput(v.slice(0, 4))}
-                  onSubmit={handlePINSubmit}
-                  maxDigits={4}
-                />
-
-                <button
-                  onClick={handleClosePINModal}
-                  className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
-                >
-                  Annulla
-                </button>
+                {!showChangePINForm && (
+                  <button
+                    onClick={handleClosePINModal}
+                    className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                  >
+                    Annulla
+                  </button>
+                )}
               </motion.div>
             </motion.div>
           )}
