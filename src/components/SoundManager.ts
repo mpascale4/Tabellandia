@@ -10,14 +10,27 @@ class SoundManager {
   private musicTimer: number | null = null;
   private musicStep: number = 0;
   private readonly musicPattern = [
-    261.63, // C4
-    293.66, // D4
-    329.63, // E4
+    // Divertente melodia playful in tonalità maggiore
     392.00, // G4
-    329.63,
-    293.66,
-    246.94, // B3
-    220.00, // A3
+    392.00, // G4
+    392.00, // G4
+    349.23, // F4
+    392.00, // G4
+    466.16, // A#4
+    392.00, // G4
+    392.00, // G4
+    392.00, // G4
+    349.23, // F4
+    392.00, // G4
+    587.33, // D5
+    523.25, // C5
+    523.25, // C5
+    523.25, // C5
+    466.16, // A#4
+    523.25, // C5
+    587.33, // D5
+    523.25, // C5
+    392.00, // G4 - back to main
   ];
 
   private initContext() {
@@ -119,7 +132,7 @@ class SoundManager {
     this.initContext();
     if (!this.ctx || this.musicTimer !== null) return;
 
-    const stepDuration = 1.15;
+    const stepDuration = 0.75;
     const playStep = () => {
       if (!this.musicEnabled || !this.ctx) {
         this.stopBackgroundMusic();
