@@ -1272,49 +1272,54 @@ export default function App() {
                                       : 'bg-gradient-to-br from-sky-400 to-blue-500 border-blue-700 text-white outline outline-4 outline-white outline-offset-2'
                                 }`}
                               >
-                                {/* World Symbol - Positioned top left */}
-                                <span className="absolute top-2 left-2 text-3xl select-none">
+                                {/* World Symbol Badge - top left inside circle */}
+                                <div className="absolute -top-2 -left-2 w-14 h-14 bg-white rounded-full border-4 border-sky-400 shadow-lg flex items-center justify-center text-3xl select-none">
                                   {world.symbol}
-                                </span>
+                                </div>
 
-                                {/* Monuments inside the box - scattered positions */}
+                                {/* Monuments inside the box - scattered positions with semi-transparent background */}
                                 {isUnlocked && (
-                                  <div className="absolute inset-0 rounded-[48px] overflow-hidden pointer-events-none">
-                                    {world.monuments.map((monument, idx) => {
-                                      const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
-                                      // Generate random positions for each monument
-                                      const positions = [
-                                        'top-6 right-6',
-                                        'bottom-8 left-8',
-                                        'top-1/2 right-4 transform -translate-y-1/2'
-                                      ];
-                                      const pos = positions[idx % positions.length];
-                                      
-                                      return (
-                                        <div
-                                          key={monument.id}
-                                          className={`absolute ${pos} w-6 h-6 rounded flex items-center justify-center text-sm transition-all ${
-                                            isBuilt
-                                              ? 'opacity-100'
-                                              : 'opacity-30'
-                                          }`}
-                                          title={monument.name}
-                                        >
-                                          {monument.emoji}
-                                        </div>
-                                      );
-                                    })}
+                                  <div className="absolute inset-0 rounded-[48px] overflow-hidden pointer-events-none flex flex-col items-center justify-center gap-8 p-4">
+                                    <div className="relative w-full h-full flex items-center justify-center">
+                                      {world.monuments.map((monument, idx) => {
+                                        const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
+                                        // Generate fixed positions for each monument (max 3)
+                                        const positions = [
+                                          { top: '15%', left: '15%' },
+                                          { top: '15%', right: '15%' },
+                                          { bottom: '15%', left: '25%' },
+                                          { bottom: '15%', right: '25%' }
+                                        ];
+                                        const pos = positions[idx % positions.length];
+                                        
+                                        return (
+                                          <div
+                                            key={monument.id}
+                                            style={{
+                                              position: 'absolute',
+                                              top: pos.top,
+                                              bottom: pos.bottom,
+                                              left: pos.left,
+                                              right: pos.right
+                                            }}
+                                            className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all ${
+                                              isBuilt
+                                                ? 'bg-white/40 shadow-md'
+                                                : 'bg-white/20'
+                                            }`}
+                                            title={monument.name}
+                                          >
+                                            {monument.emoji}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 )}
 
-                                {/* Main central area */}
-                                <span className="text-5xl filter drop-shadow select-none">
-                                  {/* Central content kept for visual balance */}
-                                </span>
-
                                 {/* Mascot Badge overlay */}
                                 {isUnlocked && (
-                                  <div className="absolute -top-3 -right-3 w-16 h-16 bg-white rounded-full border-4 border-sky-400 shadow-xl flex items-center justify-center text-3xl select-none" title={world.mascotName}>
+                                  <div className="absolute -top-2 -right-2 w-14 h-14 bg-white rounded-full border-4 border-sky-400 shadow-lg flex items-center justify-center text-3xl select-none" title={world.mascotName}>
                                     {world.id === 2 ? '🦊' : world.id === 3 ? '🦕' : world.id === 4 ? '🦉' : world.id === 5 ? '🦖' : '🦁'}
                                   </div>
                                 )}
