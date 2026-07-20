@@ -14,9 +14,10 @@ interface ParentDashboardProps {
   profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onClose: () => void;
+  compactLayout?: boolean;
 }
 
-export default function ParentDashboard({ profile, updateProfile, onClose }: ParentDashboardProps) {
+export default function ParentDashboard({ profile, updateProfile, onClose, compactLayout = false }: ParentDashboardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinAnswer, setPinAnswer] = useState("");
   const [pinError, setPinError] = useState(false);
@@ -264,9 +265,9 @@ export default function ParentDashboard({ profile, updateProfile, onClose }: Par
   }
 
   return (
-    <div className="w-full h-full bg-slate-50 p-4 md:p-6 overflow-y-auto" id="parent-dashboard-panel">
+    <div className={`w-full h-full bg-slate-50 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`} id="parent-dashboard-panel">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4 mb-6">
+      <div className={`flex flex-col justify-between gap-4 border-b border-slate-200 pb-4 mb-6 ${compactLayout ? '' : 'sm:flex-row sm:items-center'}`}>
         <div>
           <h2 className="text-2xl font-black text-indigo-950 flex items-center gap-2 font-sans">
             <ShieldCheck className="w-7 h-7 text-emerald-500" />
@@ -288,7 +289,7 @@ export default function ParentDashboard({ profile, updateProfile, onClose }: Par
       </div>
 
       {/* Main Grid: Overview cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className={`grid grid-cols-1 gap-4 mb-6 ${compactLayout ? '' : 'md:grid-cols-3'}`}>
         {/* Card 1: Accuratezza */}
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl font-black">
@@ -347,7 +348,7 @@ export default function ParentDashboard({ profile, updateProfile, onClose }: Par
       </div>
 
       {/* Detailed Analysis Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className={`grid grid-cols-1 gap-6 mb-6 ${compactLayout ? '' : 'lg:grid-cols-2'}`}>
         {/* Left column: Heatmap table representation of the 9x9 multiplier grid */}
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <div className="mb-4">
