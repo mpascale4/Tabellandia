@@ -668,155 +668,84 @@ export default function App() {
         )}
 
         {/* Outer Frame Header */}
-        <header className={`sticky top-0 relative bg-white/30 backdrop-blur-md border-b border-white/40 z-40 shadow-lg text-sky-950 ${isPhoneMode ? 'px-3 py-2 flex flex-col gap-2' : 'px-6 py-4 flex items-center justify-between gap-4'}`}>
-          {isPhoneMode ? (
-            // Mobile Layout
-            <>
-              <div className="w-full flex items-center gap-2 bg-white/40 backdrop-blur-sm p-1.5 rounded-full border-2 border-white/60 shadow-md overflow-x-auto flex-nowrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    handleSwitchProfile();
-                  }}
-                  className="flex flex-col items-center justify-center w-12 shrink-0 cursor-pointer"
-                  id="profile-icon-btn"
-                  title="Cambia profilo"
-                >
-                  <div className="w-10 h-10 bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center text-lg">
-                    🦁
-                  </div>
-                  <p className="text-[8px] font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5">{profile.name}</p>
-                </button>
-
-                <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 min-w-[70px] bg-white/65 rounded-full border border-white/80 px-2 py-1">
-                  <div className="flex items-center gap-1 text-amber-600">
-                    <Coins className="w-3 h-3" />
-                    <span className="text-[7px] font-bold uppercase tracking-wide text-sky-950/60">Monete</span>
-                  </div>
-                  <span className="text-[10px] font-black text-sky-950 leading-none">{profile.coins}</span>
-                </div>
-
-                <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 min-w-[70px] bg-white/65 rounded-full border border-white/80 px-2 py-1">
-                  <div className="flex items-center gap-1 text-sky-500">
-                    <Droplets className="w-3 h-3" />
-                    <span className="text-[7px] font-bold uppercase tracking-wide text-sky-950/60">Gocce</span>
-                  </div>
-                  <span className="text-[10px] font-black text-sky-950 leading-none">{profile.lightDrops}</span>
-                </div>
+        <header className={`sticky top-0 relative bg-white/30 backdrop-blur-md border-b border-white/40 z-40 shadow-lg text-sky-950 px-${isPhoneMode ? '2' : '6'} py-${isPhoneMode ? '2' : '4'}`}>
+          <div className="w-full flex items-center gap-${isPhoneMode ? '1.5' : '3'} bg-white/40 backdrop-blur-sm p-${isPhoneMode ? '1' : '1.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap">
+            {/* Profile Avatar */}
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                handleSwitchProfile();
+              }}
+              className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0 cursor-pointer`}
+              id="profile-icon-btn"
+              title="Cambia profilo"
+            >
+              <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
+                🦁
               </div>
+              <p className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}>{profile.name}</p>
+            </button>
 
-              {/* Controls row - Mobile only */}
-              <div className="flex items-center justify-center gap-2 w-full">
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
-                  className={`w-7 h-7 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
-                    musicEnabled
-                      ? 'bg-amber-100 border-amber-300 text-amber-700'
-                      : 'bg-white/70 border-slate-200 text-slate-400'
-                  }`}
-                  id="music-toggle"
-                  title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
-                >
-                  <span className="relative flex items-center justify-center">
-                    <Music2 className="w-3.5 h-3.5" />
-                    {!musicEnabled && <X className="w-1.5 h-1.5 absolute -right-1 -bottom-1 stroke-[3.2]" />}
-                  </span>
-                </button>
-
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleEffects(); }}
-                  className={`w-7 h-7 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
-                    effectsEnabled
-                      ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600'
-                      : 'bg-white/70 border-slate-200 text-slate-400'
-                  }`}
-                  id="sfx-toggle"
-                  title={effectsEnabled ? "Disattiva effetti click" : "Attiva effetti click"}
-                >
-                  <span className="relative flex items-center justify-center">
-                    <Volume2 className="w-3.5 h-3.5" />
-                    {!effectsEnabled && <X className="w-1.5 h-1.5 absolute -right-1 -bottom-1 stroke-[3.2]" />}
-                  </span>
-                </button>
-
-                <VoiceToggle />
+            {/* Monete */}
+            <div className={`flex flex-col items-center justify-center gap-0.5 shrink-0 ${isPhoneMode ? 'min-w-[60px]' : 'min-w-[92px]'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'}`}>
+              <div className={`flex items-center gap-${isPhoneMode ? '0.5' : '1.5'} text-amber-600`}>
+                <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
+                <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[6px]' : 'text-[9px]'}`}>Monete</span>
               </div>
-            </>
-          ) : (
-            // Desktop Layout
-            <div className={`relative w-full max-w-4xl`}>
-              <div className="w-full flex items-center gap-3 bg-white/40 backdrop-blur-sm p-1.5 rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    handleSwitchProfile();
-                  }}
-                  className="flex flex-col items-center justify-center w-14 shrink-0 cursor-pointer"
-                  id="profile-icon-btn"
-                  title="Cambia profilo"
-                >
-                  <div className="w-11 h-11 bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center text-2xl">
-                    🦁
-                  </div>
-                  <p className="text-[10px] font-black text-sky-950 uppercase tracking-wider leading-none mt-1">{profile.name}</p>
-                </button>
-
-                <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 min-w-[92px] bg-white/65 rounded-full border border-white/80 px-3 py-1.5">
-                  <div className="flex items-center gap-1.5 text-amber-600">
-                    <Coins className="w-3.5 h-3.5" />
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-sky-950/60">Monete</span>
-                  </div>
-                  <span className="text-xs font-black text-sky-950 leading-none">{profile.coins}</span>
-                </div>
-
-                <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 min-w-[92px] bg-white/65 rounded-full border border-white/80 px-3 py-1.5">
-                  <div className="flex items-center gap-1.5 text-sky-500">
-                    <Droplets className="w-3.5 h-3.5" />
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-sky-950/60">Gocce</span>
-                  </div>
-                  <span className="text-xs font-black text-sky-950 leading-none">{profile.lightDrops}</span>
-                </div>
-
-                <div className="ml-auto flex items-center gap-2 bg-white/65 rounded-full border border-white/80 px-3 py-1.5 min-w-max">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
-                    className={`w-8 h-8 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
-                      musicEnabled
-                        ? 'bg-amber-100 border-amber-300 text-amber-700'
-                        : 'bg-white/70 border-slate-200 text-slate-400'
-                    }`}
-                    id="music-toggle"
-                    title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
-                  >
-                    <span className="relative flex items-center justify-center">
-                      <Music2 className="w-4 h-4" />
-                      {!musicEnabled && <X className="w-2 h-2 absolute -right-1 -bottom-1 stroke-[3.2]" />}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleEffects(); }}
-                    className={`w-8 h-8 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
-                      effectsEnabled
-                        ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600'
-                        : 'bg-white/70 border-slate-200 text-slate-400'
-                    }`}
-                    id="sfx-toggle"
-                    title={effectsEnabled ? "Disattiva effetti click" : "Attiva effetti click"}
-                  >
-                    <span className="relative flex items-center justify-center">
-                      <Volume2 className="w-4 h-4" />
-                      {!effectsEnabled && <X className="w-2 h-2 absolute -right-1 -bottom-1 stroke-[3.2]" />}
-                    </span>
-                  </button>
-
-                  <VoiceToggle />
-                </div>
-              </div>
+              <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
             </div>
-          )}
+
+            {/* Gocce */}
+            <div className={`flex flex-col items-center justify-center gap-0.5 shrink-0 ${isPhoneMode ? 'min-w-[60px]' : 'min-w-[92px]'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'}`}>
+              <div className={`flex items-center gap-${isPhoneMode ? '0.5' : '1.5'} text-sky-500`}>
+                <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
+                <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[6px]' : 'text-[9px]'}`}>Gocce</span>
+              </div>
+              <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
+            </div>
+
+            {/* Controls - Right Side */}
+            <div className={`ml-auto flex items-center gap-${isPhoneMode ? '1' : '2'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'} min-w-max`}>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
+                  isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'
+                } ${
+                  musicEnabled
+                    ? 'bg-amber-100 border-amber-300 text-amber-700'
+                    : 'bg-white/70 border-slate-200 text-slate-400'
+                }`}
+                id="music-toggle"
+                title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
+              >
+                <span className="relative flex items-center justify-center">
+                  <Music2 className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                  {!musicEnabled && <X className={`absolute -right-1 -bottom-1 stroke-[3.2] ${isPhoneMode ? 'w-1 h-1' : 'w-2 h-2'}`} />}
+                </span>
+              </button>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleEffects(); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
+                  isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'
+                } ${
+                  effectsEnabled
+                    ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600'
+                    : 'bg-white/70 border-slate-200 text-slate-400'
+                }`}
+                id="sfx-toggle"
+                title={effectsEnabled ? "Disattiva effetti click" : "Attiva effetti click"}
+              >
+                <span className="relative flex items-center justify-center">
+                  <Volume2 className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                  {!effectsEnabled && <X className={`absolute -right-1 -bottom-1 stroke-[3.2] ${isPhoneMode ? 'w-1 h-1' : 'w-2 h-2'}`} />}
+                </span>
+              </button>
+
+              <VoiceToggle isPhoneMode={isPhoneMode} />
+            </div>
+          </div>
         </header>
 
         {/* Content Panel Area */}
