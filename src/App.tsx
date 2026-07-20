@@ -850,9 +850,9 @@ export default function App() {
                 {/* Numeric Keypad */}
                 <NumericKeypad
                   value={pinInput}
-                  onInput={v => setPinInput(v.slice(0, 4))}
+                  onChange={v => setPinInput(v.slice(0, 4))}
                   onSubmit={handlePINSubmit}
-                  maxLength={4}
+                  maxDigits={4}
                 />
 
                 <button
@@ -1029,32 +1029,33 @@ export default function App() {
                                 <span className="text-xs font-black text-sky-950 leading-tight block">{world.locationName}</span>
                               </div>
 
-                              {/* Monuments Display */}
+                              {/* Progress & Monuments Row */}
                               {isUnlocked && (
-                                <div className="mt-3 flex gap-2 justify-center">
-                                  {world.monuments.map(monument => {
-                                    const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
-                                    return (
-                                      <div
-                                        key={monument.id}
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
-                                          isBuilt
-                                            ? 'bg-emerald-300 border-2 border-emerald-600 shadow-md scale-105'
-                                            : 'bg-gray-200/60 border-2 border-gray-300 opacity-40'
-                                        }`}
-                                        title={monument.name}
-                                      >
-                                        {monument.emoji}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-
-                              {/* Progress badge */}
-                              {isUnlocked && (
-                                <div className="mt-2 bg-yellow-400 text-yellow-950 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-tight shadow-sm">
-                                  {isCompleted ? "Completato 🌟" : `In Corso: ${stepsCount}/6`}
+                                <div className="mt-3 flex flex-col gap-2 items-center">
+                                  {/* Progress badge */}
+                                  <div className="bg-yellow-400 text-yellow-950 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-tight shadow-sm">
+                                    {isCompleted ? "Completato 🌟" : `In Corso: ${stepsCount}/6`}
+                                  </div>
+                                   
+                                  {/* Monuments Display */}
+                                  <div className="flex gap-2 justify-center">
+                                    {world.monuments.map(monument => {
+                                      const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
+                                      return (
+                                        <div
+                                          key={monument.id}
+                                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
+                                            isBuilt
+                                              ? 'bg-emerald-300 border-2 border-emerald-600 shadow-md scale-105'
+                                              : 'bg-gray-200/60 border-2 border-gray-300 opacity-40'
+                                          }`}
+                                          title={monument.name}
+                                        >
+                                          {monument.emoji}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               )}
                             </div>
