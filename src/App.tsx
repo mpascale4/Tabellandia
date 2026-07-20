@@ -703,10 +703,10 @@ export default function App() {
                 <span className="text-xs font-black text-sky-950 leading-none">{profile.lightDrops}</span>
               </div>
 
-              <div className="ml-auto flex items-center gap-2 bg-white/65 rounded-full border border-white/80 px-3 py-1.5">
+              <div className="ml-auto flex items-center gap-2 bg-white/65 rounded-full border border-white/80 px-3 py-1.5 min-w-max">
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
-                  className={`w-8 h-8 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
+                  className={`w-8 h-8 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 hidden sm:flex ${
                     musicEnabled
                       ? 'bg-amber-100 border-amber-300 text-amber-700'
                       : 'bg-white/70 border-slate-200 text-slate-400'
@@ -722,7 +722,7 @@ export default function App() {
 
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleEffects(); }}
-                  className={`w-8 h-8 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
+                  className={`w-8 h-8 rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 hidden sm:flex ${
                     effectsEnabled
                       ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600'
                       : 'bg-white/70 border-slate-200 text-slate-400'
