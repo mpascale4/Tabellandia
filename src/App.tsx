@@ -1272,9 +1272,44 @@ export default function App() {
                                       : 'bg-gradient-to-br from-sky-400 to-blue-500 border-blue-700 text-white outline outline-4 outline-white outline-offset-2'
                                 }`}
                               >
-                                {/* Large World Symbol */}
-                                <span className="text-6xl filter drop-shadow select-none transform group-hover:scale-110 transition-transform duration-300">
+                                {/* World Symbol - Positioned top left */}
+                                <span className="absolute top-2 left-2 text-3xl select-none">
                                   {world.symbol}
+                                </span>
+
+                                {/* Monuments inside the box - scattered positions */}
+                                {isUnlocked && (
+                                  <div className="absolute inset-0 rounded-[48px] overflow-hidden pointer-events-none">
+                                    {world.monuments.map((monument, idx) => {
+                                      const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
+                                      // Generate random positions for each monument
+                                      const positions = [
+                                        'top-6 right-6',
+                                        'bottom-8 left-8',
+                                        'top-1/2 right-4 transform -translate-y-1/2'
+                                      ];
+                                      const pos = positions[idx % positions.length];
+                                      
+                                      return (
+                                        <div
+                                          key={monument.id}
+                                          className={`absolute ${pos} w-6 h-6 rounded flex items-center justify-center text-sm transition-all ${
+                                            isBuilt
+                                              ? 'opacity-100'
+                                              : 'opacity-30'
+                                          }`}
+                                          title={monument.name}
+                                        >
+                                          {monument.emoji}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                {/* Main central area */}
+                                <span className="text-5xl filter drop-shadow select-none">
+                                  {/* Central content kept for visual balance */}
                                 </span>
 
                                 {/* Mascot Badge overlay */}
@@ -1304,26 +1339,6 @@ export default function App() {
                                   {/* Progress badge */}
                                   <div className="bg-yellow-400 text-yellow-950 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-tight shadow-sm">
                                     {isCompleted ? "Completato 🌟" : `In Corso: ${stepsCount}/6`}
-                                  </div>
-                                   
-                                  {/* Monuments Display */}
-                                  <div className="flex gap-2 justify-center">
-                                    {world.monuments.map(monument => {
-                                      const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
-                                      return (
-                                        <div
-                                          key={monument.id}
-                                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
-                                            isBuilt
-                                              ? 'bg-emerald-300 border-2 border-emerald-600 shadow-md scale-105'
-                                              : 'bg-gray-200/60 border-2 border-gray-300 opacity-40'
-                                          }`}
-                                          title={monument.name}
-                                        >
-                                          {monument.emoji}
-                                        </div>
-                                      );
-                                    })}
                                   </div>
                                 </div>
                               )}
