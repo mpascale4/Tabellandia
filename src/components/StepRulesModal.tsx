@@ -13,9 +13,10 @@ interface StepRulesModalProps {
   world: WorldConfig;
   onClose: () => void;
   isMandatory?: boolean; // If true, disable X button and emphasize the close button
+  isPage?: boolean; // If true, render as full-page content instead of modal overlay
 }
 
-export default function StepRulesModal({ step, world, onClose, isMandatory = false }: StepRulesModalProps) {
+export default function StepRulesModal({ step, world, onClose, isMandatory = false, isPage = false }: StepRulesModalProps) {
   const example_a = world.id;
   const example_b = 4;
   const example_result = example_a * example_b;
@@ -42,10 +43,6 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
                 <strong className="block mt-1 text-lg text-emerald-600">{example_result} oggetti!</strong>
               </p>
             </div>
-            <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <h4 className="font-bold text-yellow-900 mb-2">💡 Obiettivo:</h4>
-              <p className="text-sm text-yellow-800">Tocca gli oggetti per contarli uno ad uno e capire il concetto di moltiplicazione!</p>
-            </div>
           </div>
         );
 
@@ -71,10 +68,6 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
                 Ogni salto aumenta di {example_a}. Non confonderti!
               </p>
             </div>
-            <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <h4 className="font-bold text-yellow-900 mb-2">💡 Obiettivo:</h4>
-              <p className="text-sm text-yellow-800">Completa 10 salti corretti seguendo la sequenza!</p>
-            </div>
           </div>
         );
 
@@ -99,10 +92,6 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
                 Tocca il fattore a sinistra, poi scegli il risultato corretto dai palloncini a destra.
               </p>
             </div>
-            <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <h4 className="font-bold text-yellow-900 mb-2">💡 Obiettivo:</h4>
-              <p className="text-sm text-yellow-800">Costruisci correttamente tutti i 10 fattori!</p>
-            </div>
           </div>
         );
 
@@ -120,10 +109,6 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
               <p className="text-sm font-bold text-amber-700">
                 {world.trickTitle}
               </p>
-            </div>
-            <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <h4 className="font-bold text-yellow-900 mb-2">💡 Obiettivo:</h4>
-              <p className="text-sm text-yellow-800">Leggi il trucco e rispondi correttamente!</p>
             </div>
           </div>
         );
@@ -145,10 +130,6 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
                 <li>🔁 Domande sbagliate tornano alla fine</li>
               </ul>
             </div>
-            <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <h4 className="font-bold text-yellow-900 mb-2">💡 Obiettivo:</h4>
-              <p className="text-sm text-yellow-800">Rispondi correttamente a tutte le domande per sbloccare il mondo!</p>
-            </div>
           </div>
         );
 
@@ -169,10 +150,6 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
                 <li>⭐⭐⭐ 12+ risposte corrette = 3 stelle</li>
               </ul>
             </div>
-            <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <h4 className="font-bold text-yellow-900 mb-2">💡 Obiettivo:</h4>
-              <p className="text-sm text-yellow-800">Ottieni il massimo punteggio! Le stelle aumentano il tuo livello!</p>
-            </div>
           </div>
         );
 
@@ -190,6 +167,27 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
     sfida: '6. Sfida cronometrata ⚡'
   };
 
+  // If rendering as page, return just the content
+  if (isPage) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <h2 className="text-3xl sm:text-4xl font-black text-indigo-950 font-sans mb-2">
+            {stepTitles[step] || 'Regole'}
+          </h2>
+          <p className="text-sm sm:text-base text-indigo-700 font-bold">
+            Tabellina del {world.id}
+          </p>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto pr-2">
+          {renderRules()}
+        </div>
+      </div>
+    );
+  }
+
+  // Otherwise render as modal overlay
   return (
     <motion.div
       initial={{ opacity: 0 }}

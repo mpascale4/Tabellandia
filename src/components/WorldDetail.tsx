@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
 import { Sparkles, HelpCircle, ArrowLeft, Check, AlertCircle, Award, Timer, BookOpen, Trophy, Compass, ShieldAlert } from 'lucide-react';
@@ -26,11 +26,20 @@ interface WorldDetailProps {
 }
 
 export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise }: WorldDetailProps) {
-  const [activeStep, setActiveStep] = useState<string>(initialExercise || 'intro'); // intro, comprendo, salto, costruisco, trucchi, pratico, sfida
+  const [activeStep, setActiveStep] = useState<string>(initialExercise || 'comprendo'); // comprendo, salto, costruisco, trucchi, pratico, sfida
+  const [showIntroModal, setShowIntroModal] = useState<boolean>(false);
+  const [hasSeenIntro, setHasSeenIntro] = useState<boolean>(false);
   const [showStepRulesModal, setShowStepRulesModal] = useState<string | null>(null); // null o il nome dello step
   const [hasSeenStepRules, setHasSeenStepRules] = useState<Set<string>>(new Set()); // Track which steps have been seen
   const [hasReadRulesMandatory, setHasReadRulesMandatory] = useState<Set<string>>(new Set()); // Track mandatory rule reading
   const [showRewardPopup, setShowRewardPopup] = useState<{ step: string; coins: number; drops: number } | null>(null);
+  
+  // View stack for modal-to-page conversion
+  const [viewStack, setViewStack] = useState<string[]>([]); // Stack of views, e.g. ['rules-comprendo', 'intro']
+  
+  const currentView = viewStack.length > 0 ? viewStack[viewStack.length - 1] : null;
+  const pushView = (view: string) => setViewStack([...viewStack, view]);
+  const popView = () => setViewStack(viewStack.slice(0, -1));
   
   // States for sub-games
   const [stepScore, setStepScore] = useState<number>(0);
@@ -93,15 +102,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   // Initialize and generate options
   useEffect(() => {
     resetCostruisco();
-  }, [world]);
-
-  // Show rules modal when entering a new step
-  useEffect(() => {
-    if (activeStep !== 'intro' && !hasSeenStepRules.has(activeStep)) {
-      // First time seeing this step - show modal automatically
-      setShowStepRulesModal(activeStep);
-      setHasSeenStepRules(prev => new Set([...prev, activeStep]));
+    
+    // Check if user has seen intro for this world
+    const introKey = `intro-seen-${world.id}`;
+    const hasSeen = localStorage.getItem(introKey) === 'true';
+    setHasSeenIntro(hasSeen);
+    
+    // Show intro as full-screen page on first access
+    if (!hasSeen && !initialExercise) {
+      pushView('intro');
+      localStorage.setItem(introKey, 'true');
     }
+  }, [world, initialExercise]);
+
+  // Show rules modal when entering a new step - DISABLED for now, user can click info button
+  useEffect(() => {
+    // Rules modal is now only opened when user clicks the info button
+    // if (activeStep !== 'intro' && !hasSeenStepRules.has(activeStep)) {
+    //   setShowStepRulesModal(activeStep);
+    //   setHasSeenStepRules(prev => new Set([...prev, activeStep]));
+    // }
   }, [activeStep, hasSeenStepRules]);
 
   // Generate options for Salto mode
@@ -731,41 +751,52 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   return (
     <div className="w-full h-full bg-transparent flex flex-col overflow-hidden" id={`world-panel-${world.id}`}>
-      {/* Step-contextual Rules Modal */}
-      <AnimatePresence>
-        {showStepRulesModal && (
-          <StepRulesModal 
-            step={showStepRulesModal} 
-            world={world} 
-            onClose={() => {
-              setShowStepRulesModal(null);
-              setHasReadRulesMandatory(prev => new Set([...prev, showStepRulesModal]));
-            }} 
-            isMandatory={!hasReadRulesMandatory.has(showStepRulesModal)}
-          />
-        )}
-      </AnimatePresence>
-      
-      {/* Top action bar */}
-      <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
-        <button
-          onClick={() => { sound.playClick(); setActiveStep('intro'); }}
-          className="flex items-center gap-1.5 text-xs font-bold text-sky-950 hover:text-sky-900 bg-white/40 border border-white/60 px-3.5 py-1.5 rounded-xl cursor-pointer shadow-sm transition-colors"
-          id="world-back-btn"
-        >
-          <ArrowLeft className="w-4 h-4" /> Indietro
-        </button>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xl select-none leading-none">{world.symbol}</span>
-          <span className="text-sm font-black text-sky-950 font-sans">{world.name}</span>
+      {/* Show rules as full page if in viewStack */}
+      {currentView?.startsWith('rules-') && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Scrollable content area */}
+          <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+            <div className="max-w-2xl mx-auto w-full">
+              {/* Rules Content */}
+              <StepRulesModal 
+                step={currentView.replace('rules-', '')} 
+                world={world} 
+                onClose={() => {}} 
+                isMandatory={false}
+                isPage={true}
+              />
+            </div>
+          </div>
+          
+          {/* Fixed button at bottom */}
+          <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
+            <div className="max-w-2xl mx-auto w-full">
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  popView();
+                  setHasReadRulesMandatory(prev => new Set([...prev, currentView.replace('rules-', '')]));
+                }}
+                className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+              >
+                Ho Capito! ✓
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Main Container */}
-      <div className={`flex-1 overflow-y-auto flex flex-col ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
-        {activeStep === 'intro' && (
-          <div className="max-w-4xl mx-auto w-full space-y-6 flex-1 flex flex-col justify-between">
+      {/* Show intro as full page if in viewStack */}
+      {currentView === 'intro' && (
+        <div className={`flex-1 overflow-y-auto flex flex-col ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+          <div className="max-w-2xl mx-auto w-full">
+            <button
+              onClick={() => popView()}
+              className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 mb-4"
+            >
+              <ArrowLeft className="w-4 h-4" /> Indietro
+            </button>
+            
             {/* Mascot Banner Card */}
             <div 
               className={`rounded-3xl bg-gradient-to-r ${
@@ -778,19 +809,19 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 world.id === 8 ? 'from-pink-500 to-rose-600' :
                 world.id === 9 ? 'from-teal-500 to-cyan-600' :
                 'from-yellow-600 to-amber-600'
-              } p-5 md:p-6 text-white shadow-xl relative overflow-hidden`}
+              } p-6 text-white shadow-xl relative overflow-hidden`}
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full translate-x-12 -translate-y-12 filter blur-xl"></div>
               
-              <div className="flex flex-col md:flex-row gap-4 items-center relative z-10">
+              <div className="flex flex-col sm:flex-row gap-4 items-center relative z-10">
                 <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl shadow-inner select-none filter drop-shadow">
                   {worldProg.creatureEvolution === 'egg' ? '🥚' : worldProg.creatureEvolution === 'child' ? '👶' : '🐉'}
                 </div>
-                <div className="text-center md:text-left flex-1">
+                <div className="text-center sm:text-left flex-1">
                   <span className="text-xs font-bold bg-white/25 px-2.5 py-0.5 rounded-full uppercase tracking-wider text-[10px]">
                     {world.locationName}
                   </span>
-                  <h2 className="text-xl md:text-2xl font-black mt-1 font-sans">
+                  <h2 className="text-xl sm:text-2xl font-black mt-1 font-sans">
                     Incontra {worldProg.creatureEvolution === 'egg' ? `l'Uovo di ${world.creatureName}` : world.creatureName}!
                   </h2>
                   <p className="text-xs text-white/85 mt-1 max-w-xl">
@@ -809,16 +840,67 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
+      {/* Main content - only show if no view is pushed */}
+      {!currentView && (
+        <>
+          
+      {/* Top action bar */}
+      <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
+        <button
+          onClick={() => {
+            sound.playClick();
+            if (comprendoSelectedFactor !== null) {
+              setComprendoSelectedFactor(null);
+            } else if (saltoSelectedFactor !== null) {
+              setSaltoSelectedFactor(null);
+            } else if (costruiscoSelectedFactor !== null) {
+              setCostruiscoSelectedFactor(null);
+            } else if (trucchiSelectedFactor !== null) {
+              setTrucchiSelectedFactor(null);
+            } else {
+              onBack();
+            }
+          }}
+          className="flex items-center gap-1.5 text-xs font-bold text-sky-950 hover:text-sky-900 bg-white/40 border border-white/60 px-3.5 py-1.5 rounded-xl cursor-pointer shadow-sm transition-colors"
+          id="world-back-btn"
+        >
+          <ArrowLeft className="w-4 h-4" /> Indietro
+        </button>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xl select-none leading-none">{world.symbol}</span>
+          <span className="text-sm font-black text-sky-950 font-sans">{world.name}</span>
+        </div>
+      </div>
+
+      {/* Main Container */}
+      <div className={`flex-1 overflow-y-auto flex flex-col ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+        {activeStep !== 'comprendo' && activeStep !== 'salto' && activeStep !== 'costruisco' && activeStep !== 'trucchi' && activeStep !== 'pratico' && activeStep !== 'sfida' && (
+          <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-start p-4 md:p-6">
             {/* Steps & Monuments Columns */}
             <div className={`grid grid-cols-1 gap-6 ${compactLayout ? '' : 'md:grid-cols-2'}`}>
               
               {/* Left Side: Sub-game stages */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Compass className="w-4 h-4 text-indigo-600" />
-                  Sentiero di Apprendimento
-                </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2">
+                  <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider mb-2 flex items-center gap-1.5 justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Compass className="w-4 h-4 text-indigo-600" />
+                      Sentiero di Apprendimento
+                    </div>
+                    <button
+                      onClick={() => pushView('intro')}
+                      className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 flex items-center justify-center cursor-pointer font-bold text-sm"
+                      title="Mostra informazioni mondo"
+                    >
+                      ℹ️
+                    </button>
+                  </h3>
+                </div>
 
                 {[
                   { id: 'comprendo', title: '1. Comprendo', desc: 'Rappresentazione visuale e concettuale dei gruppi.', icon: '🍎', coins: 20, drops: 0 },
@@ -849,7 +931,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         else if (step.id === 'pratico') { startQuizMode(); }
                         else if (step.id === 'sfida') { startSfidaMode(); }
                       }}
-                      className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      className={`p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer gap-1 ${
                         isLocked
                           ? 'opacity-45 bg-gray-50 border-gray-200 cursor-not-allowed'
                           : isDone
@@ -858,42 +940,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       }`}
                       id={`step-btn-${step.id}`}
                     >
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl select-none flex-shrink-0 ${
-                          isLocked ? 'bg-slate-100' : isDone ? 'bg-emerald-100/50' : 'bg-indigo-50'
-                        }`}>
-                          {isLocked ? '🔒' : step.icon}
-                        </div>
-                        <div className="flex-1">
-                          <h4 className={`text-xs font-bold font-sans ${isDone ? 'text-emerald-900' : 'text-slate-800'}`}>
-                            {step.title}
-                          </h4>
-                          <p className="text-[10px] text-slate-500 max-w-xs">{step.desc}</p>
-                        </div>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg select-none flex-shrink-0 ${
+                        isLocked ? 'bg-slate-100' : isDone ? 'bg-emerald-100/50' : 'bg-indigo-50'
+                      }`}>
+                        {isLocked ? '🔒' : step.icon}
                       </div>
-
-                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0 ml-3">
-                        {/* Rewards box */}
-                        {!isLocked && (
-                          <div className="text-[9px] font-bold text-amber-700 bg-amber-100/60 px-2 py-1 rounded-lg flex items-center gap-1 whitespace-nowrap">
-                            {step.coins > 0 && <span>🪙 {step.coins}</span>}
-                            {step.drops > 0 && <span>💧 {step.drops}</span>}
-                          </div>
-                        )}
-                         
-                        {/* Status badge */}
-                        {isLocked ? (
-                          <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{lockReason}</span>
-                        ) : isDone ? (
-                          <span className="text-xs font-bold text-emerald-600 bg-emerald-100/60 px-2.5 py-0.5 rounded-full flex items-center gap-0.5 font-sans whitespace-nowrap">
-                            ✓ Fatto
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
-                            Gioca
-                          </span>
-                        )}
+                      <div className="text-center flex-1">
+                        <h4 className={`text-[10px] font-bold font-sans ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
+                          {step.title.split('.')[1]}
+                        </h4>
                       </div>
+                      {!isLocked && (
+                        <div className="text-[8px] font-bold text-amber-700 flex items-center gap-0.5 whitespace-nowrap">
+                          {step.coins > 0 && <span>🪙 {step.coins}</span>}
+                          {step.drops > 0 && <span>💧 {step.drops}</span>}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -911,7 +973,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Passo 1: Comprendo
                 </span>
                 <button
-                  onClick={() => setShowStepRulesModal('comprendo')}
+                  onClick={() => pushView('rules-comprendo')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('comprendo')
                       ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
@@ -928,12 +990,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Completa tutte 10
               </p>
 
-              <CombinationCarousel
-                completed={comprendoCompleted}
-                onSelect={(f) => setComprendoSelectedFactor(f)}
-                worldId={world.id}
-                stepColor="indigo"
-              />
+              {/* Grid of all 10 combinations - no scroll */}
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const factor = i + 1;
+                  const isCompleted = comprendoCompleted.has(factor);
+                  return (
+                    <button
+                      key={factor}
+                      onClick={() => {
+                        sound.playClick();
+                        setComprendoSelectedFactor(factor);
+                      }}
+                      className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all cursor-pointer ${
+                        isCompleted
+                          ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                          : 'bg-white border-indigo-200 text-slate-700 hover:border-indigo-400'
+                      }`}
+                    >
+                      {world.id}×{factor}
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* Progress indicator */}
               <div className="mt-6 text-center">
@@ -953,39 +1032,65 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 1: COMPRENDO - Game interface for selected combination */}
         {activeStep === 'comprendo' && comprendoSelectedFactor !== null && (
-          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
-                  Comprendo: {world.id} × {comprendoSelectedFactor}
-                </span>
-                <button
-                  onClick={() => setComprendoSelectedFactor(null)}
-                  className="text-indigo-600 hover:text-indigo-700 font-bold text-lg"
-                >
-                  ←
-                </button>
+          <>
+            {/* Top action bar */}
+            <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setComprendoSelectedFactor(null);
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold text-sky-950 hover:text-sky-900 bg-white/40 border border-white/60 px-3.5 py-1.5 rounded-xl cursor-pointer shadow-sm transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> Indietro
+              </button>
+
+              <div className="text-sm font-black text-sky-950 font-sans">
+                1. Comprendo il concetto 🍎
               </div>
-              <h3 className="text-lg font-black text-slate-800 mt-1 font-sans">
-                Che cos'è {world.id} × {comprendoSelectedFactor}?
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                La moltiplicazione non è altro che addizione ripetuta dello stesso gruppo!
-              </p>
             </div>
 
-            {/* Visualizer */}
-            <GroupVisualizer a={world.id} b={comprendoSelectedFactor} itemEmoji={world.itemsToCount} />
+            {/* Main content */}
+            <div className={`flex-1 overflow-y-auto flex flex-col ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+              <div className="max-w-xl mx-auto w-full space-y-6">
+                {/* Objective Section */}
+                <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
+                  <h4 className="font-bold text-yellow-900 flex items-center gap-2 font-sans">
+                    💡 Obiettivo:
+                  </h4>
+                  <p className="mt-2 text-sm text-yellow-800">
+                    Tocca gli oggetti per contarli uno ad uno e capire il concetto di moltiplicazione!
+                  </p>
+                </div>
 
-            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs text-indigo-950 cursor-pointer hover:bg-indigo-100/50 transition-colors">
-              <h4 className="font-bold flex items-center gap-1 font-sans">
-                <BookOpen className="w-4 h-4 text-indigo-600" />
-                Spiegazione Pedagogica:
-              </h4>
-              <p className="mt-1 leading-relaxed text-slate-600">
-                Pensa a <strong>{world.id} ceste</strong> di frutta. Se in ogni cesta mettiamo <strong>{comprendoSelectedFactor} mele</strong>, quante mele avremo in tutto? Le contiamo insieme ed otteniamo <strong>{world.id * comprendoSelectedFactor}</strong>! Questo significa moltiplicare.
-              </p>
-            </div>
+                {/* Game content card */}
+                <div className="bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
+                        Comprendo: {world.id} × {comprendoSelectedFactor}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 mt-1 font-sans">
+                      Che cos'è {world.id} × {comprendoSelectedFactor}?
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      La moltiplicazione non è altro che addizione ripetuta dello stesso gruppo!
+                    </p>
+                  </div>
+
+                  {/* Visualizer */}
+                  <GroupVisualizer a={world.id} b={comprendoSelectedFactor} itemEmoji={world.itemsToCount} />
+
+                  <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs text-indigo-950 cursor-pointer hover:bg-indigo-100/50 transition-colors">
+                    <h4 className="font-bold flex items-center gap-1 font-sans">
+                      <BookOpen className="w-4 h-4 text-indigo-600" />
+                      Spiegazione Pedagogica:
+                    </h4>
+                    <p className="mt-1 leading-relaxed text-slate-600">
+                      Pensa a <strong>{world.id} ceste</strong> di frutta. Se in ogni cesta mettiamo <strong>{comprendoSelectedFactor} mele</strong>, quante mele avremo in tutto? Le contiamo insieme ed otteniamo <strong>{world.id * comprendoSelectedFactor}</strong>! Questo significa moltiplicare.
+                    </p>
+                  </div>
 
             <button
               onClick={() => {
@@ -1000,7 +1105,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             >
               Continua
             </button>
-          </div>
+               </div>
+             </div>
+           </div>
+         </>
         )}
 
         {/* STEP 2: SALTO (Skip Counting) - LIST VIEW */}
@@ -1012,7 +1120,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Passo 2: Conteggio per salti
                 </span>
                 <button
-                  onClick={() => setShowStepRulesModal('salto')}
+                  onClick={() => pushView('rules-salto')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('salto')
                       ? 'w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 hover:from-purple-500 hover:to-purple-700'
@@ -1029,12 +1137,30 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Completa tutte 10
               </p>
 
-              <CombinationCarousel
-                completed={saltoCompleted}
-                onSelect={(f) => setSaltoSelectedFactor(f)}
-                worldId={world.id}
-                stepColor="purple"
-              />
+              {/* Grid of all 10 combinations - no scroll */}
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const factor = i + 1;
+                  const isCompleted = saltoCompleted.has(factor);
+                  return (
+                    <button
+                      key={factor}
+                      onClick={() => {
+                        sound.playClick();
+                        setSaltoSelectedFactor(factor);
+                        setSaltoIndex(0);
+                      }}
+                      className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all cursor-pointer ${
+                        isCompleted
+                          ? 'bg-purple-100 border-purple-300 text-purple-700'
+                          : 'bg-white border-purple-200 text-slate-700 hover:border-purple-400'
+                      }`}
+                    >
+                      {world.id}×{factor}
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* Progress indicator */}
               <div className="mt-6 text-center">
@@ -1061,7 +1187,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Salto: {world.id} × {saltoSelectedFactor}
                 </span>
                 <button
-                  onClick={() => setSaltoSelectedFactor(null)}
+                  onClick={() => {
+                    sound.playClick();
+                    setSaltoSelectedFactor(null);
+                  }}
                   className="text-purple-600 hover:text-purple-700 font-bold text-lg"
                 >
                   ←
@@ -1098,6 +1227,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Sequenza del {world.id}
                 </span>
               </div>
+            </div>
+
+            {/* Objective Section */}
+            <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
+              <h4 className="font-bold text-yellow-900 flex items-center gap-2 font-sans">
+                💡 Obiettivo:
+              </h4>
+              <p className="mt-2 text-sm text-yellow-800">
+                Completa 10 salti corretti seguendo la sequenza!
+              </p>
             </div>
 
             {/* Answer buttons */}
@@ -1148,7 +1287,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Passo 3: Costruisci la Tabellina
                 </span>
                 <button
-                  onClick={() => setShowStepRulesModal('costruisco')}
+                  onClick={() => pushView('rules-costruisco')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('costruisco')
                       ? 'w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700'
@@ -1165,12 +1304,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Completa tutte 10
               </p>
 
-              <CombinationCarousel
-                completed={costruiscoCompleted}
-                onSelect={(f) => setCostruiscoSelectedFactor(f)}
-                worldId={world.id}
-                stepColor="emerald"
-              />
+              {/* Grid of all 10 combinations - no scroll */}
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const factor = i + 1;
+                  const isCompleted = costruiscoCompleted.has(factor);
+                  return (
+                    <button
+                      key={factor}
+                      onClick={() => {
+                        sound.playClick();
+                        setCostruiscoSelectedFactor(factor);
+                      }}
+                      className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all cursor-pointer ${
+                        isCompleted
+                          ? 'bg-emerald-100 border-emerald-300 text-emerald-700'
+                          : 'bg-white border-emerald-200 text-slate-700 hover:border-emerald-400'
+                      }`}
+                    >
+                      {world.id}×{factor}
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* Progress indicator */}
               <div className="mt-6 text-center">
@@ -1197,7 +1353,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Costruisci: {world.id} × {costruiscoSelectedFactor}
                 </span>
                 <button
-                  onClick={() => setCostruiscoSelectedFactor(null)}
+                  onClick={() => {
+                    sound.playClick();
+                    setCostruiscoSelectedFactor(null);
+                  }}
                   className="text-emerald-600 hover:text-emerald-700 font-bold text-lg"
                 >
                   ←
@@ -1216,6 +1375,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <p className="text-xs text-emerald-700 font-bold uppercase">Completa questa operazione</p>
               <p className="text-3xl font-black text-emerald-900 mt-2 font-mono">
                 {world.id} × {costruiscoSelectedFactor} = ?
+              </p>
+            </div>
+
+            {/* Objective Section */}
+            <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
+              <h4 className="font-bold text-yellow-900 flex items-center gap-2 font-sans">
+                💡 Obiettivo:
+              </h4>
+              <p className="mt-2 text-sm text-yellow-800">
+                Abbina i fattori ai risultati corretti. Trasforma il concetto in simboli matematici.
               </p>
             </div>
 
@@ -1274,7 +1443,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Passo 4: Il Trucco Mnemonico
                 </span>
                 <button
-                  onClick={() => setShowStepRulesModal('trucchi')}
+                  onClick={() => pushView('rules-trucchi')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('trucchi')
                       ? 'w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700'
@@ -1291,12 +1460,31 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Completa tutte 10
               </p>
 
-              <CombinationCarousel
-                completed={trucchiCompleted}
-                onSelect={(f) => setTrucchiSelectedFactor(f)}
-                worldId={world.id}
-                stepColor="amber"
-              />
+              {/* Grid of all 10 combinations - no scroll */}
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const factor = i + 1;
+                  const isCompleted = trucchiCompleted.has(factor);
+                  return (
+                    <button
+                      key={factor}
+                      onClick={() => {
+                        sound.playClick();
+                        setTrucchiSelectedFactor(factor);
+                        setTrucchiQuestionSolved(false);
+                        setTrucchiAnswer("");
+                      }}
+                      className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all cursor-pointer ${
+                        isCompleted
+                          ? 'bg-amber-100 border-amber-300 text-amber-700'
+                          : 'bg-white border-amber-200 text-slate-700 hover:border-amber-400'
+                      }`}
+                    >
+                      {world.id}×{factor}
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* Progress indicator */}
               <div className="mt-6 text-center">
@@ -1323,7 +1511,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Trucco: {world.id} × {trucchiSelectedFactor}
                 </span>
                 <button
-                  onClick={() => setTrucchiSelectedFactor(null)}
+                  onClick={() => {
+                    sound.playClick();
+                    setTrucchiSelectedFactor(null);
+                  }}
                   className="text-amber-600 hover:text-amber-700 font-bold text-lg"
                 >
                   ←
@@ -1352,6 +1543,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <h4 className="font-bold text-indigo-950 font-sans">Strategia di ragionamento veloce:</h4>
               <p className="text-slate-600 mt-1 leading-relaxed">
                 {world.trickVisualExplanation}
+              </p>
+            </div>
+
+            {/* Objective Section */}
+            <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
+              <h4 className="font-bold text-yellow-900 flex items-center gap-2 font-sans">
+                💡 Obiettivo:
+              </h4>
+              <p className="mt-2 text-sm text-yellow-800">
+                Scopri scorciatoie e pattern per memorizzare le tabelline più velocemente.
               </p>
             </div>
 
@@ -1440,7 +1641,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Corrette: {quizCorrectCount}
                 </span>
                 <button
-                  onClick={() => setShowStepRulesModal('pratico')}
+                  onClick={() => pushView('rules-pratico')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('pratico')
                       ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
@@ -1533,7 +1734,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Punti: {sfidaScore}
                 </div>
                 <button
-                  onClick={() => setShowStepRulesModal('sfida')}
+                  onClick={() => pushView('rules-sfida')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('sfida')
                       ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
@@ -1573,92 +1774,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           </div>
         )}
       </div>
-
-      {/* COGNITIVE ERROR FEEDBACK OVERLAY (SCUDO DI SAGGEZZA) */}
-      <AnimatePresence>
-        {errorFeedback?.show && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col border border-indigo-100"
-              id="scudo-saggezza-panel"
-            >
-              {/* Header block */}
-              <div className="bg-indigo-900 text-white p-5 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-xl shadow-md select-none animate-bounce">
-                  🛡️
-                </div>
-                <div>
-                  <h3 className="text-base font-black font-sans">Lo Scudo della Saggezza!</h3>
-                  <p className="text-[11px] text-indigo-200">
-                    Nessuna punizione! Scopriamo il ragionamento visivo per ricordare {errorFeedback.a} x {errorFeedback.b}.
-                  </p>
-                </div>
-              </div>
-
-              {/* Cognitive explanation */}
-              <div className="p-5 overflow-y-auto max-h-[350px] space-y-4">
-                
-                {/* Result block */}
-                <div className="flex gap-4 items-center justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block uppercase font-bold">Hai scelto</span>
-                    <span className="text-base font-black text-rose-500 font-mono">{errorFeedback.userAnswer}</span>
-                  </div>
-                  <div className="text-2xl text-slate-300">➜</div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block uppercase font-bold">La verità magica</span>
-                    <span className="text-xl font-black text-emerald-600 font-mono">
-                      {errorFeedback.a} x {errorFeedback.b} = {errorFeedback.correctAnswer}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Group explanation visualizer */}
-                <div>
-                  <h4 className="text-xs font-extrabold text-slate-700 mb-2 uppercase tracking-wide">
-                    Rappresentazione dei Gruppi:
-                  </h4>
-                  <GroupVisualizer 
-                    a={errorFeedback.a} 
-                    b={errorFeedback.b} 
-                    itemEmoji={world.itemsToCount} 
-                  />
-                </div>
-
-                {/* Trick suggestion */}
-                <div className="bg-amber-50 border border-amber-200/50 rounded-2xl p-4 flex gap-3 items-start">
-                  <span className="text-2xl filter drop-shadow select-none">🧠</span>
-                  <div>
-                    <h5 className="text-xs font-bold text-amber-900 font-sans">Usa questo Trucco Mnemonico:</h5>
-                    <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
-                      <strong>{world.trickTitle}</strong>: {world.trickDescription}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Pacing Advice */}
-                <div className="text-[11px] text-slate-500 bg-sky-50/50 p-3 rounded-xl border border-sky-100/30">
-                  💡 <strong>Suggerimento:</strong> Rallenta un secondo e riprova a contare le dita o gli oggetti. Questa formula ricomparirà tra poco per darti un'altra opportunità!
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end">
-                <button
-                  onClick={closeErrorFeedback}
-                  className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors text-center"
-                  id="wisdom-confirm-btn"
-                >
-                  Ho capito, riproviamo!
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+        </>
+      )}
 
       {/* Reward Popup */}
       {showRewardPopup && (

@@ -132,7 +132,7 @@ class SoundManager {
     this.initContext();
     if (!this.ctx || this.musicTimer !== null) return;
 
-    const stepDuration = 0.75;
+    const stepDuration = 0.5;
     const playStep = () => {
       if (!this.musicEnabled || !this.ctx) {
         this.stopBackgroundMusic();

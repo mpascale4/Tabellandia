@@ -138,6 +138,9 @@ export default function App() {
   const [pinInput, setPinInput] = useState<string>("");
   const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
   const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
+
+  // Carousel State
+  const [currentWorldIdx, setCurrentWorldIdx] = useState<number>(0);
   const [pinError, setPinError] = useState<string>("");
   const [showChangePINForm, setShowChangePINForm] = useState<boolean>(false);
   const [newPINInput, setNewPINInput] = useState<string>("");
@@ -1222,76 +1225,74 @@ export default function App() {
                       </div>
 
                       {/* Map staggered layout of 9 worlds styled as a beautiful 3D-feeling interactive island grid */}
-                      <div className={`grid ${isPhoneMode ? 'grid-cols-1 gap-5 pb-6' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pb-8'} justify-items-center`}>
-                        {WORLDS_DATA.map(world => {
-                          const isUnlocked = profile.unlockedWorlds.includes(world.id);
-                          const worldProg = profile.worldProgress[world.id] || {
-                            worldId: world.id,
-                            completedSteps: [],
-                            rebuiltMonuments: [],
-                            creatureEvolution: 'egg',
-                            highScore: 0,
-                            stars: 0
-                          };
-                          
-                          // Count step progress
-                          const stepsCount = worldProg.completedSteps.length;
-                          const rebuiltCount = worldProg.rebuiltMonuments.length;
-                          const rebuildPercent = Math.round((rebuiltCount / world.monuments.length) * 100);
-                          const isCompleted = stepsCount === 6;
-                          const isActive = isUnlocked && !isCompleted;
+                      <div className="w-full relative flex items-center justify-center gap-6">
+                        {/* Left Arrow - Fixed Width */}
+                        <button
+                          onClick={() => setCurrentWorldIdx((currentWorldIdx - 1 + WORLDS_DATA.length) % WORLDS_DATA.length)}
+                          className="w-10 h-10 flex items-center justify-center p-2 hover:bg-sky-200/30 rounded-full transition-colors cursor-pointer flex-shrink-0"
+                          aria-label="Mondo precedente"
+                        >
+                          <svg className="w-6 h-6 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
 
-                          return (
-                            <div
-                              key={world.id}
-                              className={`relative flex flex-col items-center justify-between pb-6 group select-none w-full max-w-[240px] transition-all duration-300 ${
-                                isUnlocked ? 'hover:-translate-y-2' : 'opacity-60 grayscale'
-                              }`}
-                              id={`world-card-${world.id}`}
-                            >
-                              {/* Glow Aura */}
-                              {isUnlocked && (
-                                <div className={`absolute inset-0 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
-                                  isActive ? 'animate-pulse opacity-40 bg-sky-300/40' : 'bg-emerald-300/20'
-                                }`} />
-                              )}
+                        {/* Current World - Fixed Width Container */}
+                        <div className="flex flex-col items-center gap-4 w-64 flex-shrink-0">
+                          {(() => {
+                            const world = WORLDS_DATA[currentWorldIdx];
+                            const isUnlocked = profile.unlockedWorlds.includes(world.id);
+                            const worldProg = profile.worldProgress[world.id] || {
+                              worldId: world.id,
+                              completedSteps: [],
+                              rebuiltMonuments: [],
+                              creatureEvolution: 'egg',
+                              highScore: 0,
+                              stars: 0
+                            };
+                            
+                            const stepsCount = worldProg.completedSteps.length;
+                            const rebuiltCount = worldProg.rebuiltMonuments.length;
+                            const isCompleted = stepsCount === 6;
+                            const isActive = isUnlocked && !isCompleted;
 
-                              {/* Main Island shape mimicking hand-drawn platforms from the design */}
-                              <div 
-                                onClick={() => {
-                                  if (isUnlocked) {
-                                    sound.playPowerUp();
-                                    setSelectedWorldId(world.id);
-                                  }
-                                }}
-                                className={`w-44 h-44 rounded-[48px] flex flex-col items-center justify-center relative cursor-pointer border-b-8 border-r-8 transition-all active:scale-95 shadow-2xl ${
-                                  !isUnlocked 
-                                    ? 'bg-stone-400 border-stone-600 text-stone-700'
-                                    : isCompleted
-                                      ? 'bg-gradient-to-br from-emerald-400 to-green-500 border-green-700 text-white'
-                                      : 'bg-gradient-to-br from-sky-400 to-blue-500 border-blue-700 text-white outline outline-4 outline-white outline-offset-2'
-                                }`}
-                              >
-                                {/* World Symbol Badge - top left inside circle */}
-                                <div className="absolute -top-2 -left-2 w-14 h-14 bg-white rounded-full border-4 border-sky-400 shadow-lg flex items-center justify-center text-3xl select-none">
-                                  {world.symbol}
-                                </div>
+                            return (
+                              <>
+                                {/* Main Island shape mimicking hand-drawn platforms from the design */}
+                                <div 
+                                  onClick={() => {
+                                    if (isUnlocked) {
+                                      sound.playPowerUp();
+                                      setSelectedWorldId(world.id);
+                                    }
+                                  }}
+                                  className={`w-44 h-44 rounded-[48px] flex flex-col items-center justify-center relative cursor-pointer border-b-8 border-r-8 transition-all active:scale-95 shadow-2xl ${
+                                    !isUnlocked 
+                                      ? 'bg-stone-400 border-stone-600 text-stone-700'
+                                      : isCompleted
+                                        ? 'bg-gradient-to-br from-emerald-400 to-green-500 border-green-700 text-white'
+                                        : 'bg-gradient-to-br from-green-300 to-green-400 border-green-600 text-slate-900'
+                                  }`}
+                                >
+                                  {/* World Symbol Badge - top left inside circle */}
+                                  <div className="absolute -top-2 -left-2 w-14 h-14 bg-white rounded-full border-4 border-sky-400 shadow-lg flex items-center justify-center text-3xl select-none">
+                                    {world.symbol}
+                                  </div>
 
-                                {/* Monuments inside the box - scattered positions with semi-transparent background */}
-                                {isUnlocked && (
+                                  {/* Monuments inside the box - scattered positions with semi-transparent background */}
                                   <div className="absolute inset-0 rounded-[48px] overflow-hidden pointer-events-none flex flex-col items-center justify-center gap-8 p-4">
                                     <div className="relative w-full h-full flex items-center justify-center">
                                       {world.monuments.map((monument, idx) => {
                                         const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
-                                        // Generate fixed positions for each monument (max 3)
                                         const positions = [
                                           { top: '15%', left: '15%' },
-                                          { top: '15%', right: '15%' },
-                                          { bottom: '15%', left: '25%' },
-                                          { bottom: '15%', right: '25%' }
+                                          { top: '25%', right: '5%' },
+                                          { bottom: '15%', left: '25%' }
                                         ];
                                         const pos = positions[idx % positions.length];
                                         
+                                        const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})\uFE0F?/gu;
+                                        const emojis = (monument.emoji.match(emojiRegex) || []);
                                         return (
                                           <div
                                             key={monument.id}
@@ -1302,54 +1303,70 @@ export default function App() {
                                               left: pos.left,
                                               right: pos.right
                                             }}
-                                            className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all ${
-                                              isBuilt
-                                                ? 'bg-white/40 shadow-md'
-                                                : 'bg-white/20'
+                                            className={`w-10 h-10 rounded-lg relative transition-all ${
+                                              !isUnlocked
+                                                ? 'bg-white'
+                                                : isBuilt
+                                                  ? 'bg-white shadow-md'
+                                                  : 'bg-white'
                                             }`}
                                             title={monument.name}
                                           >
-                                            {monument.emoji}
+                                            {emojis[0] && <div className="absolute top-0.5 left-0.5 text-sm leading-none">{emojis[0]}</div>}
+                                            {emojis[1] && <div className="absolute bottom-0.5 right-0.5 text-sm leading-none">{emojis[1]}</div>}
                                           </div>
                                         );
                                       })}
                                     </div>
                                   </div>
-                                )}
 
-                                {/* Mascot Badge overlay */}
-                                {isUnlocked && (
-                                  <div className="absolute -top-2 -right-2 w-14 h-14 bg-white rounded-full border-4 border-sky-400 shadow-lg flex items-center justify-center text-3xl select-none" title={world.mascotName}>
-                                    {world.id === 2 ? '🦊' : world.id === 3 ? '🦕' : world.id === 4 ? '🦉' : world.id === 5 ? '🦖' : '🦁'}
-                                  </div>
-                                )}
+                                  {/* Mascot Badge overlay */}
+                                  {isUnlocked && (
+                                    <div className="absolute -top-2 -right-2 text-3xl select-none" title={world.mascotName}>
+                                      {world.id === 2 ? '🦊' : world.id === 3 ? '🦕' : world.id === 4 ? '🦉' : world.id === 5 ? '🦖' : '🦁'}
+                                    </div>
+                                  )}
 
-                                {/* Checkmark or Lock badge */}
-                                {!isUnlocked ? (
-                                  <div className="absolute top-3 left-3 bg-stone-700 text-white w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-lg text-sm font-bold">🔒</div>
-                                ) : isCompleted ? (
-                                  <div className="absolute top-3 left-3 bg-yellow-400 text-yellow-900 w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-lg font-black text-sm">✓</div>
-                                ) : null}
-                              </div>
+                                  {/* Checkmark or Lock badge */}
+                                  {!isUnlocked ? (
+                                    <div className="absolute -top-4 -left-4 text-2xl">🔒</div>
+                                  ) : isCompleted ? (
+                                    <div className="absolute -top-4 -left-4 text-2xl">✓</div>
+                                  ) : null}
 
-                              {/* World Name / Banner */}
-                              <div className="mt-4 bg-white px-5 py-1.5 rounded-full border-2 border-sky-400 shadow-md text-center max-w-[220px]">
-                                <p className="text-[10px] font-bold text-sky-500 tracking-wider uppercase">TAVOLA DEL {world.id}</p>
-                                <span className="text-xs font-black text-sky-950 leading-tight block">{world.locationName}</span>
-                              </div>
-
-                              {/* Progress & Monuments Row */}
-                              {isUnlocked && (
-                                <div className="mt-3 flex flex-col gap-2 items-center">
-                                  {/* Progress badge */}
-                                  <div className="bg-yellow-400 text-yellow-950 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-tight shadow-sm">
-                                    {isCompleted ? "Completato 🌟" : `In Corso: ${stepsCount}/6`}
-                                  </div>
+                                  {/* Progress Counter - Bottom Right */}
+                                  {isUnlocked && !isCompleted && (
+                                    <div className="absolute bottom-2 right-2 bg-yellow-400 text-yellow-950 text-xs font-black px-2 py-1 rounded shadow-sm">
+                                      {stepsCount}/6
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
+
+                                {/* World Name / Banner */}
+                                <div className="mt-4 bg-white px-5 py-1.5 rounded-full border-2 border-sky-400 shadow-md text-center max-w-[220px]">
+                                  <p className="text-[10px] font-bold text-sky-500 tracking-wider uppercase">TAVOLA DEL {world.id}</p>
+                                  <span className="text-xs font-black text-sky-950 leading-tight block">{world.locationName}</span>
+                                </div>
+
+                                {/* Carousel Indicator */}
+                                <div className="text-sm font-bold text-sky-950 mt-2">
+                                  {currentWorldIdx + 1} / {WORLDS_DATA.length}
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Right Arrow - Fixed Width */}
+                        <button
+                          onClick={() => setCurrentWorldIdx((currentWorldIdx + 1) % WORLDS_DATA.length)}
+                          className="w-10 h-10 flex items-center justify-center p-2 hover:bg-sky-200/30 rounded-full transition-colors cursor-pointer flex-shrink-0"
+                          aria-label="Mondo successivo"
+                        >
+                          <svg className="w-6 h-6 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   )}
