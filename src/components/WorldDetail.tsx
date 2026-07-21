@@ -14,6 +14,7 @@ import RewardPopup from './RewardPopup';
 import NumericKeypad from './NumericKeypad';
 import RewardsTutorial from './RewardsTutorial';
 import MonumentArea from './MonumentArea';
+import CombinationCarousel from './CombinationCarousel';
 
 interface WorldDetailProps {
   world: WorldConfig;
@@ -21,10 +22,11 @@ interface WorldDetailProps {
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onBack: () => void;
   compactLayout?: boolean;
+  initialExercise?: string | null;
 }
 
-export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false }: WorldDetailProps) {
-  const [activeStep, setActiveStep] = useState<string>('intro'); // intro, comprendo, salto, costruisco, trucchi, pratico, sfida
+export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise }: WorldDetailProps) {
+  const [activeStep, setActiveStep] = useState<string>(initialExercise || 'intro'); // intro, comprendo, salto, costruisco, trucchi, pratico, sfida
   const [showStepRulesModal, setShowStepRulesModal] = useState<string | null>(null); // null o il nome dello step
   const [hasSeenStepRules, setHasSeenStepRules] = useState<Set<string>>(new Set()); // Track which steps have been seen
   const [hasReadRulesMandatory, setHasReadRulesMandatory] = useState<Set<string>>(new Set()); // Track mandatory rule reading
@@ -34,7 +36,19 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [stepScore, setStepScore] = useState<number>(0);
   const [attempts, setAttempts] = useState<number>(0);
   
-  // Salto (Step 2) state
+  // Track completed combinations for each step (1-10 correspond to x1 to x10)
+  const [comprendoCompleted, setComprendoCompleted] = useState<Set<number>>(new Set());
+  const [saltoCompleted, setSaltoCompleted] = useState<Set<number>>(new Set());
+  const [costruiscoCompleted, setCostruiscoCompleted] = useState<Set<number>>(new Set());
+  const [trucchiCompleted, setTrucchiCompleted] = useState<Set<number>>(new Set());
+  
+  // Track which combination is currently being played (null = show list, 1-10 = playing that combination)
+  const [comprendoSelectedFactor, setComprendoSelectedFactor] = useState<number | null>(null);
+  const [saltoSelectedFactor, setSaltoSelectedFactor] = useState<number | null>(null);
+  const [costruiscoSelectedFactor, setCostruiscoSelectedFactor] = useState<number | null>(null);
+  const [trucchiSelectedFactor, setTrucchiSelectedFactor] = useState<number | null>(null);
+  
+  // For the current game being played
   const [saltoIndex, setSaltoIndex] = useState<number>(0); // which multiple we are on (0 to 9)
   const saltoNumbers = Array.from({ length: 10 }).map((_, i) => world.id * (i + 1));
   const [saltoOptions, setSaltoOptions] = useState<number[]>([]);
@@ -69,6 +83,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Sfida (Step 6) state
   const [sfidaActive, setSfidaActive] = useState<boolean>(false);
+  const [sfidaReady, setSfidaReady] = useState<boolean>(false); // true = START button showing, false = game running
   const [sfidaQuestion, setSfidaQuestion] = useState<{ a: number; b: number } | null>(null);
   const [sfidaTimer, setSfidaTimer] = useState<number>(30);
   const [sfidaScore, setSfidaScore] = useState<number>(0);
@@ -77,7 +92,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Initialize and generate options
   useEffect(() => {
-    generateSaltoOptions();
     resetCostruisco();
   }, [world]);
 
@@ -92,7 +106,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Generate options for Salto mode
   const generateSaltoOptions = () => {
-    const currentCorrect = world.id * (saltoIndex + 1);
+    if (saltoSelectedFactor === null) return;
+    const currentCorrect = world.id * saltoSelectedFactor;
     // Create random wrong options
     const optionsSet = new Set<number>([currentCorrect]);
     let attempts = 0;
@@ -112,10 +127,45 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
 
   useEffect(() => {
-    if (activeStep === 'salto') {
+    if (activeStep === 'salto' && saltoSelectedFactor !== null) {
       generateSaltoOptions();
     }
-  }, [saltoIndex, activeStep]);
+  }, [saltoSelectedFactor, activeStep, world.id]);
+
+  // Initialize Costruisco balloons when a factor is selected
+  useEffect(() => {
+    if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) {
+      const answers = Array.from({ length: 10 }).map((_, i) => world.id * (i + 1));
+      setCostruiscoBalloons(answers.sort(() => Math.random() - 0.5));
+    }
+  }, [costruiscoSelectedFactor, activeStep, world.id]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  // Start Sfida when entering sfida step (for training mode)
+  useEffect(() => {
+    console.log('[Sfida Init] activeStep:', activeStep, 'sfidaActive:', sfidaActive);
+    if (activeStep === 'sfida' && !sfidaActive) {
+      console.log('[Sfida Init] Starting Sfida mode...');
+      startSfidaMode();
+    }
+  }, [activeStep]);
+
+  // Generate initial Sfida question when sfidaActive is set
+  useEffect(() => {
+    console.log('[Sfida Question] sfidaActive:', sfidaActive, 'sfidaQuestion:', sfidaQuestion);
+    if (sfidaActive && !sfidaQuestion) {
+      console.log('[Sfida Question] Generating question...');
+      generateSfidaQuestion();
+    }
+  }, [sfidaActive]);
 
   // Generate Quiz (Pratico) questions
   const startQuizMode = () => {
@@ -380,14 +430,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     proceedQuiz();
   };
 
-  // Sfida (Time Trial Step 6) gameplay
-  const startSfidaMode = () => {
+  // Initialize Sfida with START button
+  const initializeSfida = () => {
     sound.playPowerUp();
+    setSfidaReady(true); // Show START button
+    setSfidaActive(false);
     setSfidaScore(0);
     setSfidaTimer(30);
-    setSfidaActive(true);
-    generateSfidaQuestion();
+    setSfidaQuestion(null);
+    setSfidaOptions([]);
     setActiveStep('sfida');
+  };
+
+  // Begin the actual game after START is clicked
+  const beginSfidaGame = () => {
+    sound.playPowerUp();
+    setSfidaReady(false); // Hide START button
+    setSfidaActive(true);
+    setSfidaScore(0);
+    setSfidaTimer(30);
+    generateSfidaQuestion();
 
     // Timer logic
     if (timerRef.current) clearInterval(timerRef.current);
@@ -395,13 +457,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setSfidaTimer(prev => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
-          finishSfidaMode();
+          // Pass score via state setter to avoid stale closure
+          setSfidaScore(score => {
+            setTimeout(() => finishSfidaMode(score), 0);
+            return score;
+          });
           return 0;
         }
         if (prev <= 5) sound.playTick(); // Tick-tock retro sounds for final 5s
         return prev - 1;
       });
     }, 1000);
+  };
+
+  // Old startSfidaMode now calls initializeSfida
+  const startSfidaMode = () => {
+    initializeSfida();
   };
 
   const generateSfidaQuestion = () => {
@@ -411,14 +482,42 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     const correct = world.id * factorB;
     const options = new Set<number>([correct]);
-    while (options.size < 4) {
-      options.add(correct + (Math.random() > 0.5 ? world.id : -world.id));
+    
+    // Generate 3 more wrong options - ALL INTEGERS
+    let attempts = 0;
+    while (options.size < 4 && attempts < 100) {
+      const offset = (Math.random() > 0.5 ? 1 : -1) * Math.ceil(Math.random() * 3) * world.id;
+      const option = correct + offset;
+      if (option > 0 && Number.isInteger(option)) {
+        options.add(option);
+      }
+      attempts++;
     }
-    setSfidaOptions(Array.from(options).sort(() => Math.random() - 0.5));
+    
+    // Fallback: if we don't have 4 options, generate robustly with integers
+    while (options.size < 4) {
+      const option = correct + (Math.floor(Math.random() * 10) - 5) * world.id;
+      if (option > 0) {
+        options.add(option);
+      }
+    }
+    
+    // Filter to only integers and limit to 4
+    const optionArray = Array.from(options)
+      .filter(n => n > 0 && Number.isInteger(n))
+      .slice(0, 4)
+      .map(n => Math.floor(n));
+    
+    // Shuffle array
+    for (let i = optionArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [optionArray[i], optionArray[j]] = [optionArray[j], optionArray[i]];
+    }
+    setSfidaOptions(optionArray);
   };
 
   const handleSfidaAnswer = (selectedVal: number) => {
-    if (!sfidaQuestion) return;
+    if (!sfidaQuestion || !sfidaActive) return;
     const correctVal = sfidaQuestion.a * sfidaQuestion.b;
     const isCorrect = selectedVal === correctVal;
 
@@ -453,17 +552,19 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       sound.playError();
     }
 
-    generateSfidaQuestion();
+    if (sfidaActive) {
+      generateSfidaQuestion();
+    }
   };
 
-  const finishSfidaMode = () => {
+  const finishSfidaMode = (finalScore?: number) => {
     sound.playLevelUp();
     setSfidaActive(false);
     
     updateProfile(p => {
       const worldProg = p.worldProgress[world.id];
       const previousMax = worldProg?.highScore || 0;
-      const nextMax = Math.max(previousMax, sfidaScore);
+      const nextMax = Math.max(previousMax, finalScore || 0);
 
       // Sblocca stelle in base al punteggio di sfida
       let stars = worldProg?.stars || 0;
@@ -648,7 +749,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       {/* Top action bar */}
       <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
         <button
-          onClick={() => { sound.playClick(); onBack(); }}
+          onClick={() => { sound.playClick(); setActiveStep('intro'); }}
           className="flex items-center gap-1.5 text-xs font-bold text-sky-950 hover:text-sky-900 bg-white/40 border border-white/60 px-3.5 py-1.5 rounded-xl cursor-pointer shadow-sm transition-colors"
           id="world-back-btn"
         >
@@ -748,12 +849,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         else if (step.id === 'pratico') { startQuizMode(); }
                         else if (step.id === 'sfida') { startSfidaMode(); }
                       }}
-                      className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                      className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                         isLocked
                           ? 'opacity-45 bg-gray-50 border-gray-200 cursor-not-allowed'
                           : isDone
-                            ? 'bg-emerald-50 border-emerald-200 hover:border-emerald-300 cursor-pointer shadow-sm'
-                            : 'bg-white hover:bg-slate-50 border-slate-200 hover:shadow-md cursor-pointer'
+                            ? 'bg-emerald-50 border-emerald-200 shadow-sm'
+                            : 'bg-white border-slate-200'
                       }`}
                       id={`step-btn-${step.id}`}
                     >
@@ -771,7 +872,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0 ml-3">
                         {/* Rewards box */}
                         {!isLocked && (
                           <div className="text-[9px] font-bold text-amber-700 bg-amber-100/60 px-2 py-1 rounded-lg flex items-center gap-1 whitespace-nowrap">
@@ -784,7 +885,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         {isLocked ? (
                           <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{lockReason}</span>
                         ) : isDone ? (
-                          <span className="text-xs font-bold text-emerald-600 bg-emerald-100/60 px-2.5 py-0.5 rounded-full flex items-center gap-0.5 font-sans">
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-100/60 px-2.5 py-0.5 rounded-full flex items-center gap-0.5 font-sans whitespace-nowrap">
                             ✓ Fatto
                           </span>
                         ) : (
@@ -797,82 +898,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   );
                 })}
               </div>
-
-              {/* Right Side: Reconstruction monuments */}
-              <div className="bg-amber-50/40 border border-amber-200/50 rounded-3xl p-5 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-amber-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    🏛️ Ricostruzione Area ({rebuildPercent}%)
-                  </h3>
-                  <p className="text-[11px] text-amber-800/80 mb-4 leading-relaxed font-sans">
-                    Usa le tue <strong>Gocce di Luce 💧</strong> guadagnate rispondendo correttamente per ricostruire questi monumenti distrutti dal vento matematico!
-                  </p>
-
-                  <div className="space-y-3">
-                    {world.monuments.map(mon => {
-                      const isBuilt = worldProg.rebuiltMonuments.includes(mon.id);
-                      const canAfford = profile.lightDrops >= mon.cost;
-
-                      return (
-                        <div 
-                          key={mon.id}
-                          className={`p-3 rounded-2xl border flex items-center justify-between transition-colors ${
-                            isBuilt 
-                              ? 'bg-emerald-50 border-emerald-200/50 text-emerald-900' 
-                              : 'bg-white border-slate-200 text-slate-800'
-                          }`}
-                          id={`monument-card-${mon.id}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl filter drop-shadow select-none">{mon.emoji}</span>
-                            <div>
-                              <h5 className="text-xs font-bold font-sans">{mon.name}</h5>
-                              <p className="text-[9px] text-slate-500">{mon.description}</p>
-                            </div>
-                          </div>
-
-                          <div>
-                            {isBuilt ? (
-                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/40 px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                                ✓ Eretto
-                              </span>
-                            ) : (
-                              <button
-                                disabled={!canAfford}
-                                onClick={() => handleRebuildMonument(mon.id, mon.cost)}
-                                className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold font-mono transition-all flex items-center gap-1 cursor-pointer ${
-                                  canAfford 
-                                    ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' 
-                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                }`}
-                                id={`rebuild-btn-${mon.id}`}
-                              >
-                                💧 {mon.cost}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-amber-200/40 flex items-center justify-between text-[11px] font-bold text-amber-900">
-                  <span>Recluta {world.creatureName}</span>
-                  <span>Evolve a 3/6 e 6/6 passi conclusi!</span>
-                </div>
-              </div>
             </div>
           </div>
         )}
 
-        {/* STEP 1: COMPRENDO (Interactive groups of arrays & repeated additions) */}
-        {activeStep === 'comprendo' && (
-          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
-                  Passo 1: Comprendo il concetto
+        {/* STEP 1: COMPRENDO - List of combinations to complete */}
+        {activeStep === 'comprendo' && comprendoSelectedFactor === null && (
+          <div className="max-w-2xl mx-auto w-full">
+            <div className="bg-indigo-50 rounded-3xl p-6 border-2 border-indigo-200 shadow-lg">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full font-sans">
+                  Passo 1: Comprendo
                 </span>
                 <button
                   onClick={() => setShowStepRulesModal('comprendo')}
@@ -881,94 +917,175 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
                       : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
                   }`}
-                  title="Visualizza regole"
-                  aria-label="Visualizza regole"
                 >
                   <HelpCircle className={!hasReadRulesMandatory.has('comprendo') ? 'w-5 h-5' : 'w-4 h-4'} />
                 </button>
               </div>
+              <h3 className="text-lg font-black text-slate-800 text-center font-sans">
+                Scegli una moltiplicazione
+              </h3>
+              <p className="text-sm text-slate-600 text-center mt-2 mb-6">
+                Completa tutte 10
+              </p>
+
+              <CombinationCarousel
+                completed={comprendoCompleted}
+                onSelect={(f) => setComprendoSelectedFactor(f)}
+                worldId={world.id}
+                stepColor="indigo"
+              />
+
+              {/* Progress indicator */}
+              <div className="mt-6 text-center">
+                <p className="text-xs font-bold text-indigo-700">
+                  Completate: {comprendoCompleted.size}/10
+                </p>
+                <div className="w-full bg-indigo-200 rounded-full h-2 mt-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full transition-all"
+                    style={{ width: `${(comprendoCompleted.size / 10) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1: COMPRENDO - Game interface for selected combination */}
+        {activeStep === 'comprendo' && comprendoSelectedFactor !== null && (
+          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
+                  Comprendo: {world.id} × {comprendoSelectedFactor}
+                </span>
+                <button
+                  onClick={() => setComprendoSelectedFactor(null)}
+                  className="text-indigo-600 hover:text-indigo-700 font-bold text-lg"
+                >
+                  ←
+                </button>
+              </div>
               <h3 className="text-lg font-black text-slate-800 mt-1 font-sans">
-                Che cos'è {world.id} x 4?
+                Che cos'è {world.id} × {comprendoSelectedFactor}?
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 La moltiplicazione non è altro che addizione ripetuta dello stesso gruppo!
               </p>
             </div>
 
-            {/* Visualizer showing world.id groups of 4 */}
-            <GroupVisualizer a={world.id} b={4} itemEmoji={world.itemsToCount} />
+            {/* Visualizer */}
+            <GroupVisualizer a={world.id} b={comprendoSelectedFactor} itemEmoji={world.itemsToCount} />
 
-            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs text-indigo-950">
+            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs text-indigo-950 cursor-pointer hover:bg-indigo-100/50 transition-colors">
               <h4 className="font-bold flex items-center gap-1 font-sans">
                 <BookOpen className="w-4 h-4 text-indigo-600" />
                 Spiegazione Pedagogica:
               </h4>
               <p className="mt-1 leading-relaxed text-slate-600">
-                Pensa a <strong>{world.id} ceste</strong> di frutta. Se in ogni cesta mettiamo <strong>4 mele</strong>, quante mele avremo in tutto? Le contiamo insieme ed otteniamo <strong>{world.id * 4}</strong>! Questo significa moltiplicare.
+                Pensa a <strong>{world.id} ceste</strong> di frutta. Se in ogni cesta mettiamo <strong>{comprendoSelectedFactor} mele</strong>, quante mele avremo in tutto? Le contiamo insieme ed otteniamo <strong>{world.id * comprendoSelectedFactor}</strong>! Questo significa moltiplicare.
               </p>
             </div>
 
             <button
               onClick={() => {
                 sound.playLevelUp();
-                saveStepCompleted('comprendo');
-                setActiveStep('intro');
+                setComprendoCompleted(prev => new Set([...prev, comprendoSelectedFactor]));
+                if (comprendoCompleted.size === 9) { // will be 10 after this update
+                  saveStepCompleted('comprendo');
+                }
+                setComprendoSelectedFactor(null);
               }}
               className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
-              id="comprendo-done-btn"
             >
-              Ho capito il concetto! Continua
+              Continua
             </button>
           </div>
         )}
 
-        {/* STEP 2: SALTO (Skip Counting) */}
-        {activeStep === 'salto' && (
-          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            <div className="text-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-5 border-2 border-indigo-200 shadow-md">
-              <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
-                <span className="text-[11px] font-black text-indigo-700 bg-indigo-100/80 px-3 py-1 rounded-full font-sans uppercase tracking-wider">
+        {/* STEP 2: SALTO (Skip Counting) - LIST VIEW */}
+        {activeStep === 'salto' && saltoSelectedFactor === null && (
+          <div className="max-w-2xl mx-auto w-full">
+            <div className="bg-purple-50 rounded-3xl p-6 border-2 border-purple-200 shadow-lg">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <span className="text-xs font-bold text-purple-600 bg-purple-100 px-3 py-1 rounded-full font-sans">
                   Passo 2: Conteggio per salti
                 </span>
                 <button
                   onClick={() => setShowStepRulesModal('salto')}
-                  className={`flex-shrink-0 rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('salto')
-                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
-                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                      ? 'w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 hover:from-purple-500 hover:to-purple-700'
+                      : 'w-6 h-6 bg-purple-300 hover:bg-purple-400'
                   }`}
-                  title="Visualizza regole"
-                  aria-label="Visualizza regole"
                 >
                   <HelpCircle className={!hasReadRulesMandatory.has('salto') ? 'w-5 h-5' : 'w-4 h-4'} />
+                </button>
+              </div>
+              <h3 className="text-lg font-black text-slate-800 text-center font-sans">
+                🐸 Aiuta a saltare i sassi!
+              </h3>
+              <p className="text-sm text-slate-600 text-center mt-2 mb-6">
+                Completa tutte 10
+              </p>
+
+              <CombinationCarousel
+                completed={saltoCompleted}
+                onSelect={(f) => setSaltoSelectedFactor(f)}
+                worldId={world.id}
+                stepColor="purple"
+              />
+
+              {/* Progress indicator */}
+              <div className="mt-6 text-center">
+                <p className="text-xs font-bold text-purple-700">
+                  Completate: {saltoCompleted.size}/10
+                </p>
+                <div className="w-full bg-purple-200 rounded-full h-2 mt-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full transition-all"
+                    style={{ width: `${(saltoCompleted.size / 10) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: SALTO - GAME VIEW */}
+        {activeStep === 'salto' && saltoSelectedFactor !== null && (
+          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-purple-100 shadow-xl space-y-6">
+            <div className="text-center bg-gradient-to-r from-purple-50 to-purple-50 rounded-2xl p-5 border-2 border-purple-200 shadow-md">
+              <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
+                <span className="text-[11px] font-black text-purple-700 bg-purple-100/80 px-3 py-1 rounded-full font-sans uppercase tracking-wider">
+                  Salto: {world.id} × {saltoSelectedFactor}
+                </span>
+                <button
+                  onClick={() => setSaltoSelectedFactor(null)}
+                  className="text-purple-600 hover:text-purple-700 font-bold text-lg"
+                >
+                  ←
                 </button>
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-3 font-sans leading-tight">
                 🐸 Aiuta {world.mascotName} a saltare i sassi!
               </h3>
-              <p className="text-sm font-bold text-indigo-800 mt-3 leading-relaxed bg-white/60 rounded-xl p-3 inline-block">
-                Tocca il numero successivo corretto per completare la sequenza della tabellina.
+              <p className="text-sm font-bold text-purple-800 mt-3 leading-relaxed bg-white/60 rounded-xl p-3 inline-block">
+                Tocca il numero successivo corretto per completare la sequenza.
               </p>
             </div>
 
             {/* Mascot River Crossing track */}
             <div className="bg-sky-50 rounded-2xl p-4 border border-sky-100/50 flex flex-col items-center">
-              <div className="flex gap-1.5 overflow-x-auto max-w-full pb-2 scrollbar-none justify-center">
-                {saltoNumbers.map((num, idx) => {
-                  const isPassed = idx < saltoIndex;
-                  const isCurrent = idx === saltoIndex;
+              <div className="flex gap-1.5 overflow-x-auto max-w-full pb-2 scrollbar-none justify-center px-6 py-4">
+                {Array.from({ length: 10 }).map((_, idx) => {
+                  const num = world.id * (idx + 1);
                   return (
                     <div
                       key={idx}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center font-bold font-mono text-xs transition-all ${
-                        isPassed 
-                          ? 'bg-emerald-500 text-white shadow-sm scale-95' 
-                          : isCurrent 
-                            ? 'bg-indigo-600 text-white ring-4 ring-indigo-200 scale-105 animate-bounce' 
-                            : 'bg-white text-slate-300 border border-slate-100'
-                      }`}
+                      className="w-9 h-9 rounded-full flex items-center justify-center font-bold font-mono text-xs bg-white text-slate-300 border border-slate-100"
                     >
-                      {isPassed ? num : isCurrent ? '?' : num}
+                      {num}
                     </div>
                   );
                 })}
@@ -978,7 +1095,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="w-full h-12 bg-sky-200/40 rounded-xl mt-3 relative flex items-center justify-center border border-sky-200/50 overflow-hidden">
                 <span className="text-2xl animate-pulse absolute left-4">🐸</span>
                 <span className="text-xs font-extrabold text-sky-800 uppercase font-sans">
-                  Passo {saltoIndex + 1} di 10
+                  Sequenza del {world.id}
                 </span>
               </div>
             </div>
@@ -988,8 +1105,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               {saltoOptions.map((opt, idx) => (
                 <button
                   key={idx}
-                  onClick={() => handleSaltoSelect(opt)}
-                  className="py-3.5 px-4 rounded-xl border-2 border-slate-100 hover:border-indigo-400 bg-white text-lg font-bold font-mono text-slate-800 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors"
+                  onClick={() => {
+                    const correct = world.id * saltoSelectedFactor;
+                    if (opt === correct) {
+                      sound.playSuccess();
+                      setSaltoCompleted(prev => new Set([...prev, saltoSelectedFactor]));
+                      if (saltoCompleted.size === 9) {
+                        sound.playLevelUp();
+                        saveStepCompleted('salto');
+                      }
+                      setSaltoSelectedFactor(null);
+                    } else {
+                      sound.playError();
+                    }
+                  }}
+                  className="py-3.5 px-4 rounded-xl border-2 border-slate-100 hover:border-purple-400 bg-white text-lg font-bold font-mono text-slate-800 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors"
                   id={`salto-opt-${opt}`}
                 >
                   {opt}
@@ -999,78 +1129,97 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
             <div className="text-center">
               <button
-                onClick={() => { sound.playClick(); setActiveStep('intro'); }}
+                onClick={() => { sound.playClick(); setSaltoSelectedFactor(null); }}
                 className="text-xs text-slate-500 font-bold hover:underline cursor-pointer"
                 id="salto-exit-btn"
               >
-                Abbandona sentiero
+                Torna alla lista
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 3: COSTRUISCO (Build the Table) */}
-        {activeStep === 'costruisco' && (
-          <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+        {/* STEP 3: COSTRUISCO (Build the Table) - LIST VIEW */}
+        {activeStep === 'costruisco' && costruiscoSelectedFactor === null && (
+          <div className="max-w-2xl mx-auto w-full">
+            <div className="bg-emerald-50 rounded-3xl p-6 border-2 border-emerald-200 shadow-lg">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full font-sans">
                   Passo 3: Costruisci la Tabellina
                 </span>
                 <button
                   onClick={() => setShowStepRulesModal('costruisco')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('costruisco')
-                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
-                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                      ? 'w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700'
+                      : 'w-6 h-6 bg-emerald-300 hover:bg-emerald-400'
                   }`}
-                  title="Visualizza regole"
-                  aria-label="Visualizza regole"
                 >
                   <HelpCircle className={!hasReadRulesMandatory.has('costruisco') ? 'w-5 h-5' : 'w-4 h-4'} />
                 </button>
               </div>
+              <h3 className="text-lg font-black text-slate-800 text-center font-sans">
+                🏗️ Scegli una moltiplicazione da costruire
+              </h3>
+              <p className="text-sm text-slate-600 text-center mt-2 mb-6">
+                Completa tutte 10
+              </p>
+
+              <CombinationCarousel
+                completed={costruiscoCompleted}
+                onSelect={(f) => setCostruiscoSelectedFactor(f)}
+                worldId={world.id}
+                stepColor="emerald"
+              />
+
+              {/* Progress indicator */}
+              <div className="mt-6 text-center">
+                <p className="text-xs font-bold text-emerald-700">
+                  Completate: {costruiscoCompleted.size}/10
+                </p>
+                <div className="w-full bg-emerald-200 rounded-full h-2 mt-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full transition-all"
+                    style={{ width: `${(costruiscoCompleted.size / 10) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: COSTRUISCO (Build the Table) - GAME VIEW */}
+        {activeStep === 'costruisco' && costruiscoSelectedFactor !== null && (
+          <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-6">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                  Costruisci: {world.id} × {costruiscoSelectedFactor}
+                </span>
+                <button
+                  onClick={() => setCostruiscoSelectedFactor(null)}
+                  className="text-emerald-600 hover:text-emerald-700 font-bold text-lg"
+                >
+                  ←
+                </button>
+              </div>
               <h3 className="text-lg font-black text-slate-800 mt-1">
-                Completa i risultati mancanti!
+                Completa il risultato mancante!
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Seleziona un'operazione, poi tocca il palloncino corretto in basso per completarla.
+                Tocca il palloncino con il risultato corretto per completare.
               </p>
             </div>
 
-            {/* 10 table rows */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 max-h-[180px] overflow-y-auto p-1 border border-slate-100 rounded-xl">
-              {Array.from({ length: 10 }).map((_, idx) => {
-                const factor = idx + 1;
-                const product = costruiscoProgress[factor];
-                const isSelected = selectedFactor === factor;
-
-                return (
-                  <button
-                    key={factor}
-                    onClick={() => { sound.playClick(); setSelectedFactor(factor); }}
-                    className={`p-2.5 rounded-xl border text-center font-bold flex flex-col justify-center items-center transition-all cursor-pointer ${
-                      isSelected 
-                        ? 'bg-indigo-600 text-white ring-4 ring-indigo-200' 
-                        : product !== null 
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
-                    }`}
-                    id={`costruisco-row-${factor}`}
-                  >
-                    <span className="text-[11px] font-sans">{world.id} x {factor}</span>
-                    <span className="text-xs font-mono mt-0.5">
-                      {product !== null ? product : "?"}
-                    </span>
-                  </button>
-                );
-              })}
+            {/* Current multiplication display */}
+            <div className="bg-emerald-100 rounded-2xl p-5 text-center border-2 border-emerald-300">
+              <p className="text-xs text-emerald-700 font-bold uppercase">Completa questa operazione</p>
+              <p className="text-3xl font-black text-emerald-900 mt-2 font-mono">
+                {world.id} × {costruiscoSelectedFactor} = ?
+              </p>
             </div>
 
-            {/* Monument Building Area - NEW FEATURE */}
-            <MonumentArea world={world} completedMonuments={completedMonuments} />
-
-            {/* Bubble balloons selection at the bottom */}
+            {/* Bubble balloons selection */}
             <div>
               <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wide text-center">
                 I Palloncini dei Risultati
@@ -1080,7 +1229,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <motion.button
                     key={ball}
                     whileHover={{ scale: 1.15 }}
-                    onClick={() => handleCostruiscoBalloonTap(ball)}
+                    onClick={() => {
+                      sound.playClick();
+                      const expected = world.id * costruiscoSelectedFactor;
+                      if (ball === expected) {
+                        sound.playSuccess();
+                        setCostruiscoCompleted(prev => new Set([...prev, costruiscoSelectedFactor]));
+                        if (costruiscoCompleted.size === 9) {
+                          sound.playLevelUp();
+                          saveStepCompleted('costruisco');
+                        }
+                        setCostruiscoSelectedFactor(null);
+                      } else {
+                        sound.playError();
+                      }
+                    }}
                     className="w-12 h-12 rounded-full bg-sky-400 text-white font-extrabold font-mono text-xs flex items-center justify-center cursor-pointer shadow-md border border-white hover:bg-sky-500 relative select-none"
                     id={`balloon-${ball}`}
                   >
@@ -1090,44 +1253,80 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </div>
             </div>
 
-            <div className="flex gap-3 justify-center">
+            <div className="text-center">
               <button
-                onClick={resetCostruisco}
-                className="py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold cursor-pointer"
-                id="costruisco-reset-btn"
-              >
-                Ricomincia
-              </button>
-              <button
-                onClick={() => { sound.playClick(); setActiveStep('intro'); }}
-                className="py-2.5 px-4 rounded-xl text-slate-600 hover:text-slate-900 text-xs font-bold cursor-pointer"
+                onClick={() => { sound.playClick(); setCostruiscoSelectedFactor(null); }}
+                className="text-xs text-slate-500 font-bold hover:underline cursor-pointer"
                 id="costruisco-exit-btn"
               >
-                Annulla
+                Torna alla lista
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 4: TRUCCHI (Interactive strategies and associate rules) */}
-        {activeStep === 'trucchi' && (
-          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-5">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+        {/* STEP 4: TRUCCHI (Interactive strategies and associate rules) - LIST VIEW */}
+        {activeStep === 'trucchi' && trucchiSelectedFactor === null && (
+          <div className="max-w-2xl mx-auto w-full">
+            <div className="bg-amber-50 rounded-3xl p-6 border-2 border-amber-200 shadow-lg">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <span className="text-xs font-bold text-amber-600 bg-amber-100 px-3 py-1 rounded-full font-sans">
                   Passo 4: Il Trucco Mnemonico
                 </span>
                 <button
                   onClick={() => setShowStepRulesModal('trucchi')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
                     !hasReadRulesMandatory.has('trucchi')
-                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
-                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                      ? 'w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700'
+                      : 'w-6 h-6 bg-amber-300 hover:bg-amber-400'
                   }`}
-                  title="Visualizza regole"
-                  aria-label="Visualizza regole"
                 >
                   <HelpCircle className={!hasReadRulesMandatory.has('trucchi') ? 'w-5 h-5' : 'w-4 h-4'} />
+                </button>
+              </div>
+              <h3 className="text-lg font-black text-slate-800 text-center font-sans">
+                🦉 Scegli un trucco da imparare
+              </h3>
+              <p className="text-sm text-slate-600 text-center mt-2 mb-6">
+                Completa tutte 10
+              </p>
+
+              <CombinationCarousel
+                completed={trucchiCompleted}
+                onSelect={(f) => setTrucchiSelectedFactor(f)}
+                worldId={world.id}
+                stepColor="amber"
+              />
+
+              {/* Progress indicator */}
+              <div className="mt-6 text-center">
+                <p className="text-xs font-bold text-amber-700">
+                  Completate: {trucchiCompleted.size}/10
+                </p>
+                <div className="w-full bg-amber-200 rounded-full h-2 mt-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full transition-all"
+                    style={{ width: `${(trucchiCompleted.size / 10) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: TRUCCHI (Interactive strategies and associate rules) - GAME VIEW */}
+        {activeStep === 'trucchi' && trucchiSelectedFactor !== null && (
+          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-amber-100 shadow-xl space-y-5">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full">
+                  Trucco: {world.id} × {trucchiSelectedFactor}
+                </span>
+                <button
+                  onClick={() => setTrucchiSelectedFactor(null)}
+                  className="text-amber-600 hover:text-amber-700 font-bold text-lg"
+                >
+                  ←
                 </button>
               </div>
               <h3 className="text-lg font-black text-slate-800 mt-1 font-sans">
@@ -1156,29 +1355,51 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </p>
             </div>
 
-            {/* Mini quiz using the trick */}
-            <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50">
-              <h4 className="text-sm sm:text-base font-bold text-slate-700 mb-4 text-center">
-                Mettiamolo in pratica! Quanto fa <strong>{world.id} x 8</strong>?
+            {/* Quiz with button selection */}
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5">
+              <h4 className="text-sm font-bold text-amber-900 mb-2 text-center">
+                Quanto fa <strong>{world.id} × {trucchiSelectedFactor}</strong>?
               </h4>
-              <NumericKeypad
-                value={trucchiAnswer}
-                onChange={setTrucchiAnswer}
-                onSubmit={() => {
-                  if (parseInt(trucchiAnswer.trim(), 10) === world.id * 8) {
-                    sound.playSuccess();
-                    setTrucchiQuestionSolved(true);
-                  } else {
-                    sound.playError();
-                    setTrucchiAnswer('');
-                  }
-                }}
-                submitLabel="Verifica"
-                maxDigits={3}
-              />
+              <p className="text-xs text-amber-800 text-center mb-4 font-sans">
+                💡 Conta <strong>{trucchiSelectedFactor} mattoni</strong>: {Array.from({length: trucchiSelectedFactor}).map((_, i) => `${world.id}`).join(' + ')} = ?
+              </p>
+              
+              <div className="flex flex-wrap gap-2 justify-center">
+                {Array.from({ length: 10 }).map((_, idx) => {
+                  const value = (idx + 1) * world.id;
+                  const isCorrect = value === world.id * trucchiSelectedFactor;
+                  const isSelected = trucchiQuestionSolved && isCorrect;
+                  
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        if (isCorrect) {
+                          sound.playSuccess();
+                          setTrucchiQuestionSolved(true);
+                        } else {
+                          sound.playError();
+                        }
+                      }}
+                      disabled={trucchiQuestionSolved && !isCorrect}
+                      className={`w-12 h-12 rounded-xl font-bold text-sm transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-emerald-500 text-white ring-4 ring-emerald-300 scale-110 shadow-lg'
+                          : trucchiQuestionSolved && !isCorrect
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-white text-amber-900 border-2 border-amber-300 hover:bg-amber-100'
+                      }`}
+                      id={`trucchi-opt-${value}`}
+                    >
+                      {value}
+                    </button>
+                  );
+                })}
+              </div>
+
               {trucchiQuestionSolved && (
                 <p className="text-xs font-bold text-emerald-600 mt-4 flex items-center justify-center gap-1">
-                  ✓ Eccellente! Risposta corretta. Ora puoi procedere.
+                  ✓ Perfetto! Hai contato bene {trucchiSelectedFactor} volte il {world.id}!
                 </p>
               )}
             </div>
@@ -1187,12 +1408,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               disabled={!trucchiQuestionSolved}
               onClick={() => {
                 sound.playLevelUp();
-                saveStepCompleted('trucchi');
-                setActiveStep('intro');
+                setTrucchiCompleted(prev => new Set([...prev, trucchiSelectedFactor]));
+                if (trucchiCompleted.size === 9) {
+                  saveStepCompleted('trucchi');
+                }
+                setTrucchiQuestionSolved(false);
+                setTrucchiSelectedFactor(null);
               }}
               className={`w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all ${
                 trucchiQuestionSolved 
-                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer' 
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer' 
                   : 'bg-slate-100 text-slate-400 cursor-not-allowed'
               }`}
               id="trick-done-btn"
@@ -1267,8 +1492,32 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           </div>
         )}
 
+        {/* STEP 6: SFIDA START SCREEN */}
+        {activeStep === 'sfida' && sfidaReady && !sfidaActive && (
+          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-8 border border-indigo-100 shadow-xl space-y-8 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="text-center space-y-2">
+              <div className="text-6xl mb-4">⚡</div>
+              <h2 className="text-2xl font-black text-indigo-950">SFIDA VELOCISSIMA</h2>
+              <p className="text-sm text-slate-600">Risolvi il maggior numero di operazioni prima che il tempo finisca!</p>
+            </div>
+            
+            <div className="text-center space-y-2 bg-amber-50 rounded-2xl p-4 w-full">
+              <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Tempo disponibile</p>
+              <p className="text-4xl font-black text-amber-600">30s</p>
+            </div>
+            
+            <button
+              onClick={beginSfidaGame}
+              className="w-full py-5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-xl shadow-lg cursor-pointer transition-all active:scale-95"
+              id="sfida-start-btn"
+            >
+              ▶ INIZIA SFIDA
+            </button>
+          </div>
+        )}
+
         {/* STEP 6: SFIDA (Timed challenge) */}
-        {activeStep === 'sfida' && sfidaQuestion && (
+        {activeStep === 'sfida' && sfidaActive && sfidaQuestion && (
           <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
             <div className="flex justify-between items-center">
               {/* Countdown */}
@@ -1310,7 +1559,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 <button
                   key={idx}
                   onClick={() => handleSfidaAnswer(opt)}
-                  className="py-4 px-4 rounded-xl border-2 border-slate-100 hover:border-amber-400 bg-white text-lg font-black font-mono text-slate-800 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors"
+                  className="py-4 px-4 rounded-xl border-2 border-slate-100 hover:border-amber-400 bg-white text-lg font-black font-mono text-slate-800 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors active:scale-95"
                   id={`sfida-opt-${opt}`}
                 >
                   {opt}
