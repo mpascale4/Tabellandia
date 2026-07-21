@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, WorldProgress } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
@@ -19,6 +19,7 @@ import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volum
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
+const DEV_MODE_KEY = "tabellandia_dev_mode_v1";
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -31,6 +32,7 @@ type ProfileStore = {
 };
 
 const CURRENT_YEAR = new Date().getFullYear();
+const ALL_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'];
 
 const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   name: "Eroe",
@@ -125,6 +127,9 @@ export default function App() {
     const seen = localStorage.getItem('tabellandia_rewards_tutorial_seen');
     return !seen; // Show if never seen before
   });
+  const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
+  const devTapCountRef = useRef<number>(0);
+  const devTapResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Setup Wizard State
   const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: char_create, 2: ready
@@ -138,6 +143,7 @@ export default function App() {
   const [pinInput, setPinInput] = useState<string>("");
   const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
   const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
+  const [devModeNotice, setDevModeNotice] = useState<string>("");
 
   // Carousel State
   const [currentWorldIdx, setCurrentWorldIdx] = useState<number>(0);
@@ -221,6 +227,14 @@ export default function App() {
       window.removeEventListener('keydown', unlockAudio);
     };
   }, [musicEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (devTapResetTimerRef.current) {
+        clearTimeout(devTapResetTimerRef.current);
+      }
+    };
+  }, []);
 
   const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
     localStorage.setItem(
@@ -328,10 +342,51 @@ export default function App() {
     setShowProfilePicker(false);
   };
 
+  const handleCancelProfileCreation = () => {
+    sound.playClick();
+    setHeroNameInput('');
+    setNewProfileAvatarEmoji('👦');
+    setNewProfileBirthYear(CURRENT_YEAR - 8);
+    setDraftProfile(null);
+    setWizardStep(0);
+    setShowProfilePicker(true);
+  };
+
   const handleSwitchProfile = () => {
     sound.playClick();
     setShowProfilePicker(true);
     setWizardStep(0);
+  };
+
+  const toggleDevMode = () => {
+    setDevModeEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem(DEV_MODE_KEY, next ? 'true' : 'false');
+      return next;
+    });
+  };
+
+  const handleDevModeGestureTap = () => {
+    devTapCountRef.current += 1;
+    if (devTapResetTimerRef.current) {
+      clearTimeout(devTapResetTimerRef.current);
+      devTapResetTimerRef.current = null;
+    }
+
+    if (devTapCountRef.current >= 7) {
+      const nextMode = !devModeEnabled;
+      toggleDevMode();
+      sound.playPowerUp();
+      setDevModeNotice(nextMode ? "Modalità DEV attivata" : "Modalità DEV disattivata");
+      setTimeout(() => setDevModeNotice(""), 1400);
+      devTapCountRef.current = 0;
+      return;
+    }
+
+    devTapResetTimerRef.current = setTimeout(() => {
+      devTapCountRef.current = 0;
+      devTapResetTimerRef.current = null;
+    }, 1200);
   };
 
   const handleAccessParentArea = () => {
@@ -748,13 +803,23 @@ export default function App() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
-                  id="wizard-create-btn"
-                >
-                  Registra Eroe
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCancelProfileCreation}
+                    className="w-full py-4 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    id="wizard-cancel-btn"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    id="wizard-create-btn"
+                  >
+                    Registra Eroe
+                  </button>
+                </div>
               </form>
             </div>
           )}
@@ -840,7 +905,20 @@ export default function App() {
              <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
                {profile?.avatar?.emoji || '👦'}
              </div>
-             <p className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}>{profile?.name || 'Eroe'}</p>
+            <p
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDevModeGestureTap();
+              }}
+              className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
+            >
+              {profile?.name || 'Eroe'}
+            </p>
+            {devModeEnabled && (
+              <span className={`mt-0.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black tracking-wider ${isPhoneMode ? 'text-[6px]' : 'text-[8px]'}`}>
+                DEV
+              </span>
+            )}
             </button>
 
             {/* Monete */}
@@ -903,6 +981,11 @@ export default function App() {
             </div>
           </div>
         </header>
+        {devModeNotice && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-slate-900/85 text-white text-xs font-black px-3 py-1.5 rounded-full border border-white/20 shadow-lg pointer-events-none">
+            {devModeNotice}
+          </div>
+        )}
 
         {/* PIN Authentication Modal */}
         <AnimatePresence>
@@ -1193,6 +1276,7 @@ export default function App() {
                       profile={profile}
                       updateProfile={handleUpdateProfile}
                       compactLayout={isPhoneMode}
+                      devMode={devModeEnabled}
                       onBack={() => {
                         sound.playClick();
                         setSelectedWorldId(null);
@@ -1241,8 +1325,8 @@ export default function App() {
                         <div className="flex flex-col items-center gap-4 w-64 flex-shrink-0">
                           {(() => {
                             const world = WORLDS_DATA[currentWorldIdx];
-                            const isUnlocked = profile.unlockedWorlds.includes(world.id);
-                            const worldProg = profile.worldProgress[world.id] || {
+                            const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
+                            const worldProgBase = profile.worldProgress[world.id] || {
                               worldId: world.id,
                               completedSteps: [],
                               rebuiltMonuments: [],
@@ -1250,6 +1334,9 @@ export default function App() {
                               highScore: 0,
                               stars: 0
                             };
+                            const worldProg = devModeEnabled
+                              ? { ...worldProgBase, completedSteps: [...ALL_STEP_IDS] }
+                              : worldProgBase;
                             
                             const stepsCount = worldProg.completedSteps.length;
                             const rebuiltCount = worldProg.rebuiltMonuments.length;
@@ -1331,12 +1418,16 @@ export default function App() {
                                   {!isUnlocked ? (
                                     <div className="absolute -top-4 -left-4 text-2xl">🔒</div>
                                   ) : isCompleted ? (
-                                    <div className="absolute -top-4 -left-4 text-2xl">✓</div>
+                                    <div className="absolute -top-4 -left-4 text-2xl">✅</div>
                                   ) : null}
 
                                   {/* Progress Counter - Bottom Right */}
-                                  {isUnlocked && !isCompleted && (
-                                    <div className="absolute bottom-2 right-2 bg-yellow-400 text-yellow-950 text-xs font-black px-2 py-1 rounded shadow-sm">
+                                  {isUnlocked && (
+                                    <div className={`absolute bottom-2 right-2 text-xs font-black px-2 py-1 rounded shadow-sm ${
+                                      isCompleted
+                                        ? 'bg-emerald-400 text-emerald-950'
+                                        : 'bg-yellow-400 text-yellow-950'
+                                    }`}>
                                       {stepsCount}/6
                                     </div>
                                   )}

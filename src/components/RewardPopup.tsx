@@ -139,7 +139,7 @@ export default function RewardPopup({
                         +{coins}
                       </span>
                     </div>
-                    <p className="text-sm font-bold text-amber-800">Monete</p>
+                    <p className="text-sm font-bold text-amber-800">🪙 Monete</p>
                   </motion.div>
 
                   {/* Drops */}

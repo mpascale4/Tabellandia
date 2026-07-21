@@ -38,7 +38,7 @@ export default function CombinationCarousel({
                 : `bg-white text-slate-800 border-2 ${colorMap[stepColor]} hover:bg-slate-50`
             }`}
           >
-            {isCompleted && '✓ '}
+            {isCompleted && '✅ '}
             {worldId}×{factor}
           </motion.button>
         );

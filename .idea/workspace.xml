@@ -36,8 +36,7 @@
             <option name="modelValue" value="auto" />
           </model>
         </option>
-        <option name="targetType" value="BACKGROUND" />
-        <option name="worktreeMode" value="WORKSPACE" />
+        <option name="targetType" value="LOCAL" />
       </template>
     </option>
   </component>
@@ -76,7 +75,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1784536482926</updated>
-      <workItem from="1784536484158" duration="39667000" />
+      <workItem from="1784536484158" duration="65058000" />
     </task>
     <servers />
   </component>

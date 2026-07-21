@@ -152,7 +152,7 @@ export default function MonumentArea({ world, completedMonuments }: MonumentArea
                     transition={{ type: 'spring', stiffness: 200, damping: 15, delay: idx * 0.1 + 0.4 }}
                     className="absolute -top-2 -right-2 w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-lg font-bold shadow-lg"
                   >
-                    ✓
+                    ✅
                   </motion.div>
                 )}
               </motion.div>
