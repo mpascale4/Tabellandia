@@ -2310,6 +2310,44 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </p>
             )}
 
+            {/* DEV toolbar – visibile solo in modalità sviluppo */}
+            {devMode && (
+              <div
+                aria-hidden="true"
+                className="w-full rounded-xl border-2 border-dashed border-orange-400 bg-orange-50 px-4 py-3 flex flex-col gap-2"
+              >
+                <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">🛠 Dev tools</span>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateProfile(p => ({
+                        ...p,
+                        worldProgress: {
+                          ...p.worldProgress,
+                          [world.id]: {
+                            ...p.worldProgress[world.id],
+                            highScore: 0,
+                          },
+                        },
+                      }));
+                      setSfidaResult(null);
+                    }}
+                    className="flex-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-2 px-3 cursor-pointer transition-colors"
+                  >
+                    🔴 Azzera record
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFireworks(true)}
+                    className="flex-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-bold py-2 px-3 cursor-pointer transition-colors"
+                  >
+                    🎆 Test fuochi
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Risultato sessione precedente */}
             {sfidaResult && (
               <div className={`w-full rounded-2xl p-4 text-center border-2 relative overflow-hidden ${
