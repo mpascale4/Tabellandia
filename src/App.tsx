@@ -1462,60 +1462,20 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* TAB 2: ALLENAMENTO (Unrestricted escolha libre) */}
+                  {/* TAB 2: ALLENAMENTO - placeholder temporaneo */}
                   {activeTab === 'training' && (
-                    <div className="space-y-6">
-                      <div className={`text-center ${isPhoneMode ? '' : 'md:text-left'} bg-white/40 backdrop-blur-sm p-4 rounded-3xl border border-white/40 shadow-sm max-w-xl`}>
-                        <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full font-sans">
-                          Allenamento Libero (Nessun Blocco)
-                        </span>
-                        <h2 className="text-xl md:text-2xl font-black text-sky-950 mt-1.5 font-sans">
-                          Scegli una Tabellina da Allenare
-                        </h2>
-                        <p className="text-xs text-sky-900/85 mt-0.5 font-medium leading-relaxed">
-                          In questa modalità tutte le tabelline sono sbloccate liberamente per esercitarti senza limitazioni. Ottimo per ripassare le tue debolezze prima delle sfide!
-                        </p>
-                      </div>
-
-                      <div className={`grid ${isPhoneMode ? 'grid-cols-2 gap-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4'}`}>
-                        {WORLDS_DATA.map(world => (
-                          <button
-                            key={world.id}
-                            onClick={() => {
-                              sound.playPowerUp();
-                              // Temporary force unlock world progress to allow entering Detail
-                              handleUpdateProfile(p => {
-                                const nextProg = { ...p.worldProgress };
-                                if (!nextProg[world.id]) {
-                                  nextProg[world.id] = {
-                                    worldId: world.id,
-                                    completedSteps: [],
-                                    rebuiltMonuments: [],
-                                    creatureEvolution: 'egg',
-                                    highScore: 0,
-                                    stars: 0
-                                  };
-                                }
-                                const nextUnlocked = [...p.unlockedWorlds];
-                                if (!nextUnlocked.includes(world.id)) nextUnlocked.push(world.id);
-                                return {
-                                  ...p,
-                                  unlockedWorlds: nextUnlocked,
-                                  worldProgress: nextProg
-                                };
-                              });
-                              setSelectedWorldId(world.id);
-                            }}
-                            className={`p-4 rounded-3xl border-4 border-white/60 bg-white/40 backdrop-blur-sm shadow-md flex flex-col items-center justify-center gap-1.5 hover:shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95`}
-                            id={`training-world-btn-${world.id}`}
-                          >
-                            <span className="text-4xl filter drop-shadow select-none">{world.symbol}</span>
-                            <span className="text-xs font-black text-sky-950 font-sans">Tavola del {world.id}</span>
-                            <span className="text-[10px] text-sky-900/60 font-sans italic font-bold">{world.mascotName}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <section
+                      aria-labelledby="training-wip-title"
+                      className="min-h-[360px] w-full rounded-3xl border border-white/40 bg-white/35 backdrop-blur-sm shadow-sm p-6 md:p-8 flex flex-col items-center justify-center text-center"
+                    >
+                      <p className="text-5xl select-none" aria-hidden="true">🚧</p>
+                      <h2 id="training-wip-title" className="mt-3 text-2xl md:text-3xl font-black text-sky-950 font-sans">
+                        Work in progress
+                      </h2>
+                      <p className="mt-2 max-w-xl text-sm md:text-base text-sky-900/85 font-medium leading-relaxed">
+                        La sezione Allenamento e in fase di ricostruzione. Torna presto: stiamo preparando una nuova esperienza.
+                      </p>
+                    </section>
                   )}
 
                   {/* TAB 4: PARENT AREA */}
