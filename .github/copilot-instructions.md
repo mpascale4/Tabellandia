@@ -155,6 +155,27 @@ Pattern standard:
 
 ---
 
+## Regola griglia adattiva (Mandatory)
+
+Quando le card si impilano verticalmente invece di distribuirsi su più colonne:
+
+1. **Individua il padre**: cerca `grid-cols-1` o `flex-col` che forza il layout in colonna singola.
+2. **Non usare `w-full` o `flex: 1` sulle card**: lasciar dimensionare il browser in base al contenuto.
+3. **Usa sempre `auto-fit/minmax`** per griglie di card/elementi visuali:
+
+```tsx
+// ✅ Corretto — si adatta allo spazio disponibile
+<div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-4">
+
+// ❌ Sbagliato — forza una colonna su mobile
+<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+```
+
+4. **Non aggiungere `width: 100%` o `flex: 1` sulle card** al di fuori di un contesto dove il genitore ha altezza/larghezza definita.
+5. Se la griglia non si espande, verifica che il padre non abbia `flex-col`, `w-fit`, `max-w` troppo restrittivo o `overflow: hidden` che limitino il contenuto.
+
+---
+
 ## Badge di stato (Mandatory)
 
 I badge di stato devono essere **visualmente uniformi** in tutto il progetto.

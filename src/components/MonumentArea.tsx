@@ -83,7 +83,7 @@ export default function MonumentArea({ world, completedMonuments }: MonumentArea
         </div>
 
         {/* Monuments Grid */}
-        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="relative z-10 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-4">
           {monuments.map((monument, idx) => {
             const isCompleted = completedMonuments.includes(monument.id);
             

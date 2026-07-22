@@ -633,7 +633,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
             </div>
 
             {/* Shop Items List */}
-            <div className="flex-1 overflow-y-auto max-h-[250px] p-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex-1 overflow-y-auto max-h-[250px] p-1 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
               {SHOP_ITEMS.filter(item => item.category === shopCategory).map(item => {
                 const isBought = profile.unlockedAccessories.includes(item.id);
                 const canAfford = profile.coins >= item.cost;
