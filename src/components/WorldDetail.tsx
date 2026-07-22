@@ -1401,7 +1401,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         else if (step.id === 'pratico') { startQuizMode(); }
                         else if (step.id === 'sfida') { startSfidaMode(); }
                       }}
-                      className={`relative h-full min-h-[6.2rem] p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer gap-1 ${
+                      className={`relative h-full min-h-[6.6rem] sm:min-h-[7rem] p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer gap-1 ${
                         isLocked
                           ? 'opacity-45 bg-gray-50 border-gray-200 cursor-not-allowed'
                           : isDone
@@ -1418,18 +1418,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           {isLocked ? '🔒' : '✓'}
                         </span>
                       )}
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg select-none flex-shrink-0 ${
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xl select-none flex-shrink-0 sm:w-10 sm:h-10 ${
                         isLocked ? 'bg-slate-100' : isDone ? 'bg-emerald-100/50' : 'bg-indigo-50'
                       }`}>
                         {isLocked ? '🔒' : step.icon}
                       </div>
                       <div className="text-center flex-1">
-                        <h4 className={`text-[10px] font-bold font-sans ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
+                        <h4 className={`text-[11px] sm:text-xs font-bold font-sans leading-tight ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
                           {step.title.split('.')[1]}
                         </h4>
                       </div>
                       {!isLocked && (
-                        <div className="text-[8px] font-bold text-amber-700 flex items-center gap-0.5 whitespace-nowrap">
+                        <div className="max-w-full text-[9px] sm:text-[10px] font-bold text-amber-700 flex items-center gap-0.5 sm:gap-1 whitespace-nowrap">
                           {step.coins > 0 && <span>🪙 {step.coins}</span>}
                           {step.drops > 0 && <span>💧 {step.drops}</span>}
                         </div>
