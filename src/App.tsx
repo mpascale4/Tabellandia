@@ -10,6 +10,7 @@ import { WORLDS_DATA, AVATARS } from './data';
 import { sound } from './components/SoundManager';
 import ParentDashboard from './components/ParentDashboard';
 import WorldDetail from './components/WorldDetail';
+import TrainingHub from './components/TrainingHub';
 import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
 import RewardsTutorial from './components/RewardsTutorial';
@@ -1462,28 +1463,9 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* TAB 2: ALLENAMENTO - placeholder temporaneo */}
+                  {/* TAB 2: ALLENAMENTO */}
                   {activeTab === 'training' && (
-                    <section
-                      aria-labelledby="training-wip-title"
-                      className="min-h-[400px] w-full rounded-3xl bg-gradient-to-br from-sky-100/70 to-indigo-100/70 backdrop-blur-sm border border-white/50 shadow-md p-8 md:p-12 flex flex-col items-center justify-center text-center gap-4"
-                    >
-                      <p className="text-7xl select-none leading-none" aria-hidden="true">🏗️</p>
-                      <div className="space-y-1">
-                        <span className="inline-block text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full uppercase tracking-widest">
-                          In costruzione
-                        </span>
-                        <h2 id="training-wip-title" className="text-2xl md:text-3xl font-black text-sky-950 font-sans mt-2">
-                          Allenamento in arrivo!
-                        </h2>
-                      </div>
-                      <p className="max-w-sm text-sm md:text-base text-sky-900/80 font-medium leading-relaxed">
-                        Stiamo costruendo una nuova modalità di allenamento. Tornerà presto, ancora più bella! 🌟
-                      </p>
-                      <p className="text-xs text-sky-700/60 font-sans italic">
-                        Nel frattempo, continua la tua avventura! 🗺️
-                      </p>
-                    </section>
+                    <TrainingHub profile={profile} compactLayout={isPhoneMode} />
                   )}
 
                   {/* TAB 4: PARENT AREA */}
