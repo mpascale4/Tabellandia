@@ -117,6 +117,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [sfidaScore, setSfidaScore] = useState<number>(0);
   const [sfidaOptions, setSfidaOptions] = useState<number[]>([]);
   const [sfidaResult, setSfidaResult] = useState<{ correctAnswers: number; isNewRecord: boolean; previousRecord: number } | null>(null);
+  const [showFireworks, setShowFireworks] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
@@ -693,6 +694,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     });
 
     if (isNewRecord) setTimeout(() => sound.playLevelUp(), 600);
+    if (isNewRecord) setShowFireworks(true);
     setSfidaResult({ correctAnswers: score, isNewRecord, previousRecord });
     setSfidaReady(true);
   };
@@ -2319,10 +2321,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       ? 'bg-amber-50 border-amber-300'
                       : 'bg-slate-50 border-slate-200'
               }`}>
-                {/* Fuochi d'artificio nuovo record */}
+                {/* Indicatore visivo nuovo record (emoji fallback inline) */}
                 {sfidaResult.isNewRecord && (
-                  <div className="flex justify-center gap-3 text-2xl mb-2 animate-bounce" aria-hidden="true">
-                    🎆 🏅 🎆
+                  <div className="flex justify-center gap-3 text-2xl mb-2" aria-hidden="true">
+                    🏅
                   </div>
                 )}
 
@@ -2427,6 +2429,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         )}
       </div>
         </>
+      )}
+
+      {/* Fuochi d'artificio: overlay celebrativo per nuovo record */}
+      {showFireworks && (
+        <FireworksOverlay onDone={() => setShowFireworks(false)} />
       )}
     </div>
   );
