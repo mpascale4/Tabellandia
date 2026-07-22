@@ -1352,10 +1352,10 @@ export default function App() {
                           title="Mappa di Tabellandia"
                           description="Sconfiggi la tempesta di nebbia superando le terre una ad una. Sblocca il livello successivo completando gli esercizi del precedente."
                         />
-                        <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold text-sky-900/80">
-                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">✅ Completato</span>
-                          <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">🧭 In corso</span>
-                          <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-700">🔒 Bloccato</span>
+                        <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-sky-900/80 sm:text-[11px]">
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 sm:px-3 sm:py-1">✅ Completato</span>
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 sm:px-3 sm:py-1">🧭 In corso</span>
+                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700 sm:px-3 sm:py-1">🔒 Bloccato</span>
                         </div>
                       </SurfaceCard>
 
@@ -1378,7 +1378,7 @@ export default function App() {
                                 setSelectedWorldId(world.id);
                               }}
                               disabled={!isUnlocked}
-                              className={`text-left rounded-3xl border-2 p-4 shadow-lg transition-all active:scale-[0.98] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+                              className={`w-full overflow-hidden text-left rounded-3xl border-2 p-3 sm:p-4 shadow-lg transition-all active:scale-[0.98] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
                                 !isUnlocked
                                   ? 'bg-slate-200 border-slate-300 text-slate-600 cursor-not-allowed'
                                   : isCompleted
@@ -1387,20 +1387,20 @@ export default function App() {
                               }`}
                               aria-label={`${world.locationName}, stato ${statusLabel}, ${stepsCount} passi completati su ${ALL_STEP_IDS.length}`}
                             >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className="h-14 w-14 shrink-0 rounded-2xl border-4 border-white bg-white/90 shadow-md flex items-center justify-center text-3xl">
+                              <div className="flex items-start justify-between gap-2.5 sm:gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
+                                  <div className="h-11 w-11 shrink-0 rounded-xl border-2 border-white bg-white/90 shadow-md flex items-center justify-center text-2xl sm:h-14 sm:w-14 sm:rounded-2xl sm:border-4 sm:text-3xl">
                                     {world.symbol}
                                   </div>
-                                  <div className="min-w-0">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-600">Tavola del {world.id}</p>
-                                    <h3 className="text-base font-black leading-tight">{world.locationName}</h3>
-                                    <p className="text-xs font-semibold text-sky-800/75">Mascot: {world.mascotName}</p>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-sky-600 sm:text-[10px] sm:tracking-[0.18em]">Tavola del {world.id}</p>
+                                    <h3 className="truncate text-sm font-black leading-tight sm:text-base" title={world.locationName}>{world.locationName}</h3>
+                                    <p className="truncate text-[11px] font-semibold text-sky-800/75 sm:text-xs" title={`Mascot: ${world.mascotName}`}>Mascot: {world.mascotName}</p>
                                   </div>
                                 </div>
 
-                                <div className="flex flex-col items-end gap-2 shrink-0">
-                                  <span className={`rounded-full px-3 py-1 text-[11px] font-black ${
+                                <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
+                                  <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-black sm:px-3 sm:py-1 sm:text-[11px] ${
                                     !isUnlocked
                                       ? 'bg-slate-50 text-slate-700'
                                       : isCompleted
@@ -1409,44 +1409,44 @@ export default function App() {
                                   }`}>
                                     {!isUnlocked ? '🔒 Bloccato' : isCompleted ? '✅ Completato' : '🧭 In corso'}
                                   </span>
-                                  {isUnlocked && <span className="text-2xl" aria-hidden="true">{getWorldMascotBadge(world.id)}</span>}
+                                  {isUnlocked && <span className="text-xl sm:text-2xl" aria-hidden="true">{getWorldMascotBadge(world.id)}</span>}
                                 </div>
                               </div>
 
-                              <div className="mt-4 grid grid-cols-3 gap-2">
+                              <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(3.5rem,1fr))] gap-1.5 sm:mt-4 sm:gap-2">
                                 {world.monuments.map(monument => {
                                   const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
                                   return (
                                     <div
                                       key={monument.id}
-                                      className={`rounded-2xl border px-2 py-3 text-center ${
+                                      className={`rounded-2xl border px-1.5 py-2 text-center sm:px-2 sm:py-3 ${
                                         isBuilt
                                           ? 'bg-white/90 border-emerald-200 text-emerald-900'
                                           : 'bg-white/70 border-white/70 text-slate-600'
                                       }`}
                                       title={monument.name}
                                     >
-                                      <div className="text-xl leading-none">{monument.emoji}</div>
-                                      <div className="mt-1 text-[10px] font-bold leading-tight">{isBuilt ? 'Ricostruito' : 'Da ricostruire'}</div>
+                                      <div className="text-lg leading-none sm:text-xl">{monument.emoji}</div>
+                                      <div className="mt-1 text-[9px] font-bold leading-tight sm:text-[10px]">{isBuilt ? 'Ricostruito' : 'Da ricostruire'}</div>
                                     </div>
                                   );
                                 })}
                               </div>
 
-                              <div className="mt-4 space-y-2">
-                                <div className="flex items-center justify-between text-xs font-bold">
+                              <div className="mt-3 space-y-2 sm:mt-4">
+                                <div className="flex items-center justify-between text-[11px] font-bold sm:text-xs">
                                   <span>Passi completati</span>
                                   <span>{stepsCount}/{ALL_STEP_IDS.length}</span>
                                 </div>
-                                <div className="h-2 rounded-full bg-white/70 overflow-hidden">
+                                <div className="h-1.5 rounded-full bg-white/70 overflow-hidden sm:h-2">
                                   <div
                                     className={`h-full rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-sky-500'}`}
                                     style={{ width: `${(stepsCount / ALL_STEP_IDS.length) * 100}%` }}
                                   />
                                 </div>
-                                <div className="flex items-center justify-between text-[11px] font-semibold text-sky-900/80">
-                                  <span>Monumenti ricostruiti: {rebuiltCount}/{world.monuments.length}</span>
-                                  <span>{isUnlocked ? 'Apri il mondo' : 'Completa il precedente'}</span>
+                                <div className="flex items-center justify-between gap-2 text-[10px] font-semibold text-sky-900/80 sm:text-[11px]">
+                                  <span className="min-w-0 truncate">Monumenti ricostruiti: {rebuiltCount}/{world.monuments.length}</span>
+                                  <span className="shrink-0">{isUnlocked ? 'Apri il mondo' : 'Completa il precedente'}</span>
                                 </div>
                               </div>
                             </button>
