@@ -40,9 +40,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [hasSeenStepRules, setHasSeenStepRules] = useState<Set<string>>(new Set()); // Track which steps have been seen
   const [hasReadRulesMandatory, setHasReadRulesMandatory] = useState<Set<string>>(new Set()); // Track mandatory rule reading
   const [showRewardPopup, setShowRewardPopup] = useState<{ step: string; coins: number; drops: number } | null>(null);
+  const factorGridRef = useRef<HTMLUListElement | null>(null);
+  const [factorGridCols, setFactorGridCols] = useState<number>(compactLayout ? 3 : 4);
   const stepCardsGridRef = useRef<HTMLDivElement | null>(null);
   const [stepCardScale, setStepCardScale] = useState<'sm' | 'md' | 'lg'>('md');
-  
+
   // View stack for modal-to-page conversion
   const [viewStack, setViewStack] = useState<string[]>([]); // Stack of views, e.g. ['rules-comprendo', 'intro']
   
@@ -871,12 +873,55 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     : stepCardScale === 'sm'
       ? 'text-[9px] gap-1 pt-1'
       : 'text-[10px] gap-1.5 pt-1.5';
+  const resolveAdaptiveFactorCols = (width: number, height: number) => {
+    const itemCount = ALL_FACTORS.length;
+    const gap = compactLayout ? 6 : 10;
+    const minCols = compactLayout ? 2 : 3;
+    const maxCols = compactLayout ? 5 : 6;
+    const minSide = compactLayout ? 56 : 66;
+
+    let bestCols = minCols;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    for (let cols = minCols; cols <= maxCols; cols += 1) {
+      const rows = Math.ceil(itemCount / cols);
+      const cellW = (width - gap * (cols - 1)) / cols;
+      const cellH = (height - gap * (rows - 1)) / rows;
+      const side = Math.min(cellW, cellH);
+      const penalty = side < minSide ? (minSide - side) * 3 : 0;
+      const score = side - penalty;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCols = cols;
+      }
+    }
+
+    return bestCols;
+  };
   const showWorldTopBar = !(
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
     (activeStep === 'salto' && saltoSelectedFactor !== null) ||
     (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) ||
     (activeStep === 'trucchi' && trucchiSelectedFactor !== null)
   );
+
+  useEffect(() => {
+    const target = factorGridRef.current;
+    if (!target || typeof ResizeObserver === 'undefined') return;
+
+    const updateCols = () => {
+      const rect = target.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const nextCols = resolveAdaptiveFactorCols(rect.width, rect.height);
+      setFactorGridCols(prev => (prev === nextCols ? prev : nextCols));
+    };
+
+    updateCols();
+    const observer = new ResizeObserver(() => updateCols());
+    observer.observe(target);
+
+    return () => observer.disconnect();
+  }, [compactLayout, activeStep, comprendoSelectedFactor, saltoSelectedFactor, costruiscoSelectedFactor, trucchiSelectedFactor]);
 
   useEffect(() => {
     const target = stepCardsGridRef.current;
@@ -931,18 +976,20 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     theme: StepFactorGridTheme;
   }) => (
     <ul
+      ref={factorGridRef}
       role="list"
       aria-label={`Lista moltiplicazioni ${stepKey}`}
-      className={`w-full h-full content-start grid auto-rows-fr ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.2rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(5.2rem,1fr))] gap-2.5'}`}
+      className={`w-full h-full content-start grid ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
+      style={{ gridTemplateColumns: `repeat(${factorGridCols}, minmax(0, 1fr))` }}
     >
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
         return (
-          <li key={`${stepKey}-${factor}`} className="h-full">
+          <li key={`${stepKey}-${factor}`}>
             <button
               type="button"
               onClick={() => onSelect(factor)}
-              className={`relative w-full h-full min-h-[5rem] sm:min-h-[5.4rem] rounded-2xl border-2 shadow-sm transition-all cursor-pointer
+              className={`relative w-full aspect-square rounded-2xl border-2 shadow-sm transition-all cursor-pointer
                           focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                           flex flex-col items-center justify-center ${compactLayout ? 'py-1 gap-0.5' : 'py-2 gap-1'}
                           ${isCompleted ? theme.done : theme.todo}`}
