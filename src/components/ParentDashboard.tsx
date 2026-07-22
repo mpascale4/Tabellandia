@@ -112,8 +112,8 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
     ? (profile.history.reduce((acc, h) => acc + h.responseTimeMs, 0) / totalAnswers / 1000).toFixed(2)
     : "0.00";
 
-  // Calculate stats per multiplier (2 to 10)
-  const statsPerTable = Array.from({ length: 9 }).map((_, idx) => {
+  // Calculate stats per multiplier (2 to 9)
+  const statsPerTable = Array.from({ length: 8 }).map((_, idx) => {
     const tableNum = idx + 2;
     const tableHistory = profile.history.filter(h => h.a === tableNum || h.b === tableNum);
     const tableTotal = tableHistory.length;
@@ -273,31 +273,31 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
 
       {/* Detailed Analysis Section */}
       <ResponsiveGrid variant="split" className="mb-6">
-        {/* Left column: Heatmap table representation of the 9x9 multiplier grid */}
+        {/* Left column: Heatmap table representation of the 8x8 multiplier grid */}
         <SurfaceCard padding="md" className="rounded-2xl border-slate-100">
           <SectionHeader
             eyebrow="Analisi combinazioni"
             title="Griglia di Padronanza (Heatmap)"
-            description="Analisi dettagliata di ogni singola casella da 2x2 a 10x10. Leggenda e colori rendono chiari i livelli di padronanza anche senza contare solo sul colore."
+            description="Analisi dettagliata di ogni singola casella da 2x2 a 9x9. Leggenda e colori rendono chiari i livelli di padronanza anche senza contare solo sul colore."
           />
 
           <div className="w-full overflow-x-auto">
             <div className="min-w-[280px]">
               {/* Header row */}
-              <div className="grid grid-cols-10 gap-1 text-center font-bold text-[10px] text-slate-400 mb-1">
+              <div className="grid grid-cols-9 gap-1 text-center font-bold text-[10px] text-slate-400 mb-1">
                 <div></div>
-                {Array.from({ length: 9 }).map((_, col) => (
+                {Array.from({ length: 8 }).map((_, col) => (
                   <div key={col} className="font-mono">{col + 2}</div>
                 ))}
               </div>
 
               {/* Grid content */}
-              {Array.from({ length: 9 }).map((_, rowIdx) => {
+              {Array.from({ length: 8 }).map((_, rowIdx) => {
                 const rowNum = rowIdx + 2;
                 return (
-                  <div key={rowIdx} className="grid grid-cols-10 gap-1 items-center text-center mb-1">
+                  <div key={rowIdx} className="grid grid-cols-9 gap-1 items-center text-center mb-1">
                     <div className="font-bold text-[10px] text-slate-400 font-mono text-left pl-1">{rowNum}</div>
-                    {Array.from({ length: 9 }).map((_, colIdx) => {
+                    {Array.from({ length: 8 }).map((_, colIdx) => {
                       const colNum = colIdx + 2;
                       
                       // Get history for this exact combination (ignoring order)

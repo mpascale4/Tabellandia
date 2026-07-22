@@ -181,28 +181,6 @@ export const WORLDS_DATA: WorldConfig[] = [
       { id: "m9_2", name: "Giardino Zen", cost: 70, description: "Ripiana le sabbie bianche e i laghetti di fiori di loto sacri.", emoji: "🪨🪷" },
       { id: "m9_3", name: "Pagoda della Saggezza", cost: 120, description: "Restaura l'antica pagoda a nove piani crollata.", emoji: "⛩️🏯" }
     ]
-  },
-  {
-    id: 10,
-    name: "Il Castello del 10",
-    locationName: "Reggia della Corona",
-    color: "from-yellow-600 to-amber-600 bg-gradient-to-r",
-    accentColor: "border-yellow-500 text-yellow-700 bg-amber-50",
-    symbol: "👑",
-    mascotName: "Re Decimo",
-    mascotRole: "Il sovrano generoso",
-    creatureName: "Aureo",
-    creatureDescription: "Un maestoso leone alato d'oro massiccio, con occhi di rubino brillante.",
-    filastrocca: "Dieci soldati fan la sfilata, con la corona d'oro tempestata! Dieci, venti, trenta scudi scintillanti, quaranta, cinquanta, sessanta destrieri eleganti! Settanta, ottanta, novanta trombe d'argento, cento fuochi d'artificio brillano nel vento!",
-    trickTitle: "Aggiungi uno Zero!",
-    trickDescription: "Questo è il trucco più facile del regno! Per moltiplicare qualsiasi numero intero per 10, ti basta prendere quel numero e incollargli uno ZERO (0) alla sua destra! Esempio: 10 x 7 diventa 7 con uno zero, cioè 70!",
-    trickVisualExplanation: "Moltiplicare per 10 significa spostare ogni cifra a sinistra nel regno delle decine e delle centinaia, riempiendo lo spazio vuoto con uno zero.",
-    itemsToCount: "👑",
-    monuments: [
-      { id: "m10_1", name: "Sala del Trono", cost: 60, description: "Restaura il magnifico trono d'oro di Re Decimo.", emoji: "👑🏰" },
-      { id: "m10_2", name: "Giardini Reali", cost: 80, description: "Fa rifiorire i cespugli di rose dorate e le statue regali.", emoji: "⛲🌹" },
-      { id: "m10_3", name: "Sala del Gran Tesoro", cost: 150, description: "Ricostruisce la cassaforte magica delle monete di Tabellandia.", emoji: "💰💎" }
-    ]
   }
 ];
 

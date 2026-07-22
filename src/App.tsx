@@ -61,7 +61,6 @@ const WORLD_NUMBER_ICON: Record<number, string> = {
   7: '🧙',
   8: '🛶',
   9: '🚢',
-  10: '👑',
 };
 
 const getWorldNumberIcon = (worldId: number) => WORLD_NUMBER_ICON[worldId] ?? '🔢';

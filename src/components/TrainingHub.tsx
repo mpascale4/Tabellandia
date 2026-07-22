@@ -67,7 +67,6 @@ const TRAINING_WORLD_ICON: Record<number, string> = {
   7: '🧙',
   8: '🛶',
   9: '🚢',
-  10: '🔱',
 };
 
 const MOTIVATIONAL_CORRECT = [

@@ -26,7 +26,6 @@ export default function MonumentArea({ world, completedMonuments }: MonumentArea
       7: 'from-purple-100 to-indigo-100',      // Tower
       8: 'from-pink-100 to-rose-100',          // Sky City
       9: 'from-teal-100 to-cyan-100',          // Temple
-      10: 'from-yellow-100 to-amber-100'       // Castle
     };
     return terrainMap[world.id] || 'from-slate-100 to-slate-200';
   };
@@ -42,7 +41,6 @@ export default function MonumentArea({ world, completedMonuments }: MonumentArea
       7: '✨🔮✨',      // Magic
       8: '☁️⚙️☁️',     // Clouds
       9: '🪨☮️🪨',     // Zen stones
-      10: '👑💰👑'     // Royal
     };
     return decorMap[world.id] || '✨';
   };

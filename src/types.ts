@@ -23,7 +23,7 @@ export interface RebuiltMonument {
 }
 
 export interface WorldProgress {
-  worldId: number; // 2 to 10
+  worldId: number; // 2 to 9
   completedSteps: string[]; // ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida']
   rebuiltMonuments: string[]; // IDs of monuments rebuilt
   creatureEvolution: 'egg' | 'child' | 'adult';
@@ -55,7 +55,7 @@ export interface UserProfile {
 }
 
 export interface WorldConfig {
-  id: number; // 2 to 10
+  id: number; // 2 to 9
   name: string;
   locationName: string; // e.g. "Foresta del 2"
   color: string; // Tailwind class

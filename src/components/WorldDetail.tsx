@@ -678,7 +678,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       // Automatically unlock next times-table if we finished practical mode or above!
       const nextUnlocked = [...p.unlockedWorlds];
       const nextWorldId = world.id + 1;
-      if (nextWorldId <= 10 && !nextUnlocked.includes(nextWorldId)) {
+      if (nextWorldId <= 9 && !nextUnlocked.includes(nextWorldId)) {
         nextUnlocked.push(nextWorldId);
       }
 
@@ -751,7 +751,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       // Unlock next world if we pass step 5 'pratico'
       const nextUnlocked = [...p.unlockedWorlds];
       const nextWorldId = world.id + 1;
-      if (stepName === 'pratico' && nextWorldId <= 10 && !nextUnlocked.includes(nextWorldId)) {
+      if (stepName === 'pratico' && nextWorldId <= 9 && !nextUnlocked.includes(nextWorldId)) {
         nextUnlocked.push(nextWorldId);
       }
 
