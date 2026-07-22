@@ -111,14 +111,14 @@ function WorldCard({ world, stars, onSelect }: {
       <button
         type="button"
         onClick={() => onSelect(world.id)}
-        className="w-full h-full rounded-3xl border-2 border-white/60 bg-white/50 backdrop-blur-sm shadow-md
+        className="w-full aspect-square rounded-3xl border-2 border-white/60 bg-white/50 backdrop-blur-sm shadow-md
                    hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer
                    focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
-                   flex flex-col items-center justify-center gap-2 py-5 px-3"
+                   flex flex-col items-center justify-center gap-1.5 py-3 px-2"
         aria-label={`Allena tabellina del ${world.id}: ${world.name}`}
       >
-        <span className="text-5xl leading-none select-none" aria-hidden="true">{world.symbol}</span>
-        <span className="text-2xl font-black text-sky-950 leading-none">×{world.id}</span>
+        <span className="text-4xl leading-none select-none" aria-hidden="true">{world.symbol}</span>
+        <span className="text-xl font-black text-sky-950 leading-none">×{world.id}</span>
         <span className="text-[11px] font-bold text-sky-700/80 font-sans text-center leading-tight">
           {world.mascotName}
         </span>
@@ -208,9 +208,14 @@ function TrainingSession({
       sound.playWrong?.();
       setFeedback({
         correct: false,
-        message: `${pickRandom(MOTIVATIONAL_WRONG)} La risposta era ${currentQuestion.answer}`,
+        message: pickRandom(MOTIVATIONAL_WRONG),
         optionIndex: optIndex,
       });
+      // Resta sulla stessa domanda finche non viene data la risposta corretta.
+      timeoutRef.current = setTimeout(() => {
+        setFeedback(null);
+      }, 1400);
+      return;
     }
 
     // Avanza alla prossima domanda dopo 1.4s
@@ -313,7 +318,7 @@ function TrainingSession({
                 ? 'bg-emerald-400 border-emerald-500 text-white scale-105'
                 : 'bg-red-400 border-red-500 text-white';
             } else if (!feedback.correct && isCorrectOpt) {
-              cls = 'bg-emerald-200 border-emerald-400 text-emerald-900';
+              cls = 'bg-white/30 border-white/30 text-sky-950/40';
             } else {
               cls = 'bg-white/30 border-white/30 text-sky-950/40';
             }
@@ -381,7 +386,7 @@ function TrainingHome({
       <ul
         role="list"
         aria-label="Lista tabelline disponibili"
-        className={`grid gap-3 ${compactLayout ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5'}`}
+        className={`grid gap-2 auto-rows-max ${compactLayout ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5'}`}
       >
         {WORLDS_DATA.map(world => (
           <WorldCard
