@@ -152,3 +152,45 @@ Pattern standard:
 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 </div>
 ```
+
+---
+
+## Badge di stato (Mandatory)
+
+I badge di stato devono essere **visualmente uniformi** in tutto il progetto.
+
+### Badge check (completato/selezionato)
+
+Usa sempre questo pattern:
+
+```tsx
+<span
+  className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
+  aria-hidden="true"
+>
+  ✓
+</span>
+```
+
+### Badge lucchetto (bloccato)
+
+Usa sempre questo pattern:
+
+```tsx
+<span
+  className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] shadow-md"
+  aria-hidden="true"
+>
+  🔒
+</span>
+```
+
+### Regole
+
+- Dimensione fissa: `h-5 w-5`
+- Posizione fissa: `absolute -top-1 -right-1`
+- Forma: `rounded-full`
+- Check: sfondo verde (`bg-emerald-500`), testo bianco, bordo bianco
+- Lucchetto: sfondo bianco, bordo slate, emoji `🔒`
+- Sempre `aria-hidden="true"` (informazione trasmessa anche da colore/testo)
+- Non usare `✅` nei badge di stato su card (solo nei testi descrittivi)

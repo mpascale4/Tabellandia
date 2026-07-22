@@ -150,9 +150,10 @@ export default function MonumentArea({ world, completedMonuments }: MonumentArea
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 200, damping: 15, delay: idx * 0.1 + 0.4 }}
-                    className="absolute -top-2 -right-2 w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-lg font-bold shadow-lg"
+                    className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
+                    aria-hidden="true"
                   >
-                    ✅
+                    ✓
                   </motion.div>
                 )}
               </motion.div>
