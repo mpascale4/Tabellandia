@@ -894,7 +894,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <button
               type="button"
               onClick={() => onSelect(factor)}
-              className={`relative w-full h-full min-h-[4.8rem] rounded-2xl border-2 shadow-sm transition-all cursor-pointer
+              className={`relative w-full h-full min-h-[5rem] sm:min-h-[5.4rem] rounded-2xl border-2 shadow-sm transition-all cursor-pointer
                           focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                           flex flex-col items-center justify-center ${compactLayout ? 'py-1 gap-0.5' : 'py-2 gap-1'}
                           ${isCompleted ? theme.done : theme.todo}`}
@@ -1353,9 +1353,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-start p-4 md:p-6">
             {/* Steps & Monuments Columns */}
             <div className={`flex-1 grid grid-cols-1 gap-6 ${compactLayout ? '' : 'md:grid-cols-2'} items-stretch`}>
-              
+
               {/* Left Side: Sub-game stages */}
-              <div className="h-full grid grid-cols-2 auto-rows-fr gap-2">
+              <div className="h-full min-h-0 grid grid-cols-2 grid-rows-[auto_repeat(3,minmax(0,1fr))] gap-2">
                 <div className="col-span-2">
                   <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider mb-2 flex items-center gap-1.5 justify-between">
                     <div className="flex items-center gap-1.5">
@@ -1401,7 +1401,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         else if (step.id === 'pratico') { startQuizMode(); }
                         else if (step.id === 'sfida') { startSfidaMode(); }
                       }}
-                      className={`relative h-full min-h-[5.8rem] p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer gap-1 ${
+                      className={`relative h-full min-h-[6.2rem] p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer gap-1 ${
                         isLocked
                           ? 'opacity-45 bg-gray-50 border-gray-200 cursor-not-allowed'
                           : isDone
