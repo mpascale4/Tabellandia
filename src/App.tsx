@@ -1598,40 +1598,40 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
             <h4 className="font-extrabold text-indigo-300 font-sans">1. Architettura Android Completa</h4>
-            <ul className="list-disc pl-4 space-y-1 text-slate-300 leading-relaxed font-sans">
-              <li><strong>UI Pattern:</strong> Jetpack Compose nativo con architettura MVI (Model-View-Intent) o MVVM per un flusso dati reattivo, deterministico e pulito.</li>
-              <li><strong>DI Engine:</strong> Hilt (Dagger) per gestire l'iniezione delle dipendenze del Database e del modulo di telemetry.</li>
-              <li><strong>Local Storage:</strong> Room Database SQL (con migration guidate) pre-popolato con le configurazioni dei mondi e schema QuestionAttempt.</li>
-              <li><strong>Cloud Storage:</strong> Firebase Firestore (opzionale) sincronizzato in background tramite WorkManager per salvare le sessioni di gioco.</li>
-            </ul>
+            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
+              <div role="listitem"><strong>UI Pattern:</strong> Jetpack Compose nativo con architettura MVI (Model-View-Intent) o MVVM per un flusso dati reattivo, deterministico e pulito.</div>
+              <div role="listitem"><strong>DI Engine:</strong> Hilt (Dagger) per gestire l'iniezione delle dipendenze del Database e del modulo di telemetry.</div>
+              <div role="listitem"><strong>Local Storage:</strong> Room Database SQL (con migration guidate) pre-popolato con le configurazioni dei mondi e schema QuestionAttempt.</div>
+              <div role="listitem"><strong>Cloud Storage:</strong> Firebase Firestore (opzionale) sincronizzato in background tramite WorkManager per salvare le sessioni di gioco.</div>
+            </div>
           </div>
 
           <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
             <h4 className="font-extrabold text-indigo-300 font-sans">2. Logica di Apprendimento Adattivo</h4>
-            <ul className="list-disc pl-4 space-y-1 text-slate-300 leading-relaxed font-sans">
-              <li><strong>Rilevamento Critico:</strong> Algoritmo basato su peso esponenziale degli errori (Leitner System adattivo). Ogni combinazione ha una forza memorica.</li>
-              <li><strong>Rallentamento:</strong> Se un'operazione fallisce &ge;3 volte in un intervallo di 15 domande, la coda del quiz inserisce automaticamente la visualizzazione a gruppi (GroupVisualizer).</li>
-              <li><strong>Interval Spacing:</strong> Le combinazioni fallite vengono ripresentate con una frequenza di 2, 5 e 10 posizioni successive per consolidare la ritenzione a lungo termine.</li>
-            </ul>
+            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
+              <div role="listitem"><strong>Rilevamento Critico:</strong> Algoritmo basato su peso esponenziale degli errori (Leitner System adattivo). Ogni combinazione ha una forza memorica.</div>
+              <div role="listitem"><strong>Rallentamento:</strong> Se un'operazione fallisce &ge;3 volte in un intervallo di 15 domande, la coda del quiz inserisce automaticamente la visualizzazione a gruppi (GroupVisualizer).</div>
+              <div role="listitem"><strong>Interval Spacing:</strong> Le combinazioni fallite vengono ripresentate con una frequenza di 2, 5 e 10 posizioni successive per consolidare la ritenzione a lungo termine.</div>
+            </div>
           </div>
 
           <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
             <h4 className="font-extrabold text-indigo-300 font-sans">3. UX per Bambini e Gamification</h4>
-            <ul className="list-disc pl-4 space-y-1 text-slate-300 leading-relaxed font-sans">
-              <li><strong>Assenza di Testo:</strong> Istruzioni vocali sintetizzate (TTS Android) e forte codifica a colori e icone (oggetti contabili unici).</li>
-              <li><strong>No Penalty:</strong> Nessun punteggio negativo o "vite perse". Errori attivano lo "Scudo della Saggezza" di incoraggiamento visivo.</li>
-              <li><strong>Progressione:</strong> Ricompense estetiche esclusive (Emporio) non acquistabili per agganciare la motivazione intrinseca dell'apprendimento.</li>
-            </ul>
+            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
+              <div role="listitem"><strong>Assenza di Testo:</strong> Istruzioni vocali sintetizzate (TTS Android) e forte codifica a colori e icone (oggetti contabili unici).</div>
+              <div role="listitem"><strong>No Penalty:</strong> Nessun punteggio negativo o "vite perse". Errori attivano lo "Scudo della Saggezza" di incoraggiamento visivo.</div>
+              <div role="listitem"><strong>Progressione:</strong> Ricompense estetiche esclusive (Emporio) non acquistabili per agganciare la motivazione intrinseca dell'apprendimento.</div>
+            </div>
           </div>
 
           <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
             <h4 className="font-extrabold text-indigo-300 font-sans">4. Piano di Sviluppo MVP & Roadmap</h4>
-            <ul className="list-disc pl-4 space-y-1 text-slate-300 leading-relaxed font-sans">
-              <li><strong>Sprint 1 (Fondamenta):</strong> Core Engine Matematico, Room DB, Profilo Locale, Asset Grafici base dei Mondi 2, 3, 5.</li>
-              <li><strong>Sprint 2 (Adattamento):</strong> Sistema di diagnostica, Scudo di Saggezza, Tracciamento heatmap e PIN Genitori.</li>
-              <li><strong>Sprint 3 (Gamification):</strong> Personalizzazione Avatar, Emporio monete, Emozioni delle Creature, Effetti sonori nativi SoundPool.</li>
-              <li><strong>Sprint 4 (Evoluzione):</strong> Supporto Cloud Sync, Mondi avanzati (11 e 12), e Localizzazione Multilingua.</li>
-            </ul>
+            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
+              <div role="listitem"><strong>Sprint 1 (Fondamenta):</strong> Core Engine Matematico, Room DB, Profilo Locale, Asset Grafici base dei Mondi 2, 3, 5.</div>
+              <div role="listitem"><strong>Sprint 2 (Adattamento):</strong> Sistema di diagnostica, Scudo di Saggezza, Tracciamento heatmap e PIN Genitori.</div>
+              <div role="listitem"><strong>Sprint 3 (Gamification):</strong> Personalizzazione Avatar, Emporio monete, Emozioni delle Creature, Effetti sonori nativi SoundPool.</div>
+              <div role="listitem"><strong>Sprint 4 (Evoluzione):</strong> Supporto Cloud Sync, Mondi avanzati (11 e 12), e Localizzazione Multilingua.</div>
+            </div>
           </div>
         </div>
       </div>

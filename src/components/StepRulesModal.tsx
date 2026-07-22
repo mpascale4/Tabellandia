@@ -124,11 +124,11 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
             </div>
             <div className="bg-white rounded-xl p-4 border border-slate-200">
               <p className="text-xs text-slate-500 mb-2 font-semibold">MECCANICA:</p>
-              <ul className="text-sm text-slate-700 space-y-1">
-                <li>✓ Risposta corretta = moneta + goccia luce</li>
-                <li>✗ Risposta sbagliata = ri-tentare</li>
-                <li>🔁 Domande sbagliate tornano alla fine</li>
-              </ul>
+              <div role="list" className="grid grid-cols-1 gap-1 text-sm text-slate-700">
+                <div role="listitem">✓ Risposta corretta = moneta + goccia luce</div>
+                <div role="listitem">✗ Risposta sbagliata = ri-tentare</div>
+                <div role="listitem">🔁 Domande sbagliate tornano alla fine</div>
+              </div>
             </div>
           </div>
         );
@@ -144,11 +144,11 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
             </div>
             <div className="bg-white rounded-xl p-4 border border-slate-200">
               <p className="text-xs text-slate-500 mb-2 font-semibold">PUNTEGGI:</p>
-              <ul className="text-sm text-slate-700 space-y-1">
-                <li>⭐ 4 risposte corrette = 1 stella</li>
-                <li>⭐⭐ 8 risposte corrette = 2 stelle</li>
-                <li>⭐⭐⭐ 12+ risposte corrette = 3 stelle</li>
-              </ul>
+              <div role="list" className="grid grid-cols-1 gap-1 text-sm text-slate-700">
+                <div role="listitem">⭐ 4 risposte corrette = 1 stella</div>
+                <div role="listitem">⭐⭐ 8 risposte corrette = 2 stelle</div>
+                <div role="listitem">⭐⭐⭐ 12+ risposte corrette = 3 stelle</div>
+              </div>
             </div>
           </div>
         );

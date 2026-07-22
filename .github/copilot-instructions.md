@@ -174,6 +174,14 @@ Quando le card si impilano verticalmente invece di distribuirsi su più colonne:
 4. **Non aggiungere `width: 100%` o `flex: 1` sulle card** al di fuori di un contesto dove il genitore ha altezza/larghezza definita.
 5. Se la griglia non si espande, verifica che il padre non abbia `flex-col`, `w-fit`, `max-w` troppo restrittivo o `overflow: hidden` che limitino il contenuto.
 
+### Liste in layout card/grid (Mandatory)
+
+- Non usare `<ul>`/`<li>` per layout visuali a card o sezioni tecniche informative.
+- Usa sempre `<div role="list">` come contenitore e `<div role="listitem">` per gli elementi.
+- Anche quando la lista è verticale, mantieni pattern grid: `grid grid-cols-1`.
+- Per liste card responsive usa `grid-cols-[repeat(auto-fit,minmax(...))]`.
+- Mantieni semantica accessibile tramite ruoli ARIA (`role="list"`, `role="listitem"`).
+
 ---
 
 ## Badge di stato (Mandatory)
