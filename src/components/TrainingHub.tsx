@@ -48,15 +48,15 @@ const DIGIT_WORD: Record<number, string> = {
 };
 
 const TRAINING_WORLD_ICON: Record<number, string> = {
-  2: '🦊',
-  3: '🦕',
-  4: '🦉',
-  5: '🦖',
-  6: '🐯',
-  7: '🐼',
-  8: '🐢',
-  9: '🐳',
-  10: '🦄',
+  2: '🐂',
+  3: '👑',
+  4: '🐈',
+  5: '✋',
+  6: '🐌',
+  7: '🧙',
+  8: '🛶',
+  9: '🚢',
+  10: '🔱',
 };
 
 const MOTIVATIONAL_CORRECT = [
@@ -170,7 +170,7 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
           ✓
         </span>
       )}
-      <span className={`training-card-icon ${compactLayout ? 'text-xl' : 'text-2xl'} leading-none`} aria-hidden="true">{worldIcon}</span>
+      <span className={`training-card-icon ${compactLayout ? 'text-2xl' : 'text-[2rem]'} leading-none`} aria-hidden="true">{worldIcon}</span>
       <span className={`training-card-mul ${compactLayout ? 'text-lg' : 'text-xl'} font-black font-mono text-indigo-800 leading-none`}>×{world.id}</span>
     </button>
   );
