@@ -103,23 +103,24 @@ function StarRow({ stars }: { stars: number }) {
 
 // ─── Card singola tabellina ───────────────────────────────────────────────────
 
-function WorldCard({ world, stars, onSelect }: {
-  world: WorldConfig; stars: number; onSelect: (id: number) => void;
+function WorldCard({ world, stars, onSelect, compactLayout }: {
+  world: WorldConfig; stars: number; onSelect: (id: number) => void; compactLayout?: boolean;
 }) {
+  const compactCard = !!compactLayout;
   return (
     <li>
       <button
         type="button"
         onClick={() => onSelect(world.id)}
-        className="w-full aspect-square rounded-3xl border-2 border-white/60 bg-white/50 backdrop-blur-sm shadow-md
+        className={`w-full aspect-square border-2 border-white/60 bg-white/50 backdrop-blur-sm shadow-md
                    hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer
                    focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
-                   flex flex-col items-center justify-center gap-1.5 py-3 px-2"
+                   flex flex-col items-center justify-center px-2 ${compactCard ? 'rounded-2xl py-2 gap-1' : 'rounded-3xl py-3 gap-1.5'}`}
         aria-label={`Allena tabellina del ${world.id}: ${world.name}`}
       >
-        <span className="text-4xl leading-none select-none" aria-hidden="true">{world.symbol}</span>
-        <span className="text-xl font-black text-sky-950 leading-none">×{world.id}</span>
-        <span className="text-[11px] font-bold text-sky-700/80 font-sans text-center leading-tight">
+        <span className={`${compactCard ? 'text-3xl' : 'text-4xl'} leading-none select-none`} aria-hidden="true">{world.symbol}</span>
+        <span className={`${compactCard ? 'text-lg' : 'text-xl'} font-black text-sky-950 leading-none`}>×{world.id}</span>
+        <span className={`${compactCard ? 'hidden' : 'text-[11px]'} font-bold text-sky-700/80 font-sans text-center leading-tight`}>
           {world.mascotName}
         </span>
         {stars > 0 && <StarRow stars={stars} />}
@@ -370,15 +371,15 @@ function TrainingHome({
   onSelect: (id: number) => void;
 }) {
   return (
-    <div className="space-y-5">
-      <div className={`bg-white/40 backdrop-blur-sm rounded-3xl border border-white/40 shadow-sm p-4 ${compactLayout ? '' : 'md:p-5'} space-y-1`}>
+    <div className={compactLayout ? 'space-y-3' : 'space-y-5'}>
+      <div className={`bg-white/40 backdrop-blur-sm rounded-3xl border border-white/40 shadow-sm ${compactLayout ? 'p-3' : 'p-4 md:p-5'} ${compactLayout ? 'space-y-0.5' : 'space-y-1'}`}>
         <span className="inline-block text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-sans">
           Allenamento libero
         </span>
-        <h2 className="text-xl font-black text-sky-950 font-sans">
+        <h2 className={`${compactLayout ? 'text-lg' : 'text-xl'} font-black text-sky-950 font-sans`}>
           Quale tabellina vuoi allenare?
         </h2>
-        <p className="text-xs text-sky-900/75 font-medium leading-relaxed">
+        <p className={`${compactLayout ? 'text-[11px]' : 'text-xs'} text-sky-900/75 font-medium leading-relaxed`}>
           Tutte le tabelline sono disponibili. Scegli quella che vuoi esercitare!
         </p>
       </div>
@@ -386,7 +387,7 @@ function TrainingHome({
       <ul
         role="list"
         aria-label="Lista tabelline disponibili"
-        className={`grid gap-2 auto-rows-max ${compactLayout ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5'}`}
+        className={`grid auto-rows-max ${compactLayout ? 'grid-cols-4 gap-1.5' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2'}`}
       >
         {WORLDS_DATA.map(world => (
           <WorldCard
@@ -394,6 +395,7 @@ function TrainingHome({
             world={world}
             stars={getStars(profile, world.id)}
             onSelect={onSelect}
+            compactLayout={compactLayout}
           />
         ))}
       </ul>
