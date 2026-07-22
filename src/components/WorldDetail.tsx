@@ -2307,7 +2307,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-8 border border-indigo-100 shadow-xl space-y-8 flex flex-col items-center justify-center min-h-[400px]">
             <div className="text-center space-y-2">
               <div className="text-6xl mb-4">⚡</div>
-              <h2 className="text-2xl font-black text-indigo-950">SFIDA VELOCISSIMA</h2>
+              <div className="flex items-center justify-center gap-2">
+                <h2 className="text-2xl font-black text-indigo-950">SFIDA VELOCISSIMA</h2>
+                <button
+                  onClick={() => pushView('guide-help-sfida')}
+                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+                    !hasReadRulesMandatory.has('sfida')
+                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
+                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
+                  }`}
+                  aria-label="Apri regole della sfida"
+                  title="Apri regole della sfida"
+                >
+                  <span className={!hasReadRulesMandatory.has('sfida') ? 'text-base leading-none' : 'text-sm leading-none'} aria-hidden="true">?</span>
+                </button>
+              </div>
               <p className="text-sm text-slate-600">Risolvi il maggior numero di operazioni prima che il tempo finisca!</p>
               <p className="text-xs text-slate-500 font-sans">Ogni risposta corretta vale 2 🪙 Monete! Guadagna più punti possibili prima dello scadere del tempo.</p>
             </div>
@@ -2319,27 +2333,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             >
               <span className="text-xs font-bold text-amber-100 uppercase tracking-widest">30 secondi</span>
               <span className="text-2xl font-black">▶ INIZIA SFIDA</span>
-            </button>
-
-            {/* Bottone help – visibile solo prima di iniziare, non durante */}
-            <button
-              onClick={() => pushView('guide-help-sfida')}
-              className={`w-full rounded-xl border flex items-center justify-center gap-2.5 py-2.5 px-4 cursor-pointer transition-all font-semibold text-sm ${
-                !hasReadRulesMandatory.has('sfida')
-                  ? 'bg-indigo-100 hover:bg-indigo-200 border-indigo-300 text-indigo-700 ring-2 ring-indigo-300'
-                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-600'
-              }`}
-              aria-label="Leggi le regole della sfida"
-            >
-              <span className={`inline-flex items-center justify-center rounded-full border text-xs font-black w-5 h-5 ${
-                !hasReadRulesMandatory.has('sfida')
-                  ? 'border-indigo-500 text-indigo-600 bg-white/90'
-                  : 'border-slate-400 text-slate-500 bg-white/90'
-              }`} aria-hidden="true">
-                ?
-              </span>
-              <HelpCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
-              {!hasReadRulesMandatory.has('sfida') ? 'Leggi le regole prima di iniziare' : 'Rivedi le regole'}
             </button>
 
             {/* Record tabellina (visibile sempre, anche prima della prima partita) */}
