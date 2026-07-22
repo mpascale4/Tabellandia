@@ -160,12 +160,12 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
   };
 
   const stepTitles: { [key: string]: string } = {
-    comprendo: '1. Comprendo il concetto',
-    salto: '2. Conteggio per salti',
-    costruisco: '3. Costruisco le equazioni',
-    trucchi: '4. Trucchi e strategie',
-    pratico: '5. Pratico (Avventura)',
-    sfida: '6. Sfida cronometrata'
+    comprendo: '1. Comprendo il concetto 🍎',
+    salto: '2. Conteggio per salti 🐸',
+    costruisco: '3. Costruisco le equazioni 🧱',
+    trucchi: '4. Trucchi e strategie 🧠',
+    pratico: '5. Pratico (Avventura) 🛡️',
+    sfida: '6. Sfida cronometrata ⚡'
   };
 
   // If rendering as page, return just the content

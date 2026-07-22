@@ -842,12 +842,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             : (currentView?.startsWith('rules-') ? currentView.replace('rules-', '') : activePlayableStep)));
   const isInPlayableStepView = ALL_STEP_IDS.includes(activeStep);
   const stepTopBarTitles: Record<string, string> = {
-    comprendo: '1. Comprendo',
-    salto: '2. Salto',
-    costruisco: '3. Costruisco',
-    trucchi: '4. Trucchi',
-    pratico: '5. Pratico',
-    sfida: '6. Sfida'
+    comprendo: '1. Comprendo 🍎',
+    salto: '2. Salto 🐸',
+    costruisco: '3. Costruisco 🧱',
+    trucchi: '4. Trucchi 🧠',
+    pratico: '5. Pratico 🛡️',
+    sfida: '6. Sfida ⚡'
   };
   const currentTopBarTitle = stepTopBarTitles[activeStep] || withTableIcon(world.id, world.name);
   const showWorldTopBar = !(
@@ -1432,7 +1432,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           {isLocked ? '🔒' : step.icon}
                         </div>
                         <h4 className={`text-center text-[clamp(0.72rem,1.9vw,0.95rem)] font-bold font-sans leading-tight break-words ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
-                          {step.title}
+                          {`${step.title} ${step.icon}`}
                         </h4>
                       </div>
                       {!isLocked && (
@@ -1496,7 +1496,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               )}
 
               <div className="text-sm font-black text-sky-950 font-sans">
-                1. Comprendo il concetto
+                1. Comprendo il concetto 🍎
               </div>
             </div>
 
@@ -1642,7 +1642,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               )}
 
               <div className="text-sm font-black text-sky-950 font-sans">
-                2. Salto il conteggio
+                2. Salto il conteggio 🐸
               </div>
             </div>
 
@@ -1866,7 +1866,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               )}
 
               <div className="text-sm font-black text-sky-950 font-sans">
-                3. Costruisco la tabellina
+                3. Costruisco la tabellina 🧱
               </div>
             </div>
 
@@ -2069,7 +2069,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               )}
 
               <div className="text-sm font-black text-sky-950 font-sans">
-                4. Trucchi 🧠
+                4. Trucchi e strategie 🧠
               </div>
             </div>
 

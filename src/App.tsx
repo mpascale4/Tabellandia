@@ -28,6 +28,8 @@ const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
 const DEV_MODE_KEY = "tabellandia_dev_mode_v1";
 const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
 const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
+const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
+const HEADER_REVEAL_TOUCH_ZONE_PX = 12;
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -895,13 +897,13 @@ export default function App() {
         onMouseMove={(e) => {
           if (!isHeaderVisible) {
             const rect = e.currentTarget.getBoundingClientRect();
-            if (e.clientY - rect.top < 60) showHeaderAndReset();
+            if (e.clientY - rect.top < HEADER_REVEAL_MOUSE_ZONE_PX) showHeaderAndReset();
           }
         }}
         onTouchStart={(e) => {
           if (!isHeaderVisible && e.touches.length > 0) {
             const rect = e.currentTarget.getBoundingClientRect();
-            if (e.touches[0].clientY - rect.top < 20) showHeaderAndReset();
+            if (e.touches[0].clientY - rect.top < HEADER_REVEAL_TOUCH_ZONE_PX) showHeaderAndReset();
           }
         }}
       >
@@ -1018,11 +1020,10 @@ export default function App() {
 
         {/* Grip strip — trigger visibile quando header è nascosto */}
         <div
-          className="absolute top-0 left-0 right-0 z-50 h-5 flex items-end justify-center pb-0.5 pointer-events-auto"
+          className="absolute top-0 left-0 right-0 z-50 h-3 flex items-end justify-center pb-0.5 pointer-events-auto"
           role="button"
           tabIndex={isHeaderVisible ? -1 : 0}
           aria-label="Mostra barra profilo"
-          onMouseEnter={showHeaderAndReset}
           onPointerDown={showHeaderAndReset}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') showHeaderAndReset(); }}
         >
