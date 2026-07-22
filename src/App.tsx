@@ -52,7 +52,7 @@ const APP_SIDEBAR_TABS = [
 ] as const;
 
 const getWorldMascotBadge = (worldId: number) => {
-  if (worldId === 2) return '🦊';
+  if (worldId === 2) return '🐂';
   if (worldId === 3) return '🦕';
   if (worldId === 4) return '🦉';
   if (worldId === 5) return '🦖';

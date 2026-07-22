@@ -341,7 +341,7 @@ function TrainingSession({
         </p>
 
         {/* Emoji della domanda */}
-        <p id="question-label" className="text-5xl sm:text-6xl font-black text-sky-950 select-none leading-none text-center">
+        <p id="question-label" className="text-4xl sm:text-5xl font-black text-sky-950 select-none leading-none text-center">
           {digitEmojis} = ?
         </p>
 
