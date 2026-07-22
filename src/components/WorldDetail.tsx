@@ -40,10 +40,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [hasSeenStepRules, setHasSeenStepRules] = useState<Set<string>>(new Set()); // Track which steps have been seen
   const [hasReadRulesMandatory, setHasReadRulesMandatory] = useState<Set<string>>(new Set()); // Track mandatory rule reading
   const [showRewardPopup, setShowRewardPopup] = useState<{ step: string; coins: number; drops: number } | null>(null);
-  const factorGridRef = useRef<HTMLUListElement | null>(null);
-  const [factorGridCols, setFactorGridCols] = useState<number>(compactLayout ? 3 : 4);
-  const stepCardsGridRef = useRef<HTMLDivElement | null>(null);
-  const [stepCardScale, setStepCardScale] = useState<'sm' | 'md' | 'lg'>('md');
 
   // View stack for modal-to-page conversion
   const [viewStack, setViewStack] = useState<string[]>([]); // Stack of views, e.g. ['rules-comprendo', 'intro']
@@ -853,101 +849,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     sfida: '6. Sfida'
   };
   const currentTopBarTitle = stepTopBarTitles[activeStep] || world.name;
-  const stepCardSizeClass = stepCardScale === 'lg'
-    ? 'min-h-[7.8rem] p-2.5'
-    : stepCardScale === 'sm'
-      ? 'min-h-[6.2rem] p-2'
-      : 'min-h-[7rem] p-2.5';
-  const stepCardIconSizeClass = stepCardScale === 'lg'
-    ? 'h-12 w-12 text-2xl'
-    : stepCardScale === 'sm'
-      ? 'h-9 w-9 text-xl'
-      : 'h-10 w-10 text-[1.4rem]';
-  const stepCardTitleSizeClass = stepCardScale === 'lg'
-    ? 'text-sm'
-    : stepCardScale === 'sm'
-      ? 'text-[11px]'
-      : 'text-[13px]';
-  const stepCardRewardSizeClass = stepCardScale === 'lg'
-    ? 'text-[11px] gap-1.5 pt-1.5'
-    : stepCardScale === 'sm'
-      ? 'text-[9px] gap-1 pt-1'
-      : 'text-[10px] gap-1.5 pt-1.5';
-  const resolveAdaptiveFactorCols = (width: number, height: number) => {
-    const itemCount = ALL_FACTORS.length;
-    const gap = compactLayout ? 6 : 10;
-    const minCols = compactLayout ? 2 : 3;
-    const maxCols = compactLayout ? 5 : 6;
-    const minSide = compactLayout ? 56 : 66;
-
-    let bestCols = minCols;
-    let bestScore = Number.NEGATIVE_INFINITY;
-
-    for (let cols = minCols; cols <= maxCols; cols += 1) {
-      const rows = Math.ceil(itemCount / cols);
-      const cellW = (width - gap * (cols - 1)) / cols;
-      const cellH = (height - gap * (rows - 1)) / rows;
-      const side = Math.min(cellW, cellH);
-      const penalty = side < minSide ? (minSide - side) * 3 : 0;
-      const score = side - penalty;
-      if (score > bestScore) {
-        bestScore = score;
-        bestCols = cols;
-      }
-    }
-
-    return bestCols;
-  };
   const showWorldTopBar = !(
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
     (activeStep === 'salto' && saltoSelectedFactor !== null) ||
     (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) ||
     (activeStep === 'trucchi' && trucchiSelectedFactor !== null)
   );
-
-  useEffect(() => {
-    const target = factorGridRef.current;
-    if (!target || typeof ResizeObserver === 'undefined') return;
-
-    const updateCols = () => {
-      const rect = target.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-      const nextCols = resolveAdaptiveFactorCols(rect.width, rect.height);
-      setFactorGridCols(prev => (prev === nextCols ? prev : nextCols));
-    };
-
-    updateCols();
-    const observer = new ResizeObserver(() => updateCols());
-    observer.observe(target);
-
-    return () => observer.disconnect();
-  }, [compactLayout, activeStep, comprendoSelectedFactor, saltoSelectedFactor, costruiscoSelectedFactor, trucchiSelectedFactor]);
-
-  useEffect(() => {
-    const target = stepCardsGridRef.current;
-    if (!target || typeof ResizeObserver === 'undefined') return;
-
-    const resolveScale = (height: number): 'sm' | 'md' | 'lg' => {
-      if (height >= 520) return 'lg';
-      if (height >= 400) return 'md';
-      return 'sm';
-    };
-
-    const updateScale = (height: number) => {
-      const next = resolveScale(height);
-      setStepCardScale(prev => (prev === next ? prev : next));
-    };
-
-    updateScale(target.getBoundingClientRect().height);
-
-    const observer = new ResizeObserver(entries => {
-      const nextHeight = entries[0]?.contentRect.height ?? target.getBoundingClientRect().height;
-      updateScale(nextHeight);
-    });
-
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [activeStep, compactLayout]);
 
   type StepFactorGridTheme = {
     done: string;
@@ -976,11 +883,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     theme: StepFactorGridTheme;
   }) => (
     <ul
-      ref={factorGridRef}
       role="list"
       aria-label={`Lista moltiplicazioni ${stepKey}`}
-      className={`w-full h-full content-start grid ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
-      style={{ gridTemplateColumns: `repeat(${factorGridCols}, minmax(0, 1fr))` }}
+      className={`w-full content-start grid grid-cols-[repeat(auto-fit,minmax(clamp(4.4rem,18vw,6.2rem),1fr))] ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
     >
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
@@ -989,7 +894,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <button
               type="button"
               onClick={() => onSelect(factor)}
-              className={`relative w-full aspect-square rounded-2xl border-2 shadow-sm transition-all cursor-pointer
+              className={`relative w-full aspect-[0.95] sm:aspect-square rounded-2xl border-2 shadow-sm transition-all cursor-pointer
                           focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                           flex flex-col items-center justify-center ${compactLayout ? 'py-1 gap-0.5' : 'py-2 gap-1'}
                           ${isCompleted ? theme.done : theme.todo}`}
@@ -1032,8 +937,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     onHelp: () => void;
     theme: StepSelectionTheme;
   }) => (
-    <div className="max-w-4xl mx-auto w-full h-full">
-      <SurfaceCard padding="lg" className={`h-full shadow-lg border-2 ${theme.panel}`}>
+    <div className="max-w-4xl mx-auto w-full h-full min-h-0">
+      <SurfaceCard padding="lg" className={`h-full min-h-0 shadow-lg border-2 ${theme.panel} flex flex-col`}>
         <div className="flex items-center justify-center gap-2 mb-4">
           <span className={`text-xs font-bold px-3 py-1 rounded-full font-sans ${theme.badge}`}>
             {badge}
@@ -1051,7 +956,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         <SectionHeader centered title={title} description={description} />
 
-        <div className="mt-6 h-full">
+        <div className="mt-6 flex-1 min-h-0 overflow-y-auto">
           {renderStepFactorGrid({
             stepKey,
             completed,
@@ -1060,7 +965,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           })}
         </div>
 
-        <div className="mt-6 text-center">
+        <div className="mt-4 shrink-0 text-center">
           <p className={`text-xs font-bold ${theme.accent}`}>
             Completate: {completed.size}/10
           </p>
@@ -1450,8 +1355,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <div className={`flex-1 grid grid-cols-1 gap-6 ${compactLayout ? '' : 'md:grid-cols-2'} items-stretch`}>
 
               {/* Left Side: Sub-game stages */}
-              <div ref={stepCardsGridRef} className="h-full min-h-0 grid grid-cols-2 grid-rows-[auto_repeat(3,minmax(0,1fr))] gap-2">
-                <div className="col-span-2">
+              <div className="h-full min-h-0 grid grid-cols-[repeat(auto-fit,minmax(clamp(8.4rem,24vw,11rem),1fr))] auto-rows-fr gap-2">
+                <div className="col-span-full">
                   <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider mb-2 flex items-center gap-1.5 justify-between">
                     <div className="flex items-center gap-1.5">
                       <Compass className="w-4 h-4 text-indigo-600" />
@@ -1496,7 +1401,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         else if (step.id === 'pratico') { startQuizMode(); }
                         else if (step.id === 'sfida') { startSfidaMode(); }
                       }}
-                      className={`relative h-full ${stepCardSizeClass} rounded-xl border flex flex-col items-stretch justify-between transition-all cursor-pointer ${
+                      className={`relative h-full min-h-[clamp(6rem,14vh,8rem)] p-[clamp(0.45rem,1.2vw,0.7rem)] rounded-xl border flex flex-col items-stretch justify-between transition-all cursor-pointer ${
                         isLocked
                           ? 'opacity-45 bg-gray-50 border-gray-200 cursor-not-allowed'
                           : isDone
@@ -1514,17 +1419,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         </span>
                       )}
                       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5">
-                        <div className={`${stepCardIconSizeClass} rounded-lg flex items-center justify-center select-none flex-shrink-0 ${
+                        <div className={`h-[clamp(2.2rem,5vw,3rem)] w-[clamp(2.2rem,5vw,3rem)] rounded-lg flex items-center justify-center text-[clamp(1.15rem,2.9vw,1.7rem)] select-none flex-shrink-0 ${
                           isLocked ? 'bg-slate-100' : isDone ? 'bg-emerald-100/50' : 'bg-indigo-50'
                         }`}>
                           {isLocked ? '🔒' : step.icon}
                         </div>
-                        <h4 className={`text-center ${stepCardTitleSizeClass} font-bold font-sans leading-tight ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
+                        <h4 className={`text-center text-[clamp(0.72rem,1.9vw,0.95rem)] font-bold font-sans leading-tight ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
                           {step.title.split('.')[1]}
                         </h4>
                       </div>
                       {!isLocked && (
-                        <div className={`max-w-full ${stepCardRewardSizeClass} font-bold text-amber-700 flex items-center justify-center whitespace-nowrap`}>
+                        <div className="max-w-full pt-1 text-[clamp(0.58rem,1.6vw,0.78rem)] font-bold text-amber-700 flex items-center justify-center gap-1 whitespace-nowrap">
                           {step.coins > 0 && <span>🪙 {step.coins}</span>}
                           {step.drops > 0 && <span>💧 {step.drops}</span>}
                         </div>
