@@ -2304,6 +2304,20 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <span className="text-2xl font-black">▶ INIZIA SFIDA</span>
             </button>
 
+            {/* Bottone help – visibile solo prima di iniziare, non durante */}
+            <button
+              onClick={() => pushView('guide-help-sfida')}
+              className={`w-full rounded-xl flex items-center justify-center gap-2 py-2.5 px-4 cursor-pointer transition-all font-semibold text-sm ${
+                !hasReadRulesMandatory.has('sfida')
+                  ? 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700 ring-2 ring-indigo-300'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
+              }`}
+              aria-label="Leggi le regole della sfida"
+            >
+              <HelpCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              {!hasReadRulesMandatory.has('sfida') ? 'Leggi le regole prima di iniziare' : 'Rivedi le regole'}
+            </button>
+
             {/* Record tabellina (visibile sempre, anche prima della prima partita) */}
             {!sfidaResult && worldProg.highScore > 0 && (
               <p className="text-xs text-slate-400 text-center font-sans">
@@ -2400,24 +2414,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Tempo: {sfidaTimer}s
               </div>
 
-              {/* Score + Help */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 text-amber-600 font-bold font-mono bg-amber-50 px-3 py-1 rounded-full text-sm">
-                  <Trophy className="w-4 h-4" />
-                  Punti: {sfidaScore}
-                </div>
-                <button
-                  onClick={() => pushView('guide-help-sfida')}
-                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
-                    !hasReadRulesMandatory.has('sfida')
-                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
-                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
-                  }`}
-                  title="Visualizza regole"
-                  aria-label="Visualizza regole"
-                >
-                  <HelpCircle className={!hasReadRulesMandatory.has('sfida') ? 'w-5 h-5' : 'w-4 h-4'} />
-                </button>
+              {/* Score */}
+              <div className="flex items-center gap-1.5 text-amber-600 font-bold font-mono bg-amber-50 px-3 py-1 rounded-full text-sm">
+                <Trophy className="w-4 h-4" />
+                Punti: {sfidaScore}
               </div>
             </div>
 
