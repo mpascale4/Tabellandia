@@ -852,6 +852,55 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) ||
     (activeStep === 'trucchi' && trucchiSelectedFactor !== null)
   );
+
+  type StepFactorGridTheme = {
+    done: string;
+    todo: string;
+    accent: string;
+  };
+
+  const renderStepFactorGrid = ({
+    stepKey,
+    completed,
+    onSelect,
+    theme,
+  }: {
+    stepKey: string;
+    completed: Set<number>;
+    onSelect: (factor: number) => void;
+    theme: StepFactorGridTheme;
+  }) => (
+    <ul
+      role="list"
+      aria-label={`Lista moltiplicazioni ${stepKey}`}
+      className={`grid auto-rows-max ${compactLayout ? 'grid-cols-4 gap-1.5' : 'grid-cols-5 gap-2'}`}
+    >
+      {ALL_FACTORS.map(factor => {
+        const isCompleted = completed.has(factor);
+        return (
+          <li key={`${stepKey}-${factor}`}>
+            <button
+              type="button"
+              onClick={() => onSelect(factor)}
+              className={`w-full aspect-square rounded-2xl border-2 shadow-sm transition-all cursor-pointer
+                          focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
+                          flex flex-col items-center justify-center ${compactLayout ? 'py-1 gap-0.5' : 'py-2 gap-1'}
+                          ${isCompleted ? theme.done : theme.todo}`}
+              aria-label={`${world.id} per ${factor}${isCompleted ? ', completata' : ', da completare'}`}
+            >
+              <span className={`${compactLayout ? 'text-sm' : 'text-base'} font-black font-mono leading-none`}>
+                {world.id}×{factor}
+              </span>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${theme.accent}`}>
+                {isCompleted ? 'fatto' : 'vai'}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   const cancelComprendoExercise = () => {
     setComprendoFlowStage('objective');
     setComprendoGameCompleted(false);
@@ -1337,30 +1386,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Completa tutte 10
               </p>
 
-              {/* Grid of all 10 combinations - no scroll */}
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const factor = i + 1;
-                  const isCompleted = effectiveComprendoCompleted.has(factor);
-                  return (
-                    <button
-                      key={factor}
-                      onClick={() => {
-                        sound.playClick();
-                        setComprendoSelectedFactor(factor);
-                        setComprendoFlowStage('objective');
-                      }}
-                      className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all cursor-pointer ${
-                        isCompleted
-                          ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                          : 'bg-white border-indigo-200 text-slate-700 hover:border-indigo-400'
-                      }`}
-                    >
-                      {world.id}×{factor}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Grid of all 10 combinations - training-like layout */}
+              {renderStepFactorGrid({
+                stepKey: 'comprendo',
+                completed: effectiveComprendoCompleted,
+                onSelect: (factor) => {
+                  sound.playClick();
+                  setComprendoSelectedFactor(factor);
+                  setComprendoFlowStage('objective');
+                },
+                theme: {
+                  done: 'bg-indigo-100 border-indigo-300 text-indigo-800',
+                  todo: 'bg-white/90 border-indigo-200 text-slate-700 hover:border-indigo-400',
+                  accent: 'text-indigo-600',
+                },
+              })}
 
               {/* Progress indicator */}
               <div className="mt-6 text-center">
@@ -1520,33 +1560,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Completa tutte 10
               </p>
 
-              {/* Grid of all 10 combinations - no scroll */}
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const factor = i + 1;
-                  const isCompleted = effectiveSaltoCompleted.has(factor);
-                  return (
-                    <button
-                      key={factor}
-                      onClick={() => {
-                        sound.playClick();
-                        setSaltoSelectedFactor(factor);
-                        setSaltoIndex(0);
-                        setSaltoFlowStage('objective');
-                        setSaltoGameCompleted(false);
-                        setShowSaltoCompletionEffect(false);
-                      }}
-                      className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all cursor-pointer ${
-                        isCompleted
-                          ? 'bg-purple-100 border-purple-300 text-purple-700'
-                          : 'bg-white border-purple-200 text-slate-700 hover:border-purple-400'
-                      }`}
-                    >
-                      {world.id}×{factor}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Grid of all 10 combinations - training-like layout */}
+              {renderStepFactorGrid({
+                stepKey: 'salto',
+                completed: effectiveSaltoCompleted,
+                onSelect: (factor) => {
+                  sound.playClick();
+                  setSaltoSelectedFactor(factor);
+                  setSaltoIndex(0);
+                  setSaltoFlowStage('objective');
+                  setSaltoGameCompleted(false);
+                  setShowSaltoCompletionEffect(false);
+                },
+                theme: {
+                  done: 'bg-purple-100 border-purple-300 text-purple-800',
+                  todo: 'bg-white/90 border-purple-200 text-slate-700 hover:border-purple-400',
+                  accent: 'text-purple-600',
+                },
+              })}
 
               {/* Progress indicator */}
               <div className="mt-6 text-center">
@@ -1783,32 +1814,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Completa tutte 10
               </p>
 
-              {/* Grid of all 10 combinations - no scroll */}
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const factor = i + 1;
-                  const isCompleted = effectiveCostruiscoCompleted.has(factor);
-                  return (
-                    <button
-                      key={factor}
-                      onClick={() => {
-                        sound.playClick();
-                        setCostruiscoSelectedFactor(factor);
-                        setCostruiscoFlowStage('objective');
-                        setCostruiscoGameCompleted(false);
-                        setShowCostruiscoCompletionEffect(false);
-                      }}
-                      className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all cursor-pointer ${
-                        isCompleted
-                          ? 'bg-emerald-100 border-emerald-300 text-emerald-700'
-                          : 'bg-white border-emerald-200 text-slate-700 hover:border-emerald-400'
-                      }`}
-                    >
-                      {world.id}×{factor}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Grid of all 10 combinations - training-like layout */}
+              {renderStepFactorGrid({
+                stepKey: 'costruisco',
+                completed: effectiveCostruiscoCompleted,
+                onSelect: (factor) => {
+                  sound.playClick();
+                  setCostruiscoSelectedFactor(factor);
+                  setCostruiscoFlowStage('objective');
+                  setCostruiscoGameCompleted(false);
+                  setShowCostruiscoCompletionEffect(false);
+                },
+                theme: {
+                  done: 'bg-emerald-100 border-emerald-300 text-emerald-800',
+                  todo: 'bg-white/90 border-emerald-200 text-slate-700 hover:border-emerald-400',
+                  accent: 'text-emerald-600',
+                },
+              })}
 
               {/* Progress indicator */}
               <div className="mt-6 text-center">
@@ -2024,33 +2046,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 Completa tutte 10
               </p>
 
-              {/* Grid of all 10 combinations - no scroll */}
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const factor = i + 1;
-                  const isCompleted = effectiveTrucchiCompleted.has(factor);
-                  return (
-                    <button
-                      key={factor}
-                      onClick={() => {
-                        sound.playClick();
-                        setTrucchiSelectedFactor(factor);
-                        setTrucchiFlowStage('objective');
-                        setTrucchiQuestionSolved(false);
-                        setShowTrucchiCompletionEffect(false);
-                        setTrucchiAnswer("");
-                      }}
-                      className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all cursor-pointer ${
-                        isCompleted
-                          ? 'bg-amber-100 border-amber-300 text-amber-700'
-                          : 'bg-white border-amber-200 text-slate-700 hover:border-amber-400'
-                      }`}
-                    >
-                      {world.id}×{factor}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Grid of all 10 combinations - training-like layout */}
+              {renderStepFactorGrid({
+                stepKey: 'trucchi',
+                completed: effectiveTrucchiCompleted,
+                onSelect: (factor) => {
+                  sound.playClick();
+                  setTrucchiSelectedFactor(factor);
+                  setTrucchiFlowStage('objective');
+                  setTrucchiQuestionSolved(false);
+                  setShowTrucchiCompletionEffect(false);
+                  setTrucchiAnswer('');
+                },
+                theme: {
+                  done: 'bg-amber-100 border-amber-300 text-amber-800',
+                  todo: 'bg-white/90 border-amber-200 text-slate-700 hover:border-amber-400',
+                  accent: 'text-amber-600',
+                },
+              })}
 
               {/* Progress indicator */}
               <div className="mt-6 text-center">
