@@ -22,7 +22,7 @@ const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
 const DEV_MODE_KEY = "tabellandia_dev_mode_v1";
 const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
-const HEADER_EXPANDED_KEY = "tabellandia_header_expanded_v1";
+const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -132,7 +132,11 @@ export default function App() {
   });
   const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
   const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
-  const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(() => localStorage.getItem(HEADER_EXPANDED_KEY) !== 'false');
+  // Auto-hide header
+  const [isHeaderVisible, setIsHeaderVisible] = useState<boolean>(true);
+  const [isHeaderPinned, setIsHeaderPinned] = useState<boolean>(() => localStorage.getItem(HEADER_PINNED_KEY) === 'true');
+  const headerHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHeaderPinnedRef = useRef(isHeaderPinned);
   const devTapCountRef = useRef<number>(0);
   const devTapResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -246,8 +250,31 @@ export default function App() {
   }, [isProfilePanelVisible]);
 
   useEffect(() => {
-    localStorage.setItem(HEADER_EXPANDED_KEY, String(isHeaderExpanded));
-  }, [isHeaderExpanded]);
+    isHeaderPinnedRef.current = isHeaderPinned;
+    localStorage.setItem(HEADER_PINNED_KEY, String(isHeaderPinned));
+    if (isHeaderPinned) {
+      setIsHeaderVisible(true);
+      if (headerHideTimerRef.current) clearTimeout(headerHideTimerRef.current);
+    }
+  }, [isHeaderPinned]);
+
+  // Avvia il timer auto-hide al mount
+  useEffect(() => {
+    if (!isHeaderPinnedRef.current) {
+      headerHideTimerRef.current = setTimeout(() => setIsHeaderVisible(false), 5000);
+    }
+    return () => { if (headerHideTimerRef.current) clearTimeout(headerHideTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Mostra l'header e riprogramma l'auto-hide (5 s). No-op se pinnato. */
+  const showHeaderAndReset = () => {
+    setIsHeaderVisible(true);
+    if (headerHideTimerRef.current) clearTimeout(headerHideTimerRef.current);
+    if (!isHeaderPinnedRef.current) {
+      headerHideTimerRef.current = setTimeout(() => setIsHeaderVisible(false), 5000);
+    }
+  };
 
   const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
     localStorage.setItem(
@@ -875,12 +902,26 @@ export default function App() {
       </div>
 
       {/* Main Container mimicking tablet bezel */}
-      <div className={`w-full transition-all relative ${
-        isPhoneMode 
-          ? 'max-w-[430px] w-full h-[min(88vh,860px)] border-[12px] border-slate-800 rounded-[42px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800'
-          : 'max-w-5xl aspect-[4/3] min-h-[600px] border-[14px] border-slate-800 rounded-[36px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800' 
-      }`}>
-        
+      <div
+        className={`w-full transition-all relative ${
+          isPhoneMode
+            ? 'max-w-[430px] w-full h-[min(88vh,860px)] border-[12px] border-slate-800 rounded-[42px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800'
+            : 'max-w-5xl aspect-[4/3] min-h-[600px] border-[14px] border-slate-800 rounded-[36px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800'
+        }`}
+        onMouseMove={(e) => {
+          if (!isHeaderVisible) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            if (e.clientY - rect.top < 60) showHeaderAndReset();
+          }
+        }}
+        onTouchStart={(e) => {
+          if (!isHeaderVisible && e.touches.length > 0) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            if (e.touches[0].clientY - rect.top < 20) showHeaderAndReset();
+          }
+        }}
+      >
+
         {/* Sky Background Elements */}
         <div className="absolute top-12 left-16 w-32 h-12 bg-white/20 rounded-full blur-xl pointer-events-none z-0"></div>
         <div className="absolute top-28 right-36 w-48 h-16 bg-white/15 rounded-full blur-2xl pointer-events-none z-0"></div>
@@ -901,16 +942,21 @@ export default function App() {
           </div>
         )}
 
-        {/* Outer Frame Header */}
-        <header className={`sticky top-0 relative bg-white/30 backdrop-blur-md border-b border-white/40 z-40 shadow-lg text-sky-950 px-${isPhoneMode ? '2' : '6'} py-${isPhoneMode ? '2' : '4'}`}>
+        {/* ── Auto-hide header (absolute, slides out on inactivity) ─────────── */}
+        <header
+          id="app-header"
+          className={`absolute top-0 left-0 right-0 z-40 bg-white/30 backdrop-blur-md border-b border-white/40 shadow-lg text-sky-950 px-${isPhoneMode ? '2' : '6'} py-${isPhoneMode ? '2' : '4'}
+            transition-transform duration-300 ease-in-out motion-reduce:transition-none
+            ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}`}
+          onMouseEnter={showHeaderAndReset}
+          onPointerDown={showHeaderAndReset}
+          aria-hidden={!isHeaderVisible}
+        >
           <div className={`w-full flex items-center ${isPhoneMode ? 'gap-1.5' : 'gap-3'} bg-white/40 backdrop-blur-sm ${isPhoneMode ? 'px-3 py-2' : 'px-5 py-2.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap`}>
             {/* Profile Avatar */}
             <button
              type="button"
-             onClick={() => {
-               sound.playClick();
-               handleSwitchProfile();
-             }}
+             onClick={() => { sound.playClick(); handleSwitchProfile(); }}
              className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
              id="profile-icon-btn"
              title="Cambia profilo"
@@ -918,24 +964,18 @@ export default function App() {
              <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
                {profile?.avatar?.emoji || '👦'}
              </div>
-            <p
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDevModeGestureTap();
-              }}
-              className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
-            >
-              {profile?.name || 'Eroe'}
-            </p>
-            {devModeEnabled && (
-              <span className={`mt-0.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black tracking-wider ${isPhoneMode ? 'text-[6px]' : 'text-[8px]'}`}>
-                DEV
-              </span>
-            )}
+             <p
+               onClick={(e) => { e.stopPropagation(); handleDevModeGestureTap(); }}
+               className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
+             >
+               {profile?.name || 'Eroe'}
+             </p>
+             {devModeEnabled && (
+               <span className={`mt-0.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black tracking-wider ${isPhoneMode ? 'text-[6px]' : 'text-[8px]'}`}>DEV</span>
+             )}
             </button>
 
             {/* Monete */}
-            {isHeaderExpanded && (
             <div className={`flex flex-col items-center justify-center gap-0.5 shrink-0 ${isPhoneMode ? 'min-w-[60px]' : 'min-w-[92px]'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'}`}>
               <div className={`flex items-center gap-${isPhoneMode ? '0.5' : '1.5'} text-amber-600`}>
                 <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
@@ -943,10 +983,8 @@ export default function App() {
               </div>
               <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
             </div>
-            )}
 
             {/* Gocce */}
-            {isHeaderExpanded && (
             <div className={`flex flex-col items-center justify-center gap-0.5 shrink-0 ${isPhoneMode ? 'min-w-[60px]' : 'min-w-[92px]'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'}`}>
               <div className={`flex items-center gap-${isPhoneMode ? '0.5' : '1.5'} text-sky-500`}>
                 <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
@@ -954,68 +992,58 @@ export default function App() {
               </div>
               <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
             </div>
-            )}
 
-            {/* Controls - Right Side */}
+            {/* Controls */}
             <div className={`ml-auto flex items-center gap-${isPhoneMode ? '1' : '2'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'} min-w-max`}>
               <button
                 onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
-                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
-                  isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'
-                } ${
-                  musicEnabled
-                    ? 'bg-amber-100 border-amber-300 text-amber-700'
-                    : 'bg-white/70 border-slate-200 text-slate-400'
-                }`}
-                id="music-toggle"
-                title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${musicEnabled ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white/70 border-slate-200 text-slate-400'}`}
+                id="music-toggle" title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
               >
                 <span className="relative flex items-center justify-center">
                   <Music2 className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
                   {!musicEnabled && <X className={`absolute -right-1 -bottom-1 stroke-[3.2] ${isPhoneMode ? 'w-1 h-1' : 'w-2 h-2'}`} />}
                 </span>
               </button>
-
               <button
                 onClick={(e) => { e.stopPropagation(); toggleEffects(); }}
-                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 ${
-                  isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'
-                } ${
-                  effectsEnabled
-                    ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600'
-                    : 'bg-white/70 border-slate-200 text-slate-400'
-                }`}
-                id="sfx-toggle"
-                title={effectsEnabled ? "Disattiva effetti click" : "Attiva effetti click"}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${effectsEnabled ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600' : 'bg-white/70 border-slate-200 text-slate-400'}`}
+                id="sfx-toggle" title={effectsEnabled ? "Disattiva effetti click" : "Attiva effetti click"}
               >
                 <span className="relative flex items-center justify-center">
                   <Volume2 className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
                   {!effectsEnabled && <X className={`absolute -right-1 -bottom-1 stroke-[3.2] ${isPhoneMode ? 'w-1 h-1' : 'w-2 h-2'}`} />}
                 </span>
               </button>
-
               <VoiceToggle isPhoneMode={isPhoneMode} />
-
-              {/* Toggle espansione header: nasconde/mostra monete e gocce */}
+              {/* Pin/Unpin — blocca header sempre visibile */}
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); sound.playClick(); setIsHeaderExpanded(prev => !prev); }}
-                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${
-                  isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'
-                } bg-white/70 border-slate-200 text-slate-500 hover:bg-white/90`}
-                aria-label={isHeaderExpanded ? 'Comprimi barra profilo' : 'Espandi barra profilo'}
-                aria-expanded={isHeaderExpanded}
+                onClick={(e) => { e.stopPropagation(); sound.playClick(); setIsHeaderPinned(prev => !prev); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${isHeaderPinned ? 'bg-sky-200 border-sky-400 text-sky-700' : 'bg-white/70 border-slate-200 text-slate-400 hover:bg-white/90'}`}
+                aria-label={isHeaderPinned ? 'Sblocca barra (auto-nasconde)' : 'Blocca barra sempre visibile'}
+                aria-pressed={isHeaderPinned}
               >
-                {isHeaderExpanded
-                  ? <ChevronUp className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
-                  : <ChevronDown className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
-                }
+                <span className={isPhoneMode ? 'text-[9px]' : 'text-[11px]'} aria-hidden="true">{isHeaderPinned ? '📌' : '📍'}</span>
               </button>
             </div>
           </div>
         </header>
+
+        {/* Grip strip — trigger visibile quando header è nascosto */}
+        <div
+          className="absolute top-0 left-0 right-0 z-50 h-5 flex items-end justify-center pb-0.5 pointer-events-auto"
+          role="button"
+          tabIndex={isHeaderVisible ? -1 : 0}
+          aria-label="Mostra barra profilo"
+          onMouseEnter={showHeaderAndReset}
+          onPointerDown={showHeaderAndReset}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') showHeaderAndReset(); }}
+        >
+          <div className={`w-10 h-1 rounded-full transition-all duration-300 ${isHeaderVisible ? 'bg-transparent' : 'bg-white/60'}`} />
+        </div>
         {devModeNotice && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-slate-900/85 text-white text-xs font-black px-3 py-1.5 rounded-full border border-white/20 shadow-lg pointer-events-none">
+          <div className={`absolute left-1/2 -translate-x-1/2 z-50 bg-slate-900/85 text-white text-xs font-black px-3 py-1.5 rounded-full border border-white/20 shadow-lg pointer-events-none transition-all duration-300 ${isHeaderVisible ? 'top-16' : 'top-2'}`}>
             {devModeNotice}
           </div>
         )}
