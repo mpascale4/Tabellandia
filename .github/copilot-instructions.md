@@ -100,3 +100,55 @@ Le regole valgono per tutto il codice del progetto (esistente e nuovo): ogni ref
 - Scrivi o aggiorna test per logica critica e regressioni.
 - Mantieni lint, typecheck e test verdi prima di finalizzare le modifiche.
 - Documenta decisioni non ovvie con commenti brevi e mirati.
+
+
+---
+
+## Layout Consistency Rules (Mandatory)
+
+Queste regole sono vincolanti e devono essere applicate in tutto il progetto per garantire consistenza visiva, accessibilità e manutenibilità.
+
+### Principi generali
+
+- Utilizzare sempre gli stessi pattern di layout per la stessa tipologia di contenuto.
+- Non introdurre layout alternativi se esiste già un pattern equivalente nel progetto.
+- Prima di creare una nuova struttura, cercare e riutilizzare la soluzione già presente nel codebase.
+- Privilegiare la coerenza rispetto alle preferenze personali o alle alternative tecnicamente equivalenti.
+
+---
+
+### Gerarchia dei sistemi di layout
+
+Ordine di preferenza:
+
+1. Componenti condivisi del Design System
+2. CSS Grid
+3. Flexbox
+4. HTML semantico nativo
+
+Se più soluzioni sono possibili, utilizzare sempre quella con priorità più alta.
+
+---
+
+### Utilizzo di CSS Grid
+
+CSS Grid è il sistema di layout predefinito dell'applicazione.
+
+Utilizzare Grid per:
+
+- dashboard
+- card
+- widget
+- gallerie
+- raccolte di elementi
+- risultati di ricerca
+- cataloghi
+- elenchi visuali
+- pannelli responsive
+
+Pattern standard:
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+</div>
+```
