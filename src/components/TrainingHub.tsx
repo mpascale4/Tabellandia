@@ -8,7 +8,6 @@ import { UserProfile, WorldConfig } from '../types';
 import { WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
 import ActionGrid from './layout/ActionGrid';
-import ResponsiveGrid from './layout/ResponsiveGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 
@@ -390,10 +389,9 @@ function TrainingHome({
         />
       </SurfaceCard>
 
-      <ResponsiveGrid
+      <div
         role="list"
         aria-label="Lista tabelline disponibili"
-        variant="compact"
         className={`training-home-grid w-full h-full grid auto-rows-fr grid-cols-[repeat(auto-fit,minmax(clamp(4.4rem,18vw,6.2rem),1fr))] ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
       >
         {WORLDS_DATA.map(world => (
@@ -406,7 +404,7 @@ function TrainingHome({
             />
           </div>
         ))}
-      </ResponsiveGrid>
+      </div>
     </div>
   );
 }
