@@ -1364,7 +1364,9 @@ export default function App() {
                           const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
                           const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
                           const stepsCount = worldProg.completedSteps.length;
-                          const rebuiltCount = worldProg.rebuiltMonuments.length;
+                          const rebuiltCount = devModeEnabled
+                            ? world.monuments.length
+                            : worldProg.rebuiltMonuments.length;
                           const isCompleted = stepsCount === ALL_STEP_IDS.length;
                           const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'In corso';
 
@@ -1415,7 +1417,7 @@ export default function App() {
 
                               <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(3.5rem,1fr))] gap-1.5 sm:mt-4 sm:gap-2">
                                 {world.monuments.map(monument => {
-                                  const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
+                                  const isBuilt = devModeEnabled || worldProg.rebuiltMonuments.includes(monument.id);
                                   return (
                                     <div
                                       key={monument.id}
@@ -1427,7 +1429,7 @@ export default function App() {
                                       title={monument.name}
                                     >
                                       <div className="text-lg leading-none sm:text-xl">{monument.emoji}</div>
-                                      <div className="mt-1 text-[9px] font-bold leading-tight sm:text-[10px]">{isBuilt ? 'Ricostruito' : 'Da ricostruire'}</div>
+                                      <div className="mt-1 text-[9px] font-bold leading-tight sm:text-[10px]">{isBuilt ? (devModeEnabled ? 'Eretti' : 'Ricostruito') : 'Da ricostruire'}</div>
                                     </div>
                                   );
                                 })}
