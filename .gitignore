@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# JetBrains local workspace state (non condivisibile)
+.idea/workspace.xml
+.idea/copilotDiffState.xml
+
