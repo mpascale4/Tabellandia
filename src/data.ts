@@ -8,7 +8,7 @@ import { WorldConfig, ShopItem } from './types';
 export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 2,
-    name: "La Foresta del 2",
+    name: "La Foresta del 2 🐂",
     locationName: "Foresta di Smeraldo",
     color: "from-emerald-500 to-green-600",
     accentColor: "border-emerald-400 text-emerald-600 bg-emerald-50",

@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
+import { withOxIfSecond } from './utils/tableLabels';
 import { sound } from './components/SoundManager';
 import ParentDashboard from './components/ParentDashboard';
 import WorldDetail from './components/WorldDetail';
@@ -1395,7 +1396,9 @@ export default function App() {
                                     {world.symbol}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-sky-600 sm:text-[10px] sm:tracking-[0.18em]">Tavola del {world.id}</p>
+                                    <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-sky-600 sm:text-[10px] sm:tracking-[0.18em]">
+                                      {withOxIfSecond(world.id, `Tabellina del ${world.id}`)}
+                                    </p>
                                     <h3 className="truncate text-sm font-black leading-tight sm:text-base" title={world.locationName}>{world.locationName}</h3>
                                     <p className="truncate text-[11px] font-semibold text-sky-800/75 sm:text-xs" title={`Mascot: ${world.mascotName}`}>Mascot: {world.mascotName}</p>
                                   </div>
@@ -1519,7 +1522,10 @@ export default function App() {
                   <p className="text-[9px] font-black text-sky-900/60 uppercase tracking-widest px-2">Missione Attiva</p>
                   <div className="bg-white/40 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
                     <p className="text-xs font-bold text-sky-950 leading-tight">
-                      Abbatti la nebbia della Tabellina del {profile.unlockedWorlds[profile.unlockedWorlds.length - 1] || 2}!
+                      {(() => {
+                        const currentWorldId = profile.unlockedWorlds[profile.unlockedWorlds.length - 1] || 2;
+                        return `Abbatti la nebbia della ${withOxIfSecond(currentWorldId, `Tabellina del ${currentWorldId}`)}!`;
+                      })()}
                     </p>
                     <div className="flex gap-1.5 mt-2.5">
                       {Array.from({ length: 5 }).map((_, i) => (

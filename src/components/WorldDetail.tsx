@@ -19,6 +19,7 @@ import FireworksOverlay from './FireworksOverlay';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
+import { withOxIfSecond } from '../utils/tableLabels';
 
 interface WorldDetailProps {
   world: WorldConfig;
@@ -848,7 +849,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     pratico: '5. Pratico',
     sfida: '6. Sfida'
   };
-  const currentTopBarTitle = stepTopBarTitles[activeStep] || world.name;
+  const currentTopBarTitle = stepTopBarTitles[activeStep] || withOxIfSecond(world.id, world.name);
   const showWorldTopBar = !(
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
     (activeStep === 'salto' && saltoSelectedFactor !== null) ||

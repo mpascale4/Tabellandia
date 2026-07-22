@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, WorldConfig } from '../types';
 import { WORLDS_DATA } from '../data';
+import { withOxIfSecond } from '../utils/tableLabels';
 import { sound } from './SoundManager';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
@@ -337,7 +338,7 @@ function TrainingSession({
       >
         {/* Titolo tabellina */}
         <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest font-sans">
-          Tabellina del {worldId}
+          {withOxIfSecond(worldId, `Tabellina del ${worldId}`)}
         </p>
 
         {/* Emoji della domanda */}

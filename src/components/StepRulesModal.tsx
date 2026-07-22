@@ -7,6 +7,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { WorldConfig } from '../types';
+import { withOxIfSecond } from '../utils/tableLabels';
 
 interface StepRulesModalProps {
   step: string; // 'comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'
@@ -176,7 +177,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
             {stepTitles[step] || 'Regole'}
           </h2>
           <p className="text-sm sm:text-base text-indigo-700 font-bold">
-            Tabellina del {world.id}
+            {withOxIfSecond(world.id, `Tabellina del ${world.id}`)}
           </p>
         </div>
 
@@ -220,7 +221,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
             {stepTitles[step] || 'Regole'}
           </h2>
           <p className="text-sm sm:text-base text-indigo-700 font-bold">
-            Tabellina del {world.id}
+            {withOxIfSecond(world.id, `Tabellina del ${world.id}`)}
           </p>
         </div>
 
