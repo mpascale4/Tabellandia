@@ -81,12 +81,12 @@ function buildMnemonicPair(a: number, b: number, answer: number): string {
 
 function buildMnemonicPhrase(a: number, b: number, answer: number): string {
   if ((a === 5 && b === 9) || (a === 9 && b === 5)) {
-    return `La mano guida la nave fino al ${answer}.`;
+    return `La mano sale sulla nave e fa ciao al ${answer}.`;
   }
 
   const left = DIGIT_WORD[a] ?? `${a}`;
   const right = DIGIT_WORD[b] ?? `${b}`;
-  return `${left} incontra ${right} e insieme fanno ${answer}.`;
+  return `Il ${left} incontra il ${right} e insieme fanno ${answer}.`;
 }
 
 // ─── Tipi interni ─────────────────────────────────────────────────────────────
@@ -346,22 +346,22 @@ function TrainingSession({
         </p>
 
         {/* Equazione numerica */}
-        <p className="text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.18em]">
+        <p className="text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.22em]">
           {multiplier} × {worldId} = ?
         </p>
 
         {/* Frase mnemonica */}
         <div className="w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sky-900 shadow-sm">
-          <p className="text-base sm:text-lg font-black font-sans leading-tight">
+          <p className="text-sm sm:text-base font-black font-sans leading-tight">
             {mnemonicPair}
           </p>
-          <p className="mt-1 text-sm sm:text-base font-semibold text-sky-800/80 leading-snug">
+          <p className="mt-1 text-xs sm:text-sm font-semibold text-sky-800/80 leading-snug">
             {mnemonicPhrase}
           </p>
         </div>
 
         {/* Griglia visiva */}
-        <div className="mt-1 p-3 bg-white/50 rounded-2xl border border-white/40">
+        <div className="mt-1 p-2.5 bg-white/50 rounded-2xl border border-white/40">
           <EmojiGrid rows={gridRows} cols={gridCols} emoji={world.itemsToCount} />
         </div>
       </SurfaceCard>
