@@ -2307,7 +2307,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-8 border border-indigo-100 shadow-xl space-y-8 flex flex-col items-center justify-center min-h-[400px]">
             <div className="text-center space-y-2">
               <div className="text-6xl mb-4">⚡</div>
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex w-full items-center justify-end gap-2">
                 <h2 className="text-2xl font-black text-indigo-950">SFIDA VELOCISSIMA</h2>
                 <button
                   onClick={() => pushView('guide-help-sfida')}
