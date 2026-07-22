@@ -35,6 +35,18 @@ const DIGIT_EMOJI: Record<number, string> = {
   9: '🚢',
 };
 
+const DIGIT_WORD: Record<number, string> = {
+  1: 'nettuno',
+  2: 'bue',
+  3: 're',
+  4: 'gatto',
+  5: 'mano',
+  6: 'chiocciola',
+  7: 'nano',
+  8: 'canotto',
+  9: 'nave',
+};
+
 const TRAINING_WORLD_ICON: Record<number, string> = {
   2: '🦊',
   3: '🦕',
@@ -59,6 +71,22 @@ const MOTIVATIONAL_WRONG = [
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function buildMnemonicPair(a: number, b: number, answer: number): string {
+  const left = DIGIT_WORD[a] ?? `${a}`;
+  const right = DIGIT_WORD[b] ?? `${b}`;
+  return `${left} + ${right} = ${answer}`;
+}
+
+function buildMnemonicPhrase(a: number, b: number, answer: number): string {
+  if ((a === 5 && b === 9) || (a === 9 && b === 5)) {
+    return `La mano guida la nave fino al ${answer}.`;
+  }
+
+  const left = DIGIT_WORD[a] ?? `${a}`;
+  const right = DIGIT_WORD[b] ?? `${b}`;
+  return `${left} incontra ${right} e insieme fanno ${answer}.`;
 }
 
 // ─── Tipi interni ─────────────────────────────────────────────────────────────
@@ -270,6 +298,8 @@ function TrainingSession({
 
   const { multiplier, worldId, answer, options } = currentQuestion;
   const digitEmojis = `${DIGIT_EMOJI[multiplier] ?? multiplier} × ${DIGIT_EMOJI[worldId] ?? worldId}`;
+  const mnemonicPair = buildMnemonicPair(multiplier, worldId, answer);
+  const mnemonicPhrase = buildMnemonicPhrase(multiplier, worldId, answer);
 
   // Griglia visiva: multiplier righe da worldId colonne (o inverso se più compatto)
   const [gridRows, gridCols] = multiplier <= worldId
@@ -311,14 +341,24 @@ function TrainingSession({
         </p>
 
         {/* Emoji della domanda */}
-        <p id="question-label" className="text-4xl font-black text-sky-950 select-none leading-snug text-center">
+        <p id="question-label" className="text-5xl sm:text-6xl font-black text-sky-950 select-none leading-none text-center">
           {digitEmojis} = ?
         </p>
 
         {/* Equazione numerica */}
-        <p className="text-2xl sm:text-3xl font-black text-sky-800/80 font-mono leading-none tracking-wide">
+        <p className="text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.18em]">
           {multiplier} × {worldId} = ?
         </p>
+
+        {/* Frase mnemonica */}
+        <div className="w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sky-900 shadow-sm">
+          <p className="text-base sm:text-lg font-black font-sans leading-tight">
+            {mnemonicPair}
+          </p>
+          <p className="mt-1 text-sm sm:text-base font-semibold text-sky-800/80 leading-snug">
+            {mnemonicPhrase}
+          </p>
+        </div>
 
         {/* Griglia visiva */}
         <div className="mt-1 p-3 bg-white/50 rounded-2xl border border-white/40">
