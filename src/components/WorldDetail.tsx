@@ -909,7 +909,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelTrucchiExercise();
   };
   const goBackFromWorldContent = () => {
+    if (activeStep === 'sfida' && sfidaActive) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setSfidaActive(false);
+      setSfidaReady(true);
+      setSfidaQuestion(null);
+      setSfidaTimer(30);
+      setSfidaOptions([]);
+      return;
+    }
+
     if (comprendoSelectedFactor !== null) {
+      setComprendoFlowStage('objective');
+      setComprendoGameCompleted(false);
       setComprendoSelectedFactor(null);
     } else if (saltoSelectedFactor !== null) {
       if (saltoFlowStage === 'game') {
@@ -936,7 +951,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           timerRef.current = null;
         }
         setSfidaActive(false);
-        setSfidaReady(false);
+        setSfidaReady(true);
         setSfidaQuestion(null);
         setSfidaTimer(30);
         setSfidaOptions([]);
@@ -1185,7 +1200,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           
       {/* Top action bar */}
       {showWorldTopBar && (
-        <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
+        <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
           <button
             onClick={() => {
               sound.playClick();
@@ -1367,7 +1382,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'comprendo' && comprendoSelectedFactor !== null && (
           <>
             {/* Top action bar */}
-            <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center shadow-lg z-10 text-sky-950 flex-shrink-0 ${comprendoFlowStage === 'objective' ? 'justify-between' : 'justify-center'} ${compactLayout ? 'gap-2' : ''}`}>
+            <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center ${comprendoFlowStage === 'objective' ? 'justify-between' : 'justify-center'} shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
               {comprendoFlowStage === 'objective' && (
                 <button
                   onClick={() => {
@@ -1409,7 +1424,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                        </p>
                      </div>
                      <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
-                       <h4 className="font-bold text-yellow-900 font-sans">💡 Obiettivo:</h4>
+                       <h4 className="font-bold text-yellow-900 font-sans">
+                         💡 Obiettivo:
+                       </h4>
                        <p className="mt-2 text-sm text-yellow-800">
                          Tocca gli oggetti per contarli uno ad uno e capire il concetto di moltiplicazione!
                        </p>
@@ -2307,13 +2324,20 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             {/* Bottone help – visibile solo prima di iniziare, non durante */}
             <button
               onClick={() => pushView('guide-help-sfida')}
-              className={`w-full rounded-xl flex items-center justify-center gap-2 py-2.5 px-4 cursor-pointer transition-all font-semibold text-sm ${
+              className={`w-full rounded-xl border flex items-center justify-center gap-2.5 py-2.5 px-4 cursor-pointer transition-all font-semibold text-sm ${
                 !hasReadRulesMandatory.has('sfida')
-                  ? 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700 ring-2 ring-indigo-300'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
+                  ? 'bg-indigo-100 hover:bg-indigo-200 border-indigo-300 text-indigo-700 ring-2 ring-indigo-300'
+                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-600'
               }`}
               aria-label="Leggi le regole della sfida"
             >
+              <span className={`inline-flex items-center justify-center rounded-full border text-xs font-black w-5 h-5 ${
+                !hasReadRulesMandatory.has('sfida')
+                  ? 'border-indigo-500 text-indigo-600 bg-white/90'
+                  : 'border-slate-400 text-slate-500 bg-white/90'
+              }`} aria-hidden="true">
+                ?
+              </span>
               <HelpCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
               {!hasReadRulesMandatory.has('sfida') ? 'Leggi le regole prima di iniziare' : 'Rivedi le regole'}
             </button>
