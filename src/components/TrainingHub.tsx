@@ -171,8 +171,8 @@ function TrainingSession({
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onBack: () => void;
 }) {
-  // Inizializza subito il deck per evitare un primo render vuoto.
-  const deckRef = useRef<Question[]>(buildQuestionDeck(world.id));
+  // Deck nello state con init lazy: evita primo render vuoto ed e piu leggibile.
+  const [deck, setDeck] = useState<Question[]>(() => buildQuestionDeck(world.id));
   const [deckIndex, setDeckIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
@@ -180,13 +180,14 @@ function TrainingSession({
 
   // Inizializza il mazzo al montaggio o cambio mondo
   useEffect(() => {
-    deckRef.current = buildQuestionDeck(world.id);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setDeck(buildQuestionDeck(world.id));
     setDeckIndex(0);
     setScore(0);
     setFeedback(null);
   }, [world.id]);
 
-  const currentQuestion: Question | undefined = deckRef.current[deckIndex];
+  const currentQuestion: Question | undefined = deck[deckIndex];
 
   const handleAnswer = useCallback((opt: number, optIndex: number) => {
     if (feedback) return; // blocca doppio click durante feedback
@@ -215,17 +216,16 @@ function TrainingSession({
     // Avanza alla prossima domanda dopo 1.4s
     timeoutRef.current = setTimeout(() => {
       setFeedback(null);
-      setDeckIndex(prev => {
-        const next = prev + 1;
-        if (next >= deckRef.current.length) {
-          // Rimescola e riparte da capo
-          deckRef.current = buildQuestionDeck(world.id);
-          return 0;
-        }
-        return next;
-      });
+      const nextIndex = deckIndex + 1;
+      if (nextIndex >= deck.length) {
+        // Rimescola e riparte da capo
+        setDeck(buildQuestionDeck(world.id));
+        setDeckIndex(0);
+      } else {
+        setDeckIndex(nextIndex);
+      }
     }, 1400);
-  }, [feedback, currentQuestion, updateProfile, world.id]);
+  }, [feedback, currentQuestion, updateProfile, world.id, deckIndex, deck.length]);
 
   // Cleanup timeout on unmount
   useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
