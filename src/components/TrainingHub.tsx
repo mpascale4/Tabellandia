@@ -8,27 +8,28 @@ import { UserProfile, WorldConfig } from '../types';
 import { WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
 
-// ─── Emoji mnemoniche per cifra (similitudine visiva + fonetica) ──────────────
-// 1 🕯️ candela (dritta come l'1)
-// 2 🐂 bue (forma delle corna)
-// 3 👂 orecchio (profilo simile al 3)
-// 4 ⛵ barca (la vela forma un 4)
-// 5 ⭐ stella (5 punte)
-// 6 🐌 lumaca (spirale come il 6)
-// 7 🏒 mazza da hockey (angolo come il 7)
-// 8 🕷️ ragno (8 zampe)
-// 9 🎈 palloncino con filo (forma del 9)
+// ─── Emoji mnemoniche per cifra (sistema fonetico-semantico italiano) ─────────
+// Tecnica: ancoraggio fonetico sulla parola italiana del numero (Major System IT)
+// 1 🔱 Nettuno  → nett-UNO
+// 2 🐂 Bue      → b-UE, rima con DUE
+// 3 👑 Re       → t-RE
+// 4 🐈 Gatto    → quatto → gatto (iconico per bambini)
+// 5 ✋ Mano     → 5 dita = mano
+// 6 🐌 Chiocciola → spirale visiva del 6
+// 7 🧙 Nano     → SETTE nani (Biancaneve)
+// 8 🛶 Canotto  → can-OTTO
+// 9 🚢 Nave     → n-OVE → nave
 
 const DIGIT_EMOJI: Record<number, string> = {
-  1: '🕯️',
+  1: '🔱',
   2: '🐂',
-  3: '👂',
-  4: '⛵',
-  5: '⭐',
+  3: '👑',
+  4: '🐈',
+  5: '✋',
   6: '🐌',
-  7: '🏒',
-  8: '🕷️',
-  9: '🎈',
+  7: '🧙',
+  8: '🛶',
+  9: '🚢',
 };
 
 const MOTIVATIONAL_CORRECT = [
