@@ -1465,7 +1465,7 @@ export default function App() {
 
                   {/* TAB 2: ALLENAMENTO */}
                   {activeTab === 'training' && (
-                    <TrainingHub profile={profile} compactLayout={isPhoneMode} />
+                    <TrainingHub profile={profile} updateProfile={handleUpdateProfile} compactLayout={isPhoneMode} />
                   )}
 
                   {/* TAB 4: PARENT AREA */}
