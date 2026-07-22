@@ -1447,7 +1447,7 @@ export default function App() {
                                   />
                                 </div>
                                 <div className="flex items-center justify-between gap-2 text-[10px] font-semibold text-sky-900/80 sm:text-[11px]">
-                                  <span className="min-w-0 truncate">Monumenti ricostruiti: {rebuiltCount}/{world.monuments.length}</span>
+                                  <span className="min-w-0 truncate">{devModeEnabled ? 'Monumenti eretti' : 'Monumenti ricostruiti'}: {rebuiltCount}/{world.monuments.length}</span>
                                   <span className="shrink-0">{isUnlocked ? 'Apri il mondo' : 'Completa il precedente'}</span>
                                 </div>
                               </div>
