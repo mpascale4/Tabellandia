@@ -370,7 +370,7 @@ function TrainingHome({
   onSelect: (id: number) => void;
 }) {
   return (
-    <div className={`training-home ${compactLayout ? 'training-home--compact space-y-3' : 'space-y-5'}`}>
+    <div className={`training-home w-full h-full ${compactLayout ? 'training-home--compact space-y-3' : 'space-y-5'}`}>
       <div className={`training-home-head bg-white/40 backdrop-blur-sm rounded-3xl border border-white/40 shadow-sm ${compactLayout ? 'p-3' : 'p-4 md:p-5'} ${compactLayout ? 'space-y-0.5' : 'space-y-1'}`}>
         <span className="inline-block text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-sans">
           Allenamento libero
@@ -386,7 +386,7 @@ function TrainingHome({
       <ul
         role="list"
         aria-label="Lista tabelline disponibili"
-        className={`training-home-grid grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.1rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2.5'}`}
+        className={`training-home-grid w-full h-full content-start grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.1rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2.5'}`}
       >
         {WORLDS_DATA.map(world => (
           <li key={world.id}>
