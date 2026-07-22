@@ -94,15 +94,11 @@ function buildResultMnemonic(answer: number): string {
 }
 
 function buildMnemonicPair(a: number, b: number, answer: number): string {
-  const left = DIGIT_WORD[a] ?? `${a}`;
-  const right = DIGIT_WORD[b] ?? `${b}`;
-  return `${left} + ${right} = ${buildResultMnemonic(answer)}`;
-}
-
-function buildMnemonicPhrase(a: number, b: number, answer: number): string {
-  const left = DIGIT_WORD[a] ?? `${a}`;
-  const right = DIGIT_WORD[b] ?? `${b}`;
-  return `Quando il ${left} incontra il ${right}, compaiono ${buildResultMnemonic(answer)}: cosi il ${answer} resta in mente.`;
+  const leftWord = DIGIT_WORD[a] ?? `${a}`;
+  const rightWord = DIGIT_WORD[b] ?? `${b}`;
+  const leftEmoji = DIGIT_EMOJI[a] ?? `${a}`;
+  const rightEmoji = DIGIT_EMOJI[b] ?? `${b}`;
+  return `${leftWord} ${leftEmoji} × ${rightWord} ${rightEmoji} = ${buildResultMnemonic(answer)}`;
 }
 
 // ─── Tipi interni ─────────────────────────────────────────────────────────────
@@ -315,7 +311,6 @@ function TrainingSession({
   const { multiplier, worldId, answer, options } = currentQuestion;
   const digitEmojis = `${DIGIT_EMOJI[multiplier] ?? multiplier} × ${DIGIT_EMOJI[worldId] ?? worldId}`;
   const mnemonicPair = buildMnemonicPair(multiplier, worldId, answer);
-  const mnemonicPhrase = buildMnemonicPhrase(multiplier, worldId, answer);
 
   // Griglia visiva: multiplier righe da worldId colonne (o inverso se più compatto)
   const [gridRows, gridCols] = multiplier <= worldId
@@ -366,13 +361,10 @@ function TrainingSession({
           {multiplier} × {worldId} = ?
         </p>
 
-        {/* Frase mnemonica */}
+        {/* Equazione visiva mnemonica */}
         <div className="w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sky-900 shadow-sm">
           <p className="text-sm sm:text-base font-black font-sans leading-tight">
             {mnemonicPair}
-          </p>
-          <p className="mt-1 text-xs sm:text-sm font-semibold text-sky-800/80 leading-snug">
-            {mnemonicPhrase}
           </p>
         </div>
 
