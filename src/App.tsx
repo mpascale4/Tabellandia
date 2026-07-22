@@ -15,13 +15,14 @@ import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
 import RewardsTutorial from './components/RewardsTutorial';
 import NumericKeypad from './components/NumericKeypad';
-import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, Smartphone, RefreshCw, Zap, Music2, X, Coins, Droplets } from 'lucide-react';
+import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, Smartphone, RefreshCw, Zap, Music2, X, Coins, Droplets, ChevronDown, ChevronUp } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
 const DEV_MODE_KEY = "tabellandia_dev_mode_v1";
 const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
+const HEADER_EXPANDED_KEY = "tabellandia_header_expanded_v1";
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -131,6 +132,7 @@ export default function App() {
   });
   const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
   const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
+  const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(() => localStorage.getItem(HEADER_EXPANDED_KEY) !== 'false');
   const devTapCountRef = useRef<number>(0);
   const devTapResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -242,6 +244,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(PROFILE_PANEL_VISIBLE_KEY, String(isProfilePanelVisible));
   }, [isProfilePanelVisible]);
+
+  useEffect(() => {
+    localStorage.setItem(HEADER_EXPANDED_KEY, String(isHeaderExpanded));
+  }, [isHeaderExpanded]);
 
   const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
     localStorage.setItem(
@@ -929,6 +935,7 @@ export default function App() {
             </button>
 
             {/* Monete */}
+            {isHeaderExpanded && (
             <div className={`flex flex-col items-center justify-center gap-0.5 shrink-0 ${isPhoneMode ? 'min-w-[60px]' : 'min-w-[92px]'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'}`}>
               <div className={`flex items-center gap-${isPhoneMode ? '0.5' : '1.5'} text-amber-600`}>
                 <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
@@ -936,8 +943,10 @@ export default function App() {
               </div>
               <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
             </div>
+            )}
 
             {/* Gocce */}
+            {isHeaderExpanded && (
             <div className={`flex flex-col items-center justify-center gap-0.5 shrink-0 ${isPhoneMode ? 'min-w-[60px]' : 'min-w-[92px]'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'}`}>
               <div className={`flex items-center gap-${isPhoneMode ? '0.5' : '1.5'} text-sky-500`}>
                 <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
@@ -945,6 +954,7 @@ export default function App() {
               </div>
               <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
             </div>
+            )}
 
             {/* Controls - Right Side */}
             <div className={`ml-auto flex items-center gap-${isPhoneMode ? '1' : '2'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'} min-w-max`}>
@@ -985,6 +995,22 @@ export default function App() {
               </button>
 
               <VoiceToggle isPhoneMode={isPhoneMode} />
+
+              {/* Toggle espansione header: nasconde/mostra monete e gocce */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); sound.playClick(); setIsHeaderExpanded(prev => !prev); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${
+                  isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'
+                } bg-white/70 border-slate-200 text-slate-500 hover:bg-white/90`}
+                aria-label={isHeaderExpanded ? 'Comprimi barra profilo' : 'Espandi barra profilo'}
+                aria-expanded={isHeaderExpanded}
+              >
+                {isHeaderExpanded
+                  ? <ChevronUp className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                  : <ChevronDown className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                }
+              </button>
             </div>
           </div>
         </header>
