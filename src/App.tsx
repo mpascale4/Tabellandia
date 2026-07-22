@@ -21,6 +21,7 @@ const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
 const DEV_MODE_KEY = "tabellandia_dev_mode_v1";
+const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -129,6 +130,7 @@ export default function App() {
     return !seen; // Show if never seen before
   });
   const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
+  const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
   const devTapCountRef = useRef<number>(0);
   const devTapResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -236,6 +238,10 @@ export default function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(PROFILE_PANEL_VISIBLE_KEY, String(isProfilePanelVisible));
+  }, [isProfilePanelVisible]);
 
   const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
     localStorage.setItem(
@@ -1489,7 +1495,19 @@ export default function App() {
 
           {/* Right Profile Panel (Quick View) */}
           {selectedWorldId === null && !isPhoneMode && (
-            <div className="w-72 bg-white/20 backdrop-blur-md rounded-[36px] border-4 border-white/40 shadow-2xl p-5 flex flex-col items-center m-4 md:flex hidden justify-between text-slate-800 shrink-0">
+            <div className="m-4 hidden md:flex flex-col items-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsProfilePanelVisible(prev => !prev)}
+                aria-controls="profile-quick-panel"
+                aria-expanded={isProfilePanelVisible}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/60 bg-white/55 px-3 py-1.5 text-xs font-bold text-sky-950 shadow-sm transition-colors hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-sky-500 cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5" aria-hidden="true" />
+                {isProfilePanelVisible ? 'Nascondi profilo' : 'Mostra profilo'}
+              </button>
+
+              <div id="profile-quick-panel" className={`${isProfilePanelVisible ? 'flex' : 'hidden'} w-72 bg-white/20 backdrop-blur-md rounded-[36px] border-4 border-white/40 shadow-2xl p-5 flex-col items-center justify-between text-slate-800`}>
               <div className="w-full space-y-4">
                 <p className="text-xs font-black text-sky-950 uppercase tracking-widest text-center">La tua Squadra</p>
                 
@@ -1537,6 +1555,7 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </div>
           )}
         </div>
 

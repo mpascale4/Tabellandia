@@ -873,7 +873,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     <ul
       role="list"
       aria-label={`Lista moltiplicazioni ${stepKey}`}
-      className={`grid auto-rows-max ${compactLayout ? 'grid-cols-4 gap-1.5' : 'grid-cols-5 gap-2'}`}
+      className={`grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.2rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(5.2rem,1fr))] gap-2.5'}`}
     >
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
@@ -891,9 +891,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <span className={`${compactLayout ? 'text-sm' : 'text-base'} font-black font-mono leading-none`}>
                 {world.id}×{factor}
               </span>
-               <span className={`text-[10px] font-bold uppercase tracking-wide ${theme.accent}`}>
-                 {isCompleted ? '✓ fatto' : '→ vai'}
-               </span>
+               {isCompleted && (
+                 <span className={`text-[10px] font-bold uppercase tracking-wide ${theme.accent}`}>
+                   ✓ fatto
+                 </span>
+               )}
             </button>
           </li>
         );
@@ -1362,7 +1364,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 1: COMPRENDO - List of combinations to complete */}
         {activeStep === 'comprendo' && comprendoSelectedFactor === null && (
-          <div className="max-w-2xl mx-auto w-full">
+          <div className="max-w-4xl mx-auto w-full">
             <div className="bg-indigo-50 rounded-3xl p-6 border-2 border-indigo-200 shadow-lg">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full font-sans">
@@ -1536,7 +1538,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 2: SALTO (Skip Counting) - LIST VIEW */}
         {activeStep === 'salto' && saltoSelectedFactor === null && (
-          <div className="max-w-2xl mx-auto w-full">
+          <div className="max-w-4xl mx-auto w-full">
             <div className="bg-purple-50 rounded-3xl p-6 border-2 border-purple-200 shadow-lg">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <span className="text-xs font-bold text-purple-600 bg-purple-100 px-3 py-1 rounded-full font-sans">
@@ -1790,7 +1792,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 3: COSTRUISCO (Build the Table) - LIST VIEW */}
         {activeStep === 'costruisco' && costruiscoSelectedFactor === null && (
-          <div className="max-w-2xl mx-auto w-full">
+          <div className="max-w-4xl mx-auto w-full">
             <div className="bg-emerald-50 rounded-3xl p-6 border-2 border-emerald-200 shadow-lg">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full font-sans">
@@ -2022,7 +2024,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
          {/* STEP 4: TRUCCHI (Interactive strategies and associate rules) - LIST VIEW */}
         {activeStep === 'trucchi' && trucchiSelectedFactor === null && (
-          <div className="max-w-2xl mx-auto w-full">
+          <div className="max-w-4xl mx-auto w-full">
             <div className="bg-amber-50 rounded-3xl p-6 border-2 border-amber-200 shadow-lg">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <span className="text-xs font-bold text-amber-600 bg-amber-100 px-3 py-1 rounded-full font-sans">

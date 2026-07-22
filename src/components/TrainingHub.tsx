@@ -256,7 +256,7 @@ function TrainingSession({
     : [worldId, multiplier];
 
   return (
-    <div className="flex flex-col gap-4 max-w-md mx-auto w-full">
+    <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full">
 
       {/* Header: back + punteggio */}
       <div className="flex items-center justify-between">
@@ -268,7 +268,7 @@ function TrainingSession({
                      focus-visible:outline-2 focus-visible:outline-sky-500"
           aria-label="Torna alla lista delle tabelline"
         >
-          ← Lista
+          ← Indietro
         </button>
         <div className="flex items-center gap-1.5 bg-white/40 backdrop-blur-sm border border-white/50
                         rounded-xl px-3 py-1.5 text-xs font-black text-sky-950">
@@ -387,7 +387,7 @@ function TrainingHome({
       <ul
         role="list"
         aria-label="Lista tabelline disponibili"
-        className={`training-home-grid grid auto-rows-max ${compactLayout ? 'grid-cols-4 gap-1.5' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2'}`}
+        className={`training-home-grid grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.1rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2.5'}`}
       >
         {WORLDS_DATA.map(world => (
           <WorldCard
