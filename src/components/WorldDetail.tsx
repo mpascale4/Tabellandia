@@ -15,6 +15,7 @@ import NumericKeypad from './NumericKeypad';
 import RewardsTutorial from './RewardsTutorial';
 import MonumentArea from './MonumentArea';
 import CombinationCarousel from './CombinationCarousel';
+import FireworksOverlay from './FireworksOverlay';
 
 interface WorldDetailProps {
   world: WorldConfig;
