@@ -1432,7 +1432,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           {isLocked ? '🔒' : step.icon}
                         </div>
                         <h4 className={`text-center text-[clamp(0.72rem,1.9vw,0.95rem)] font-bold font-sans leading-tight break-words ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
-                          {`${step.title} ${step.icon}`}
+                          {step.title}
                         </h4>
                       </div>
                       {!isLocked && (
