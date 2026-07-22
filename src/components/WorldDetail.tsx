@@ -885,16 +885,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     <ul
       role="list"
       aria-label={`Lista moltiplicazioni ${stepKey}`}
-      className={`w-full content-start grid grid-cols-[repeat(auto-fit,minmax(clamp(4.4rem,18vw,6.2rem),1fr))] ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
+      className={`w-full h-full grid auto-rows-fr grid-cols-[repeat(auto-fit,minmax(clamp(4.4rem,18vw,6.2rem),1fr))] ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
     >
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
         return (
-          <li key={`${stepKey}-${factor}`}>
+          <li key={`${stepKey}-${factor}`} className="h-full min-h-0">
             <button
               type="button"
               onClick={() => onSelect(factor)}
-              className={`relative w-full aspect-[0.95] sm:aspect-square rounded-2xl border-2 shadow-sm transition-all cursor-pointer
+              className={`relative w-full h-full rounded-2xl border-2 shadow-sm transition-all cursor-pointer
                           focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                           flex flex-col items-center justify-center ${compactLayout ? 'py-1 gap-0.5' : 'py-2 gap-1'}
                           ${isCompleted ? theme.done : theme.todo}`}
@@ -956,7 +956,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         <SectionHeader centered title={title} description={description} />
 
-        <div className="mt-6 flex-1 min-h-0 overflow-y-auto">
+        <div className="mt-6 flex-1 min-h-0 overflow-hidden">
           {renderStepFactorGrid({
             stepKey,
             completed,
