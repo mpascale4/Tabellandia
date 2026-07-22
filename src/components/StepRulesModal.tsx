@@ -7,7 +7,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { WorldConfig } from '../types';
-import { withOxIfSecond } from '../utils/tableLabels';
+import { withTableIcon } from '../utils/tableLabels';
 
 interface StepRulesModalProps {
   step: string; // 'comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'
@@ -51,7 +51,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
         return (
           <div className="space-y-4">
             <div className="bg-sky-50 rounded-xl p-4 border border-sky-200">
-              <h4 className="font-bold text-sky-900 mb-2">🐸 Come funziona?</h4>
+              <h4 className="font-bold text-sky-900 mb-2">Come funziona?</h4>
               <p className="text-sm text-sky-800">
                 La rana salta di {example_a} in {example_a}. Tocca il numero corretto per ogni salto!
               </p>
@@ -76,7 +76,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
         return (
           <div className="space-y-4">
             <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-              <h4 className="font-bold text-purple-900 mb-2">🧱 Come funziona?</h4>
+              <h4 className="font-bold text-purple-900 mb-2">Come funziona?</h4>
               <p className="text-sm text-purple-800">
                 Abbina i <strong>fattori</strong> ai loro <strong>risultati</strong> corretti. Trasforma il concetto in simboli!
               </p>
@@ -100,7 +100,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
         return (
           <div className="space-y-4">
             <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-              <h4 className="font-bold text-amber-900 mb-2">🧠 Come funziona?</h4>
+              <h4 className="font-bold text-amber-900 mb-2">Come funziona?</h4>
               <p className="text-sm text-amber-800">
                 {world.trickDescription}
               </p>
@@ -118,7 +118,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
         return (
           <div className="space-y-4">
             <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-              <h4 className="font-bold text-emerald-900 mb-2">⚔️ Come funziona?</h4>
+              <h4 className="font-bold text-emerald-900 mb-2">Come funziona?</h4>
               <p className="text-sm text-emerald-800">
                 Rispondi velocemente a tante domande! Ogni risposta corretta = 1 moneta + 1 goccia di luce.
               </p>
@@ -138,7 +138,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
         return (
           <div className="space-y-4">
             <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
-              <h4 className="font-bold text-rose-900 mb-2">⚡ Come funziona?</h4>
+              <h4 className="font-bold text-rose-900 mb-2">Come funziona?</h4>
               <p className="text-sm text-rose-800">
                 30 secondi cronometrati! Rispondi a più domande possibile per ottenere le stelle d'oro.
               </p>
@@ -160,12 +160,12 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
   };
 
   const stepTitles: { [key: string]: string } = {
-    comprendo: '1. Comprendo il concetto 🍎',
-    salto: '2. Conteggio per salti 🐸',
-    costruisco: '3. Costruisco le equazioni 🧱',
-    trucchi: '4. Trucchi e strategie 🧠',
-    pratico: '5. Pratico (Avventura) 🛡️',
-    sfida: '6. Sfida cronometrata ⚡'
+    comprendo: '1. Comprendo il concetto',
+    salto: '2. Conteggio per salti',
+    costruisco: '3. Costruisco le equazioni',
+    trucchi: '4. Trucchi e strategie',
+    pratico: '5. Pratico (Avventura)',
+    sfida: '6. Sfida cronometrata'
   };
 
   // If rendering as page, return just the content
@@ -177,7 +177,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
             {stepTitles[step] || 'Regole'}
           </h2>
           <p className="text-sm sm:text-base text-indigo-700 font-bold">
-            {withOxIfSecond(world.id, `Tabellina del ${world.id}`)}
+            {withTableIcon(world.id, `Tabellina del ${world.id}`)}
           </p>
         </div>
 
@@ -221,7 +221,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
             {stepTitles[step] || 'Regole'}
           </h2>
           <p className="text-sm sm:text-base text-indigo-700 font-bold">
-            {withOxIfSecond(world.id, `Tabellina del ${world.id}`)}
+            {withTableIcon(world.id, `Tabellina del ${world.id}`)}
           </p>
         </div>
 

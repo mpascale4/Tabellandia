@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
-import { withOxIfSecond } from './utils/tableLabels';
+import { getTableIcon, withTableIcon } from './utils/tableLabels';
 import { sound } from './components/SoundManager';
 import ParentDashboard from './components/ParentDashboard';
 import WorldDetail from './components/WorldDetail';
@@ -51,19 +51,6 @@ const APP_SIDEBAR_TABS = [
   { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
   { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' },
 ] as const;
-
-const WORLD_NUMBER_ICON: Record<number, string> = {
-  2: '🐂',
-  3: '👑',
-  4: '🐈',
-  5: '✋',
-  6: '🐌',
-  7: '🧙',
-  8: '🛶',
-  9: '🚢',
-};
-
-const getWorldNumberIcon = (worldId: number) => WORLD_NUMBER_ICON[worldId] ?? '🔢';
 
 const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devModeEnabled: boolean) => {
   const base = profile.worldProgress[worldId] || {
@@ -1398,13 +1385,13 @@ export default function App() {
                               <div className="flex items-start justify-between gap-2.5 sm:gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
                                   <div className="h-11 w-11 shrink-0 rounded-xl border-2 border-white bg-white/90 shadow-md flex items-center justify-center text-2xl sm:h-14 sm:w-14 sm:rounded-2xl sm:border-4 sm:text-3xl">
-                                    <span aria-hidden="true">{getWorldNumberIcon(world.id)}</span>
+                                    <span aria-hidden="true">{getTableIcon(world.id)}</span>
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-sky-600 sm:text-[10px] sm:tracking-[0.18em]">
-                                      {withOxIfSecond(world.id, `Tabellina del ${world.id}`)}
+                                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-sky-600 sm:text-[10px] sm:tracking-[0.18em]">
+                                      {`Tabellina del ${world.id}`}
                                     </p>
-                                    <h3 className="truncate text-sm font-black leading-tight sm:text-base" title={world.locationName}>{world.locationName}</h3>
+                                    <h3 className="text-sm font-black leading-tight sm:text-base" title={world.locationName}>{world.locationName}</h3>
                                   </div>
                                 </div>
 
@@ -1528,7 +1515,7 @@ export default function App() {
                     <p className="text-xs font-bold text-sky-950 leading-tight">
                       {(() => {
                         const currentWorldId = profile.unlockedWorlds[profile.unlockedWorlds.length - 1] || 2;
-                        return `Abbatti la nebbia della ${withOxIfSecond(currentWorldId, `Tabellina del ${currentWorldId}`)}!`;
+                            return `Abbatti la nebbia della ${withTableIcon(currentWorldId, `Tabellina del ${currentWorldId}`)}!`;
                       })()}
                     </p>
                     <div className="flex gap-1.5 mt-2.5">

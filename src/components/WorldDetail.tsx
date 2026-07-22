@@ -19,7 +19,7 @@ import FireworksOverlay from './FireworksOverlay';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
-import { withOxIfSecond } from '../utils/tableLabels';
+import { withTableIcon } from '../utils/tableLabels';
 
 interface WorldDetailProps {
   world: WorldConfig;
@@ -849,7 +849,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     pratico: '5. Pratico',
     sfida: '6. Sfida'
   };
-  const currentTopBarTitle = stepTopBarTitles[activeStep] || withOxIfSecond(world.id, world.name);
+  const currentTopBarTitle = stepTopBarTitles[activeStep] || withTableIcon(world.id, world.name);
   const showWorldTopBar = !(
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
     (activeStep === 'salto' && saltoSelectedFactor !== null) ||
@@ -1431,8 +1431,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         }`}>
                           {isLocked ? '🔒' : step.icon}
                         </div>
-                        <h4 className={`text-center text-[clamp(0.72rem,1.9vw,0.95rem)] font-bold font-sans leading-tight ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
-                          {step.title.split('.')[1]}
+                        <h4 className={`text-center text-[clamp(0.72rem,1.9vw,0.95rem)] font-bold font-sans leading-tight break-words ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
+                          {step.title}
                         </h4>
                       </div>
                       {!isLocked && (
@@ -1496,7 +1496,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               )}
 
               <div className="text-sm font-black text-sky-950 font-sans">
-                1. Comprendo il concetto 🍎
+                1. Comprendo il concetto
               </div>
             </div>
 
@@ -1642,7 +1642,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               )}
 
               <div className="text-sm font-black text-sky-950 font-sans">
-                2. Salto il conteggio 🐸
+                2. Salto il conteggio
               </div>
             </div>
 
@@ -1866,7 +1866,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               )}
 
               <div className="text-sm font-black text-sky-950 font-sans">
-                3. Costruisco la tabellina 🧱
+                3. Costruisco la tabellina
               </div>
             </div>
 

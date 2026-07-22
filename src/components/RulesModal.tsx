@@ -7,7 +7,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { WorldConfig } from '../types';
-import { withOxIfSecond } from '../utils/tableLabels';
+import { withTableIcon } from '../utils/tableLabels';
 
 interface RulesModalProps {
   world: WorldConfig;
@@ -46,10 +46,10 @@ export default function RulesModal({ world, onClose }: RulesModalProps) {
         {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-3xl sm:text-4xl font-black text-indigo-950 font-sans mb-2">
-            🎮 Come giocare
+            Come giocare
           </h2>
           <p className="text-sm sm:text-base text-indigo-700 font-bold">
-            {withOxIfSecond(world.id, `Tabellina del ${world.id}`)}
+            {withTableIcon(world.id, `Tabellina del ${world.id}`)}
           </p>
         </div>
 
@@ -84,7 +84,7 @@ export default function RulesModal({ world, onClose }: RulesModalProps) {
           <div className="bg-sky-50/50 rounded-2xl p-4 border-2 border-sky-200">
             <h3 className="text-lg font-bold text-sky-900 mb-2 flex items-center gap-2">
               <span className="bg-sky-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">2</span>
-              Conteggio per salti 🐸
+              Conteggio per salti
             </h3>
             <p className="text-sm text-sky-800">
               Salta di <strong>{example_a} in {example_a}</strong>. Tocca il numero corretto nella sequenza.
