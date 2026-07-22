@@ -80,6 +80,7 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
         coins: 10,
         lightDrops: 0,
         avatar: {
+          emoji: '👦',
           gender: 'kid1',
           hairStyle: 'Nessuno',
           hairColor: '#f59e0b',
@@ -96,7 +97,7 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
         },
         history: []
       }));
-      setIsAuthenticated(false);
+      onClose();
     }
   };
 

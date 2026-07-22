@@ -5,6 +5,14 @@
 
 export interface AvatarConfig {
   emoji: string; // Avatar emoji
+  gender?: 'kid1' | 'kid2';
+  hairStyle?: string;
+  hairColor?: string;
+  shirtColor?: string;
+  pantsColor?: string;
+  hat?: string;
+  backpack?: string;
+  mascot?: string;
 }
 
 export interface RebuiltMonument {

@@ -108,24 +108,22 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
 }) {
   const compactCard = !!compactLayout;
   return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onSelect(world.id)}
-        className={`training-home-card w-full aspect-square border-2 border-white/60 bg-white/50 backdrop-blur-sm shadow-md
-                   hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer
-                   focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
-                   flex flex-col items-center justify-center px-2 ${compactCard ? 'rounded-2xl py-2 gap-1' : 'rounded-3xl py-3 gap-1.5'}`}
-        aria-label={`Allena tabellina del ${world.id}: ${world.name}`}
-      >
-        <span className={`training-card-emoji ${compactCard ? 'text-3xl' : 'text-4xl'} leading-none select-none`} aria-hidden="true">{world.symbol}</span>
-        <span className={`training-card-mul ${compactCard ? 'text-lg' : 'text-xl'} font-black text-sky-950 leading-none`}>×{world.id}</span>
-        <span className={`training-card-mascot ${compactCard ? 'hidden' : 'text-[11px]'} font-bold text-sky-700/80 font-sans text-center leading-tight`}>
-          {world.mascotName}
-        </span>
-        {stars > 0 && <StarRow stars={stars} className="training-card-stars" />}
-      </button>
-    </li>
+    <button
+      type="button"
+      onClick={() => onSelect(world.id)}
+      className={`training-home-card w-full aspect-square border-2 border-white/60 bg-white/50 backdrop-blur-sm shadow-md
+                 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer
+                 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
+                 flex flex-col items-center justify-center px-2 ${compactCard ? 'rounded-2xl py-2 gap-1' : 'rounded-3xl py-3 gap-1.5'}`}
+      aria-label={`Allena tabellina del ${world.id}: ${world.name}`}
+    >
+      <span className={`training-card-emoji ${compactCard ? 'text-3xl' : 'text-4xl'} leading-none select-none`} aria-hidden="true">{world.symbol}</span>
+      <span className={`training-card-mul ${compactCard ? 'text-lg' : 'text-xl'} font-black text-sky-950 leading-none`}>×{world.id}</span>
+      <span className={`training-card-mascot ${compactCard ? 'hidden' : 'text-[11px]'} font-bold text-sky-700/80 font-sans text-center leading-tight`}>
+        {world.mascotName}
+      </span>
+      {stars > 0 && <StarRow stars={stars} className="training-card-stars" />}
+    </button>
   );
 }
 
@@ -197,7 +195,7 @@ function TrainingSession({
     const isCorrect = opt === currentQuestion.answer;
 
     if (isCorrect) {
-      sound.playCorrect?.();
+      sound.playSuccess();
       setScore(s => s + 1);
       updateProfile(p => ({ ...p, coins: p.coins + 1 }));
       setFeedback({
@@ -206,7 +204,7 @@ function TrainingSession({
         optionIndex: optIndex,
       });
     } else {
-      sound.playWrong?.();
+      sound.playError();
       setFeedback({
         correct: false,
         message: pickRandom(MOTIVATIONAL_WRONG),
@@ -390,13 +388,14 @@ function TrainingHome({
         className={`training-home-grid grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.1rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2.5'}`}
       >
         {WORLDS_DATA.map(world => (
-          <WorldCard
-            key={world.id}
-            world={world}
-            stars={getStars(profile, world.id)}
-            onSelect={onSelect}
-            compactLayout={compactLayout}
-          />
+          <li key={world.id}>
+            <WorldCard
+              world={world}
+              stars={getStars(profile, world.id)}
+              onSelect={onSelect}
+              compactLayout={compactLayout}
+            />
+          </li>
         ))}
       </ul>
     </div>
