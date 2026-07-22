@@ -52,13 +52,19 @@ const APP_SIDEBAR_TABS = [
   { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' },
 ] as const;
 
-const getWorldMascotBadge = (worldId: number) => {
-  if (worldId === 2) return '🐂';
-  if (worldId === 3) return '🦕';
-  if (worldId === 4) return '🦉';
-  if (worldId === 5) return '🦖';
-  return '🦁';
+const WORLD_NUMBER_ICON: Record<number, string> = {
+  2: '🐂',
+  3: '👑',
+  4: '🐈',
+  5: '✋',
+  6: '🐌',
+  7: '🧙',
+  8: '🛶',
+  9: '🚢',
+  10: '👑',
 };
+
+const getWorldNumberIcon = (worldId: number) => WORLD_NUMBER_ICON[worldId] ?? '🔢';
 
 const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devModeEnabled: boolean) => {
   const base = profile.worldProgress[worldId] || {
@@ -1393,14 +1399,13 @@ export default function App() {
                               <div className="flex items-start justify-between gap-2.5 sm:gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
                                   <div className="h-11 w-11 shrink-0 rounded-xl border-2 border-white bg-white/90 shadow-md flex items-center justify-center text-2xl sm:h-14 sm:w-14 sm:rounded-2xl sm:border-4 sm:text-3xl">
-                                    {world.symbol}
+                                    <span aria-hidden="true">{getWorldNumberIcon(world.id)}</span>
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-sky-600 sm:text-[10px] sm:tracking-[0.18em]">
                                       {withOxIfSecond(world.id, `Tabellina del ${world.id}`)}
                                     </p>
                                     <h3 className="truncate text-sm font-black leading-tight sm:text-base" title={world.locationName}>{world.locationName}</h3>
-                                    <p className="truncate text-[11px] font-semibold text-sky-800/75 sm:text-xs" title={`Mascot: ${world.mascotName}`}>Mascot: {world.mascotName}</p>
                                   </div>
                                 </div>
 
@@ -1414,7 +1419,7 @@ export default function App() {
                                   }`}>
                                     {!isUnlocked ? '🔒 Bloccato' : isCompleted ? '✅ Completato' : '🧭 In corso'}
                                   </span>
-                                  {isUnlocked && <span className="text-xl sm:text-2xl" aria-hidden="true">{getWorldMascotBadge(world.id)}</span>}
+                                  {isUnlocked && <span className="text-xl sm:text-2xl" aria-hidden="true">{world.symbol}</span>}
                                 </div>
                               </div>
 

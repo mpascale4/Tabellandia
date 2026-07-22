@@ -14,7 +14,7 @@ import SurfaceCard from './layout/SurfaceCard';
 
 // ─── Emoji mnemoniche per cifra (sistema fonetico-semantico italiano) ─────────
 // Tecnica: ancoraggio fonetico sulla parola italiana del numero (Major System IT)
-// 1 🔱 Nettuno  → nett-UNO
+// 1 🕯️ Candela → forma verticale = 1
 // 2 🐂 Bue      → b-UE, rima con DUE
 // 3 👑 Re       → t-RE
 // 4 🐈 Gatto    → quatto → gatto (iconico per bambini)
@@ -25,7 +25,7 @@ import SurfaceCard from './layout/SurfaceCard';
 // 9 🚢 Nave     → n-OVE → nave
 
 const DIGIT_EMOJI: Record<number, string> = {
-  1: '🔱',
+  1: '🕯️',
   2: '🐂',
   3: '👑',
   4: '🐈',
@@ -37,7 +37,7 @@ const DIGIT_EMOJI: Record<number, string> = {
 };
 
 const DIGIT_WORD: Record<number, string> = {
-  1: 'nettuno',
+  1: 'candela',
   2: 'bue',
   3: 're',
   4: 'gatto',
@@ -46,6 +46,16 @@ const DIGIT_WORD: Record<number, string> = {
   7: 'nano',
   8: 'canotto',
   9: 'nave',
+};
+
+const RESULT_DIGIT_EMOJI: Record<number, string> = {
+  0: '⭕',
+  ...DIGIT_EMOJI,
+};
+
+const RESULT_DIGIT_WORD: Record<number, string> = {
+  0: 'zero',
+  ...DIGIT_WORD,
 };
 
 const TRAINING_WORLD_ICON: Record<number, string> = {
@@ -74,20 +84,26 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function buildResultMnemonic(answer: number): string {
+  if (answer < 10) {
+    return `${RESULT_DIGIT_EMOJI[answer]} ${RESULT_DIGIT_WORD[answer]}`;
+  }
+
+  const tens = Math.floor(answer / 10);
+  const units = answer % 10;
+  return `${RESULT_DIGIT_EMOJI[tens]} ${RESULT_DIGIT_WORD[tens]} e ${RESULT_DIGIT_EMOJI[units]} ${RESULT_DIGIT_WORD[units]}`;
+}
+
 function buildMnemonicPair(a: number, b: number, answer: number): string {
   const left = DIGIT_WORD[a] ?? `${a}`;
   const right = DIGIT_WORD[b] ?? `${b}`;
-  return `${left} + ${right} = ${answer}`;
+  return `${left} + ${right} = ${buildResultMnemonic(answer)}`;
 }
 
 function buildMnemonicPhrase(a: number, b: number, answer: number): string {
-  if ((a === 5 && b === 9) || (a === 9 && b === 5)) {
-    return `La mano sale sulla nave e fa ciao al ${answer}.`;
-  }
-
   const left = DIGIT_WORD[a] ?? `${a}`;
   const right = DIGIT_WORD[b] ?? `${b}`;
-  return `Il ${left} incontra il ${right} e insieme fanno ${answer}.`;
+  return `Quando il ${left} incontra il ${right}, compaiono ${buildResultMnemonic(answer)}: cosi il ${answer} resta in mente.`;
 }
 
 // ─── Tipi interni ─────────────────────────────────────────────────────────────

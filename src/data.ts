@@ -9,7 +9,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 2,
     name: "La Foresta del 2 🐂",
-    locationName: "Foresta di Smeraldo",
+    locationName: "Foresta del Bue",
     color: "from-emerald-500 to-green-600",
     accentColor: "border-emerald-400 text-emerald-600 bg-emerald-50",
     symbol: "🌲",
@@ -31,7 +31,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 3,
     name: "Il Lago del 3",
-    locationName: "Lago Zaffiro",
+    locationName: "Lago del Re",
     color: "from-sky-500 to-blue-600",
     accentColor: "border-sky-400 text-sky-600 bg-sky-50",
     symbol: "💧",
@@ -53,7 +53,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 4,
     name: "Le Montagne del 4",
-    locationName: "Vette dell'Ambra",
+    locationName: "Vette del Gatto",
     color: "from-amber-600 to-orange-700",
     accentColor: "border-amber-400 text-amber-700 bg-amber-50",
     symbol: "⛰️",
@@ -75,7 +75,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 5,
     name: "Le Caverne del 5",
-    locationName: "Grotte Luminescenti",
+    locationName: "Grotte della Mano",
     color: "from-yellow-500 to-amber-500",
     accentColor: "border-yellow-400 text-yellow-600 bg-yellow-50",
     symbol: "🍄",
@@ -97,7 +97,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 6,
     name: "Il Vulcano del 6",
-    locationName: "Cratere di Magma",
+    locationName: "Cratere della Chiocciola",
     color: "from-red-500 to-rose-600",
     accentColor: "border-red-400 text-red-600 bg-red-50",
     symbol: "🔥",
@@ -119,7 +119,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 7,
     name: "La Torre del 7",
-    locationName: "Guglia del Destino",
+    locationName: "Guglia del Nano",
     color: "from-purple-600 to-indigo-700",
     accentColor: "border-purple-400 text-purple-700 bg-purple-50",
     symbol: "🔑",
@@ -141,7 +141,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 8,
     name: "La Città Volante dell'8",
-    locationName: "Nuvola Ingranaggio",
+    locationName: "Nuvola del Canotto",
     color: "from-pink-500 to-rose-600",
     accentColor: "border-pink-400 text-pink-600 bg-pink-50",
     symbol: "⚙️",
@@ -163,7 +163,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 9,
     name: "Il Tempio del 9",
-    locationName: "Santuario delle Nuvole",
+    locationName: "Santuario della Nave",
     color: "from-teal-500 to-cyan-600",
     accentColor: "border-teal-400 text-teal-600 bg-teal-50",
     symbol: "🐢",
@@ -185,7 +185,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 10,
     name: "Il Castello del 10",
-    locationName: "Reggia d'Oro",
+    locationName: "Reggia della Corona",
     color: "from-yellow-600 to-amber-600 bg-gradient-to-r",
     accentColor: "border-yellow-500 text-yellow-700 bg-amber-50",
     symbol: "👑",
