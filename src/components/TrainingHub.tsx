@@ -117,7 +117,7 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
     <button
       type="button"
       onClick={() => onSelect(world.id)}
-      className={`training-home-card relative aspect-square rounded-2xl border-2 border-indigo-300 bg-indigo-100/70 shadow-sm
+      className={`training-home-card relative h-full min-h-[6.4rem] rounded-2xl border-2 border-indigo-300 bg-indigo-100/70 shadow-sm
                  hover:shadow-md active:scale-[0.98] transition-all cursor-pointer
                  focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                  flex flex-col items-center justify-center px-2 ${compactCard ? 'py-2 gap-1' : 'py-3 gap-1.5'}`}
@@ -400,10 +400,10 @@ function TrainingHome({
         role="list"
         aria-label="Lista tabelline disponibili"
         variant="compact"
-        className={`training-home-grid w-full h-full content-start auto-rows-fr ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(clamp(5.4rem,22vw,6.4rem),1fr))] gap-2' : 'grid-cols-[repeat(auto-fit,minmax(clamp(6.2rem,18vw,7.8rem),1fr))] gap-2.5'}`}
+        className={`training-home-grid w-full content-start auto-rows-[minmax(0,1fr)] ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(clamp(5.8rem,24vw,7rem),1fr))] gap-2' : 'grid-cols-[repeat(auto-fit,minmax(clamp(6.8rem,22vw,8.4rem),1fr))] gap-2.5'}`}
       >
         {WORLDS_DATA.map(world => (
-          <div key={world.id} role="listitem">
+          <div key={world.id} role="listitem" className="h-full min-h-0">
             <WorldCard
               world={world}
               stars={getStars(profile, world.id)}
