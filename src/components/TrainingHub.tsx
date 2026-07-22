@@ -171,7 +171,8 @@ function TrainingSession({
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onBack: () => void;
 }) {
-  const deckRef = useRef<Question[]>([]);
+  // Inizializza subito il deck per evitare un primo render vuoto.
+  const deckRef = useRef<Question[]>(buildQuestionDeck(world.id));
   const [deckIndex, setDeckIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
@@ -229,7 +230,16 @@ function TrainingSession({
   // Cleanup timeout on unmount
   useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
 
-  if (!currentQuestion) return null;
+  if (!currentQuestion) {
+    return (
+      <section
+        aria-live="polite"
+        className="min-h-[260px] w-full rounded-3xl border border-white/50 bg-white/40 backdrop-blur-sm shadow-md p-6 flex items-center justify-center text-center"
+      >
+        <p className="text-sm font-bold text-sky-900">Prepariamo la prossima domanda...</p>
+      </section>
+    );
+  }
 
   const { multiplier, worldId, answer, options } = currentQuestion;
   const digitEmojis = `${DIGIT_EMOJI[multiplier] ?? multiplier} × ${DIGIT_EMOJI[worldId] ?? worldId}`;
