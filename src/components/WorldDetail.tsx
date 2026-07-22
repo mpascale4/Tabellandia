@@ -1200,7 +1200,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           
       {/* Top action bar */}
       {showWorldTopBar && (
-        <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
+        <div className={`bg-white/30 backdrop-blur-md px-4 py-3 border-b border-white/40 flex items-center justify-between shadow-lg z-10 text-sky-950 flex-shrink-0 ${compactLayout ? 'gap-2' : ''}`}>
           <button
             onClick={() => {
               sound.playClick();
