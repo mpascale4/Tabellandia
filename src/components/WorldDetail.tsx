@@ -885,29 +885,32 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     <ul
       role="list"
       aria-label={`Lista moltiplicazioni ${stepKey}`}
-      className={`w-full h-full content-start grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.2rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(5.2rem,1fr))] gap-2.5'}`}
+      className={`w-full h-full content-start grid auto-rows-fr ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.2rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(5.2rem,1fr))] gap-2.5'}`}
     >
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
         return (
-          <li key={`${stepKey}-${factor}`}>
+          <li key={`${stepKey}-${factor}`} className="h-full">
             <button
               type="button"
               onClick={() => onSelect(factor)}
-              className={`w-full aspect-square rounded-2xl border-2 shadow-sm transition-all cursor-pointer
+              className={`relative w-full h-full min-h-[4.8rem] rounded-2xl border-2 shadow-sm transition-all cursor-pointer
                           focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                           flex flex-col items-center justify-center ${compactLayout ? 'py-1 gap-0.5' : 'py-2 gap-1'}
                           ${isCompleted ? theme.done : theme.todo}`}
               aria-label={`${world.id} per ${factor}${isCompleted ? ', completata' : ', da completare'}`}
             >
+              {isCompleted && (
+                <span
+                  className={`absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-white text-[10px] font-black shadow-sm ${theme.accent}`}
+                  aria-hidden="true"
+                >
+                  ✓
+                </span>
+              )}
               <span className={`${compactLayout ? 'text-sm' : 'text-base'} font-black font-mono leading-none`}>
                 {world.id}×{factor}
               </span>
-               {isCompleted && (
-                 <span className={`text-[10px] font-bold uppercase tracking-wide ${theme.accent}`}>
-                   ✓ fatto
-                 </span>
-               )}
             </button>
           </li>
         );
@@ -934,8 +937,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     onHelp: () => void;
     theme: StepSelectionTheme;
   }) => (
-    <div className="max-w-4xl mx-auto w-full">
-      <SurfaceCard padding="lg" className={`shadow-lg border-2 ${theme.panel}`}>
+    <div className="max-w-4xl mx-auto w-full h-full">
+      <SurfaceCard padding="lg" className={`h-full shadow-lg border-2 ${theme.panel}`}>
         <div className="flex items-center justify-center gap-2 mb-4">
           <span className={`text-xs font-bold px-3 py-1 rounded-full font-sans ${theme.badge}`}>
             {badge}
@@ -953,7 +956,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         <SectionHeader centered title={title} description={description} />
 
-        <div className="mt-6">
+        <div className="mt-6 h-full">
           {renderStepFactorGrid({
             stepKey,
             completed,
@@ -1349,10 +1352,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep !== 'comprendo' && activeStep !== 'salto' && activeStep !== 'costruisco' && activeStep !== 'trucchi' && activeStep !== 'pratico' && activeStep !== 'sfida' && (
           <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-start p-4 md:p-6">
             {/* Steps & Monuments Columns */}
-            <div className={`grid grid-cols-1 gap-6 ${compactLayout ? '' : 'md:grid-cols-2'}`}>
+            <div className={`flex-1 grid grid-cols-1 gap-6 ${compactLayout ? '' : 'md:grid-cols-2'} items-stretch`}>
               
               {/* Left Side: Sub-game stages */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="h-full grid grid-cols-2 auto-rows-fr gap-2">
                 <div className="col-span-2">
                   <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider mb-2 flex items-center gap-1.5 justify-between">
                     <div className="flex items-center gap-1.5">
@@ -1398,7 +1401,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         else if (step.id === 'pratico') { startQuizMode(); }
                         else if (step.id === 'sfida') { startSfidaMode(); }
                       }}
-                      className={`relative p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer gap-1 ${
+                      className={`relative h-full min-h-[5.8rem] p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer gap-1 ${
                         isLocked
                           ? 'opacity-45 bg-gray-50 border-gray-200 cursor-not-allowed'
                           : isDone
@@ -1407,10 +1410,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       }`}
                       id={`step-btn-${step.id}`}
                     >
-                      {!isLocked && isDone && (
-                        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-[10px] font-black flex items-center justify-center shadow-md border border-slate-200">
-                          ✅
-                        </div>
+                      {(isLocked || isDone) && (
+                        <span
+                          className={`absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border bg-white text-[10px] font-black shadow-md ${isLocked ? 'border-slate-300 text-slate-600' : 'border-slate-200 text-emerald-600'}`}
+                          aria-hidden="true"
+                        >
+                          {isLocked ? '🔒' : '✓'}
+                        </span>
                       )}
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg select-none flex-shrink-0 ${
                         isLocked ? 'bg-slate-100' : isDone ? 'bg-emerald-100/50' : 'bg-indigo-50'
