@@ -891,9 +891,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <span className={`${compactLayout ? 'text-sm' : 'text-base'} font-black font-mono leading-none`}>
                 {world.id}×{factor}
               </span>
-              <span className={`text-[10px] font-bold uppercase tracking-wide ${theme.accent}`}>
-                {isCompleted ? 'fatto' : 'vai'}
-              </span>
+               <span className={`text-[10px] font-bold uppercase tracking-wide ${theme.accent}`}>
+                 {isCompleted ? '✓ fatto' : '→ vai'}
+               </span>
             </button>
           </li>
         );
