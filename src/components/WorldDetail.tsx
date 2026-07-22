@@ -1355,23 +1355,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <div className={`flex-1 grid grid-cols-1 gap-6 ${compactLayout ? '' : 'md:grid-cols-2'} items-stretch`}>
 
               {/* Left Side: Sub-game stages */}
-              <div className="h-full min-h-0 grid grid-cols-[repeat(auto-fit,minmax(clamp(8.4rem,24vw,11rem),1fr))] auto-rows-fr gap-2">
-                <div className="col-span-full">
-                  <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider mb-2 flex items-center gap-1.5 justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Compass className="w-4 h-4 text-indigo-600" />
-                      Sentiero di Apprendimento
-                    </div>
-                    <button
-                      onClick={() => pushView('world-story')}
-                      className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 flex items-center justify-center cursor-pointer font-bold text-sm"
-                      title="Apri storia e filastrocca"
-                    >
-                      i
-                    </button>
-                  </h3>
-                </div>
+              <div className="flex h-full min-h-0 flex-col gap-2">
+                {/* Header fuori dalla griglia */}
+                <h3 className="shrink-0 text-sm font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5 justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Compass className="w-4 h-4 text-indigo-600" />
+                    Sentiero di Apprendimento
+                  </div>
+                  <button
+                    onClick={() => pushView('world-story')}
+                    className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 flex items-center justify-center cursor-pointer font-bold text-sm"
+                    title="Apri storia e filastrocca"
+                    aria-label="Apri storia e filastrocca"
+                  >
+                    i
+                  </button>
+                </h3>
 
+                {/* Griglia card — solo step, niente header dentro */}
+                <div className="flex-1 min-h-0 grid grid-cols-[repeat(auto-fit,minmax(clamp(8.4rem,24vw,11rem),1fr))] auto-rows-fr gap-2">
                 {[
                   { id: 'comprendo', title: '1. Comprendo', desc: 'Rappresentazione visuale e concettuale dei gruppi.', icon: '🍎', coins: 20, drops: 0 },
                   { id: 'salto', title: '2. Salto', desc: 'Salto e conteggio ritmico lungo il ruscello.', icon: '🐸', coins: 20, drops: 0 },
@@ -1437,7 +1439,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </button>
                   );
                 })}
-              </div>
+                </div>{/* fine griglia card */}
+              </div>{/* fine flex wrapper */}
             </div>
           </div>
         )}
