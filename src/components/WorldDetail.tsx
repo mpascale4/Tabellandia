@@ -1401,7 +1401,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         else if (step.id === 'pratico') { startQuizMode(); }
                         else if (step.id === 'sfida') { startSfidaMode(); }
                       }}
-                      className={`relative h-full min-h-[6.6rem] sm:min-h-[7rem] p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer gap-1 ${
+                      className={`relative h-full min-h-[6.8rem] sm:min-h-[7.2rem] p-2 sm:p-2.5 rounded-xl border flex flex-col items-stretch justify-between transition-all cursor-pointer ${
                         isLocked
                           ? 'opacity-45 bg-gray-50 border-gray-200 cursor-not-allowed'
                           : isDone
@@ -1418,18 +1418,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           {isLocked ? '🔒' : '✓'}
                         </span>
                       )}
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xl select-none flex-shrink-0 sm:w-10 sm:h-10 ${
-                        isLocked ? 'bg-slate-100' : isDone ? 'bg-emerald-100/50' : 'bg-indigo-50'
-                      }`}>
-                        {isLocked ? '🔒' : step.icon}
-                      </div>
-                      <div className="text-center flex-1">
-                        <h4 className={`text-[11px] sm:text-xs font-bold font-sans leading-tight ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
+                      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5">
+                        <div className={`h-[clamp(2.2rem,4.8vw,2.8rem)] w-[clamp(2.2rem,4.8vw,2.8rem)] rounded-lg flex items-center justify-center text-[clamp(1.15rem,2.8vw,1.55rem)] select-none flex-shrink-0 ${
+                          isLocked ? 'bg-slate-100' : isDone ? 'bg-emerald-100/50' : 'bg-indigo-50'
+                        }`}>
+                          {isLocked ? '🔒' : step.icon}
+                        </div>
+                        <h4 className={`text-center text-[clamp(0.74rem,1.9vw,0.9rem)] font-bold font-sans leading-tight ${isDone ? 'text-emerald-900' : 'text-slate-700'}`}>
                           {step.title.split('.')[1]}
                         </h4>
                       </div>
                       {!isLocked && (
-                        <div className="max-w-full text-[9px] sm:text-[10px] font-bold text-amber-700 flex items-center gap-0.5 sm:gap-1 whitespace-nowrap">
+                        <div className="max-w-full pt-1 text-[clamp(0.58rem,1.6vw,0.75rem)] font-bold text-amber-700 flex items-center justify-center gap-1 whitespace-nowrap">
                           {step.coins > 0 && <span>🪙 {step.coins}</span>}
                           {step.drops > 0 && <span>💧 {step.drops}</span>}
                         </div>
