@@ -882,7 +882,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     onSelect: (factor: number) => void;
     theme: StepFactorGridTheme;
   }) => (
-    <ul
+    <div
       role="list"
       aria-label={`Lista moltiplicazioni ${stepKey}`}
       className={`w-full h-full grid auto-rows-fr grid-cols-[repeat(auto-fit,minmax(clamp(4.4rem,18vw,6.2rem),1fr))] ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
@@ -890,7 +890,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
         return (
-          <li key={`${stepKey}-${factor}`} className="h-full min-h-0">
+          <div key={`${stepKey}-${factor}`} role="listitem" className="h-full min-h-0">
             <button
               type="button"
               onClick={() => onSelect(factor)}
@@ -912,10 +912,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 {world.id}×{factor}
               </span>
             </button>
-          </li>
+          </div>
         );
       })}
-    </ul>
+    </div>
   );
 
   const renderStepSelectionScreen = ({
