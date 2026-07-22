@@ -316,7 +316,7 @@ function TrainingSession({
         </p>
 
         {/* Equazione numerica */}
-        <p className="text-lg font-black text-sky-800/70 font-mono leading-none">
+        <p className="text-2xl sm:text-3xl font-black text-sky-800/80 font-mono leading-none tracking-wide">
           {multiplier} × {worldId} = ?
         </p>
 
