@@ -35,6 +35,18 @@ const DIGIT_EMOJI: Record<number, string> = {
   9: '🚢',
 };
 
+const TRAINING_WORLD_ICON: Record<number, string> = {
+  2: '🦊',
+  3: '🦕',
+  4: '🦉',
+  5: '🦖',
+  6: '🦁',
+  7: '🦁',
+  8: '🦁',
+  9: '🦁',
+  10: '🦁',
+};
+
 const MOTIVATIONAL_CORRECT = [
   'Fantastico! 🎉', 'Bravo/a! 🌟', 'Perfetto! ✨', 'Esatto! 🏆',
   'Ottimo lavoro! 💪', 'Sei fortissimo/a! 🚀', 'Continua così! 🌈',
@@ -111,6 +123,7 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
   world: WorldConfig; stars: number; onSelect: (id: number) => void; compactLayout?: boolean;
 }) {
   const isTrained = stars > 0;
+  const worldIcon = TRAINING_WORLD_ICON[world.id] ?? '🦁';
   return (
     <button
       type="button"
@@ -129,7 +142,8 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
           ✓
         </span>
       )}
-      <span className={`${compactLayout ? 'text-sm' : 'text-base'} font-black font-mono text-indigo-800 leading-none`}>×{world.id}</span>
+      <span className={`training-card-icon ${compactLayout ? 'text-lg' : 'text-xl'} leading-none`} aria-hidden="true">{worldIcon}</span>
+      <span className={`training-card-mul ${compactLayout ? 'text-base' : 'text-lg'} font-black font-mono text-indigo-800 leading-none`}>×{world.id}</span>
     </button>
   );
 }
