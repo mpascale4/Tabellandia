@@ -132,11 +132,11 @@ export default function App() {
   });
   const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
   const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
-  // Auto-hide header
+  // Header overlay behavior
   const [isHeaderVisible, setIsHeaderVisible] = useState<boolean>(true);
   const [isHeaderPinned, setIsHeaderPinned] = useState<boolean>(() => localStorage.getItem(HEADER_PINNED_KEY) === 'true');
-  const headerHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isHeaderPinnedRef = useRef(isHeaderPinned);
+  const isHeaderPinnedRef = useRef<boolean>(isHeaderPinned);
+  const headerRef = useRef<HTMLElement | null>(null);
   const devTapCountRef = useRef<number>(0);
   const devTapResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -254,26 +254,26 @@ export default function App() {
     localStorage.setItem(HEADER_PINNED_KEY, String(isHeaderPinned));
     if (isHeaderPinned) {
       setIsHeaderVisible(true);
-      if (headerHideTimerRef.current) clearTimeout(headerHideTimerRef.current);
     }
   }, [isHeaderPinned]);
 
-  // Avvia il timer auto-hide al mount
+  // Chiudi l'header quando si clicca/tocca fuori da esso.
   useEffect(() => {
-    if (!isHeaderPinnedRef.current) {
-      headerHideTimerRef.current = setTimeout(() => setIsHeaderVisible(false), 5000);
-    }
-    return () => { if (headerHideTimerRef.current) clearTimeout(headerHideTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (isHeaderPinnedRef.current || !isHeaderVisible) return;
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (headerRef.current?.contains(target)) return;
+      setIsHeaderVisible(false);
+    };
 
-  /** Mostra l'header e riprogramma l'auto-hide (5 s). No-op se pinnato. */
+    document.addEventListener('pointerdown', handleOutsidePointerDown);
+    return () => document.removeEventListener('pointerdown', handleOutsidePointerDown);
+  }, [isHeaderVisible]);
+
+  /** Mostra l'header overlay. */
   const showHeaderAndReset = () => {
     setIsHeaderVisible(true);
-    if (headerHideTimerRef.current) clearTimeout(headerHideTimerRef.current);
-    if (!isHeaderPinnedRef.current) {
-      headerHideTimerRef.current = setTimeout(() => setIsHeaderVisible(false), 5000);
-    }
   };
 
   const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
@@ -945,11 +945,13 @@ export default function App() {
         {/* ── Auto-hide header (absolute, slides out on inactivity) ─────────── */}
         <header
           id="app-header"
+          ref={headerRef}
           className={`absolute top-0 left-0 right-0 z-40 bg-white/30 backdrop-blur-md border-b border-white/40 shadow-lg text-sky-950 px-${isPhoneMode ? '2' : '6'} py-${isPhoneMode ? '2' : '4'}
             transition-transform duration-300 ease-in-out motion-reduce:transition-none
             ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}`}
           onMouseEnter={showHeaderAndReset}
           onPointerDown={showHeaderAndReset}
+          onMouseLeave={() => { if (!isHeaderPinnedRef.current) setIsHeaderVisible(false); }}
           aria-hidden={!isHeaderVisible}
         >
           <div className={`w-full flex items-center ${isPhoneMode ? 'gap-1.5' : 'gap-3'} bg-white/40 backdrop-blur-sm ${isPhoneMode ? 'px-3 py-2' : 'px-5 py-2.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap`}>
@@ -1021,7 +1023,7 @@ export default function App() {
                 type="button"
                 onClick={(e) => { e.stopPropagation(); sound.playClick(); setIsHeaderPinned(prev => !prev); }}
                 className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${isHeaderPinned ? 'bg-sky-200 border-sky-400 text-sky-700' : 'bg-white/70 border-slate-200 text-slate-400 hover:bg-white/90'}`}
-                aria-label={isHeaderPinned ? 'Sblocca barra (auto-nasconde)' : 'Blocca barra sempre visibile'}
+                aria-label={isHeaderPinned ? 'Sblocca barra (chiude fuori click o uscita mouse)' : 'Blocca barra sempre visibile'}
                 aria-pressed={isHeaderPinned}
               >
                 <span className={isPhoneMode ? 'text-[9px]' : 'text-[11px]'} aria-hidden="true">{isHeaderPinned ? '📌' : '📍'}</span>
