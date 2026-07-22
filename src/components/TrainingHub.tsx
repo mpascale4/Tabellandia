@@ -7,6 +7,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, WorldConfig } from '../types';
 import { WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
+import ActionGrid from './layout/ActionGrid';
+import ResponsiveGrid from './layout/ResponsiveGrid';
+import SectionHeader from './layout/SectionHeader';
+import SurfaceCard from './layout/SurfaceCard';
 
 // ─── Emoji mnemoniche per cifra (sistema fonetico-semantico italiano) ─────────
 // Tecnica: ancoraggio fonetico sulla parola italiana del numero (Major System IT)
@@ -237,12 +241,14 @@ function TrainingSession({
 
   if (!currentQuestion) {
     return (
-      <section
+      <SurfaceCard
         aria-live="polite"
-        className="min-h-[260px] w-full rounded-3xl border border-white/50 bg-white/40 backdrop-blur-sm shadow-md p-6 flex items-center justify-center text-center"
+        tone="soft"
+        padding="lg"
+        className="min-h-[260px] w-full flex items-center justify-center text-center"
       >
         <p className="text-sm font-bold text-sky-900">Prepariamo la prossima domanda...</p>
-      </section>
+      </SurfaceCard>
     );
   }
 
@@ -277,9 +283,11 @@ function TrainingSession({
       </div>
 
       {/* Domanda */}
-      <section
+      <SurfaceCard
         aria-labelledby="question-label"
-        className="bg-white/50 backdrop-blur-sm rounded-3xl border border-white/50 shadow-md p-6 flex flex-col items-center gap-3"
+        tone="soft"
+        padding="lg"
+        className="flex flex-col items-center gap-3"
       >
         {/* Titolo tabellina */}
         <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest font-sans">
@@ -300,13 +308,13 @@ function TrainingSession({
         <div className="mt-1 p-3 bg-white/50 rounded-2xl border border-white/40">
           <EmojiGrid rows={gridRows} cols={gridCols} emoji={world.itemsToCount} />
         </div>
-      </section>
+      </SurfaceCard>
 
       {/* Opzioni */}
-      <div
+      <ActionGrid
         role="group"
         aria-label="Scegli la risposta"
-        className="grid grid-cols-2 gap-3"
+        columns={2}
       >
         {options.map((opt, i) => {
           const isFeedbackOpt = feedback?.optionIndex === i;
@@ -338,7 +346,7 @@ function TrainingSession({
             </button>
           );
         })}
-      </div>
+      </ActionGrid>
 
       {/* Feedback motivazionale */}
       {feedback && (
@@ -371,34 +379,31 @@ function TrainingHome({
 }) {
   return (
     <div className={`training-home w-full h-full ${compactLayout ? 'training-home--compact space-y-3' : 'space-y-5'}`}>
-      <div className={`training-home-head bg-white/40 backdrop-blur-sm rounded-3xl border border-white/40 shadow-sm ${compactLayout ? 'p-3' : 'p-4 md:p-5'} ${compactLayout ? 'space-y-0.5' : 'space-y-1'}`}>
-        <span className="inline-block text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-sans">
-          Allenamento libero
-        </span>
-        <h2 className={`${compactLayout ? 'text-lg' : 'text-xl'} font-black text-sky-950 font-sans`}>
-          Quale tabellina vuoi allenare?
-        </h2>
-        <p className={`${compactLayout ? 'text-[11px]' : 'text-xs'} text-sky-900/75 font-medium leading-relaxed`}>
-          Tutte le tabelline sono disponibili. Scegli quella che vuoi esercitare!
-        </p>
-      </div>
+      <SurfaceCard tone="soft" padding={compactLayout ? 'sm' : 'md'} className="training-home-head">
+        <SectionHeader
+          eyebrow="Allenamento libero"
+          title="Quale tabellina vuoi allenare?"
+          description="Tutte le tabelline sono disponibili. Scegli quella che vuoi esercitare!"
+        />
+      </SurfaceCard>
 
-      <ul
+      <ResponsiveGrid
         role="list"
         aria-label="Lista tabelline disponibili"
-        className={`training-home-grid w-full h-full content-start grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.1rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2.5'}`}
+        variant="compact"
+        className={`training-home-grid w-full h-full content-start auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.1rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2.5'}`}
       >
         {WORLDS_DATA.map(world => (
-          <li key={world.id}>
+          <div key={world.id} role="listitem">
             <WorldCard
               world={world}
               stars={getStars(profile, world.id)}
               onSelect={onSelect}
               compactLayout={compactLayout}
             />
-          </li>
+          </div>
         ))}
-      </ul>
+      </ResponsiveGrid>
     </div>
   );
 }

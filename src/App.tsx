@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile, WorldProgress } from './types';
+import { UserProfile } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
 import { sound } from './components/SoundManager';
 import ParentDashboard from './components/ParentDashboard';
@@ -15,7 +15,11 @@ import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
 import RewardsTutorial from './components/RewardsTutorial';
 import NumericKeypad from './components/NumericKeypad';
-import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, Smartphone, RefreshCw, Zap, Music2, X, Coins, Droplets, ChevronDown, ChevronUp } from 'lucide-react';
+import ActionGrid from './components/layout/ActionGrid';
+import ResponsiveGrid from './components/layout/ResponsiveGrid';
+import SectionHeader from './components/layout/SectionHeader';
+import SurfaceCard from './components/layout/SurfaceCard';
+import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Coins, Droplets } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
@@ -36,6 +40,39 @@ type ProfileStore = {
 
 const CURRENT_YEAR = new Date().getFullYear();
 const ALL_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'];
+const PROFILE_AVATAR_SECTIONS = [
+  { id: 'boy', label: 'Bambini' },
+  { id: 'girl', label: 'Bambine' },
+  { id: 'pet', label: 'Animali' },
+] as const;
+const APP_SIDEBAR_TABS = [
+  { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
+  { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
+  { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' },
+] as const;
+
+const getWorldMascotBadge = (worldId: number) => {
+  if (worldId === 2) return '🦊';
+  if (worldId === 3) return '🦕';
+  if (worldId === 4) return '🦉';
+  if (worldId === 5) return '🦖';
+  return '🦁';
+};
+
+const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devModeEnabled: boolean) => {
+  const base = profile.worldProgress[worldId] || {
+    worldId,
+    completedSteps: [],
+    rebuiltMonuments: [],
+    creatureEvolution: 'egg',
+    highScore: 0,
+    stars: 0,
+  };
+
+  return devModeEnabled
+    ? { ...base, completedSteps: [...ALL_STEP_IDS] }
+    : base;
+};
 
 const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   name: "Eroe",
@@ -52,12 +89,6 @@ const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
     2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], creatureEvolution: 'egg', highScore: 0, stars: 0 }
   },
   history: []
-};
-
-const DEFAULT_PROFILE: ProfileRecord = {
-  ...BASE_PROFILE,
-  id: "default-profile",
-  birthYear: null
 };
 
 const createProfileId = () => {
@@ -154,8 +185,6 @@ export default function App() {
   const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
   const [devModeNotice, setDevModeNotice] = useState<string>("");
 
-  // Carousel State
-  const [currentWorldIdx, setCurrentWorldIdx] = useState<number>(0);
   const [pinError, setPinError] = useState<string>("");
   const [showChangePINForm, setShowChangePINForm] = useState<boolean>(false);
   const [newPINInput, setNewPINInput] = useState<string>("");
@@ -300,11 +329,10 @@ export default function App() {
     setProfiles(prev => {
       const next = prev.map(p => {
         if (p.id !== activeProfileId) return p;
-        const updated = normalizeProfile({
+        return normalizeProfile({
           ...p,
           ...updater(p)
         }, p.id);
-        return updated;
       });
       persistProfileStore(next, activeProfileId);
       return next;
@@ -327,11 +355,6 @@ export default function App() {
     const nextState = !effectsEnabled;
     setEffectsEnabled(nextState);
     sound.setEffectsEnabled(nextState);
-  };
-
-  const handleStartWizard = () => {
-    sound.playPowerUp();
-    setWizardStep(1);
   };
 
   const handleCreateHero = (e: React.FormEvent) => {
@@ -668,16 +691,18 @@ export default function App() {
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-3xl p-4 sm:p-6 md:p-8 max-w-4xl w-full shadow-2xl relative z-10 border-2 border-indigo-200 max-h-[90vh] overflow-hidden flex flex-col"
+          className="max-w-4xl w-full relative z-10 max-h-[90vh]"
         >
-          <div className="text-center space-y-2 sm:space-y-3 mb-4 sm:mb-6">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-indigo-950 tracking-wide font-sans">Chi entra a Tabellandia?</h1>
-            <p className="text-[11px] sm:text-xs md:text-sm text-slate-500 leading-relaxed max-w-2xl mx-auto font-sans">
-              Scegli un profilo esistente oppure creane uno nuovo. Ogni profilo conserva progressi, monete, gocce e dettagli di crescita.
-            </p>
-          </div>
+          <SurfaceCard padding="lg" className="border-2 border-indigo-200 shadow-2xl h-full max-h-[90vh] overflow-hidden flex flex-col">
+            <SectionHeader
+              centered
+              eyebrow="Selezione profilo"
+              title="Chi entra a Tabellandia?"
+              description="Scegli un profilo esistente oppure creane uno nuovo. Ogni profilo conserva progressi, monete, gocce e dettagli di crescita."
+              className="mb-4 sm:mb-6"
+            />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pr-1 flex-1">
+            <ResponsiveGrid variant="cards" className="overflow-y-auto pr-1 flex-1 items-stretch">
             {profiles.map(p => {
               const age = p.birthYear ? CURRENT_YEAR - p.birthYear : null;
               const isActive = activeProfileId === p.id;
@@ -685,7 +710,7 @@ export default function App() {
                 <button
                   key={p.id}
                   onClick={() => handleSelectProfile(p.id)}
-                  className={`text-left rounded-3xl border-2 p-4 shadow-sm transition-all cursor-pointer hover:shadow-md ${
+                  className={`text-left rounded-3xl border-2 p-4 shadow-sm transition-all cursor-pointer hover:shadow-md focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
                     isActive ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'
                   }`}
                   id={`profile-card-${p.id}`}
@@ -711,14 +736,15 @@ export default function App() {
 
             <button
               onClick={handleStartProfileCreation}
-              className="rounded-3xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 text-center shadow-sm hover:bg-indigo-50 hover:shadow-md cursor-pointer transition-colors flex flex-col items-center justify-center min-h-[120px]"
+              className="rounded-3xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 text-center shadow-sm hover:bg-indigo-50 hover:shadow-md cursor-pointer transition-colors flex flex-col items-center justify-center min-h-[120px] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
               id="profile-create-btn"
             >
               <span className="text-4xl">➕</span>
               <span className="mt-2 text-sm font-black text-indigo-950">Crea nuovo profilo</span>
               <span className="text-[11px] text-slate-500 mt-1">Scegli base avatar e anno di nascita</span>
             </button>
-          </div>
+            </ResponsiveGrid>
+          </SurfaceCard>
         </motion.div>
       </div>
     );
@@ -734,15 +760,18 @@ export default function App() {
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-3xl p-4 sm:p-6 md:p-8 max-w-lg w-full shadow-2xl relative z-10 flex flex-col justify-between min-h-[400px] border-2 border-indigo-200"
+          className="max-w-3xl w-full relative z-10"
         >
+          <SurfaceCard padding="lg" className="border-2 border-indigo-200 shadow-2xl min-h-[400px]">
           {wizardStep === 1 && (
             <div className="space-y-5 flex-1 flex flex-col justify-center">
-              <div className="text-center">
-                <div className="text-4xl mb-2">🎒🛡️</div>
-                <h2 className="text-lg font-bold text-slate-800">Crea il profilo</h2>
-                <p className="text-xs text-slate-400 mt-1">Scegli nome, anno di nascita e base avatar.</p>
-              </div>
+              <SectionHeader
+                centered
+                eyebrow="Nuovo profilo"
+                title="Crea il profilo"
+                description="Scegli nome, anno di nascita e base avatar."
+                icon={<span className="text-4xl" aria-hidden="true">🎒🛡️</span>}
+              />
 
               <form onSubmit={handleCreateHero} className="space-y-4">
                 <input
@@ -778,72 +807,31 @@ export default function App() {
                 <div>
                   <span className="block text-xs font-bold text-slate-700 mb-3 uppercase tracking-wide">Scegli il tuo avatar</span>
                   <div className="space-y-3">
-                    {/* Bambini */}
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Bambini</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {AVATARS.filter(a => a.category === 'boy').map(avatar => (
-                          <button
-                            key={avatar.id}
-                            type="button"
-                            onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
-                            className={`p-3 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                              newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                            }`}
-                            id={`setup-avatar-${avatar.id}`}
-                          >
-                            <span className="text-2xl">{avatar.emoji}</span>
-                            <span className="line-clamp-1">{avatar.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bambine */}
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Bambine</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {AVATARS.filter(a => a.category === 'girl').map(avatar => (
-                          <button
-                            key={avatar.id}
-                            type="button"
-                            onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
-                            className={`p-3 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                              newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                            }`}
-                            id={`setup-avatar-${avatar.id}`}
-                          >
-                            <span className="text-2xl">{avatar.emoji}</span>
-                            <span className="line-clamp-1">{avatar.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Animali */}
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">Animali</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {AVATARS.filter(a => a.category === 'pet').map(avatar => (
-                          <button
-                            key={avatar.id}
-                            type="button"
-                            onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
-                            className={`p-3 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                              newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                            }`}
-                            id={`setup-avatar-${avatar.id}`}
-                          >
-                            <span className="text-2xl">{avatar.emoji}</span>
-                            <span className="line-clamp-1">{avatar.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    {PROFILE_AVATAR_SECTIONS.map(section => (
+                      <SurfaceCard key={section.id} padding="sm" className="rounded-2xl border-slate-200">
+                        <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">{section.label}</p>
+                        <ResponsiveGrid variant="compact" className="grid-cols-2 sm:grid-cols-4">
+                          {AVATARS.filter(a => a.category === section.id).map(avatar => (
+                            <button
+                              key={avatar.id}
+                              type="button"
+                              onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
+                              className={`p-3 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+                                newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                              }`}
+                              id={`setup-avatar-${avatar.id}`}
+                            >
+                              <span className="text-2xl">{avatar.emoji}</span>
+                              <span className="line-clamp-1">{avatar.name}</span>
+                            </button>
+                          ))}
+                        </ResponsiveGrid>
+                      </SurfaceCard>
+                    ))}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <ActionGrid columns={2}>
                   <button
                     type="button"
                     onClick={handleCancelProfileCreation}
@@ -859,18 +847,20 @@ export default function App() {
                   >
                     Registra Eroe
                   </button>
-                </div>
+                </ActionGrid>
               </form>
             </div>
           )}
 
           {wizardStep === 2 && (
             <div className="text-center space-y-6 flex-1 flex flex-col justify-center">
-              <div className="text-6xl animate-pulse">🌟✨🐉</div>
-              <h2 className="text-xl font-bold text-emerald-600 font-sans">Sei Pronto, {draftProfile?.name || heroNameInput || 'Eroe'}!</h2>
-              <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto font-sans">
-                La foresta del 2 ti sta aspettando. Il tuo anno di nascita ci aiuterà a proporre contenuti più adatti in futuro.
-              </p>
+              <SectionHeader
+                centered
+                eyebrow="Profilo creato"
+                title={`Sei pronto, ${draftProfile?.name || heroNameInput || 'Eroe'}!`}
+                description="La foresta del 2 ti sta aspettando. Il tuo anno di nascita ci aiuterà a proporre contenuti più adatti in futuro."
+                icon={<span className="text-6xl animate-pulse" aria-hidden="true">🌟✨🐉</span>}
+              />
               <button
                 onClick={handleFinishWizard}
                 className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
@@ -880,6 +870,7 @@ export default function App() {
               </button>
             </div>
           )}
+          </SurfaceCard>
         </motion.div>
       </div>
     );
@@ -1290,11 +1281,7 @@ export default function App() {
           {/* Left Sidebar Navigation (Kid-Friendly Rail) */}
           {selectedWorldId === null && !isPhoneMode && (
             <div className="w-24 bg-white/20 backdrop-blur-md rounded-[32px] border-4 border-white/40 flex flex-col items-center py-8 gap-8 shadow-2xl z-20 m-4 md:flex hidden">
-              {[
-               { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
-               { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
-               { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' }
-              ].map(tab => {
+              {APP_SIDEBAR_TABS.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
                   <button
@@ -1359,169 +1346,113 @@ export default function App() {
                   {/* TAB 1: AVVENTURA (Main map with levels) */}
                   {activeTab === 'adventure' && (
                     <div className="space-y-6">
-                      <div className={`text-center ${isPhoneMode ? '' : 'md:text-left'} bg-white/40 backdrop-blur-sm p-4 rounded-3xl border border-white/40 shadow-sm max-w-xl`}>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-sky-800 bg-sky-200/50 px-3 py-1 rounded-full font-sans">
-                          Modalità Avventura (Percorso Guidato)
-                        </span>
-                        <h2 className="text-xl md:text-2xl font-black text-sky-950 mt-2 font-sans">
-                          Mappa di Tabellandia
-                        </h2>
-                        <p className="text-xs text-sky-900/80 mt-1 font-medium leading-relaxed">
-                          Sconfiggi la tempesta di nebbia superando le terre una ad una. Sblocca il livello successivo completando gli esercizi del precedente.
-                        </p>
-                      </div>
+                      <SurfaceCard tone="soft" padding={isPhoneMode ? 'sm' : 'md'} className={`text-center ${isPhoneMode ? '' : 'md:text-left'}`}>
+                        <SectionHeader
+                          eyebrow="Modalità Avventura"
+                          title="Mappa di Tabellandia"
+                          description="Sconfiggi la tempesta di nebbia superando le terre una ad una. Sblocca il livello successivo completando gli esercizi del precedente."
+                        />
+                        <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold text-sky-900/80">
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">✅ Completato</span>
+                          <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">🧭 In corso</span>
+                          <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-700">🔒 Bloccato</span>
+                        </div>
+                      </SurfaceCard>
 
-                      {/* Map staggered layout of 9 worlds styled as a beautiful 3D-feeling interactive island grid */}
-                      <div className="w-full relative flex items-center justify-center gap-6">
-                        {/* Left Arrow - Fixed Width */}
-                        <button
-                          onClick={() => setCurrentWorldIdx((currentWorldIdx - 1 + WORLDS_DATA.length) % WORLDS_DATA.length)}
-                          className="w-10 h-10 flex items-center justify-center p-2 hover:bg-sky-200/30 rounded-full transition-colors cursor-pointer flex-shrink-0"
-                          aria-label="Mondo precedente"
-                        >
-                          <svg className="w-6 h-6 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
+                      <ResponsiveGrid variant="cards" className="items-stretch">
+                        {WORLDS_DATA.map(world => {
+                          const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
+                          const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
+                          const stepsCount = worldProg.completedSteps.length;
+                          const rebuiltCount = worldProg.rebuiltMonuments.length;
+                          const isCompleted = stepsCount === ALL_STEP_IDS.length;
+                          const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'In corso';
 
-                        {/* Current World - Fixed Width Container */}
-                        <div className="flex flex-col items-center gap-4 w-64 flex-shrink-0">
-                          {(() => {
-                            const world = WORLDS_DATA[currentWorldIdx];
-                            const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
-                            const worldProgBase = profile.worldProgress[world.id] || {
-                              worldId: world.id,
-                              completedSteps: [],
-                              rebuiltMonuments: [],
-                              creatureEvolution: 'egg',
-                              highScore: 0,
-                              stars: 0
-                            };
-                            const worldProg = devModeEnabled
-                              ? { ...worldProgBase, completedSteps: [...ALL_STEP_IDS] }
-                              : worldProgBase;
-                            
-                            const stepsCount = worldProg.completedSteps.length;
-                            const rebuiltCount = worldProg.rebuiltMonuments.length;
-                            const isCompleted = stepsCount === 6;
-                            const isActive = isUnlocked && !isCompleted;
-
-                            return (
-                              <>
-                                {/* Main Island shape mimicking hand-drawn platforms from the design */}
-                                <div 
-                                  onClick={() => {
-                                    if (isUnlocked) {
-                                      sound.playPowerUp();
-                                      setSelectedWorldId(world.id);
-                                    }
-                                  }}
-                                  className={`w-44 h-44 rounded-[48px] flex flex-col items-center justify-center relative cursor-pointer border-b-8 border-r-8 transition-all active:scale-95 shadow-2xl ${
-                                    !isUnlocked 
-                                      ? 'bg-stone-400 border-stone-600 text-stone-700'
-                                      : isCompleted
-                                        ? 'bg-gradient-to-br from-emerald-400 to-green-500 border-green-700 text-white'
-                                        : 'bg-gradient-to-br from-green-300 to-green-400 border-green-600 text-slate-900'
-                                  }`}
-                                >
-                                  {/* World Symbol Badge - top left inside circle */}
-                                  <div className="absolute -top-2 -left-2 w-14 h-14 bg-white rounded-full border-4 border-sky-400 shadow-lg flex items-center justify-center text-3xl select-none">
+                          return (
+                            <button
+                              key={world.id}
+                              type="button"
+                              onClick={() => {
+                                if (!isUnlocked) return;
+                                sound.playPowerUp();
+                                setSelectedWorldId(world.id);
+                              }}
+                              disabled={!isUnlocked}
+                              className={`text-left rounded-3xl border-2 p-4 shadow-lg transition-all active:scale-[0.98] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+                                !isUnlocked
+                                  ? 'bg-slate-200 border-slate-300 text-slate-600 cursor-not-allowed'
+                                  : isCompleted
+                                    ? 'bg-gradient-to-br from-emerald-300 via-emerald-200 to-white border-emerald-500 text-emerald-950 cursor-pointer hover:shadow-xl hover:-translate-y-1'
+                                    : 'bg-gradient-to-br from-white via-sky-50 to-emerald-50 border-sky-300 text-sky-950 cursor-pointer hover:shadow-xl hover:-translate-y-1'
+                              }`}
+                              aria-label={`${world.locationName}, stato ${statusLabel}, ${stepsCount} passi completati su ${ALL_STEP_IDS.length}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="h-14 w-14 shrink-0 rounded-2xl border-4 border-white bg-white/90 shadow-md flex items-center justify-center text-3xl">
                                     {world.symbol}
                                   </div>
-
-                                  {/* Monuments inside the box - scattered positions with semi-transparent background */}
-                                  <div className="absolute inset-0 rounded-[48px] overflow-hidden pointer-events-none flex flex-col items-center justify-center gap-8 p-4">
-                                    <div className="relative w-full h-full flex items-center justify-center">
-                                      {world.monuments.map((monument, idx) => {
-                                        const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
-                                        const positions = [
-                                          { top: '15%', left: '15%' },
-                                          { top: '25%', right: '5%' },
-                                          { bottom: '15%', left: '25%' }
-                                        ];
-                                        const pos = positions[idx % positions.length];
-                                        
-                                        const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})\uFE0F?/gu;
-                                        const emojis = (monument.emoji.match(emojiRegex) || []);
-                                        return (
-                                          <div
-                                            key={monument.id}
-                                            style={{
-                                              position: 'absolute',
-                                              top: pos.top,
-                                              bottom: pos.bottom,
-                                              left: pos.left,
-                                              right: pos.right
-                                            }}
-                                            className={`w-10 h-10 rounded-lg relative transition-all ${
-                                              !isUnlocked
-                                                ? 'bg-white'
-                                                : isBuilt
-                                                  ? 'bg-white shadow-md'
-                                                  : 'bg-white'
-                                            }`}
-                                            title={monument.name}
-                                          >
-                                            {emojis[0] && <div className="absolute top-0.5 left-0.5 text-sm leading-none">{emojis[0]}</div>}
-                                            {emojis[1] && <div className="absolute bottom-0.5 right-0.5 text-sm leading-none">{emojis[1]}</div>}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-600">Tavola del {world.id}</p>
+                                    <h3 className="text-base font-black leading-tight">{world.locationName}</h3>
+                                    <p className="text-xs font-semibold text-sky-800/75">Mascot: {world.mascotName}</p>
                                   </div>
+                                </div>
 
-                                  {/* Mascot Badge overlay */}
-                                  {isUnlocked && (
-                                    <div className="absolute -top-2 -right-2 text-3xl select-none" title={world.mascotName}>
-                                      {world.id === 2 ? '🦊' : world.id === 3 ? '🦕' : world.id === 4 ? '🦉' : world.id === 5 ? '🦖' : '🦁'}
+                                <div className="flex flex-col items-end gap-2 shrink-0">
+                                  <span className={`rounded-full px-3 py-1 text-[11px] font-black ${
+                                    !isUnlocked
+                                      ? 'bg-slate-50 text-slate-700'
+                                      : isCompleted
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {!isUnlocked ? '🔒 Bloccato' : isCompleted ? '✅ Completato' : '🧭 In corso'}
+                                  </span>
+                                  {isUnlocked && <span className="text-2xl" aria-hidden="true">{getWorldMascotBadge(world.id)}</span>}
+                                </div>
+                              </div>
+
+                              <div className="mt-4 grid grid-cols-3 gap-2">
+                                {world.monuments.map(monument => {
+                                  const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
+                                  return (
+                                    <div
+                                      key={monument.id}
+                                      className={`rounded-2xl border px-2 py-3 text-center ${
+                                        isBuilt
+                                          ? 'bg-white/90 border-emerald-200 text-emerald-900'
+                                          : 'bg-white/70 border-white/70 text-slate-600'
+                                      }`}
+                                      title={monument.name}
+                                    >
+                                      <div className="text-xl leading-none">{monument.emoji}</div>
+                                      <div className="mt-1 text-[10px] font-bold leading-tight">{isBuilt ? 'Ricostruito' : 'Da ricostruire'}</div>
                                     </div>
-                                  )}
+                                  );
+                                })}
+                              </div>
 
-                                  {/* Checkmark or Lock badge */}
-                                  {!isUnlocked ? (
-                                    <div className="absolute -top-4 -left-4 text-2xl">🔒</div>
-                                  ) : isCompleted ? (
-                                    <div className="absolute -top-4 -left-4 text-2xl">✅</div>
-                                  ) : null}
-
-                                  {/* Progress Counter - Bottom Right */}
-                                  {isUnlocked && (
-                                    <div className={`absolute bottom-2 right-2 text-xs font-black px-2 py-1 rounded shadow-sm ${
-                                      isCompleted
-                                        ? 'bg-emerald-400 text-emerald-950'
-                                        : 'bg-yellow-400 text-yellow-950'
-                                    }`}>
-                                      {stepsCount}/6
-                                    </div>
-                                  )}
+                              <div className="mt-4 space-y-2">
+                                <div className="flex items-center justify-between text-xs font-bold">
+                                  <span>Passi completati</span>
+                                  <span>{stepsCount}/{ALL_STEP_IDS.length}</span>
                                 </div>
-
-                                {/* World Name / Banner */}
-                                <div className="mt-4 bg-white px-5 py-1.5 rounded-full border-2 border-sky-400 shadow-md text-center max-w-[220px]">
-                                  <p className="text-[10px] font-bold text-sky-500 tracking-wider uppercase">TAVOLA DEL {world.id}</p>
-                                  <span className="text-xs font-black text-sky-950 leading-tight block">{world.locationName}</span>
+                                <div className="h-2 rounded-full bg-white/70 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-sky-500'}`}
+                                    style={{ width: `${(stepsCount / ALL_STEP_IDS.length) * 100}%` }}
+                                  />
                                 </div>
-
-                                {/* Carousel Indicator */}
-                                <div className="text-sm font-bold text-sky-950 mt-2">
-                                  {currentWorldIdx + 1} / {WORLDS_DATA.length}
+                                <div className="flex items-center justify-between text-[11px] font-semibold text-sky-900/80">
+                                  <span>Monumenti ricostruiti: {rebuiltCount}/{world.monuments.length}</span>
+                                  <span>{isUnlocked ? 'Apri il mondo' : 'Completa il precedente'}</span>
                                 </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-
-                        {/* Right Arrow - Fixed Width */}
-                        <button
-                          onClick={() => setCurrentWorldIdx((currentWorldIdx + 1) % WORLDS_DATA.length)}
-                          className="w-10 h-10 flex items-center justify-center p-2 hover:bg-sky-200/30 rounded-full transition-colors cursor-pointer flex-shrink-0"
-                          aria-label="Mondo successivo"
-                        >
-                          <svg className="w-6 h-6 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </ResponsiveGrid>
                     </div>
                   )}
 

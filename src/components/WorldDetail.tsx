@@ -16,6 +16,9 @@ import RewardsTutorial from './RewardsTutorial';
 import MonumentArea from './MonumentArea';
 import CombinationCarousel from './CombinationCarousel';
 import FireworksOverlay from './FireworksOverlay';
+import ActionGrid from './layout/ActionGrid';
+import SectionHeader from './layout/SectionHeader';
+import SurfaceCard from './layout/SurfaceCard';
 
 interface WorldDetailProps {
   world: WorldConfig;
@@ -859,6 +862,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     accent: string;
   };
 
+  type StepSelectionTheme = StepFactorGridTheme & {
+    panel: string;
+    badge: string;
+    progressTrack: string;
+    progressFill: string;
+    helpPrimary: string;
+    helpSecondary: string;
+  };
+
   const renderStepFactorGrid = ({
     stepKey,
     completed,
@@ -901,6 +913,68 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         );
       })}
     </ul>
+  );
+
+  const renderStepSelectionScreen = ({
+    stepKey,
+    badge,
+    title,
+    description,
+    completed,
+    onSelect,
+    onHelp,
+    theme,
+  }: {
+    stepKey: 'comprendo' | 'salto' | 'costruisco' | 'trucchi';
+    badge: string;
+    title: string;
+    description: string;
+    completed: Set<number>;
+    onSelect: (factor: number) => void;
+    onHelp: () => void;
+    theme: StepSelectionTheme;
+  }) => (
+    <div className="max-w-4xl mx-auto w-full">
+      <SurfaceCard padding="lg" className={`shadow-lg border-2 ${theme.panel}`}>
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <span className={`text-xs font-bold px-3 py-1 rounded-full font-sans ${theme.badge}`}>
+            {badge}
+          </span>
+          <button
+            onClick={onHelp}
+            className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
+              !hasReadRulesMandatory.has(stepKey) ? theme.helpPrimary : theme.helpSecondary
+            }`}
+            aria-label={`Apri aiuto per ${title}`}
+          >
+            <HelpCircle className={!hasReadRulesMandatory.has(stepKey) ? 'w-5 h-5' : 'w-4 h-4'} />
+          </button>
+        </div>
+
+        <SectionHeader centered title={title} description={description} />
+
+        <div className="mt-6">
+          {renderStepFactorGrid({
+            stepKey,
+            completed,
+            onSelect,
+            theme,
+          })}
+        </div>
+
+        <div className="mt-6 text-center">
+          <p className={`text-xs font-bold ${theme.accent}`}>
+            Completate: {completed.size}/10
+          </p>
+          <div className={`w-full rounded-full h-2 mt-2 overflow-hidden ${theme.progressTrack}`}>
+            <div
+              className={`${theme.progressFill} h-full transition-all`}
+              style={{ width: `${(completed.size / 10) * 100}%` }}
+            />
+          </div>
+        </div>
+      </SurfaceCard>
+    </div>
   );
 
   const cancelComprendoExercise = () => {
@@ -1364,60 +1438,30 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 1: COMPRENDO - List of combinations to complete */}
         {activeStep === 'comprendo' && comprendoSelectedFactor === null && (
-          <div className="max-w-4xl mx-auto w-full">
-            <div className="bg-indigo-50 rounded-3xl p-6 border-2 border-indigo-200 shadow-lg">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full font-sans">
-                  Passo 1: Comprendo
-                </span>
-                <button
-                  onClick={() => pushView('guide-help-comprendo')}
-                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
-                    !hasReadRulesMandatory.has('comprendo')
-                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
-                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
-                  }`}
-                >
-                  <HelpCircle className={!hasReadRulesMandatory.has('comprendo') ? 'w-5 h-5' : 'w-4 h-4'} />
-                </button>
-              </div>
-              <h3 className="text-lg font-black text-slate-800 text-center font-sans">
-                Scegli una moltiplicazione
-              </h3>
-              <p className="text-sm text-slate-600 text-center mt-2 mb-6">
-                Completa tutte 10
-              </p>
-
-              {/* Grid of all 10 combinations - training-like layout */}
-              {renderStepFactorGrid({
-                stepKey: 'comprendo',
-                completed: effectiveComprendoCompleted,
-                onSelect: (factor) => {
-                  sound.playClick();
-                  setComprendoSelectedFactor(factor);
-                  setComprendoFlowStage('objective');
-                },
-                theme: {
-                  done: 'bg-indigo-100 border-indigo-300 text-indigo-800',
-                  todo: 'bg-white/90 border-indigo-200 text-slate-700 hover:border-indigo-400',
-                  accent: 'text-indigo-600',
-                },
-              })}
-
-              {/* Progress indicator */}
-              <div className="mt-6 text-center">
-                <p className="text-xs font-bold text-indigo-700">
-                  Completate: {effectiveComprendoCompleted.size}/10
-                </p>
-                <div className="w-full bg-indigo-200 rounded-full h-2 mt-2 overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full transition-all"
-                    style={{ width: `${(effectiveComprendoCompleted.size / 10) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          renderStepSelectionScreen({
+            stepKey: 'comprendo',
+            badge: 'Passo 1: Comprendo',
+            title: 'Scegli una moltiplicazione',
+            description: 'Completa tutte e 10 le moltiplicazioni per costruire il concetto.',
+            completed: effectiveComprendoCompleted,
+            onSelect: (factor) => {
+              sound.playClick();
+              setComprendoSelectedFactor(factor);
+              setComprendoFlowStage('objective');
+            },
+            onHelp: () => pushView('guide-help-comprendo'),
+            theme: {
+              panel: 'bg-indigo-50 border-indigo-200',
+              badge: 'text-indigo-600 bg-indigo-100',
+              done: 'bg-indigo-100 border-indigo-300 text-indigo-800',
+              todo: 'bg-white/90 border-indigo-200 text-slate-700 hover:border-indigo-400',
+              accent: 'text-indigo-600',
+              progressTrack: 'bg-indigo-200',
+              progressFill: 'bg-emerald-500',
+              helpPrimary: 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700',
+              helpSecondary: 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400',
+            },
+          })
         )}
 
         {/* STEP 1: COMPRENDO - Game interface for selected combination */}
@@ -1493,7 +1537,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
              <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
                <div className={`${comprendoFlowStage === 'game' ? 'max-w-2xl' : 'max-w-xl'} mx-auto w-full`}>
                  {comprendoFlowStage === 'game' ? (
-                   <div className="grid grid-cols-2 gap-3">
+                    <ActionGrid columns={2}>
                      <button
                        onClick={() => {
                          sound.playClick();
@@ -1518,7 +1562,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      >
                        Continua
                      </button>
-                   </div>
+                    </ActionGrid>
                  ) : (
                    <button
                      onClick={() => {
@@ -1538,63 +1582,33 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 2: SALTO (Skip Counting) - LIST VIEW */}
         {activeStep === 'salto' && saltoSelectedFactor === null && (
-          <div className="max-w-4xl mx-auto w-full">
-            <div className="bg-purple-50 rounded-3xl p-6 border-2 border-purple-200 shadow-lg">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <span className="text-xs font-bold text-purple-600 bg-purple-100 px-3 py-1 rounded-full font-sans">
-                  Passo 2: Conteggio per salti
-                </span>
-                <button
-                  onClick={() => pushView('guide-help-salto')}
-                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
-                    !hasReadRulesMandatory.has('salto')
-                      ? 'w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 hover:from-purple-500 hover:to-purple-700'
-                      : 'w-6 h-6 bg-purple-300 hover:bg-purple-400'
-                  }`}
-                >
-                  <HelpCircle className={!hasReadRulesMandatory.has('salto') ? 'w-5 h-5' : 'w-4 h-4'} />
-                </button>
-              </div>
-              <h3 className="text-lg font-black text-slate-800 text-center font-sans">
-                🐸 Aiuta a saltare i sassi!
-              </h3>
-              <p className="text-sm text-slate-600 text-center mt-2 mb-6">
-                Completa tutte 10
-              </p>
-
-              {/* Grid of all 10 combinations - training-like layout */}
-              {renderStepFactorGrid({
-                stepKey: 'salto',
-                completed: effectiveSaltoCompleted,
-                onSelect: (factor) => {
-                  sound.playClick();
-                  setSaltoSelectedFactor(factor);
-                  setSaltoIndex(0);
-                  setSaltoFlowStage('objective');
-                  setSaltoGameCompleted(false);
-                  setShowSaltoCompletionEffect(false);
-                },
-                theme: {
-                  done: 'bg-purple-100 border-purple-300 text-purple-800',
-                  todo: 'bg-white/90 border-purple-200 text-slate-700 hover:border-purple-400',
-                  accent: 'text-purple-600',
-                },
-              })}
-
-              {/* Progress indicator */}
-              <div className="mt-6 text-center">
-                <p className="text-xs font-bold text-purple-700">
-                  Completate: {effectiveSaltoCompleted.size}/10
-                </p>
-                <div className="w-full bg-purple-200 rounded-full h-2 mt-2 overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full transition-all"
-                    style={{ width: `${(effectiveSaltoCompleted.size / 10) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          renderStepSelectionScreen({
+            stepKey: 'salto',
+            badge: 'Passo 2: Conteggio per salti',
+            title: '🐸 Aiuta a saltare i sassi!',
+            description: 'Completa tutte e 10 le combinazioni per consolidare il ritmo del conteggio.',
+            completed: effectiveSaltoCompleted,
+            onSelect: (factor) => {
+              sound.playClick();
+              setSaltoSelectedFactor(factor);
+              setSaltoIndex(0);
+              setSaltoFlowStage('objective');
+              setSaltoGameCompleted(false);
+              setShowSaltoCompletionEffect(false);
+            },
+            onHelp: () => pushView('guide-help-salto'),
+            theme: {
+              panel: 'bg-purple-50 border-purple-200',
+              badge: 'text-purple-600 bg-purple-100',
+              done: 'bg-purple-100 border-purple-300 text-purple-800',
+              todo: 'bg-white/90 border-purple-200 text-slate-700 hover:border-purple-400',
+              accent: 'text-purple-600',
+              progressTrack: 'bg-purple-200',
+              progressFill: 'bg-emerald-500',
+              helpPrimary: 'w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 hover:from-purple-500 hover:to-purple-700',
+              helpSecondary: 'w-6 h-6 bg-purple-300 hover:bg-purple-400',
+            },
+          })
         )}
 
         {/* STEP 2: SALTO - GAME VIEW */}
@@ -1748,7 +1762,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
               <div className="max-w-xl mx-auto w-full">
                 {saltoFlowStage === 'game' ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <ActionGrid columns={2}>
                     <button
                       onClick={() => {
                         sound.playClick();
@@ -1773,7 +1787,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     >
                       Continua
                     </button>
-                  </div>
+                  </ActionGrid>
                 ) : (
                   <button
                     onClick={() => {
@@ -1792,62 +1806,32 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 3: COSTRUISCO (Build the Table) - LIST VIEW */}
         {activeStep === 'costruisco' && costruiscoSelectedFactor === null && (
-          <div className="max-w-4xl mx-auto w-full">
-            <div className="bg-emerald-50 rounded-3xl p-6 border-2 border-emerald-200 shadow-lg">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full font-sans">
-                  Passo 3: Costruisci la Tabellina
-                </span>
-                <button
-                  onClick={() => pushView('guide-help-costruisco')}
-                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
-                    !hasReadRulesMandatory.has('costruisco')
-                      ? 'w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700'
-                      : 'w-6 h-6 bg-emerald-300 hover:bg-emerald-400'
-                  }`}
-                >
-                  <HelpCircle className={!hasReadRulesMandatory.has('costruisco') ? 'w-5 h-5' : 'w-4 h-4'} />
-                </button>
-              </div>
-              <h3 className="text-lg font-black text-slate-800 text-center font-sans">
-                🏗️ Scegli una moltiplicazione da costruire
-              </h3>
-              <p className="text-sm text-slate-600 text-center mt-2 mb-6">
-                Completa tutte 10
-              </p>
-
-              {/* Grid of all 10 combinations - training-like layout */}
-              {renderStepFactorGrid({
-                stepKey: 'costruisco',
-                completed: effectiveCostruiscoCompleted,
-                onSelect: (factor) => {
-                  sound.playClick();
-                  setCostruiscoSelectedFactor(factor);
-                  setCostruiscoFlowStage('objective');
-                  setCostruiscoGameCompleted(false);
-                  setShowCostruiscoCompletionEffect(false);
-                },
-                theme: {
-                  done: 'bg-emerald-100 border-emerald-300 text-emerald-800',
-                  todo: 'bg-white/90 border-emerald-200 text-slate-700 hover:border-emerald-400',
-                  accent: 'text-emerald-600',
-                },
-              })}
-
-              {/* Progress indicator */}
-              <div className="mt-6 text-center">
-                <p className="text-xs font-bold text-emerald-700">
-                  Completate: {effectiveCostruiscoCompleted.size}/10
-                </p>
-                <div className="w-full bg-emerald-200 rounded-full h-2 mt-2 overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full transition-all"
-                    style={{ width: `${(effectiveCostruiscoCompleted.size / 10) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          renderStepSelectionScreen({
+            stepKey: 'costruisco',
+            badge: 'Passo 3: Costruisci la Tabellina',
+            title: '🏗️ Scegli una moltiplicazione da costruire',
+            description: 'Completa tutte e 10 le operazioni e trasforma i concetti in risultati.',
+            completed: effectiveCostruiscoCompleted,
+            onSelect: (factor) => {
+              sound.playClick();
+              setCostruiscoSelectedFactor(factor);
+              setCostruiscoFlowStage('objective');
+              setCostruiscoGameCompleted(false);
+              setShowCostruiscoCompletionEffect(false);
+            },
+            onHelp: () => pushView('guide-help-costruisco'),
+            theme: {
+              panel: 'bg-emerald-50 border-emerald-200',
+              badge: 'text-emerald-600 bg-emerald-100',
+              done: 'bg-emerald-100 border-emerald-300 text-emerald-800',
+              todo: 'bg-white/90 border-emerald-200 text-slate-700 hover:border-emerald-400',
+              accent: 'text-emerald-600',
+              progressTrack: 'bg-emerald-200',
+              progressFill: 'bg-emerald-500',
+              helpPrimary: 'w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700',
+              helpSecondary: 'w-6 h-6 bg-emerald-300 hover:bg-emerald-400',
+            },
+          })
         )}
 
         {/* STEP 3: COSTRUISCO (Build the Table) - GAME VIEW */}
@@ -1979,7 +1963,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
              <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
                <div className="max-w-2xl mx-auto w-full">
                  {costruiscoFlowStage === 'game' ? (
-                   <div className="grid grid-cols-2 gap-3">
+                    <ActionGrid columns={2}>
                      <button
                        onClick={() => {
                          sound.playClick();
@@ -2004,7 +1988,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      >
                        Continua
                      </button>
-                   </div>
+                    </ActionGrid>
                   ) : (
                     <button
                       onClick={() => {
@@ -2024,63 +2008,33 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
          {/* STEP 4: TRUCCHI (Interactive strategies and associate rules) - LIST VIEW */}
         {activeStep === 'trucchi' && trucchiSelectedFactor === null && (
-          <div className="max-w-4xl mx-auto w-full">
-            <div className="bg-amber-50 rounded-3xl p-6 border-2 border-amber-200 shadow-lg">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <span className="text-xs font-bold text-amber-600 bg-amber-100 px-3 py-1 rounded-full font-sans">
-                  Passo 4: Il Trucco Mnemonico
-                </span>
-                <button
-                  onClick={() => pushView('guide-help-trucchi')}
-                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
-                    !hasReadRulesMandatory.has('trucchi')
-                      ? 'w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700'
-                      : 'w-6 h-6 bg-amber-300 hover:bg-amber-400'
-                  }`}
-                >
-                  <HelpCircle className={!hasReadRulesMandatory.has('trucchi') ? 'w-5 h-5' : 'w-4 h-4'} />
-                </button>
-              </div>
-              <h3 className="text-lg font-black text-slate-800 text-center font-sans">
-                🦉 Scegli un trucco da imparare
-              </h3>
-              <p className="text-sm text-slate-600 text-center mt-2 mb-6">
-                Completa tutte 10
-              </p>
-
-              {/* Grid of all 10 combinations - training-like layout */}
-              {renderStepFactorGrid({
-                stepKey: 'trucchi',
-                completed: effectiveTrucchiCompleted,
-                onSelect: (factor) => {
-                  sound.playClick();
-                  setTrucchiSelectedFactor(factor);
-                  setTrucchiFlowStage('objective');
-                  setTrucchiQuestionSolved(false);
-                  setShowTrucchiCompletionEffect(false);
-                  setTrucchiAnswer('');
-                },
-                theme: {
-                  done: 'bg-amber-100 border-amber-300 text-amber-800',
-                  todo: 'bg-white/90 border-amber-200 text-slate-700 hover:border-amber-400',
-                  accent: 'text-amber-600',
-                },
-              })}
-
-              {/* Progress indicator */}
-              <div className="mt-6 text-center">
-                <p className="text-xs font-bold text-amber-700">
-                  Completate: {effectiveTrucchiCompleted.size}/10
-                </p>
-                <div className="w-full bg-amber-200 rounded-full h-2 mt-2 overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full transition-all"
-                    style={{ width: `${(effectiveTrucchiCompleted.size / 10) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          renderStepSelectionScreen({
+            stepKey: 'trucchi',
+            badge: 'Passo 4: Il Trucco Mnemonico',
+            title: '🦉 Scegli un trucco da imparare',
+            description: 'Completa tutte e 10 le combinazioni per memorizzare più rapidamente.',
+            completed: effectiveTrucchiCompleted,
+            onSelect: (factor) => {
+              sound.playClick();
+              setTrucchiSelectedFactor(factor);
+              setTrucchiFlowStage('objective');
+              setTrucchiQuestionSolved(false);
+              setShowTrucchiCompletionEffect(false);
+              setTrucchiAnswer('');
+            },
+            onHelp: () => pushView('guide-help-trucchi'),
+            theme: {
+              panel: 'bg-amber-50 border-amber-200',
+              badge: 'text-amber-600 bg-amber-100',
+              done: 'bg-amber-100 border-amber-300 text-amber-800',
+              todo: 'bg-white/90 border-amber-200 text-slate-700 hover:border-amber-400',
+              accent: 'text-amber-600',
+              progressTrack: 'bg-amber-200',
+              progressFill: 'bg-emerald-500',
+              helpPrimary: 'w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700',
+              helpSecondary: 'w-6 h-6 bg-amber-300 hover:bg-amber-400',
+            },
+          })
         )}
 
         {/* STEP 4: TRUCCHI (Interactive strategies and associate rules) - GAME VIEW */}
@@ -2205,7 +2159,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
               <div className="max-w-xl mx-auto w-full">
                 {trucchiFlowStage === 'game' ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <ActionGrid columns={2}>
                     <button
                       onClick={() => {
                         sound.playClick();
@@ -2231,7 +2185,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     >
                       Continua
                     </button>
-                  </div>
+                  </ActionGrid>
                 ) : (
                   <button
                     onClick={() => {
