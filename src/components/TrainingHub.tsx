@@ -111,16 +111,15 @@ function StarRow({ stars, className = '' }: { stars: number; className?: string 
 function WorldCard({ world, stars, onSelect, compactLayout }: {
   world: WorldConfig; stars: number; onSelect: (id: number) => void; compactLayout?: boolean;
 }) {
-  const compactCard = !!compactLayout;
   const isTrained = stars > 0;
   return (
     <button
       type="button"
       onClick={() => onSelect(world.id)}
-      className={`training-home-card relative h-full min-h-[6.4rem] rounded-2xl border-2 border-indigo-300 bg-indigo-100/70 shadow-sm
+      className={`training-home-card relative h-full min-h-0 rounded-2xl border-2 border-indigo-300 bg-indigo-100/70 shadow-sm
                  hover:shadow-md active:scale-[0.98] transition-all cursor-pointer
                  focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
-                 flex flex-col items-center justify-center px-2 ${compactCard ? 'py-2 gap-1' : 'py-3 gap-1.5'}`}
+                 flex flex-col items-center justify-center ${compactLayout ? 'py-1 gap-0.5' : 'py-2 gap-1'}`}
       aria-label={`Allena tabellina del ${world.id}: ${world.name}${isTrained ? ', già allenata' : ''}`}
     >
       {isTrained && (
@@ -131,12 +130,7 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
           ✓
         </span>
       )}
-      <span className={`training-card-mul ${compactCard ? 'text-xl' : 'text-2xl'} font-black font-mono text-indigo-800 leading-none`}>×{world.id}</span>
-      {!compactCard && (
-        <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-600">
-          {isTrained ? `Livello ${stars}` : 'Inizia'}
-        </span>
-      )}
+      <span className={`${compactLayout ? 'text-sm' : 'text-base'} font-black font-mono text-indigo-800 leading-none`}>×{world.id}</span>
     </button>
   );
 }
@@ -400,7 +394,7 @@ function TrainingHome({
         role="list"
         aria-label="Lista tabelline disponibili"
         variant="compact"
-        className={`training-home-grid w-full content-start auto-rows-[minmax(0,1fr)] ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(clamp(5.8rem,24vw,7rem),1fr))] gap-2' : 'grid-cols-[repeat(auto-fit,minmax(clamp(6.8rem,22vw,8.4rem),1fr))] gap-2.5'}`}
+        className={`training-home-grid w-full h-full grid auto-rows-fr grid-cols-[repeat(auto-fit,minmax(clamp(4.4rem,18vw,6.2rem),1fr))] ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
       >
         {WORLDS_DATA.map(world => (
           <div key={world.id} role="listitem" className="h-full min-h-0">
