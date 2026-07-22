@@ -873,7 +873,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     <ul
       role="list"
       aria-label={`Lista moltiplicazioni ${stepKey}`}
-      className={`grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.2rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(5.2rem,1fr))] gap-2.5'}`}
+      className={`w-full h-full content-start grid auto-rows-max ${compactLayout ? 'grid-cols-[repeat(auto-fit,minmax(4.2rem,1fr))] gap-1.5' : 'grid-cols-[repeat(auto-fit,minmax(5.2rem,1fr))] gap-2.5'}`}
     >
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
@@ -1690,7 +1690,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       </div>
                     </div>
 
-                      <div className={`grid grid-cols-2 ${compactLayout ? 'gap-2' : 'gap-3'}`}>
+                      <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2' : 'gap-3'}`}>
                         {saltoOptions.map((opt, idx) => {
                           const solvedNum = world.id * saltoSelectedFactor;
                           const isSelected = saltoGameCompleted && opt === solvedNum;
@@ -2288,7 +2288,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             </div>
 
             {/* Question options */}
-            <div className={`grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
+            <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
               {quizOptions.map((opt, idx) => {
                 const pressed = quizPressedFeedback?.opt === opt;
                 const isCorrectOpt = quizQuestions[currentQuizIdx] && opt === quizQuestions[currentQuizIdx].a * quizQuestions[currentQuizIdx].b;
@@ -2459,7 +2459,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             </div>
 
             {/* Answers options */}
-            <div className={`grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
+            <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
               {sfidaOptions.map((opt, idx) => {
                 const pressed = sfidaPressedFeedback?.opt === opt;
                 const isCorrectOpt = sfidaQuestion && opt === sfidaQuestion.a * sfidaQuestion.b;
