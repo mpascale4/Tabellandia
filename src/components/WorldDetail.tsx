@@ -1373,7 +1373,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 </h3>
 
                 {/* Griglia card — solo step, niente header dentro */}
-                <div className="flex-1 min-h-0 grid grid-cols-[repeat(auto-fit,minmax(clamp(8.4rem,24vw,11rem),1fr))] auto-rows-fr gap-2">
+                <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-3 gap-2">
                 {[
                   { id: 'comprendo', title: '1. Comprendo', desc: 'Rappresentazione visuale e concettuale dei gruppi.', icon: '🍎', coins: 20, drops: 0 },
                   { id: 'salto', title: '2. Salto', desc: 'Salto e conteggio ritmico lungo il ruscello.', icon: '🐸', coins: 20, drops: 0 },
@@ -1403,7 +1403,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         else if (step.id === 'pratico') { startQuizMode(); }
                         else if (step.id === 'sfida') { startSfidaMode(); }
                       }}
-                      className={`relative h-full min-h-[clamp(6rem,14vh,8rem)] p-[clamp(0.45rem,1.2vw,0.7rem)] rounded-xl border flex flex-col items-stretch justify-between transition-all cursor-pointer ${
+                      className={`relative h-full min-h-0 p-[clamp(0.45rem,1.2vw,0.7rem)] rounded-xl border flex flex-col items-stretch justify-between transition-all cursor-pointer ${
                         isLocked
                           ? 'opacity-45 bg-gray-50 border-gray-200 cursor-not-allowed'
                           : isDone
