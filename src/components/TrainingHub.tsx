@@ -88,9 +88,9 @@ function getStars(profile: UserProfile, worldId: number): number {
   return profile.worldProgress?.[worldId]?.stars ?? 0;
 }
 
-function StarRow({ stars }: { stars: number }) {
+function StarRow({ stars, className = '' }: { stars: number; className?: string }) {
   return (
-    <span aria-label={`${stars} stelle su 3`} className="flex gap-0.5 justify-center">
+    <span aria-label={`${stars} stelle su 3`} className={`flex gap-0.5 justify-center ${className}`}>
       {[1, 2, 3].map(n => (
         <span key={n} aria-hidden="true"
           className={`text-base leading-none ${n <= stars ? 'opacity-100' : 'opacity-20'}`}>
@@ -112,18 +112,18 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
       <button
         type="button"
         onClick={() => onSelect(world.id)}
-        className={`w-full aspect-square border-2 border-white/60 bg-white/50 backdrop-blur-sm shadow-md
+        className={`training-home-card w-full aspect-square border-2 border-white/60 bg-white/50 backdrop-blur-sm shadow-md
                    hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer
                    focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                    flex flex-col items-center justify-center px-2 ${compactCard ? 'rounded-2xl py-2 gap-1' : 'rounded-3xl py-3 gap-1.5'}`}
         aria-label={`Allena tabellina del ${world.id}: ${world.name}`}
       >
-        <span className={`${compactCard ? 'text-3xl' : 'text-4xl'} leading-none select-none`} aria-hidden="true">{world.symbol}</span>
-        <span className={`${compactCard ? 'text-lg' : 'text-xl'} font-black text-sky-950 leading-none`}>×{world.id}</span>
-        <span className={`${compactCard ? 'hidden' : 'text-[11px]'} font-bold text-sky-700/80 font-sans text-center leading-tight`}>
+        <span className={`training-card-emoji ${compactCard ? 'text-3xl' : 'text-4xl'} leading-none select-none`} aria-hidden="true">{world.symbol}</span>
+        <span className={`training-card-mul ${compactCard ? 'text-lg' : 'text-xl'} font-black text-sky-950 leading-none`}>×{world.id}</span>
+        <span className={`training-card-mascot ${compactCard ? 'hidden' : 'text-[11px]'} font-bold text-sky-700/80 font-sans text-center leading-tight`}>
           {world.mascotName}
         </span>
-        {stars > 0 && <StarRow stars={stars} />}
+        {stars > 0 && <StarRow stars={stars} className="training-card-stars" />}
       </button>
     </li>
   );
@@ -371,8 +371,8 @@ function TrainingHome({
   onSelect: (id: number) => void;
 }) {
   return (
-    <div className={compactLayout ? 'space-y-3' : 'space-y-5'}>
-      <div className={`bg-white/40 backdrop-blur-sm rounded-3xl border border-white/40 shadow-sm ${compactLayout ? 'p-3' : 'p-4 md:p-5'} ${compactLayout ? 'space-y-0.5' : 'space-y-1'}`}>
+    <div className={`training-home ${compactLayout ? 'training-home--compact space-y-3' : 'space-y-5'}`}>
+      <div className={`training-home-head bg-white/40 backdrop-blur-sm rounded-3xl border border-white/40 shadow-sm ${compactLayout ? 'p-3' : 'p-4 md:p-5'} ${compactLayout ? 'space-y-0.5' : 'space-y-1'}`}>
         <span className="inline-block text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-sans">
           Allenamento libero
         </span>
@@ -387,7 +387,7 @@ function TrainingHome({
       <ul
         role="list"
         aria-label="Lista tabelline disponibili"
-        className={`grid auto-rows-max ${compactLayout ? 'grid-cols-4 gap-1.5' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2'}`}
+        className={`training-home-grid grid auto-rows-max ${compactLayout ? 'grid-cols-4 gap-1.5' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2'}`}
       >
         {WORLDS_DATA.map(world => (
           <WorldCard
