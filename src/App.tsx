@@ -1851,54 +1851,56 @@ export default function App() {
         )}
       </div>
 
-      {/* Production specifications panel at the very bottom (collapsible documentation of architecture/MVP for the reviewers!) */}
+      {/* Info panel: current work in progress */}
       {!isPhoneMode && (
       <div className="mt-8 max-w-4xl w-full bg-slate-800 rounded-3xl p-5 md:p-6 border border-slate-700 shadow-xl space-y-4">
         <h3 className="text-base font-black text-white flex items-center gap-1.5">
           <Settings className="w-5 h-5 text-indigo-400" />
-          Scheda Progettazione Tecnica & Architettura Android MVP
+          Info: Work in progress
         </h3>
         <p className="text-xs text-slate-400 leading-relaxed font-sans">
-          In qualità di team multidisciplinare (Educational Designer, Gamification Expert, UX/UI, Sviluppatore Android, Scienze Cognitive), ecco la documentazione delle specifiche di produzione per l'implementazione nativa di <strong>Tabellandia</strong> su piattaforma Android.
+          Stiamo rifinendo Tabellandia passo dopo passo. Qui trovi in modo semplice cosa stiamo migliorando adesso e cosa arriva nei prossimi aggiornamenti.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
-            <h4 className="font-extrabold text-indigo-300 font-sans">1. Architettura Android Completa</h4>
-            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
-              <div role="listitem"><strong>UI Pattern:</strong> Jetpack Compose nativo con architettura MVI (Model-View-Intent) o MVVM per un flusso dati reattivo, deterministico e pulito.</div>
-              <div role="listitem"><strong>DI Engine:</strong> Hilt (Dagger) per gestire l'iniezione delle dipendenze del Database e del modulo di telemetry.</div>
-              <div role="listitem"><strong>Local Storage:</strong> Room Database SQL (con migration guidate) pre-popolato con le configurazioni dei mondi e schema QuestionAttempt.</div>
-              <div role="listitem"><strong>Cloud Storage:</strong> Firebase Firestore (opzionale) sincronizzato in background tramite WorkManager per salvare le sessioni di gioco.</div>
-            </div>
+        <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-4 text-xs">
+          <div role="listitem" className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
+            <h4 className="font-extrabold text-indigo-300 font-sans">1. Cosa stiamo facendo ora</h4>
+            <p className="text-slate-300 leading-relaxed font-sans">
+              Stiamo rendendo ogni passo più chiaro e veloce: meno confusione, più ritmo di gioco, più aiuto quando serve.
+            </p>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              Obiettivo: far capire le tabelline con serenità, senza frustrazione.
+            </p>
           </div>
 
-          <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
-            <h4 className="font-extrabold text-indigo-300 font-sans">2. Logica di Apprendimento Adattivo</h4>
-            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
-              <div role="listitem"><strong>Rilevamento Critico:</strong> Algoritmo basato su peso esponenziale degli errori (Leitner System adattivo). Ogni combinazione ha una forza memorica.</div>
-              <div role="listitem"><strong>Rallentamento:</strong> Se un'operazione fallisce &ge;3 volte in un intervallo di 15 domande, la coda del quiz inserisce automaticamente la visualizzazione a gruppi (GroupVisualizer).</div>
-              <div role="listitem"><strong>Interval Spacing:</strong> Le combinazioni fallite vengono ripresentate con una frequenza di 2, 5 e 10 posizioni successive per consolidare la ritenzione a lungo termine.</div>
-            </div>
+          <div role="listitem" className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
+            <h4 className="font-extrabold text-indigo-300 font-sans">2. Migliorie in arrivo</h4>
+            <p className="text-slate-300 leading-relaxed font-sans">
+              Nuove schermate guida, feedback più immediati e passaggi più fluidi tra allenamento, pratico e sfida.
+            </p>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              Ogni update punta a rendere il percorso più semplice da seguire anche per i più piccoli.
+            </p>
           </div>
 
-          <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
-            <h4 className="font-extrabold text-indigo-300 font-sans">3. UX per Bambini e Gamification</h4>
-            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
-              <div role="listitem"><strong>Assenza di Testo:</strong> Istruzioni vocali sintetizzate (TTS Android) e forte codifica a colori e icone (oggetti contabili unici).</div>
-              <div role="listitem"><strong>No Penalty:</strong> Nessun punteggio negativo o "vite perse". Errori attivano lo "Scudo della Saggezza" di incoraggiamento visivo.</div>
-              <div role="listitem"><strong>Progressione:</strong> Ricompense estetiche esclusive (Emporio) non acquistabili per agganciare la motivazione intrinseca dell'apprendimento.</div>
-            </div>
+          <div role="listitem" className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
+            <h4 className="font-extrabold text-indigo-300 font-sans">3. Come usiamo premi e progressi</h4>
+            <p className="text-slate-300 leading-relaxed font-sans">
+              Le monete aiutano a sbloccare opportunità di gioco, mentre le gocce restano la risorsa speciale per far rinascere i regni.
+            </p>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              Così ogni ricompensa ha un significato chiaro e motivante.
+            </p>
           </div>
 
-          <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
-            <h4 className="font-extrabold text-indigo-300 font-sans">4. Piano di Sviluppo MVP & Roadmap</h4>
-            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
-              <div role="listitem"><strong>Sprint 1 (Fondamenta):</strong> Core Engine Matematico, Room DB, Profilo Locale, Asset Grafici base dei Mondi 2, 3, 5.</div>
-              <div role="listitem"><strong>Sprint 2 (Adattamento):</strong> Sistema di diagnostica, Scudo di Saggezza, Tracciamento heatmap e PIN Genitori.</div>
-              <div role="listitem"><strong>Sprint 3 (Gamification):</strong> Personalizzazione Avatar, Emporio monete, Emozioni delle Creature, Effetti sonori nativi SoundPool.</div>
-              <div role="listitem"><strong>Sprint 4 (Evoluzione):</strong> Supporto Cloud Sync, Mondi avanzati (11 e 12), e Localizzazione Multilingua.</div>
-            </div>
+          <div role="listitem" className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
+            <h4 className="font-extrabold text-indigo-300 font-sans">4. Roadmap breve</h4>
+            <p className="text-slate-300 leading-relaxed font-sans">
+              Prima consolidiamo stabilità e chiarezza didattica, poi espandiamo contenuti, personalizzazioni e strumenti per famiglie.
+            </p>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              Un passo alla volta, con aggiornamenti regolari e misurabili.
+            </p>
           </div>
         </div>
       </div>

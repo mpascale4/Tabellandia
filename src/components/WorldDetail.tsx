@@ -46,6 +46,9 @@ const TRUCCHI_PYRAMID_ROWS = [1, 2, 3, 4] as const;
 const TRUCCHI_PREVIEW_MS = 1000;
 const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
+const SFIDA_UNLOCK_COST = 100;
+const SFIDA_RECORD_THRESHOLD = 15;
+const SFIDA_RECORD_DROP_REWARD = 50;
 const OPERATION_CARD_THEMES = [
   'bg-gradient-to-r from-[#3c358f] to-[#4d46b5]',
   'bg-gradient-to-r from-[#ff9d08] to-[#ffb11f]',
@@ -211,6 +214,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   } | null>(null);
   const [showPraticoCongrats, setShowPraticoCongrats] = useState<boolean>(false);
   const [showSfidaResultPopup, setShowSfidaResultPopup] = useState<boolean>(false);
+  const [sfidaUnlockModalMode, setSfidaUnlockModalMode] = useState<'confirm' | 'insufficient' | null>(null);
 
   // Path lock feedback modal message
   const [pathLockModalMessage, setPathLockModalMessage] = useState<string | null>(null);
@@ -230,7 +234,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [sfidaTimer, setSfidaTimer] = useState<number>(30);
   const [sfidaScore, setSfidaScore] = useState<number>(0);
   const [sfidaOptions, setSfidaOptions] = useState<number[]>([]);
-  const [sfidaResult, setSfidaResult] = useState<{ correctAnswers: number; isNewRecord: boolean; previousRecord: number; passedSfida: boolean } | null>(null);
+  const [sfidaResult, setSfidaResult] = useState<{
+    correctAnswers: number;
+    isNewRecord: boolean;
+    previousRecord: number;
+    passedSfida: boolean;
+    recordDropsEarned: number;
+  } | null>(null);
   const [showFireworks, setShowFireworks] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const praticoAnnouncementTimeoutRef = useRef<number | null>(null);
@@ -937,6 +947,63 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setShowSfidaResultPopup(false);
   };
 
+  const unlockSfidaForCurrentWorld = () => {
+    updateProfile(p => {
+      const worldProg = p.worldProgress[world.id] || {
+        worldId: world.id,
+        completedSteps: [],
+        rebuiltMonuments: [],
+        creatureEvolution: 'egg',
+        highScore: 0,
+        stars: 0
+      };
+
+      if (worldProg.sfidaUnlocked || worldProg.completedSteps.includes('sfida')) {
+        return p;
+      }
+      if (p.coins < SFIDA_UNLOCK_COST) {
+        return p;
+      }
+
+      return {
+        ...p,
+        coins: p.coins - SFIDA_UNLOCK_COST,
+        worldProgress: {
+          ...p.worldProgress,
+          [world.id]: {
+            ...worldProg,
+            sfidaUnlocked: true
+          }
+        }
+      };
+    });
+  };
+
+  const beginSfidaFromUnlockFlow = () => {
+    if (profile.coins < SFIDA_UNLOCK_COST) {
+      sound.playError();
+      setSfidaUnlockModalMode('insufficient');
+      return;
+    }
+    unlockSfidaForCurrentWorld();
+    setSfidaUnlockModalMode(null);
+    beginSfidaGame();
+  };
+
+  const handleSfidaStartClick = () => {
+    if (sfidaUnlocked) {
+      beginSfidaGame();
+      return;
+    }
+    if (profile.coins < SFIDA_UNLOCK_COST) {
+      sound.playError();
+      setSfidaUnlockModalMode('insufficient');
+      return;
+    }
+    sound.playClick();
+    setSfidaUnlockModalMode('confirm');
+  };
+
   // Initialize Sfida with START button
   const initializeSfida = () => {
     sound.playPowerUp();
@@ -948,6 +1015,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSfidaQuestionVersion(0);
     setSfidaOptions([]);
     setShowSfidaResultPopup(false);
+    setSfidaUnlockModalMode(null);
     setActiveStep('sfida');
   };
 
@@ -960,6 +1028,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSfidaTimer(30);
     setSfidaResult(null);
     setShowSfidaResultPopup(false);
+    setSfidaUnlockModalMode(null);
     generateSfidaQuestion();
 
     // Timer logic
@@ -1071,8 +1140,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSfidaActive(false);
     const score = finalScore !== undefined ? finalScore : sfidaScore;
     const currentHighScore = profile.worldProgress[world.id]?.highScore || 0;
-    const isNewRecord = score > 0 && score > currentHighScore;
-    const passedSfida = score > 14; // Strictly MORE THAN 14 correct answers (15+)
+    const isNewRecord = score >= SFIDA_RECORD_THRESHOLD && score > currentHighScore;
+    const passedSfida = score >= SFIDA_RECORD_THRESHOLD;
 
     updateProfile(p => {
       const worldProg = p.worldProgress[world.id] || {
@@ -1108,9 +1177,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         nextUnlocked.push(nextWorldId);
       }
 
-      // Drops & coins reward for passing sfida
-      const nextLightDrops = p.lightDrops + (passedSfida ? 20 : 0);
-      const nextCoins = p.coins + (passedSfida ? 50 : 0);
+      // Record reward: +50 drops only when beating personal record at threshold (15+)
+      const recordDropsEarned = score >= SFIDA_RECORD_THRESHOLD && score > previousMax ? SFIDA_RECORD_DROP_REWARD : 0;
+      const nextLightDrops = p.lightDrops + recordDropsEarned;
+      const nextCoins = p.coins;
 
       let evolution = worldProg?.creatureEvolution || 'egg';
       if (completed.length >= 6) {
@@ -1137,11 +1207,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       };
     });
 
-    if (isNewRecord && passedSfida) {
+    if (isNewRecord) {
       setTimeout(() => sound.playLevelUp(), 600);
       setShowFireworks(true);
     }
-    setSfidaResult({ correctAnswers: score, isNewRecord, previousRecord: currentHighScore, passedSfida });
+    setSfidaResult({
+      correctAnswers: score,
+      isNewRecord,
+      previousRecord: currentHighScore,
+      passedSfida,
+      recordDropsEarned: isNewRecord ? SFIDA_RECORD_DROP_REWARD : 0
+    });
     setShowSfidaResultPopup(true);
     setSfidaReady(true);
   };
@@ -1275,6 +1351,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const isTrucchiDone = devMode || effectiveTrucchiCompleted.size >= 10;
   const isPraticoDone = devMode || worldProg.completedSteps.includes('pratico');
   const isSfidaDone = devMode || worldProg.completedSteps.includes('sfida');
+  const areSfidaPrerequisitesDone = isComprendoDone && isSaltoDone && isCostruiscoDone && isTrucchiDone && isPraticoDone;
+  const sfidaUnlocked = devMode || Boolean(worldProg.sfidaUnlocked) || worldProg.completedSteps.includes('sfida');
 
   const stepDoneMap: Record<string, boolean> = {
     comprendo: isComprendoDone,
@@ -1296,9 +1374,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const rebuiltCount = worldProg.rebuiltMonuments.length;
   const rebuildPercent = Math.round((rebuiltCount / world.monuments.length) * 100);
 
-  // Check if Sfida is locked (requires Pratico completed AND all monuments erected!)
+  // Sfida path lock: all didactic steps (1-5) must be completed before accessing step 6
   const allMonumentsErected = rebuiltCount === world.monuments.length;
-  const isSfidaLocked = !devMode && (!isPraticoDone || !allMonumentsErected);
+  const isSfidaPathLocked = !devMode && !areSfidaPrerequisitesDone;
   const previousView = viewStack.length > 1 ? viewStack[viewStack.length - 2] : null;
   const isGuideStoryView = currentView === 'world-story';
   const isGuideIntroView = currentView === 'intro' || currentView?.startsWith('guide-intro-');
@@ -1320,6 +1398,57 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     pratico: '5. Pratico 🛡️',
     sfida: '6. Sfida ⚡'
   };
+  const guideIntroCopy: Record<string, { title: string; lead: string; bullets: string[] }> = {
+    comprendo: {
+      title: 'Comprendo: partiamo dal significato',
+      lead: 'Qui scopri che la moltiplicazione nasce da gruppi uguali.',
+      bullets: [
+        'Osserva i gruppi con calma.',
+        'Conta e collega il risultato all operazione.'
+      ]
+    },
+    salto: {
+      title: 'Salto: conta a ritmo',
+      lead: 'In questo passo alleni il conteggio per salti con una sequenza chiara.',
+      bullets: [
+        'Segui il ritmo della tabellina.',
+        'Usa la sequenza per trovare il risultato.'
+      ]
+    },
+    costruisco: {
+      title: 'Costruisco: metti in ordine i numeri',
+      lead: 'Costruisci la risposta nella griglia e riconosci i pattern della tabellina.',
+      bullets: [
+        'Cerca la casella giusta.',
+        'Completa lo schema un passaggio alla volta.'
+      ]
+    },
+    trucchi: {
+      title: 'Trucchi: strategie veloci',
+      lead: 'Impari scorciatoie semplici per rispondere con piu sicurezza.',
+      bullets: [
+        'Memorizza una regola per volta.',
+        'Prima precisione, poi velocita.'
+      ]
+    },
+    pratico: {
+      title: 'Pratico: avventura di concentrazione',
+      lead: 'Metti insieme tutto quello che hai imparato in una serie continua.',
+      bullets: [
+        'Rispondi a una domanda alla volta.',
+        'Punta a 10 risposte corrette consecutive.'
+      ]
+    },
+    sfida: {
+      title: 'Sfida: cronometro acceso',
+      lead: 'Hai poco tempo per fare piu punti possibili e migliorare il record.',
+      bullets: [
+        'Rispondi veloce ma con attenzione.',
+        'Da 15 in su puoi puntare al record.'
+      ]
+    }
+  };
+  const currentGuideIntro = guideIntroCopy[guideStep] || guideIntroCopy[activePlayableStep] || guideIntroCopy.comprendo;
   const currentTopBarTitle = stepTopBarTitles[activeStep] || withTableIcon(world.id, world.name);
   const showWorldTopBar = !(
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
@@ -1811,20 +1940,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       Info
                     </p>
                     <h2 className="mt-2 text-2xl font-black text-indigo-950">
-                      Work in progress
+                      {currentGuideIntro.title}
                     </h2>
                     <p className="mt-2 text-sm text-indigo-900">
-                      Stiamo riscrivendo questa schermata informativa di <strong>{guideStep}</strong>.
+                      {currentGuideIntro.lead}
                     </p>
                   </div>
 
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Contenuto in aggiornamento
+                      Prima di iniziare
                     </p>
-                    <p className="mt-2 text-sm text-slate-700">
-                      Anche le info introduttive del regno sono temporaneamente sostituite da un placeholder mentre prepariamo il nuovo testo.
-                    </p>
+                    <div role="list" className="mt-2 grid grid-cols-1 gap-2">
+                      {currentGuideIntro.bullets.map((item) => (
+                        <div key={item} role="listitem" className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                          {item}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -2098,7 +2231,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </h4>
               {(() => {
                 const isSfidaDone = stepDoneMap['sfida'];
-                const isSfidaLocked = !devMode && (!isPraticoDone || !allMonumentsErected);
+                const isSfidaLocked = isSfidaPathLocked;
+                const needsCoinUnlock = !sfidaUnlocked;
 
                 return (
                   <button
@@ -2107,13 +2241,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       if (isSfidaLocked) {
                         sound.playError();
                         speak(GAMEPLAY_AUDIO_MESSAGES.sfidaLocked);
-                        if (!allMonumentsErected) {
-                          setPathLockModalMessage(
-                            `🏛️ Monumenti non eretti!\n\nPer affrontare la Sfida Finale e completare il Regno, devi erigere tutti e ${world.monuments.length} i monumenti del contesto!\n\nAttualmente eretti: ${rebuiltCount}/${world.monuments.length}.\nGioca in Pratico (Avventura) per guadagnare le gocce necessarie!`
-                          );
-                        } else {
-                          setPathLockModalMessage(`🔒 Sfida Bloccata!\n\nCompleta prima tutti i passi didattici precedenti (1-5) sul Sentiero.`);
-                        }
+                        setPathLockModalMessage(`🔒 Sfida Bloccata!\n\nCompleta prima tutti i passi didattici precedenti (1-5) sul Sentiero.`);
                         return;
                       }
                       sound.playClick();
@@ -2141,14 +2269,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           )}
                         </div>
                         <p className={`text-xs font-sans ${isSfidaLocked ? 'text-slate-500' : isSfidaDone ? 'text-emerald-800' : 'text-purple-100'}`}>
-                          Test a tempo (30 sec): fai <b>più di 14 risposte corrette</b> per ottenere le Gocce 💧 e sbloccare il prossimo Regno sul Sentiero!
+                          {needsCoinUnlock
+                            ? <>Sblocca la Sfida con <b>{SFIDA_UNLOCK_COST} monete</b> dopo aver completato i passi 1-5. Poi prova a battere il record (da 15 in su) per vincere <b>{SFIDA_RECORD_DROP_REWARD} gocce</b>!</>
+                            : <>Test a tempo (30 sec): fai <b>più di 14 risposte corrette</b> e migliora il tuo record per ottenere <b>{SFIDA_RECORD_DROP_REWARD} Gocce 💧</b>.</>}
                         </p>
                       </div>
                     </div>
                     <span className={`text-xs font-black px-3 py-2 rounded-xl whitespace-nowrap shadow-xs font-sans ${
                       isSfidaLocked ? 'bg-slate-200 text-slate-600' : 'bg-amber-400 text-amber-950 hover:bg-amber-300'
                     }`}>
-                      {isSfidaDone ? '▶ Rigioca' : '▶ Avvia Sfida'}
+                      {isSfidaDone ? '▶ Rigioca' : needsCoinUnlock ? `🔓 Sblocca (${SFIDA_UNLOCK_COST} 🪙)` : '▶ Avvia Sfida'}
                     </span>
                   </button>
                 );
@@ -3353,16 +3483,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 </button>
               </div>
               <p className="text-sm text-slate-600">Risolvi il maggior numero di operazioni prima che il tempo finisca!</p>
-              <p className="text-xs text-slate-500 font-sans">Ogni risposta corretta vale 2 🪙 Monete! Guadagna più punti possibili prima dello scadere del tempo.</p>
+              <p className="text-xs text-slate-500 font-sans">Ogni risposta corretta vale 2 🪙 Monete. Il record (da {SFIDA_RECORD_THRESHOLD} in su) dà +{SFIDA_RECORD_DROP_REWARD} 💧 Gocce e 0 🪙 Monete.</p>
+              {!sfidaUnlocked && (
+                <p className="text-xs font-black text-amber-700 font-sans">
+                  Primo accesso: sblocco permanente a <b>{SFIDA_UNLOCK_COST} 🪙 Monete</b>.
+                </p>
+              )}
             </div>
 
             <button
-              onClick={beginSfidaGame}
+              onClick={handleSfidaStartClick}
               className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg cursor-pointer transition-all active:scale-95 flex flex-col items-center justify-center py-4 gap-0.5"
               id="sfida-start-btn"
             >
               <span className="text-xs font-bold text-amber-100 uppercase tracking-widest">30 secondi</span>
-              <span className="text-xl sm:text-2xl font-black">{sfidaResult ? '▶ GIOCA ANCORA' : '▶ INIZIA SFIDA'}</span>
+              <span className="text-xl sm:text-2xl font-black">
+                {!sfidaUnlocked ? `🔓 SBLOCCA SFIDA (${SFIDA_UNLOCK_COST} 🪙)` : sfidaResult ? '▶ GIOCA ANCORA' : '▶ INIZIA SFIDA'}
+              </span>
             </button>
 
             {/* Record tabellina (visibile sempre quando non c'è un risultato recente) */}
@@ -3584,7 +3721,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
             {sfidaResult.passedSfida ? (
               <div className="mt-2.5 rounded-xl border border-emerald-200 bg-emerald-100/90 p-2 text-xs font-bold text-emerald-900">
-                ✨ Hai guadagnato +20 💧 Gocce di Luce e +50 🪙 Monete! Lo step Sfida è completato!
+                {sfidaResult.recordDropsEarned > 0
+                  ? <>✨ Nuovo record! Hai guadagnato +{sfidaResult.recordDropsEarned} 💧 Gocce di Luce e 0 🪙 Monete.</>
+                  : <>✅ Sfida superata! Migliora il record (almeno {SFIDA_RECORD_THRESHOLD}) per vincere +{SFIDA_RECORD_DROP_REWARD} 💧 Gocce.</>}
               </div>
             ) : (
               <div className="mt-2.5 rounded-xl border border-rose-200 bg-rose-100/90 p-2 text-xs font-medium leading-relaxed text-rose-900">
@@ -3612,6 +3751,77 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       {/* Fuochi d'artificio: overlay celebrativo per nuovo record */}
       {showFireworks && (
         <FireworksOverlay onDone={() => setShowFireworks(false)} />
+      )}
+
+      {sfidaUnlockModalMode && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-indigo-100 text-center relative font-sans"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sfida-unlock-title"
+          >
+            {sfidaUnlockModalMode === 'confirm' ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-sm">
+                  🪙
+                </div>
+                <h3 id="sfida-unlock-title" className="text-base font-black text-indigo-950 mb-1">
+                  Sbloccare la Sfida?
+                </h3>
+                <div className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full mb-3">
+                  Costo: 🪙 {SFIDA_UNLOCK_COST} (Ne hai {profile.coins})
+                </div>
+                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  Lo sblocco è permanente per questa tabellina. Dopo l'acquisto potrai rigiocare la Sfida liberamente.
+                </p>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setSfidaUnlockModalMode(null);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={beginSfidaFromUnlockFlow}
+                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
+                  >
+                    🔓 Sblocca ora
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-50 border-2 border-rose-200 flex items-center justify-center text-3xl shadow-sm">
+                  🪙
+                </div>
+                <h3 id="sfida-unlock-title" className="text-base font-black text-rose-950 mb-1">
+                  Monete insufficienti
+                </h3>
+                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  Per sbloccare la Sfida servono <b>{SFIDA_UNLOCK_COST} monete</b>. Al momento ne hai <b>{profile.coins}</b>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    setSfidaUnlockModalMode(null);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                >
+                  Ho capito
+                </button>
+              </>
+            )}
+          </motion.div>
+        </div>
       )}
 
       {/* Path Lock Feedback Modal */}
