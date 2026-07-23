@@ -167,6 +167,14 @@ class SoundManager {
     this.playTone([400], 0.05, 0.1);
   }
 
+  playCorrect() {
+    this.playSuccess();
+  }
+
+  playWrong() {
+    this.playError();
+  }
+
   playSuccess() {
     if (!this.effectsEnabled) return;
     this.initContext();

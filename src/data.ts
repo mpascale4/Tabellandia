@@ -225,9 +225,5 @@ export const AVATARS = [
   { id: "avatar_girl1", emoji: "👧", name: "Bambina", category: "girl" },
   { id: "avatar_girl2", emoji: "👱", name: "Bionda", category: "girl" },
   { id: "avatar_girl3", emoji: "🏃", name: "Sportiva", category: "girl" },
-  { id: "avatar_girl4", emoji: "🧙", name: "Maga", category: "girl" },
-  
-  // Animali
-  { id: "avatar_pet1", emoji: "🐶", name: "Cucciolo", category: "pet" },
-  { id: "avatar_pet2", emoji: "🤖", name: "Robot", category: "pet" }
+  { id: "avatar_girl4", emoji: "🧙", name: "Maga", category: "girl" }
 ];

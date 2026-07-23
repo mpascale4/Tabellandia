@@ -15,6 +15,9 @@ import TrainingHub from './components/TrainingHub';
 import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
 import RewardsTutorial from './components/RewardsTutorial';
+import DigitsGuideModal from './components/DigitsGuideModal';
+import DigitsMatchingGameModal from './components/DigitsMatchingGameModal';
+import { DIGITS_INFO } from './data/digitsData';
 import NumericKeypad from './components/NumericKeypad';
 import ActionGrid from './components/layout/ActionGrid';
 import ResponsiveGrid from './components/layout/ResponsiveGrid';
@@ -46,7 +49,6 @@ const ALL_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 
 const PROFILE_AVATAR_SECTIONS = [
   { id: 'boy', label: 'Bambini' },
   { id: 'girl', label: 'Bambine' },
-  { id: 'pet', label: 'Animali' },
 ] as const;
 const APP_SIDEBAR_TABS = [
   { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
@@ -156,6 +158,9 @@ export default function App() {
     const seen = localStorage.getItem('tabellandia_rewards_tutorial_seen');
     return !seen; // Show if never seen before
   });
+  const [showDigitsGuideModal, setShowDigitsGuideModal] = useState<boolean>(false);
+  const [manualOnboardingGameOpen, setManualOnboardingGameOpen] = useState<boolean>(false);
+  const [wizardActiveDigitIndex, setWizardActiveDigitIndex] = useState<number>(0);
   const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
   const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
   // Header overlay behavior
@@ -185,6 +190,13 @@ export default function App() {
   const [newPINInput, setNewPINInput] = useState<string>("");
   const [confirmPINInput, setConfirmPINInput] = useState<string>("");
   const [changePINStage, setChangePINStage] = useState<'new' | 'confirm'>('new');
+
+  const [appMonumentModal, setAppMonumentModal] = useState<{
+    world: typeof WORLDS_DATA[0];
+    monument: typeof WORLDS_DATA[0]['monuments'][0];
+    canAfford: boolean;
+    isErected: boolean;
+  } | null>(null);
 
   const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
 
@@ -291,8 +303,8 @@ export default function App() {
       setIsHeaderVisible(false);
     };
 
-    document.addEventListener('pointerdown', handleOutsidePointerDown);
-    return () => document.removeEventListener('pointerdown', handleOutsidePointerDown);
+    document.addEventListener('pointerdown', handleOutsidePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handleOutsidePointerDown, true);
   }, [isHeaderVisible]);
 
   /** Mostra l'header overlay. */
@@ -748,44 +760,44 @@ export default function App() {
   // Tutorial / Setup Wizard Overlay
   if (wizardStep > 0) {
     return (
-      <div className="w-full h-screen bg-indigo-950 flex items-center justify-center p-4 overflow-hidden relative" id="wizard-screen">
+      <div className="w-full min-h-screen min-h-dvh bg-indigo-950 flex items-center justify-center p-2.5 sm:p-6 overflow-y-auto relative" id="wizard-screen">
         {/* Ambient star decorations */}
-        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-400 via-indigo-900 to-indigo-950 z-0"></div>
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-400 via-indigo-900 to-indigo-950 z-0 pointer-events-none"></div>
 
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="max-w-3xl w-full relative z-10"
+          className="max-w-2xl w-full my-auto py-2 relative z-10"
         >
-          <SurfaceCard padding="lg" className="border-2 border-indigo-200 shadow-2xl min-h-[400px]">
+          <SurfaceCard padding="sm" className="border-2 border-indigo-200 shadow-2xl overflow-y-auto max-h-[92vh] sm:max-h-none p-3.5 sm:p-6">
           {wizardStep === 1 && (
-            <div className="space-y-5 flex-1 flex flex-col justify-center">
+            <div className="space-y-3.5 flex-1 flex flex-col justify-center">
               <SectionHeader
                 centered
                 eyebrow="Nuovo profilo"
                 title="Crea il profilo"
                 description="Scegli nome, anno di nascita e base avatar."
-                icon={<span className="text-4xl" aria-hidden="true">🎒🛡️</span>}
+                icon={<span className="text-3xl sm:text-4xl" aria-hidden="true">🎒🛡️</span>}
               />
 
-              <form onSubmit={handleCreateHero} className="space-y-4">
+              <form onSubmit={handleCreateHero} className="space-y-3">
                 <input
                   type="text"
                   maxLength={15}
                   placeholder="Scrivi il tuo nome d'eroe..."
                   value={heroNameInput}
                   onChange={e => setHeroNameInput(e.target.value)}
-                  className="w-full py-3 px-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white"
+                  className="w-full py-2.5 px-3.5 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white text-sm sm:text-base"
                   id="hero-name-input"
                   required
                 />
 
                 <label className="block">
-                  <span className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Anno di nascita</span>
+                  <span className="block text-[11px] sm:text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Anno di nascita</span>
                   <select
                     value={newProfileBirthYear}
                     onChange={e => setNewProfileBirthYear(parseInt(e.target.value, 10))}
-                    className="w-full py-3 px-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white"
+                    className="w-full py-2.5 px-3.5 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white text-sm sm:text-base"
                     id="birth-year-select"
                   >
                     {Array.from({ length: 12 }).map((_, idx) => {
@@ -800,23 +812,23 @@ export default function App() {
                 </label>
 
                 <div>
-                  <span className="block text-xs font-bold text-slate-700 mb-3 uppercase tracking-wide">Scegli il tuo avatar</span>
-                  <div className="space-y-3">
+                  <span className="block text-[11px] sm:text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Scegli il tuo avatar</span>
+                  <div className="space-y-2">
                     {PROFILE_AVATAR_SECTIONS.map(section => (
-                      <SurfaceCard key={section.id} padding="sm" className="rounded-2xl border-slate-200">
-                        <p className="text-[10px] font-semibold text-slate-500 mb-2 uppercase tracking-wider">{section.label}</p>
-                        <ResponsiveGrid variant="compact" className="grid-cols-2 sm:grid-cols-4">
+                      <SurfaceCard key={section.id} padding="sm" className="rounded-xl border-slate-200 p-2 sm:p-3">
+                        <p className="text-[10px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">{section.label}</p>
+                        <ResponsiveGrid variant="compact" className="grid-cols-4 gap-1.5 sm:gap-2">
                           {AVATARS.filter(a => a.category === section.id).map(avatar => (
                             <button
                               key={avatar.id}
                               type="button"
                               onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
-                              className={`p-3 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-1 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+                              className={`p-1.5 sm:p-2.5 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
                                 newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                               }`}
                               id={`setup-avatar-${avatar.id}`}
                             >
-                              <span className="text-2xl">{avatar.emoji}</span>
+                              <span className="text-xl sm:text-2xl">{avatar.emoji}</span>
                               <span className="line-clamp-1">{avatar.name}</span>
                             </button>
                           ))}
@@ -830,14 +842,14 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleCancelProfileCreation}
-                    className="w-full py-4 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    className="w-full py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs sm:text-sm shadow-md cursor-pointer transition-colors"
                     id="wizard-cancel-btn"
                   >
                     Annulla
                   </button>
                   <button
                     type="submit"
-                    className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer transition-colors"
                     id="wizard-create-btn"
                   >
                     Registra Eroe
@@ -848,20 +860,67 @@ export default function App() {
           )}
 
           {wizardStep === 2 && (
-            <div className="text-center space-y-6 flex-1 flex flex-col justify-center">
+            <div className="space-y-5 flex-1 flex flex-col justify-center text-slate-800">
               <SectionHeader
                 centered
-                eyebrow="Profilo creato"
-                title={`Sei pronto, ${draftProfile?.name || heroNameInput || 'Eroe'}!`}
-                description="La foresta del 2 ti sta aspettando. Il tuo anno di nascita ci aiuterà a proporre contenuti più adatti in futuro."
-                icon={<span className="text-6xl animate-pulse" aria-hidden="true">🌟✨🐉</span>}
+                eyebrow="Benvenuto a Tabellandia"
+                title={`Ecco le 10 Cifre Magiche, ${draftProfile?.name || heroNameInput || 'Eroe'}!`}
+                description="All'inizio del gioco impariamo ogni cifra con la sua associazione visiva e il motivo per ricordarla facilmente:"
+                icon={<span className="text-4xl animate-bounce" aria-hidden="true">🔢✨</span>}
               />
+
+              {/* Digit selector grid */}
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                {DIGITS_INFO.map((info, idx) => (
+                  <button
+                    key={info.digit}
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setWizardActiveDigitIndex(idx);
+                    }}
+                    className={`p-2 rounded-xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center ${
+                      wizardActiveDigitIndex === idx
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-md scale-105 font-black'
+                        : 'border-slate-200 bg-white hover:bg-indigo-50 text-slate-700'
+                    }`}
+                  >
+                    <span className="text-base font-bold">{info.digit}</span>
+                    <span className="text-lg">{info.emoji}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Selected Digit Detail Box */}
+              {(() => {
+                const current = DIGITS_INFO[wizardActiveDigitIndex] || DIGITS_INFO[0];
+                return (
+                  <SurfaceCard padding="md" className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-sm rounded-2xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-2xl bg-white border-2 border-indigo-200 shadow-sm flex items-center justify-center text-3xl shrink-0">
+                        {current.emoji}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left space-y-1">
+                        <p className="text-xs font-black text-indigo-900 uppercase tracking-wider">
+                          Cifra {current.digit} = {current.emoji} {current.imageLabel}
+                        </p>
+                        <p className="text-xs text-slate-700 leading-snug">
+                          <span className="font-bold text-indigo-700">Motivo: </span>
+                          {current.reason}
+                        </p>
+                      </div>
+                    </div>
+                  </SurfaceCard>
+                );
+              })()}
+
               <button
+                type="button"
                 onClick={handleFinishWizard}
-                className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors flex items-center justify-center gap-2"
                 id="wizard-finish-btn"
               >
-                Vola a Tabellandia!
+                <span>🚀</span> Ho capito le 10 cifre! Vola a Tabellandia!
               </button>
             </div>
           )}
@@ -963,22 +1022,25 @@ export default function App() {
              )}
             </button>
 
-            {/* Monete */}
-            <div className={`flex flex-col items-center justify-center gap-0.5 shrink-0 ${isPhoneMode ? 'min-w-[60px]' : 'min-w-[92px]'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'}`}>
-              <div className={`flex items-center gap-${isPhoneMode ? '0.5' : '1.5'} text-amber-600`}>
-                <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
-                <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[6px]' : 'text-[9px]'}`}>Monete</span>
+            {/* Monete & Gocce (Sovrapposte una sotto l'altra) */}
+            <div className={`flex flex-col justify-center gap-1 shrink-0 bg-white/65 rounded-2xl border border-white/80 ${isPhoneMode ? 'px-2 py-1 min-w-[72px]' : 'px-3 py-1.5 min-w-[105px]'}`}>
+              {/* Monete */}
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1 text-amber-600">
+                  <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
+                  <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Monete</span>
+                </div>
+                <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
               </div>
-              <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
-            </div>
 
-            {/* Gocce */}
-            <div className={`flex flex-col items-center justify-center gap-0.5 shrink-0 ${isPhoneMode ? 'min-w-[60px]' : 'min-w-[92px]'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'}`}>
-              <div className={`flex items-center gap-${isPhoneMode ? '0.5' : '1.5'} text-sky-500`}>
-                <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
-                <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[6px]' : 'text-[9px]'}`}>Gocce</span>
+              {/* Gocce */}
+              <div className="flex items-center justify-between gap-1.5 border-t border-sky-950/10 pt-0.5">
+                <div className="flex items-center gap-1 text-sky-500">
+                  <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
+                  <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Gocce</span>
+                </div>
+                <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
               </div>
-              <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
             </div>
 
             {/* Controls */}
@@ -1004,6 +1066,17 @@ export default function App() {
                 </span>
               </button>
               <VoiceToggle isPhoneMode={isPhoneMode} />
+              {/* Cifre & Mnemoniche guide button */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); sound.playClick(); setShowDigitsGuideModal(true); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'px-2 h-6 text-[10px]' : 'px-2.5 h-8 text-xs'} bg-indigo-100 hover:bg-indigo-200 border-indigo-300 text-indigo-800 font-bold gap-1`}
+                title="Guida Cifre e Mnemoniche (0-9)"
+                id="digits-guide-btn"
+              >
+                <span>🔢</span>
+                {!isPhoneMode && <span>Cifre</span>}
+              </button>
               {/* Pin/Unpin — blocca header sempre visibile */}
               <button
                 type="button"
@@ -1361,7 +1434,7 @@ export default function App() {
                           const rebuiltCount = devModeEnabled
                             ? world.monuments.length
                             : worldProg.rebuiltMonuments.length;
-                          const isCompleted = stepsCount === ALL_STEP_IDS.length;
+                          const isCompleted = stepsCount === ALL_STEP_IDS.length && rebuiltCount === world.monuments.length;
                           const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'In corso';
 
                           return (
@@ -1372,6 +1445,7 @@ export default function App() {
                                 if (!isUnlocked) return;
                                 sound.playPowerUp();
                                 setSelectedWorldId(world.id);
+                                setIsHeaderVisible(false);
                               }}
                               disabled={!isUnlocked}
                               className={`w-full overflow-hidden text-left rounded-3xl border-2 p-3 sm:p-4 shadow-lg transition-all active:scale-[0.98] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
@@ -1416,15 +1490,35 @@ export default function App() {
                                   return (
                                     <div
                                       key={monument.id}
-                                      className={`rounded-2xl border px-1.5 py-2 text-center sm:px-2 sm:py-3 ${
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        sound.playClick();
+                                        setAppMonumentModal({
+                                          world,
+                                          monument,
+                                          canAfford: profile ? profile.lightDrops >= monument.cost : false,
+                                          isErected: isBuilt,
+                                        });
+                                      }}
+                                      className={`rounded-2xl border px-1.5 py-2 text-center sm:px-2 sm:py-2.5 transition-all cursor-pointer hover:scale-105 active:scale-95 ${
                                         isBuilt
-                                          ? 'bg-white/90 border-emerald-200 text-emerald-900'
-                                          : 'bg-white/70 border-white/70 text-slate-600'
+                                          ? 'bg-gradient-to-br from-amber-100 via-amber-50 to-emerald-100 border-amber-300/90 text-amber-950 shadow-xs ring-1 ring-amber-300/60'
+                                          : 'bg-slate-100/90 border-dashed border-slate-300/90 text-slate-500 shadow-2xs hover:border-amber-400 hover:bg-amber-50/50'
                                       }`}
                                       title={monument.name}
                                     >
-                                      <div className="text-lg leading-none sm:text-xl">{monument.emoji}</div>
-                                      <div className="mt-1 text-[9px] font-bold leading-tight sm:text-[10px]">{isBuilt ? (devModeEnabled ? 'Eretti' : 'Ricostruito') : 'Da ricostruire'}</div>
+                                      <div className={`text-lg leading-none sm:text-xl ${!isBuilt ? 'filter grayscale opacity-60' : ''}`}>
+                                        {monument.emoji}
+                                      </div>
+                                      <div className="mt-1 text-[10px] font-black leading-tight sm:text-[11px] flex items-center justify-center gap-0.5">
+                                        {isBuilt ? (
+                                          <span className="text-emerald-700 font-black">✓ Eretto</span>
+                                        ) : (
+                                          <span className="text-slate-600 font-extrabold flex items-center gap-0.5">
+                                            🔒 💧 {monument.cost}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -1442,7 +1536,7 @@ export default function App() {
                                   />
                                 </div>
                                 <div className="flex items-center justify-between gap-2 text-[10px] font-semibold text-sky-900/80 sm:text-[11px]">
-                                  <span className="min-w-0 truncate">{devModeEnabled ? 'Monumenti eretti' : 'Monumenti ricostruiti'}: {rebuiltCount}/{world.monuments.length}</span>
+                                  <span className="min-w-0 truncate">Monumenti: {rebuiltCount}/{world.monuments.length}</span>
                                   <span className="shrink-0">{isUnlocked ? 'Apri il mondo' : 'Completa il precedente'}</span>
                                 </div>
                               </div>
@@ -1633,6 +1727,164 @@ export default function App() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Digits and Mnemonics Guide Modal */}
+      <DigitsGuideModal
+        isOpen={showDigitsGuideModal}
+        onClose={() => setShowDigitsGuideModal(false)}
+        onOpenMatchingGame={() => setManualOnboardingGameOpen(true)}
+      />
+
+      {/* Mandatory Onboarding / Practice Game for 10 Digits Associations */}
+      <DigitsMatchingGameModal
+        isOpen={Boolean(
+          profile &&
+          (!profile.completedOnboardingGame || manualOnboardingGameOpen) &&
+          wizardStep === 0 &&
+          !showProfilePicker
+        )}
+        devMode={devModeEnabled}
+        onComplete={() => {
+          if (profile) {
+            handleUpdateProfile(p => ({
+              ...p,
+              completedOnboardingGame: true
+            }));
+          }
+          setManualOnboardingGameOpen(false);
+        }}
+      />
+
+      {/* Monument Unlock Confirmation / Insufficient Drops Modal (Main Screen) */}
+      {appMonumentModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-sans">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-indigo-100 text-center relative font-sans"
+          >
+            {appMonumentModal.isErected ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-sm">
+                  {appMonumentModal.monument.emoji}
+                </div>
+                <h3 className="text-base font-black text-indigo-950 mb-1">
+                  {appMonumentModal.monument.name}
+                </h3>
+                <span className="inline-block text-[10px] font-black text-amber-900 bg-amber-200 px-3 py-1 rounded-full mb-3">
+                  🏛️ ERETTO CON SUCCESSO ✓
+                </span>
+                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  {appMonumentModal.monument.description}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAppMonumentModal(null)}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                >
+                  Chiudi
+                </button>
+              </>
+            ) : appMonumentModal.canAfford ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-sm">
+                  {appMonumentModal.monument.emoji}
+                </div>
+                <h3 className="text-base font-black text-indigo-950 mb-1">
+                  Erigi {appMonumentModal.monument.name}?
+                </h3>
+                <div className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full mb-3">
+                  💧 Costo: <b>{appMonumentModal.monument.cost} Gocce</b>
+                </div>
+                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  Hai a disposizione <b>{profile?.lightDrops || 0} Gocce di Luce</b>. Vuoi spendere {appMonumentModal.monument.cost} Gocce per erigere questo monumento nel {appMonumentModal.world.title}?
+                </p>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAppMonumentModal(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playPowerUp();
+                      handleUpdateProfile(p => {
+                        const worldProg = p.worldProgress[appMonumentModal.world.id] || {
+                          worldId: appMonumentModal.world.id,
+                          completedSteps: [],
+                          rebuiltMonuments: [],
+                          creatureEvolution: 'egg',
+                          highScore: 0,
+                          stars: 0
+                        };
+                        const monuments = [...(worldProg.rebuiltMonuments || [])];
+                        if (!monuments.includes(appMonumentModal.monument.id)) {
+                          monuments.push(appMonumentModal.monument.id);
+                        }
+                        return {
+                          ...p,
+                          lightDrops: Math.max(0, p.lightDrops - appMonumentModal.monument.cost),
+                          worldProgress: {
+                            ...p.worldProgress,
+                            [appMonumentModal.world.id]: {
+                              ...worldProg,
+                              rebuiltMonuments: monuments
+                            }
+                          }
+                        };
+                      });
+                      setAppMonumentModal(null);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
+                  >
+                    🏛️ Si, Erigi Ora!
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-50 border-2 border-rose-200 flex items-center justify-center text-3xl shadow-sm">
+                  💧
+                </div>
+                <h3 className="text-base font-black text-rose-950 mb-1">
+                  Gocce Insufficienti!
+                </h3>
+                <div className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-200 px-3 py-1 rounded-full mb-3">
+                  Costo: 💧 {appMonumentModal.monument.cost} (Ne hai {profile?.lightDrops || 0})
+                </div>
+                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  Per erigere <b>{appMonumentModal.monument.name}</b> ti mancano <b>{appMonumentModal.monument.cost - (profile?.lightDrops || 0)} Gocce di Luce</b>.
+                  <br /><br />
+                  Entra nel Regno e gioca in <b>"Pratico (Avventura)"</b> per sconfiggere la nebbia e raccogliere le gocce!
+                </p>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAppMonumentModal(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const wId = appMonumentModal.world.id;
+                      setAppMonumentModal(null);
+                      setSelectedWorldId(wId);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                  >
+                    🛡️ Apri Regno
+                  </button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        </div>
       )}
     </div>
   );

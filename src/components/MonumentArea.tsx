@@ -3,183 +3,232 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { WorldConfig } from '../types';
+import { sound } from './SoundManager';
+import { Landmark } from 'lucide-react';
 
 interface MonumentAreaProps {
   world: WorldConfig;
   completedMonuments: string[]; // IDs of monuments user has completed
+  userDrops?: number;
+  onRebuildMonument?: (monId: string, cost: number) => void;
 }
 
-export default function MonumentArea({ world, completedMonuments }: MonumentAreaProps) {
+export default function MonumentArea({
+  world,
+  completedMonuments,
+  userDrops = 0,
+  onRebuildMonument
+}: MonumentAreaProps) {
   const monuments = world.monuments || [];
-  
+  const [pendingUnlock, setPendingUnlock] = useState<{ id: string; name: string; cost: number; emoji: string; description: string } | null>(null);
+  const [insufficientNotice, setInsufficientNotice] = useState<{ name: string; cost: number } | null>(null);
+
   // Terrain background colors based on world
   const getTerrainClass = () => {
     const terrainMap: { [key: number]: string } = {
-      2: 'from-green-100 to-emerald-100',      // Forest
-      3: 'from-sky-100 to-blue-100',           // Lake
-      4: 'from-amber-100 to-orange-100',       // Mountains
-      5: 'from-yellow-100 to-amber-100',       // Caves
-      6: 'from-red-100 to-rose-100',           // Volcano
-      7: 'from-purple-100 to-indigo-100',      // Tower
-      8: 'from-pink-100 to-rose-100',          // Sky City
-      9: 'from-teal-100 to-cyan-100',          // Temple
+      2: 'from-emerald-50 via-green-100/60 to-emerald-200/40 border-emerald-300',
+      3: 'from-sky-50 via-blue-100/60 to-sky-200/40 border-sky-300',
+      4: 'from-amber-50 via-orange-100/60 to-amber-200/40 border-amber-300',
+      5: 'from-yellow-50 via-amber-100/60 to-yellow-200/40 border-yellow-300',
+      6: 'from-rose-50 via-red-100/60 to-rose-200/40 border-rose-300',
+      7: 'from-purple-50 via-indigo-100/60 to-purple-200/40 border-purple-300',
+      8: 'from-pink-50 via-rose-100/60 to-pink-200/40 border-pink-300',
+      9: 'from-teal-50 via-cyan-100/60 to-teal-200/40 border-teal-300',
     };
-    return terrainMap[world.id] || 'from-slate-100 to-slate-200';
+    return terrainMap[world.id] || 'from-slate-50 to-slate-200 border-slate-300';
   };
 
-  // Decorative elements based on world
-  const getDecorations = () => {
-    const decorMap: { [key: number]: string } = {
-      2: '🌳🌲🌿',     // Trees
-      3: '🌊💧🌊',     // Water
-      4: '⛰️🪨⛰️',     // Rocks
-      5: '🍄🪨🍄',     // Mushrooms
-      6: '🌋🔥🌋',     // Volcano effects
-      7: '✨🔮✨',      // Magic
-      8: '☁️⚙️☁️',     // Clouds
-      9: '🪨☮️🪨',     // Zen stones
-    };
-    return decorMap[world.id] || '✨';
-  };
+  const handleCardClick = (monument: { id: string; name: string; cost: number; emoji: string; description: string }, isCompleted: boolean) => {
+    if (isCompleted) {
+      sound.playClick();
+      return;
+    }
 
-  const decorChars = getDecorations().split('');
+    if (userDrops >= monument.cost) {
+      sound.playClick();
+      setPendingUnlock(monument);
+    } else {
+      sound.playError();
+      setInsufficientNotice({ name: monument.name, cost: monument.cost });
+    }
+  };
 
   return (
-    <div className="w-full">
-      {/* Empty/Destroyed State Header */}
-      <div className="text-center mb-4">
-        <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-2">
-          L'Area da Ricostruire
-        </h4>
-        <p className="text-xs text-slate-500">
-          Completa i calcoli e raccogli le gocce per erigere i monumenti!
-        </p>
+    <div className="flex flex-col h-full gap-2">
+      {/* Header */}
+      <div className="shrink-0 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+          <Landmark className="w-4 h-4 text-amber-600" />
+          Monumenti del Regno
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-300 shadow-xs">
+            🏛️ {completedMonuments.length}/{monuments.length}
+          </span>
+          <span className="text-[11px] font-black text-sky-900 bg-sky-100/90 px-2 py-0.5 rounded-full border border-sky-300 shadow-xs">
+            💧 {userDrops}
+          </span>
+        </div>
       </div>
 
-      {/* Main Terrain Area */}
-      <div className={`bg-gradient-to-b ${getTerrainClass()} rounded-2xl p-6 border-4 border-slate-300 min-h-[280px] relative overflow-hidden shadow-inner`}>
-        {/* Destroyed/Empty effect at start */}
-        {completedMonuments.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-30">
-            <div className="text-center">
-              <div className="text-5xl mb-2">💔</div>
-              <div className="text-sm font-bold text-slate-600">Area Distrutta</div>
-            </div>
-          </div>
-        )}
-
-        {/* Decorative background elements */}
-        <div className="absolute inset-0 flex items-end justify-around opacity-20 pointer-events-none">
-          {decorChars.map((char, idx) => (
-            <div key={idx} className="text-6xl opacity-40 select-none">
-              {char}
-            </div>
-          ))}
-        </div>
-
-        {/* Monuments Grid */}
-        <div className="relative z-10 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-4">
-          {monuments.map((monument, idx) => {
+      {/* Main Container */}
+      <div className={`flex-1 rounded-2xl p-3 sm:p-4 border-2 bg-gradient-to-b ${getTerrainClass()} relative flex flex-col justify-between overflow-hidden shadow-sm min-h-[220px]`}>
+        {/* Monuments Stack / Grid */}
+        <div className="relative z-10 grid grid-cols-1 gap-2.5 h-full">
+          {monuments.map((monument) => {
             const isCompleted = completedMonuments.includes(monument.id);
-            
+
             return (
-              <motion.div
+              <button
                 key={monument.id}
-                initial={isCompleted ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0.5, scale: 0.8, y: 40 }}
-                animate={isCompleted ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0.4, scale: 0.8, y: 40 }}
-                transition={{ duration: 0.6, delay: idx * 0.1 }}
-                className={`relative flex flex-col items-center justify-end h-[140px] rounded-xl p-3 border-2 transition-all ${
+                onClick={() => handleCardClick(monument, isCompleted)}
+                className={`w-full p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all cursor-pointer relative ${
                   isCompleted
-                    ? 'bg-gradient-to-t from-indigo-200/50 to-transparent border-indigo-400 shadow-lg'
-                    : 'bg-gray-200/40 border-gray-400 opacity-60'
+                    ? 'bg-white/90 border-emerald-300 shadow-xs hover:bg-emerald-50/50'
+                    : userDrops >= monument.cost
+                      ? 'bg-white/95 border-amber-300 shadow-sm hover:border-amber-400 hover:scale-[1.01] active:scale-[0.99]'
+                      : 'bg-white/60 border-slate-200 opacity-80 hover:bg-white/80'
                 }`}
               >
-                {/* Monument Emoji - scales up when completed */}
-                <motion.div
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={isCompleted ? { scale: 1, opacity: 1 } : { scale: 0.8, opacity: 0.3 }}
-                  transition={{ 
-                    type: 'spring', 
-                    stiffness: 150, 
-                    damping: 12,
-                    delay: isCompleted ? idx * 0.1 + 0.2 : idx * 0.1
-                  }}
-                  className="text-5xl mb-2 select-none drop-shadow"
-                >
+                {/* Emoji Icon */}
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 select-none ${
+                  isCompleted ? 'bg-emerald-100/80 border border-emerald-200' : 'bg-slate-100 border border-slate-200'
+                }`}>
                   {monument.emoji}
-                </motion.div>
-
-                {/* Monument Info */}
-                <div className="text-center">
-                  <h5 className={`text-xs font-bold mb-1 line-clamp-2 ${
-                    isCompleted ? 'text-indigo-900' : 'text-gray-600'
-                  }`}>
-                    {monument.name}
-                  </h5>
-                  <p className={`text-[10px] leading-tight ${
-                    isCompleted ? 'text-indigo-700' : 'text-gray-500'
-                  }`}>
-                    {monument.description}
-                  </p>
                 </div>
 
-                {/* Cost badge */}
-                <motion.div
-                  animate={isCompleted ? { 
-                    scale: [1, 1.1, 1],
-                    backgroundColor: ['rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.2)']
-                  } : {}}
-                  transition={{ duration: 0.6, delay: idx * 0.1 + 0.3 }}
-                  className={`absolute top-2 right-2 px-2 py-1 rounded-full text-[10px] font-bold ${
-                    isCompleted
-                      ? 'bg-emerald-500/20 text-emerald-700'
-                      : 'bg-gray-400/20 text-gray-600'
-                  }`}
-                >
-                  💧 {monument.cost}
-                </motion.div>
+                {/* Info Text */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h4 className={`text-xs font-black truncate ${isCompleted ? 'text-emerald-950' : 'text-slate-800'}`}>
+                      {monument.name}
+                    </h4>
+                  </div>
+                  <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                    {monument.description}
+                  </p>
+                  
+                  {/* Cost badge required */}
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md ${
+                      isCompleted
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : userDrops >= monument.cost
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                    }`}>
+                      {isCompleted ? (
+                        <>✓ Eretto</>
+                      ) : (
+                        <>💧 Richiede {monument.cost} gocce</>
+                      )}
+                    </span>
+                  </div>
+                </div>
 
-                {/* Completion checkmark */}
-                {isCompleted && (
-                  <motion.div
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 15, delay: idx * 0.1 + 0.4 }}
-                    className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
-                    aria-hidden="true"
-                  >
-                    ✓
-                  </motion.div>
-                )}
-              </motion.div>
+                {/* Right Action Badge */}
+                <div className="shrink-0 flex flex-col items-end gap-1">
+                  {isCompleted ? (
+                    <span className="w-6 h-6 rounded-full bg-emerald-500 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                      ✓
+                    </span>
+                  ) : userDrops >= monument.cost ? (
+                    <span className="text-[10px] font-black text-amber-900 bg-amber-200 border border-amber-400 px-2 py-1 rounded-lg shadow-xs hover:bg-amber-300">
+                      Sblocca 🔓
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg">
+                      🔒 {monument.cost}💧
+                    </span>
+                  )}
+                </div>
+              </button>
             );
           })}
         </div>
+      </div>
 
-        {/* Completion message */}
-        {completedMonuments.length === monuments.length && (
+      {/* Confirmation Modal */}
+      {pendingUnlock && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 flex items-center justify-center bg-black/10 rounded-2xl backdrop-blur-sm"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-indigo-100 text-center relative overflow-hidden"
           >
-            <div className="text-center">
-              <motion.div 
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-                className="text-6xl mb-3"
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-3xl shadow-inner">
+              {pendingUnlock.emoji}
+            </div>
+            <h3 className="text-base font-black text-indigo-950 mb-1">
+              Ricostruisci {pendingUnlock.name}?
+            </h3>
+            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+              {pendingUnlock.description}
+            </p>
+
+            <div className="bg-sky-50 rounded-2xl p-3 border border-sky-100 mb-4 flex items-center justify-between text-xs font-bold text-sky-950">
+              <span>Costo monumento:</span>
+              <span className="text-amber-700 font-black">💧 {pendingUnlock.cost} Gocce</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPendingUnlock(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer transition-colors"
               >
-                🎉
-              </motion.div>
-              <h4 className="text-xl font-black text-indigo-950">Area Completamente Ricostruita!</h4>
-              <p className="text-sm text-slate-700 mt-1">Tutte le meraviglie sono state restaurate!</p>
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  if (onRebuildMonument) {
+                    onRebuildMonument(pendingUnlock.id, pendingUnlock.cost);
+                  }
+                  setPendingUnlock(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs shadow-md hover:from-emerald-600 hover:to-teal-700 cursor-pointer transition-all"
+              >
+                Sblocca! 🏛️
+              </button>
             </div>
           </motion.div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Insufficient Drops Modal */}
+      {insufficientNotice && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-amber-100 text-center relative"
+          >
+            <div className="w-14 h-14 mx-auto mb-2 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-3xl text-amber-500 shadow-inner">
+              💧
+            </div>
+            <h3 className="text-base font-black text-amber-950 mb-1">
+              Gocce Insufficienti!
+            </h3>
+            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+              Ti servono <strong className="text-amber-800">{insufficientNotice.cost} gocce 💧</strong> per ricostruire "<strong className="text-slate-800">{insufficientNotice.name}</strong>".<br />
+              Al momento ne possiedi solo <strong className="text-sky-700">{userDrops} 💧</strong>.
+            </p>
+
+            <div className="bg-amber-50 rounded-2xl p-3 border border-amber-200 text-amber-900 text-[11px] font-medium mb-4 text-left leading-relaxed">
+              💡 Completa gli esercizi nel <strong>Pratico (Avventura)</strong> per guadagnare altre gocce magiche!
+            </div>
+
+            <button
+              onClick={() => setInsufficientNotice(null)}
+              className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+            >
+              Ho Capito! ✓
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

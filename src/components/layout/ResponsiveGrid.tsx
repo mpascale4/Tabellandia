@@ -1,29 +1,20 @@
 import React from 'react';
 
-type ResponsiveGridProps = React.PropsWithChildren<
-  React.HTMLAttributes<HTMLDivElement> & {
-  variant?: 'cards' | 'compact' | 'split';
-  }
->;
+interface ResponsiveGridProps {
+  children: React.ReactNode;
+  columns?: number;
+  className?: string;
+  role?: string;
+  'aria-label'?: string;
+  variant?: string;
+}
 
-const variantClasses: Record<NonNullable<ResponsiveGridProps['variant']>, string> = {
-  cards: 'grid grid-cols-[repeat(auto-fit,minmax(15.5rem,1fr))] gap-3 sm:gap-4',
-  compact: 'grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4',
-  split: 'grid grid-cols-1 gap-6 xl:grid-cols-2',
-};
-
-export default function ResponsiveGrid({
-  variant = 'cards',
-  className = '',
-  children,
-  ...props
-}: ResponsiveGridProps) {
+export function ResponsiveGrid({ children, columns = 2, className = '', role, 'aria-label': ariaLabel }: ResponsiveGridProps) {
   return (
-    <div className={`${variantClasses[variant]} ${className}`.trim()} {...props}>
+    <div role={role} aria-label={ariaLabel} className={`grid grid-cols-1 sm:grid-cols-${columns} gap-3 ${className}`}>
       {children}
     </div>
   );
 }
 
-
-
+export default ResponsiveGrid;
