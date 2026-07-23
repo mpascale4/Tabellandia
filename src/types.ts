@@ -29,6 +29,12 @@ export interface WorldProgress {
   creatureEvolution: 'egg' | 'child' | 'adult';
   highScore: number; // Max correct answers in Time Trial
   stars: number; // 0 to 3 stars
+  completedFactors?: {
+    comprendo?: number[];
+    salto?: number[];
+    costruisco?: number[];
+    trucchi?: number[];
+  };
 }
 
 export interface QuestionAttempt {
@@ -52,6 +58,7 @@ export interface UserProfile {
   unlockedAccessories: string[]; // list of item IDs unlocked in shop
   worldProgress: { [worldId: number]: WorldProgress };
   history: QuestionAttempt[];
+  completedOnboardingGame?: boolean;
 }
 
 export interface WorldConfig {

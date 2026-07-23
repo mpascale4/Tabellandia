@@ -1,26 +1,16 @@
 import React from 'react';
 
-type ActionGridProps = React.PropsWithChildren<
-  React.HTMLAttributes<HTMLDivElement> & {
-  columns?: 1 | 2 | 3;
-  }
->;
+interface ActionGridProps {
+  children: React.ReactNode;
+  columns?: number;
+  className?: string;
+  role?: string;
+  'aria-label'?: string;
+}
 
-// min-size per colonna: più grande = meno colonne, più piccola = più colonne
-const columnClasses: Record<NonNullable<ActionGridProps['columns']>, string> = {
-  1: 'grid grid-cols-1 gap-3',
-  2: 'grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3',
-  3: 'grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-3',
-};
-
-export default function ActionGrid({
-  columns = 2,
-  className = '',
-  children,
-  ...props
-}: ActionGridProps) {
+export default function ActionGrid({ children, columns = 2, className = '', role, 'aria-label': ariaLabel }: ActionGridProps) {
   return (
-    <div className={`${columnClasses[columns]} ${className}`.trim()} {...props}>
+    <div role={role} aria-label={ariaLabel} className={`grid grid-cols-${columns} gap-3 ${className}`}>
       {children}
     </div>
   );

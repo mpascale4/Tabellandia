@@ -1,39 +1,31 @@
 import React from 'react';
 
-type SurfaceCardProps = React.PropsWithChildren<
-  React.HTMLAttributes<HTMLDivElement> & {
-  padding?: 'sm' | 'md' | 'lg';
-  tone?: 'default' | 'soft' | 'indigo';
-  }
->;
+interface SurfaceCardProps {
+  children?: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+  role?: string;
+  'aria-label'?: string;
+  'aria-live'?: string;
+  'aria-labelledby'?: string;
+  padding?: string;
+  tone?: string;
+  key?: string | number;
+}
 
-const paddingClasses: Record<NonNullable<SurfaceCardProps['padding']>, string> = {
-  sm: 'p-4',
-  md: 'p-5',
-  lg: 'p-6',
-};
-
-const toneClasses: Record<NonNullable<SurfaceCardProps['tone']>, string> = {
-  default: 'bg-white border border-white/60 shadow-sm',
-  soft: 'bg-white/50 backdrop-blur-sm border border-white/50 shadow-md',
-  indigo: 'bg-indigo-50 border border-indigo-100 shadow-sm',
-};
-
-export default function SurfaceCard({
-  padding = 'md',
-  tone = 'default',
-  className = '',
-  children,
-  ...props
-}: SurfaceCardProps) {
+export function SurfaceCard({ children, className = '', onClick, role, 'aria-label': ariaLabel, 'aria-live': ariaLive, 'aria-labelledby': ariaLabelledBy }: SurfaceCardProps) {
   return (
-    <div
-      className={`rounded-3xl ${paddingClasses[padding]} ${toneClasses[tone]} ${className}`.trim()}
-      {...props}
+    <div 
+      onClick={onClick}
+      role={role}
+      aria-label={ariaLabel}
+      aria-live={ariaLive}
+      aria-labelledby={ariaLabelledBy}
+      className={`bg-white rounded-2xl p-4 shadow-sm border border-slate-100 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${className}`}
     >
       {children}
     </div>
   );
 }
 
-
+export default SurfaceCard;
