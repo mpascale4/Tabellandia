@@ -5,7 +5,33 @@
 
 class SoundManager {
   private ctx: AudioContext | null = null;
-  private muted: boolean = false;
+  private effectsEnabled: boolean = true;
+  private musicEnabled: boolean = true;
+  private musicTimer: number | null = null;
+  private musicStep: number = 0;
+  private readonly musicPattern = [
+    // Divertente melodia playful in tonalità maggiore
+    392.00, // G4
+    392.00, // G4
+    392.00, // G4
+    349.23, // F4
+    392.00, // G4
+    466.16, // A#4
+    392.00, // G4
+    392.00, // G4
+    392.00, // G4
+    349.23, // F4
+    392.00, // G4
+    587.33, // D5
+    523.25, // C5
+    523.25, // C5
+    523.25, // C5
+    466.16, // A#4
+    523.25, // C5
+    587.33, // D5
+    523.25, // C5
+    392.00, // G4 - back to main
+  ];
 
   private initContext() {
     if (!this.ctx) {
@@ -20,44 +46,143 @@ class SoundManager {
   }
 
   setMuted(muted: boolean) {
-    this.muted = muted;
+    this.effectsEnabled = !muted;
   }
 
   isMuted() {
-    return this.muted;
+    return !this.effectsEnabled;
+  }
+
+  setEffectsEnabled(enabled: boolean) {
+    this.effectsEnabled = enabled;
+  }
+
+  isEffectsEnabled() {
+    return this.effectsEnabled;
+  }
+
+  setMusicEnabled(enabled: boolean) {
+    this.musicEnabled = enabled;
+    if (!enabled) {
+      this.stopBackgroundMusic();
+    }
+  }
+
+  isMusicEnabled() {
+    return this.musicEnabled;
+  }
+
+  primeAudio() {
+    this.initContext();
+  }
+
+  private playTone(frequencies: number[], duration: number, volume: number) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    frequencies.forEach((freq) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.detune.setValueAtTime((Math.random() * 8) - 4, now);
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(volume, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(now);
+      osc.stop(now + duration + 0.02);
+    });
+  }
+
+  private playMusicTone(frequency: number, duration: number, volume: number) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const base = this.ctx.createOscillator();
+    const harmony = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    base.type = 'sine';
+    harmony.type = 'sine';
+    base.frequency.setValueAtTime(frequency, now);
+    harmony.frequency.setValueAtTime(frequency * 1.5, now);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(volume, now + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    base.connect(gain);
+    harmony.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    base.start(now);
+    harmony.start(now);
+    base.stop(now + duration + 0.05);
+    harmony.stop(now + duration + 0.05);
+  }
+
+  private ensureBackgroundMusic() {
+    if (!this.musicEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.musicTimer !== null) return;
+
+    const stepDuration = 0.5;
+    const playStep = () => {
+      if (!this.musicEnabled || !this.ctx) {
+        this.stopBackgroundMusic();
+        return;
+      }
+
+      const note = this.musicPattern[this.musicStep % this.musicPattern.length];
+      this.playMusicTone(note, stepDuration * 0.9, 0.012);
+      this.musicStep += 1;
+    };
+
+    playStep();
+    this.musicTimer = window.setInterval(playStep, stepDuration * 1000);
+  }
+
+  startBackgroundMusic() {
+    this.ensureBackgroundMusic();
+  }
+
+  stopBackgroundMusic() {
+    if (this.musicTimer !== null) {
+      window.clearInterval(this.musicTimer);
+      this.musicTimer = null;
+    }
   }
 
   playClick() {
-    if (this.muted) return;
+    if (!this.effectsEnabled) return;
     this.initContext();
     if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+    this.playTone([400], 0.05, 0.1);
+  }
 
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+  playCorrect() {
+    this.playSuccess();
+  }
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(400, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.05);
-
-    gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start();
-    osc.stop(this.ctx.currentTime + 0.05);
+  playWrong() {
+    this.playError();
   }
 
   playSuccess() {
-    if (this.muted) return;
+    if (!this.effectsEnabled) return;
     this.initContext();
     if (!this.ctx) return;
+    this.ensureBackgroundMusic();
 
     const now = this.ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-    
-    notes.forEach((freq, idx) => {
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
       const osc = this.ctx!.createOscillator();
       const gain = this.ctx!.createGain();
 
@@ -77,9 +202,10 @@ class SoundManager {
   }
 
   playError() {
-    if (this.muted) return;
+    if (!this.effectsEnabled) return;
     this.initContext();
     if (!this.ctx) return;
+    this.ensureBackgroundMusic();
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -100,9 +226,10 @@ class SoundManager {
   }
 
   playPowerUp() {
-    if (this.muted) return;
+    if (!this.effectsEnabled) return;
     this.initContext();
     if (!this.ctx) return;
+    this.ensureBackgroundMusic();
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -123,9 +250,10 @@ class SoundManager {
   }
 
   playLevelUp() {
-    if (this.muted) return;
+    if (!this.effectsEnabled) return;
     this.initContext();
     if (!this.ctx) return;
+    this.ensureBackgroundMusic();
 
     const now = this.ctx.currentTime;
     const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; // Triumphant arpeggio
@@ -150,9 +278,10 @@ class SoundManager {
   }
 
   playTick() {
-    if (this.muted) return;
+    if (!this.effectsEnabled) return;
     this.initContext();
     if (!this.ctx) return;
+    this.ensureBackgroundMusic();
 
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();

@@ -9,7 +9,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 2,
     name: "La Foresta del 2",
-    locationName: "Foresta di Smeraldo",
+    locationName: "Foresta del Bue",
     color: "from-emerald-500 to-green-600",
     accentColor: "border-emerald-400 text-emerald-600 bg-emerald-50",
     symbol: "🌲",
@@ -31,7 +31,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 3,
     name: "Il Lago del 3",
-    locationName: "Lago Zaffiro",
+    locationName: "Lago del Re",
     color: "from-sky-500 to-blue-600",
     accentColor: "border-sky-400 text-sky-600 bg-sky-50",
     symbol: "💧",
@@ -53,7 +53,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 4,
     name: "Le Montagne del 4",
-    locationName: "Vette dell'Ambra",
+    locationName: "Vette del Gatto",
     color: "from-amber-600 to-orange-700",
     accentColor: "border-amber-400 text-amber-700 bg-amber-50",
     symbol: "⛰️",
@@ -75,7 +75,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 5,
     name: "Le Caverne del 5",
-    locationName: "Grotte Luminescenti",
+    locationName: "Grotte della Mano",
     color: "from-yellow-500 to-amber-500",
     accentColor: "border-yellow-400 text-yellow-600 bg-yellow-50",
     symbol: "🍄",
@@ -97,7 +97,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 6,
     name: "Il Vulcano del 6",
-    locationName: "Cratere di Magma",
+    locationName: "Cratere della Chiocciola",
     color: "from-red-500 to-rose-600",
     accentColor: "border-red-400 text-red-600 bg-red-50",
     symbol: "🔥",
@@ -119,7 +119,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 7,
     name: "La Torre del 7",
-    locationName: "Guglia del Destino",
+    locationName: "Guglia del Nano",
     color: "from-purple-600 to-indigo-700",
     accentColor: "border-purple-400 text-purple-700 bg-purple-50",
     symbol: "🔑",
@@ -141,7 +141,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 8,
     name: "La Città Volante dell'8",
-    locationName: "Nuvola Ingranaggio",
+    locationName: "Nuvola del Canotto",
     color: "from-pink-500 to-rose-600",
     accentColor: "border-pink-400 text-pink-600 bg-pink-50",
     symbol: "⚙️",
@@ -163,7 +163,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   {
     id: 9,
     name: "Il Tempio del 9",
-    locationName: "Santuario delle Nuvole",
+    locationName: "Santuario della Nave",
     color: "from-teal-500 to-cyan-600",
     accentColor: "border-teal-400 text-teal-600 bg-teal-50",
     symbol: "🐢",
@@ -180,28 +180,6 @@ export const WORLDS_DATA: WorldConfig[] = [
       { id: "m9_1", name: "Campanile del Vento", cost: 50, description: "Riappende i rintocchi di giada che purificano l'aria del tempio.", emoji: "🔔💨" },
       { id: "m9_2", name: "Giardino Zen", cost: 70, description: "Ripiana le sabbie bianche e i laghetti di fiori di loto sacri.", emoji: "🪨🪷" },
       { id: "m9_3", name: "Pagoda della Saggezza", cost: 120, description: "Restaura l'antica pagoda a nove piani crollata.", emoji: "⛩️🏯" }
-    ]
-  },
-  {
-    id: 10,
-    name: "Il Castello del 10",
-    locationName: "Reggia d'Oro",
-    color: "from-yellow-600 to-amber-600 bg-gradient-to-r",
-    accentColor: "border-yellow-500 text-yellow-700 bg-amber-50",
-    symbol: "👑",
-    mascotName: "Re Decimo",
-    mascotRole: "Il sovrano generoso",
-    creatureName: "Aureo",
-    creatureDescription: "Un maestoso leone alato d'oro massiccio, con occhi di rubino brillante.",
-    filastrocca: "Dieci soldati fan la sfilata, con la corona d'oro tempestata! Dieci, venti, trenta scudi scintillanti, quaranta, cinquanta, sessanta destrieri eleganti! Settanta, ottanta, novanta trombe d'argento, cento fuochi d'artificio brillano nel vento!",
-    trickTitle: "Aggiungi uno Zero!",
-    trickDescription: "Questo è il trucco più facile del regno! Per moltiplicare qualsiasi numero intero per 10, ti basta prendere quel numero e incollargli uno ZERO (0) alla sua destra! Esempio: 10 x 7 diventa 7 con uno zero, cioè 70!",
-    trickVisualExplanation: "Moltiplicare per 10 significa spostare ogni cifra a sinistra nel regno delle decine e delle centinaia, riempiendo lo spazio vuoto con uno zero.",
-    itemsToCount: "👑",
-    monuments: [
-      { id: "m10_1", name: "Sala del Trono", cost: 60, description: "Restaura il magnifico trono d'oro di Re Decimo.", emoji: "👑🏰" },
-      { id: "m10_2", name: "Giardini Reali", cost: 80, description: "Fa rifiorire i cespugli di rose dorate e le statue regali.", emoji: "⛲🌹" },
-      { id: "m10_3", name: "Sala del Gran Tesoro", cost: 150, description: "Ricostruisce la cassaforte magica delle monete di Tabellandia.", emoji: "💰💎" }
     ]
   }
 ];
@@ -234,4 +212,18 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "backpack_1", name: "Ali Jetpack a Vapore", category: "backpack", cost: 50, value: "🚀 Jetpack", previewEmoji: "🎒" },
   { id: "backpack_2", name: "Guscio di Tartaruga Saggia", category: "backpack", cost: 30, value: "🐢 Guscio", previewEmoji: "🎒" },
   { id: "backpack_3", name: "Scudo del Drago", category: "backpack", cost: 40, value: "🛡️ Scudo Drago", previewEmoji: "🛡️" }
+];
+
+export const AVATARS = [
+  // Bambini
+  { id: "avatar_boy1", emoji: "👦", name: "Bambino", category: "boy" },
+  { id: "avatar_boy2", emoji: "🧒", name: "Bambino Curioso", category: "boy" },
+  { id: "avatar_boy3", emoji: "🎨", name: "Artista", category: "boy" },
+  { id: "avatar_boy4", emoji: "🚀", name: "Astronauta", category: "boy" },
+  
+  // Bambine
+  { id: "avatar_girl1", emoji: "👧", name: "Bambina", category: "girl" },
+  { id: "avatar_girl2", emoji: "👱", name: "Bionda", category: "girl" },
+  { id: "avatar_girl3", emoji: "🏃", name: "Sportiva", category: "girl" },
+  { id: "avatar_girl4", emoji: "🧙", name: "Maga", category: "girl" }
 ];

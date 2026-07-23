@@ -13,9 +13,10 @@ import { Sparkles, Coins, ShoppingBag, Palette, Shirt, Award, Check } from 'luci
 interface AvatarCreatorProps {
   profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
+  compactLayout?: boolean;
 }
 
-export default function AvatarCreator({ profile, updateProfile }: AvatarCreatorProps) {
+export default function AvatarCreator({ profile, updateProfile, compactLayout = false }: AvatarCreatorProps) {
   const [activeTab, setActiveTab] = useState<'customize' | 'shop'>('customize');
   const [shopCategory, setShopCategory] = useState<'hair' | 'shirt' | 'pants' | 'hat' | 'backpack'>('hair');
   const [custCategory, setCustCategory] = useState<'base' | 'hair' | 'shirt' | 'pants' | 'hat' | 'backpack' | 'mascot'>('base');
@@ -182,9 +183,9 @@ export default function AvatarCreator({ profile, updateProfile }: AvatarCreatorP
   };
 
   return (
-    <div className="w-full flex flex-col md:flex-row gap-6 p-1 h-full" id="avatar-creator-panel">
+    <div className={`w-full flex flex-col gap-4 p-1 h-full ${compactLayout ? '' : 'md:flex-row md:gap-6'}`} id="avatar-creator-panel">
       {/* Left side: Avatar Preview & Stats */}
-      <div className="flex flex-col items-center bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl md:w-1/3 justify-center min-w-[240px]">
+      <div className={`flex flex-col items-center bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl justify-center ${compactLayout ? 'w-full' : 'md:w-1/3 min-w-[240px]'}`}>
         <h3 className="text-lg font-bold text-indigo-950 flex items-center gap-1.5 mb-1 font-sans">
           <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500" />
           Il Mio Eroe
@@ -283,26 +284,17 @@ export default function AvatarCreator({ profile, updateProfile }: AvatarCreatorP
               {custCategory === 'base' && (
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Genere Avatar</h4>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleEquipItem('gender', 'kid1')}
-                        className={`flex-1 p-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 ${
-                          profile.avatar.gender === 'kid1' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                        }`}
-                        id="gender-kid1-btn"
-                      >
-                        🧒 Bimbo 1 (Morbido)
-                      </button>
-                      <button
-                        onClick={() => handleEquipItem('gender', 'kid2')}
-                        className={`flex-1 p-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 ${
-                          profile.avatar.gender === 'kid2' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                        }`}
-                        id="gender-kid2-btn"
-                      >
-                        👧 Bimbo 2 (Dorato)
-                      </button>
+                    <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Base del profilo</h4>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-600 leading-relaxed">
+                      La base del profilo si sceglie all'ingresso. Qui puoi solo vedere il modello attivo.
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className={`p-3 rounded-xl border-2 text-center font-bold ${profile.avatar.gender === 'kid1' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500'}`}>
+                          🧒 Bimbo 1
+                        </div>
+                        <div className={`p-3 rounded-xl border-2 text-center font-bold ${profile.avatar.gender === 'kid2' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500'}`}>
+                          👧 Bimbo 2
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -641,7 +633,7 @@ export default function AvatarCreator({ profile, updateProfile }: AvatarCreatorP
             </div>
 
             {/* Shop Items List */}
-            <div className="flex-1 overflow-y-auto max-h-[250px] p-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex-1 overflow-y-auto max-h-[250px] p-1 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
               {SHOP_ITEMS.filter(item => item.category === shopCategory).map(item => {
                 const isBought = profile.unlockedAccessories.includes(item.id);
                 const canAfford = profile.coins >= item.cost;

@@ -3,33 +3,82 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile, WorldProgress } from './types';
-import { WORLDS_DATA } from './data';
+import { UserProfile } from './types';
+import { WORLDS_DATA, AVATARS } from './data';
+import { getTableIcon, withTableIcon } from './utils/tableLabels';
 import { sound } from './components/SoundManager';
-import AvatarCreator from './components/AvatarCreator';
 import ParentDashboard from './components/ParentDashboard';
 import WorldDetail from './components/WorldDetail';
-import { Sparkles, Trophy, Settings, ShieldCheck, User, Compass, BookOpen, Volume2, VolumeX, Smartphone, RefreshCw, Zap } from 'lucide-react';
+import TrainingHub from './components/TrainingHub';
+import FontSizeControl from './components/FontSizeControl';
+import VoiceToggle from './components/VoiceToggle';
+import RewardsTutorial from './components/RewardsTutorial';
+import DigitsGuideModal from './components/DigitsGuideModal';
+import DigitsMatchingGameModal from './components/DigitsMatchingGameModal';
+import { DIGITS_INFO } from './data/digitsData';
+import NumericKeypad from './components/NumericKeypad';
+import ActionGrid from './components/layout/ActionGrid';
+import ResponsiveGrid from './components/layout/ResponsiveGrid';
+import SectionHeader from './components/layout/SectionHeader';
+import SurfaceCard from './components/layout/SurfaceCard';
+import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Coins, Droplets } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
+const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
+const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
+const DEV_MODE_KEY = "tabellandia_dev_mode_v1";
+const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
+const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
+const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
+const HEADER_REVEAL_TOUCH_ZONE_PX = 12;
 
-const DEFAULT_PROFILE: UserProfile = {
+type ProfileRecord = UserProfile & {
+  id: string;
+  birthYear: number | null;
+};
+
+type ProfileStore = {
+  activeProfileId: string | null;
+  profiles: ProfileRecord[];
+};
+
+const CURRENT_YEAR = new Date().getFullYear();
+const ALL_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'];
+const PROFILE_AVATAR_SECTIONS = [
+  { id: 'boy', label: 'Bambini' },
+  { id: 'girl', label: 'Bambine' },
+] as const;
+const APP_SIDEBAR_TABS = [
+  { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
+  { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
+  { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' },
+] as const;
+
+const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devModeEnabled: boolean) => {
+  const base = profile.worldProgress[worldId] || {
+    worldId,
+    completedSteps: [],
+    rebuiltMonuments: [],
+    creatureEvolution: 'egg',
+    highScore: 0,
+    stars: 0,
+  };
+
+  return devModeEnabled
+    ? { ...base, completedSteps: [...ALL_STEP_IDS] }
+    : base;
+};
+
+const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   name: "Eroe",
   level: 1,
   xp: 0,
   coins: 10, // Starting coins to explore customization
   lightDrops: 0,
   avatar: {
-    gender: 'kid1',
-    hairStyle: 'Nessuno',
-    hairColor: '#f59e0b',
-    shirtColor: '#3b82f6',
-    pantsColor: '#4b5563',
-    hat: 'Nessuno',
-    backpack: 'Nessuno',
-    mascot: 'Nessuna'
+    emoji: '👦'
   },
   unlockedWorlds: [2], // Starts with Table of 2 unlocked
   unlockedAccessories: [],
@@ -39,84 +88,671 @@ const DEFAULT_PROFILE: UserProfile = {
   history: []
 };
 
+const createProfileId = () => {
+  if (window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `profile-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+};
+
+const createProfile = (name: string, birthYear: number | null, avatarEmoji: string): ProfileRecord => {
+  return {
+    ...BASE_PROFILE,
+    id: createProfileId(),
+    name,
+    birthYear,
+    avatar: {
+      emoji: avatarEmoji
+    }
+  };
+};
+
+const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string): ProfileRecord => {
+  return {
+    ...BASE_PROFILE,
+    ...profile,
+    id: profile.id || fallbackId || createProfileId(),
+    birthYear: typeof profile.birthYear === 'number' ? profile.birthYear : null,
+    avatar: {
+      ...BASE_PROFILE.avatar,
+      ...(profile.avatar || {})
+    },
+    unlockedWorlds: profile.unlockedWorlds ? [...profile.unlockedWorlds] : [...BASE_PROFILE.unlockedWorlds],
+    unlockedAccessories: profile.unlockedAccessories ? [...profile.unlockedAccessories] : [...BASE_PROFILE.unlockedAccessories],
+    history: profile.history ? [...profile.history] : [],
+    worldProgress: profile.worldProgress ? { ...profile.worldProgress } : { ...BASE_PROFILE.worldProgress }
+  };
+};
+
 export default function App() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'avatar' | 'parents'>('adventure');
+  const [profiles, setProfiles] = useState<ProfileRecord[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'parents'>('adventure');
   const [selectedWorldId, setSelectedWorldId] = useState<number | null>(null);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [showAndroidBezel, setShowAndroidBezel] = useState<boolean>(true);
+  const [showLanding, setShowLanding] = useState<boolean>(true);
+  const [showProfilePicker, setShowProfilePicker] = useState<boolean>(false);
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
+    const raw = localStorage.getItem(AUDIO_SETTINGS_KEY);
+    if (!raw) return true;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.musicEnabled !== false;
+    } catch {
+      return true;
+    }
+  });
+  const [effectsEnabled, setEffectsEnabled] = useState<boolean>(() => {
+    const raw = localStorage.getItem(AUDIO_SETTINGS_KEY);
+    if (!raw) return true;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.effectsEnabled !== false;
+    } catch {
+      return true;
+    }
+  });
+  const [deviceMode, setDeviceMode] = useState<'phone' | 'tablet'>('phone');
+  const isPhoneMode = deviceMode === 'phone';
+  const [showRewardsTutorial, setShowRewardsTutorial] = useState<boolean>(() => {
+    const seen = localStorage.getItem('tabellandia_rewards_tutorial_seen');
+    return !seen; // Show if never seen before
+  });
+  const [showDigitsGuideModal, setShowDigitsGuideModal] = useState<boolean>(false);
+  const [manualOnboardingGameOpen, setManualOnboardingGameOpen] = useState<boolean>(false);
+  const [wizardActiveDigitIndex, setWizardActiveDigitIndex] = useState<number>(0);
+  const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
+  const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
+  // Header overlay behavior
+  const [isHeaderVisible, setIsHeaderVisible] = useState<boolean>(true);
+  const [isHeaderPinned, setIsHeaderPinned] = useState<boolean>(() => localStorage.getItem(HEADER_PINNED_KEY) === 'true');
+  const isHeaderPinnedRef = useRef<boolean>(isHeaderPinned);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const devTapCountRef = useRef<number>(0);
+  const devTapResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Setup Wizard State
-  const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: intro, 2: story, 3: char_create, 4: ready
+  const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: char_create, 2: ready
   const [heroNameInput, setHeroNameInput] = useState<string>("");
+  const [newProfileAvatarEmoji, setNewProfileAvatarEmoji] = useState<string>('👦');
+  const [newProfileBirthYear, setNewProfileBirthYear] = useState<number>(CURRENT_YEAR - 8);
+  const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
+
+  // Parent PIN State
+  const [showPINModal, setShowPINModal] = useState<boolean>(false);
+  const [pinInput, setPinInput] = useState<string>("");
+  const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
+  const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
+  const [devModeNotice, setDevModeNotice] = useState<string>("");
+
+  const [pinError, setPinError] = useState<string>("");
+  const [showChangePINForm, setShowChangePINForm] = useState<boolean>(false);
+  const [newPINInput, setNewPINInput] = useState<string>("");
+  const [confirmPINInput, setConfirmPINInput] = useState<string>("");
+  const [changePINStage, setChangePINStage] = useState<'new' | 'confirm'>('new');
+
+  const [appMonumentModal, setAppMonumentModal] = useState<{
+    world: typeof WORLDS_DATA[0];
+    monument: typeof WORLDS_DATA[0]['monuments'][0];
+    canAfford: boolean;
+    isErected: boolean;
+  } | null>(null);
+
+  const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
 
   // Load profile on start
   useEffect(() => {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        // Fallback for missing properties
-        if (!parsed.unlockedAccessories) parsed.unlockedAccessories = [];
-        if (!parsed.avatar) parsed.avatar = DEFAULT_PROFILE.avatar;
-        setProfile(parsed);
-        setWizardStep(0); // already registered
-      } catch (e) {
-        console.error("Error loading profile", e);
-        setProfile(DEFAULT_PROFILE);
-        setWizardStep(1); // show tutorial wizard
+    const loadStore = (): ProfileStore => {
+      const storeRaw = localStorage.getItem(PROFILE_STORE_KEY);
+      if (storeRaw) {
+        try {
+          const parsed = JSON.parse(storeRaw) as ProfileStore;
+          const nextProfiles = Array.isArray(parsed.profiles)
+            ? parsed.profiles.map(p => normalizeProfile(p))
+            : [];
+          return {
+            activeProfileId: parsed.activeProfileId || nextProfiles[0]?.id || null,
+            profiles: nextProfiles
+          };
+        } catch (e) {
+          console.error("Error loading profile store", e);
+        }
       }
-    } else {
-      setProfile(DEFAULT_PROFILE);
-      setWizardStep(1); // first-time wizard
-    }
+
+      const legacyRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (legacyRaw) {
+        try {
+          const parsed = JSON.parse(legacyRaw) as UserProfile;
+          const legacyProfile = normalizeProfile(parsed, 'legacy-profile');
+          return {
+            activeProfileId: legacyProfile.id,
+            profiles: [legacyProfile]
+          };
+        } catch (e) {
+          console.error("Error loading legacy profile", e);
+        }
+      }
+
+      return { activeProfileId: null, profiles: [] };
+    };
+
+    const store = loadStore();
+    setProfiles(store.profiles);
+    setActiveProfileId(store.activeProfileId);
+    setShowLanding(true);
+    setShowProfilePicker(false);
+    setWizardStep(0);
+    setIsLoaded(true);
   }, []);
+
+  useEffect(() => {
+    sound.setMusicEnabled(musicEnabled);
+    sound.setEffectsEnabled(effectsEnabled);
+    localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify({ musicEnabled, effectsEnabled }));
+    if (musicEnabled) {
+      sound.startBackgroundMusic();
+    } else {
+      sound.stopBackgroundMusic();
+    }
+  }, [musicEnabled, effectsEnabled]);
+
+  useEffect(() => {
+    const unlockAudio = () => {
+      sound.primeAudio();
+      if (musicEnabled) {
+        sound.startBackgroundMusic();
+      }
+    };
+
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, [musicEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (devTapResetTimerRef.current) {
+        clearTimeout(devTapResetTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(PROFILE_PANEL_VISIBLE_KEY, String(isProfilePanelVisible));
+  }, [isProfilePanelVisible]);
+
+  useEffect(() => {
+    isHeaderPinnedRef.current = isHeaderPinned;
+    localStorage.setItem(HEADER_PINNED_KEY, String(isHeaderPinned));
+    if (isHeaderPinned) {
+      setIsHeaderVisible(true);
+    }
+  }, [isHeaderPinned]);
+
+  // Chiudi l'header quando si clicca/tocca fuori da esso.
+  useEffect(() => {
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (isHeaderPinnedRef.current || !isHeaderVisible) return;
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (headerRef.current?.contains(target)) return;
+      setIsHeaderVisible(false);
+    };
+
+    document.addEventListener('pointerdown', handleOutsidePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handleOutsidePointerDown, true);
+  }, [isHeaderVisible]);
+
+  /** Mostra l'header overlay. */
+  const showHeaderAndReset = () => {
+    setIsHeaderVisible(true);
+  };
+
+  const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
+    localStorage.setItem(
+      PROFILE_STORE_KEY,
+      JSON.stringify({
+        activeProfileId: nextActiveProfileId,
+        profiles: nextProfiles
+      } as ProfileStore)
+    );
+
+    const currentProfile = nextActiveProfileId ? nextProfiles.find(p => p.id === nextActiveProfileId) || null : null;
+    if (currentProfile) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentProfile));
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+  };
 
   // Sync back to local storage helper
   const handleUpdateProfile = (updater: (p: UserProfile) => UserProfile) => {
-    setProfile(p => {
-      if (!p) return null;
-      const updated = updater(p);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-      return updated;
+    if (!activeProfileId) return;
+
+    setProfiles(prev => {
+      const next = prev.map(p => {
+        if (p.id !== activeProfileId) return p;
+        return normalizeProfile({
+          ...p,
+          ...updater(p)
+        }, p.id);
+      });
+      persistProfileStore(next, activeProfileId);
+      return next;
     });
   };
 
-  const toggleMute = () => {
-    const nextState = !isMuted;
-    setIsMuted(nextState);
-    sound.setMuted(nextState);
+  const toggleMusic = () => {
+    const nextState = !musicEnabled;
+    sound.primeAudio();
+    if (nextState) {
+      sound.startBackgroundMusic();
+    } else {
+      sound.stopBackgroundMusic();
+    }
+    setMusicEnabled(nextState);
     sound.playClick();
   };
 
-  const handleStartWizard = () => {
-    sound.playPowerUp();
-    setWizardStep(2);
+  const toggleEffects = () => {
+    const nextState = !effectsEnabled;
+    setEffectsEnabled(nextState);
+    sound.setEffectsEnabled(nextState);
   };
 
   const handleCreateHero = (e: React.FormEvent) => {
     e.preventDefault();
     const finalName = heroNameInput.trim() || "Fulmine";
+    const nextBirthYear = Number.isFinite(newProfileBirthYear) ? newProfileBirthYear : CURRENT_YEAR - 8;
+    const nextProfile = createProfile(finalName, nextBirthYear, newProfileAvatarEmoji);
+    setDraftProfile(nextProfile);
     sound.playLevelUp();
-    handleUpdateProfile(p => ({
-      ...p,
-      name: finalName
-    }));
-    setWizardStep(4);
+    setWizardStep(2);
   };
 
   const handleFinishWizard = () => {
+    if (!draftProfile) return;
+
+    const nextProfiles = [...profiles, draftProfile];
+    setProfiles(nextProfiles);
+    setActiveProfileId(draftProfile.id);
+    persistProfileStore(nextProfiles, draftProfile.id);
+
     sound.playPowerUp();
-    setWizardStep(0); // Closes wizard
+    setDraftProfile(null);
+    setWizardStep(0);
+    setShowProfilePicker(false);
+    setActiveTab('adventure');
+    setSelectedWorldId(null);
   };
 
-  if (!profile) {
+  const handleSelectProfile = (selectedId: string) => {
+    sound.playClick();
+    setActiveProfileId(selectedId);
+    persistProfileStore(profiles, selectedId);
+    setShowProfilePicker(false);
+    setWizardStep(0);
+    setDraftProfile(null);
+    setHeroNameInput('');
+    setSelectedWorldId(null);
+    setActiveTab('adventure');
+  };
+
+  const handleStartProfileCreation = () => {
+    sound.playPowerUp();
+    setHeroNameInput('');
+    setNewProfileAvatarEmoji('👦');
+    setNewProfileBirthYear(CURRENT_YEAR - 8);
+    setDraftProfile(null);
+    setWizardStep(1);
+    setShowProfilePicker(false);
+  };
+
+  const handleCancelProfileCreation = () => {
+    sound.playClick();
+    setHeroNameInput('');
+    setNewProfileAvatarEmoji('👦');
+    setNewProfileBirthYear(CURRENT_YEAR - 8);
+    setDraftProfile(null);
+    setWizardStep(0);
+    setShowProfilePicker(true);
+  };
+
+  const handleSwitchProfile = () => {
+    sound.playClick();
+    setShowProfilePicker(true);
+    setWizardStep(0);
+  };
+
+  const toggleDevMode = () => {
+    setDevModeEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem(DEV_MODE_KEY, next ? 'true' : 'false');
+      return next;
+    });
+  };
+
+  const handleDevModeGestureTap = () => {
+    devTapCountRef.current += 1;
+    if (devTapResetTimerRef.current) {
+      clearTimeout(devTapResetTimerRef.current);
+      devTapResetTimerRef.current = null;
+    }
+
+    if (devTapCountRef.current >= 7) {
+      const nextMode = !devModeEnabled;
+      toggleDevMode();
+      sound.playPowerUp();
+      setDevModeNotice(nextMode ? "Modalità DEV attivata" : "Modalità DEV disattivata");
+      setTimeout(() => setDevModeNotice(""), 1400);
+      devTapCountRef.current = 0;
+      return;
+    }
+
+    devTapResetTimerRef.current = setTimeout(() => {
+      devTapCountRef.current = 0;
+      devTapResetTimerRef.current = null;
+    }, 1200);
+  };
+
+  const handleAccessParentArea = () => {
+    const storedPIN = localStorage.getItem('tabellandia_parent_pin');
+    if (!storedPIN) {
+      // First time - set up PIN
+      setIsSettingPIN(true);
+    } else {
+      // Already has PIN - ask to enter
+      setIsSettingPIN(false);
+    }
+    setShowPINModal(true);
+    setPinInput("");
+  };
+
+  const handlePINSubmit = (pinValue?: string) => {
+    const pin = pinValue || pinInput;
+    sound.playClick();
+    setPinError("");
+    const storedPIN = localStorage.getItem('tabellandia_parent_pin');
+    
+    if (isSettingPIN) {
+      // Setting PIN for first time
+      if (pin.length === 4) {
+        if (pin === '0000') {
+          // First time with 0000 - show change PIN form
+          setPinError("PIN predefinito! Cambialo ora.");
+          setShowChangePINForm(true);
+        } else {
+          localStorage.setItem('tabellandia_parent_pin', pin);
+          sound.playPowerUp();
+          setParentAuthenticated(true);
+          setShowPINModal(false);
+          setActiveTab('parents');
+          setPinInput("");
+          setPinError("");
+        }
+      }
+    } else {
+      // Verifying existing PIN
+      if (pin === storedPIN) {
+        sound.playPowerUp();
+        setParentAuthenticated(true);
+        setShowPINModal(false);
+        setActiveTab('parents');
+        setPinInput("");
+        setPinError("");
+      } else {
+        sound.playError();
+        setPinError("PIN errato!");
+        setTimeout(() => {
+          setPinInput("");
+          setPinError("");
+        }, 1500);
+      }
+    }
+  };
+
+  const handleClosePINModal = () => {
+    sound.playClick();
+    setShowPINModal(false);
+    setPinInput("");
+    setPinError("");
+    setShowChangePINForm(false);
+    setNewPINInput("");
+    setConfirmPINInput("");
+    setParentAuthenticated(false);
+    setActiveTab('adventure');
+  };
+
+  const handleStartChangePIN = () => {
+    sound.playClick();
+    setShowChangePINForm(true);
+    setNewPINInput("");
+    setConfirmPINInput("");
+    setPinError("");
+    setChangePINStage('new');
+  };
+
+  const handleChangePINInput = (value: string) => {
+    if (changePINStage === 'new') {
+      setNewPINInput(value);
+      // Auto-advance to confirm stage when 4 digits entered
+      if (value.length === 4) {
+        setChangePINStage('confirm');
+      }
+    } else {
+      setConfirmPINInput(value);
+      // Check confirmation when 4 digits entered
+      if (value.length === 4) {
+        if (value === newPINInput) {
+          // PINs match - save
+          sound.playPowerUp();
+          localStorage.setItem('tabellandia_parent_pin', value);
+          setShowChangePINForm(false);
+          setNewPINInput("");
+          setConfirmPINInput("");
+          setPinError("");
+          setChangePINStage('new');
+        } else {
+          // PINs don't match - reset and show error
+          sound.playError();
+          setPinError("I PIN non corrispondono!");
+          setTimeout(() => {
+            setNewPINInput("");
+            setConfirmPINInput("");
+            setPinError("");
+            setChangePINStage('new');
+          }, 1500);
+        }
+      }
+    }
+  };
+
+  const handleSaveNewPIN = () => {
+    sound.playClick();
+    
+    // Validate inputs
+    if (newPINInput.length !== 4 || !newPINInput.match(/^\d+$/)) {
+      setPinError("Nuovo PIN deve essere 4 cifre!");
+      return;
+    }
+    
+    if (newPINInput !== confirmPINInput) {
+      setPinError("I PIN non corrispondono!");
+      return;
+    }
+    
+    // Save new PIN
+    localStorage.setItem('tabellandia_parent_pin', newPINInput);
+    sound.playPowerUp();
+    setShowChangePINForm(false);
+    setNewPINInput("");
+    setConfirmPINInput("");
+    setPinError("");
+    setChangePINStage('new');
+  };
+
+  if (!isLoaded) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-slate-900 text-white">
         <div className="text-center space-y-3">
           <RefreshCw className="w-10 h-10 animate-spin text-indigo-400 mx-auto" />
           <p className="text-sm font-bold font-sans">Caricamento di Tabellandia...</p>
         </div>
+        <FontSizeControl />
+      </div>
+    );
+  }
+
+  if (showLanding) {
+    return (
+      <div className="w-full h-screen bg-gradient-to-b from-purple-100 to-indigo-100 flex items-center justify-center p-4 overflow-hidden relative" id="landing-screen">
+        {/* Decorative clouds */}
+        <div className="absolute top-8 left-1/4 w-32 h-12 bg-white/60 rounded-full blur-xl"></div>
+        <div className="absolute top-24 right-1/3 w-40 h-14 bg-white/50 rounded-full blur-2xl"></div>
+        
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center max-w-lg w-full space-y-8 relative z-10"
+        >
+          {/* Castle Logo */}
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 3, repeat: Infinity }}
+            className="text-7xl filter drop-shadow-lg"
+          >
+            🏰
+          </motion.div>
+
+          {/* Title */}
+          <div className="text-center space-y-2">
+            <h1 className="text-5xl md:text-6xl font-black text-indigo-950 tracking-wider font-sans">
+              Tabellandia
+            </h1>
+            <p className="text-sm md:text-base font-bold text-indigo-600 tracking-widest uppercase">
+              Un Regno di Numeri e Magia
+            </p>
+          </div>
+
+          {/* Welcome Message */}
+          <p className="text-center text-sm md:text-base text-indigo-900/80 leading-relaxed max-w-md font-medium">
+            Benvenuto! Sei pronto ad intraprendere un viaggio straordinario dove le tabelline diventano alleate fedeli, magie e creature leggendarie?
+          </p>
+
+          {/* Start Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              sound.playPowerUp();
+              setShowLanding(false);
+              setShowProfilePicker(true);
+            }}
+            className="w-full max-w-xs py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-lg shadow-2xl cursor-pointer transition-all"
+            id="landing-start-btn"
+          >
+            Inizia l'Avventura!
+          </motion.button>
+
+          {/* Info Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRewardsTutorial(true)}
+            className="w-full max-w-xs py-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black text-base shadow-lg cursor-pointer transition-all flex items-center justify-center gap-2"
+            id="landing-info-btn"
+          >
+            <Coins className="w-5 h-5" />
+            Come Guadagnare Premi
+          </motion.button>
+
+          {/* Decorative stars */}
+          <div className="flex gap-3 mt-4">
+            <span className="text-2xl animate-bounce" style={{ animationDelay: '0s' }}>✨</span>
+            <span className="text-2xl animate-bounce" style={{ animationDelay: '0.3s' }}>⭐</span>
+            <span className="text-2xl animate-bounce" style={{ animationDelay: '0.6s' }}>✨</span>
+          </div>
+        </motion.div>
+
+        {/* Rewards Tutorial Modal */}
+        <RewardsTutorial
+          isOpen={showRewardsTutorial}
+          onClose={() => {
+            setShowRewardsTutorial(false);
+            localStorage.setItem('tabellandia_rewards_tutorial_seen', 'true');
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (showProfilePicker) {
+    return (
+      <div className="w-full h-screen bg-indigo-950 flex items-center justify-center p-4 overflow-hidden relative" id="profile-picker-screen">
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-400 via-indigo-900 to-indigo-950 z-0"></div>
+
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="max-w-4xl w-full relative z-10 max-h-[90vh]"
+        >
+          <SurfaceCard padding="lg" className="border-2 border-indigo-200 shadow-2xl h-full max-h-[90vh] overflow-hidden flex flex-col">
+            <SectionHeader
+              centered
+              eyebrow="Selezione profilo"
+              title="Chi entra a Tabellandia?"
+              description="Scegli un profilo esistente oppure creane uno nuovo. Ogni profilo conserva progressi, monete, gocce e dettagli di crescita."
+              className="mb-4 sm:mb-6"
+            />
+
+            <ResponsiveGrid variant="cards" className="overflow-y-auto pr-1 flex-1 items-stretch">
+            {profiles.map(p => {
+              const age = p.birthYear ? CURRENT_YEAR - p.birthYear : null;
+              const isActive = activeProfileId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelectProfile(p.id)}
+                  className={`text-left rounded-3xl border-2 p-4 shadow-sm transition-all cursor-pointer hover:shadow-md focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+                    isActive ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                  id={`profile-card-${p.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-orange-400 border-2 border-white shadow-inner flex items-center justify-center text-2xl shrink-0">
+                      {p.avatar?.emoji || '👦'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black text-slate-900 truncate">{p.name}</p>
+                      <p className="text-[10px] font-semibold text-slate-500">
+                        {p.birthYear ? `Nato nel ${p.birthYear}${age ? ` · ${age} anni` : ''}` : 'Anno di nascita da impostare'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <span>LV {p.level}</span>
+                    <span>{p.unlockedWorlds.length} mondi</span>
+                  </div>
+                </button>
+              );
+            })}
+
+            <button
+              onClick={handleStartProfileCreation}
+              className="rounded-3xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 text-center shadow-sm hover:bg-indigo-50 hover:shadow-md cursor-pointer transition-colors flex flex-col items-center justify-center min-h-[120px] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+              id="profile-create-btn"
+            >
+              <span className="text-4xl">➕</span>
+              <span className="mt-2 text-sm font-black text-indigo-950">Crea nuovo profilo</span>
+              <span className="text-[11px] text-slate-500 mt-1">Scegli base avatar e anno di nascita</span>
+            </button>
+            </ResponsiveGrid>
+          </SurfaceCard>
+        </motion.div>
       </div>
     );
   }
@@ -124,106 +760,171 @@ export default function App() {
   // Tutorial / Setup Wizard Overlay
   if (wizardStep > 0) {
     return (
-      <div className="w-full h-screen bg-indigo-950 flex items-center justify-center p-4 overflow-hidden relative" id="wizard-screen">
+      <div className="w-full min-h-screen min-h-dvh bg-indigo-950 flex items-center justify-center p-2.5 sm:p-6 overflow-y-auto relative" id="wizard-screen">
         {/* Ambient star decorations */}
-        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-400 via-indigo-900 to-indigo-950 z-0"></div>
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-400 via-indigo-900 to-indigo-950 z-0 pointer-events-none"></div>
 
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative z-10 flex flex-col justify-between min-h-[400px] border-2 border-indigo-200"
+          className="max-w-2xl w-full my-auto py-2 relative z-10"
         >
+          <SurfaceCard padding="sm" className="border-2 border-indigo-200 shadow-2xl overflow-y-auto max-h-[92vh] sm:max-h-none p-3.5 sm:p-6">
           {wizardStep === 1 && (
-            <div className="text-center space-y-6 flex-1 flex flex-col justify-center">
-              <div className="text-6xl animate-bounce">🏰</div>
-              <div>
-                <h1 className="text-3xl font-black text-indigo-950 tracking-wide font-sans">Tabellandia</h1>
-                <p className="text-sm text-indigo-700 font-medium mt-1 uppercase tracking-wider">Un Regno di Numeri e Magia</p>
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto font-sans">
-                Benvenuto! Sei pronto ad intraprendere un viaggio straordinario dove le tabelline diventano alleate fedeli, magie e creature leggendarie?
-              </p>
-              <button
-                onClick={handleStartWizard}
-                className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
-                id="wizard-start-btn"
-              >
-                Inizia l'Avventura!
-              </button>
-            </div>
-          )}
+            <div className="space-y-3.5 flex-1 flex flex-col justify-center">
+              <SectionHeader
+                centered
+                eyebrow="Nuovo profilo"
+                title="Crea il profilo"
+                description="Scegli nome, anno di nascita e base avatar."
+                icon={<span className="text-3xl sm:text-4xl" aria-hidden="true">🎒🛡️</span>}
+              />
 
-          {wizardStep === 2 && (
-            <div className="space-y-6 flex-1 flex flex-col justify-center text-center">
-              <div className="text-5xl">🌪️⚡📓</div>
-              <h2 className="text-xl font-bold text-slate-800 font-sans">La Tempesta Matematica</h2>
-              <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                Un'antica tempesta di vento sconosciuto ha colpito Tabellandia, disperdendo tutti i numeri e rubando l'energia vitale al regno!
-              </p>
-              <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                Per riportare la luce, dovrai superare i sentieri delle 9 Terre, sbloccare le magiche Creature Matematiche e ricostruire i grandi monumenti!
-              </p>
-              <button
-                onClick={() => { sound.playClick(); setWizardStep(3); }}
-                className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
-                id="wizard-next-btn"
-              >
-                Crea il tuo Eroe
-              </button>
-            </div>
-          )}
-
-          {wizardStep === 3 && (
-            <div className="space-y-5 flex-1 flex flex-col justify-center">
-              <div className="text-center">
-                <div className="text-4xl mb-2">🎒🛡️</div>
-                <h2 className="text-lg font-bold text-slate-800">Scegli il tuo Nome</h2>
-                <p className="text-xs text-slate-400 mt-1">Con quale nome ti conosceranno i saggi del regno?</p>
-              </div>
-
-              <form onSubmit={handleCreateHero} className="space-y-4">
+              <form onSubmit={handleCreateHero} className="space-y-3">
                 <input
                   type="text"
                   maxLength={15}
                   placeholder="Scrivi il tuo nome d'eroe..."
                   value={heroNameInput}
                   onChange={e => setHeroNameInput(e.target.value)}
-                  className="w-full py-3 px-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white"
+                  className="w-full py-2.5 px-3.5 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white text-sm sm:text-base"
                   id="hero-name-input"
                   required
                 />
-                
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px] text-slate-500 leading-relaxed">
-                  💡 <strong>Suggerimento:</strong> Potrai personalizzare i vestiti, il colore dei capelli, i cappelli magici e le mascotte nell'Armadio Magico in qualsiasi momento del viaggio!
+
+                <label className="block">
+                  <span className="block text-[11px] sm:text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Anno di nascita</span>
+                  <select
+                    value={newProfileBirthYear}
+                    onChange={e => setNewProfileBirthYear(parseInt(e.target.value, 10))}
+                    className="w-full py-2.5 px-3.5 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white text-sm sm:text-base"
+                    id="birth-year-select"
+                  >
+                    {Array.from({ length: 12 }).map((_, idx) => {
+                      const year = CURRENT_YEAR - 4 - idx;
+                      return (
+                        <option key={year} value={year}>
+                          {year} (circa {CURRENT_YEAR - year} anni)
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+
+                <div>
+                  <span className="block text-[11px] sm:text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Scegli il tuo avatar</span>
+                  <div className="space-y-2">
+                    {PROFILE_AVATAR_SECTIONS.map(section => (
+                      <SurfaceCard key={section.id} padding="sm" className="rounded-xl border-slate-200 p-2 sm:p-3">
+                        <p className="text-[10px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">{section.label}</p>
+                        <ResponsiveGrid variant="compact" className="grid-cols-4 gap-1.5 sm:gap-2">
+                          {AVATARS.filter(a => a.category === section.id).map(avatar => (
+                            <button
+                              key={avatar.id}
+                              type="button"
+                              onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
+                              className={`p-1.5 sm:p-2.5 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+                                newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                              }`}
+                              id={`setup-avatar-${avatar.id}`}
+                            >
+                              <span className="text-xl sm:text-2xl">{avatar.emoji}</span>
+                              <span className="line-clamp-1">{avatar.name}</span>
+                            </button>
+                          ))}
+                        </ResponsiveGrid>
+                      </SurfaceCard>
+                    ))}
+                  </div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
-                  id="wizard-create-btn"
-                >
-                  Registra Eroe
-                </button>
+                <ActionGrid columns={2}>
+                  <button
+                    type="button"
+                    onClick={handleCancelProfileCreation}
+                    className="w-full py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs sm:text-sm shadow-md cursor-pointer transition-colors"
+                    id="wizard-cancel-btn"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer transition-colors"
+                    id="wizard-create-btn"
+                  >
+                    Registra Eroe
+                  </button>
+                </ActionGrid>
               </form>
             </div>
           )}
 
-          {wizardStep === 4 && (
-            <div className="text-center space-y-6 flex-1 flex flex-col justify-center">
-              <div className="text-6xl animate-pulse">🌟✨🐉</div>
-              <h2 className="text-xl font-bold text-emerald-600 font-sans">Sei Pronto, {profile.name}!</h2>
-              <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto font-sans">
-                La foresta del 2 ti sta aspettando. Rispondi correttamente alle domande per guadagnare <strong>Monete 🪙</strong> da spendere in abiti speciali e <strong>Gocce di Luce 💧</strong> per riparare il regno!
-              </p>
+          {wizardStep === 2 && (
+            <div className="space-y-5 flex-1 flex flex-col justify-center text-slate-800">
+              <SectionHeader
+                centered
+                eyebrow="Benvenuto a Tabellandia"
+                title={`Ecco le 10 Cifre Magiche, ${draftProfile?.name || heroNameInput || 'Eroe'}!`}
+                description="All'inizio del gioco impariamo ogni cifra con la sua associazione visiva e il motivo per ricordarla facilmente:"
+                icon={<span className="text-4xl animate-bounce" aria-hidden="true">🔢✨</span>}
+              />
+
+              {/* Digit selector grid */}
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                {DIGITS_INFO.map((info, idx) => (
+                  <button
+                    key={info.digit}
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setWizardActiveDigitIndex(idx);
+                    }}
+                    className={`p-2 rounded-xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center ${
+                      wizardActiveDigitIndex === idx
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-md scale-105 font-black'
+                        : 'border-slate-200 bg-white hover:bg-indigo-50 text-slate-700'
+                    }`}
+                  >
+                    <span className="text-base font-bold">{info.digit}</span>
+                    <span className="text-lg">{info.emoji}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Selected Digit Detail Box */}
+              {(() => {
+                const current = DIGITS_INFO[wizardActiveDigitIndex] || DIGITS_INFO[0];
+                return (
+                  <SurfaceCard padding="md" className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-sm rounded-2xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-2xl bg-white border-2 border-indigo-200 shadow-sm flex items-center justify-center text-3xl shrink-0">
+                        {current.emoji}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left space-y-1">
+                        <p className="text-xs font-black text-indigo-900 uppercase tracking-wider">
+                          Cifra {current.digit} = {current.emoji} {current.imageLabel}
+                        </p>
+                        <p className="text-xs text-slate-700 leading-snug">
+                          <span className="font-bold text-indigo-700">Motivo: </span>
+                          {current.reason}
+                        </p>
+                      </div>
+                    </div>
+                  </SurfaceCard>
+                );
+              })()}
+
               <button
+                type="button"
                 onClick={handleFinishWizard}
-                className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors flex items-center justify-center gap-2"
                 id="wizard-finish-btn"
               >
-                Vola a Tabellandia!
+                <span>🚀</span> Ho capito le 10 cifre! Vola a Tabellandia!
               </button>
             </div>
           )}
+          </SurfaceCard>
         </motion.div>
       </div>
     );
@@ -234,30 +935,44 @@ export default function App() {
       
       {/* Device frame toggle for responsive showcase */}
       <div className="mb-2 text-xs font-bold text-slate-400 flex items-center gap-3">
-        <span>Dimostratore Android "Tabellandia"</span>
+        <span>{isPhoneMode ? 'Vista smartphone' : 'Dimostratore Android "Tabellandia"'}</span>
         <button
-          onClick={() => setShowAndroidBezel(!showAndroidBezel)}
+          onClick={() => setDeviceMode(isPhoneMode ? 'tablet' : 'phone')}
           className="flex items-center gap-1 bg-slate-800 text-white px-2 py-1 rounded hover:bg-slate-700 cursor-pointer"
           id="bezel-toggle"
         >
           <Smartphone className="w-3.5 h-3.5" />
-          {showAndroidBezel ? "Nascondi Bezel Tablet" : "Mostra Bezel Tablet"}
+          {isPhoneMode ? "Passa alla vista tablet" : "Passa alla vista smartphone"}
         </button>
       </div>
 
       {/* Main Container mimicking tablet bezel */}
-      <div className={`w-full transition-all relative ${
-        showAndroidBezel 
-          ? 'max-w-5xl aspect-[4/3] min-h-[600px] border-[14px] border-slate-800 rounded-[36px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800' 
-          : 'max-w-7xl w-full min-h-screen bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col rounded-3xl overflow-hidden text-slate-800'
-      }`}>
-        
+      <div
+        className={`w-full transition-all relative ${
+          isPhoneMode
+            ? 'max-w-[430px] w-full h-[min(88vh,860px)] border-[12px] border-slate-800 rounded-[42px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800'
+            : 'max-w-5xl aspect-[4/3] min-h-[600px] border-[14px] border-slate-800 rounded-[36px] ring-8 ring-slate-800/10 shadow-2xl overflow-hidden bg-gradient-to-b from-[#63C5DA] to-[#92E3A9] flex flex-col text-slate-800'
+        }`}
+        onMouseMove={(e) => {
+          if (!isHeaderVisible) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            if (e.clientY - rect.top < HEADER_REVEAL_MOUSE_ZONE_PX) showHeaderAndReset();
+          }
+        }}
+        onTouchStart={(e) => {
+          if (!isHeaderVisible && e.touches.length > 0) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            if (e.touches[0].clientY - rect.top < HEADER_REVEAL_TOUCH_ZONE_PX) showHeaderAndReset();
+          }
+        }}
+      >
+
         {/* Sky Background Elements */}
         <div className="absolute top-12 left-16 w-32 h-12 bg-white/20 rounded-full blur-xl pointer-events-none z-0"></div>
         <div className="absolute top-28 right-36 w-48 h-16 bg-white/15 rounded-full blur-2xl pointer-events-none z-0"></div>
         
         {/* Android status bar simulation if bezel is shown */}
-        {showAndroidBezel && (
+        {isPhoneMode && (
           <div className="bg-slate-950/40 text-slate-200 px-6 py-1 text-[10px] flex items-center justify-between select-none font-sans border-b border-white/10 z-10 backdrop-blur-sm">
             <div className="flex items-center gap-1.5 font-bold text-emerald-300">
               <span>● Google Android OS</span>
@@ -272,70 +987,379 @@ export default function App() {
           </div>
         )}
 
-        {/* Outer Frame Header */}
-        <header className="bg-white/30 backdrop-blur-md border-b border-white/40 px-6 py-4 flex justify-between items-center z-10 shadow-lg text-sky-950">
-          <div className="flex items-center gap-4 bg-white/40 backdrop-blur-sm p-1.5 pr-5 rounded-full border-2 border-white/60 shadow-md">
-            <div className="w-11 h-11 bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center text-2xl">
-              🦁
-            </div>
-            <div>
-              <p className="text-xs font-black text-sky-950 uppercase tracking-wider leading-none">{profile.name}</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[9px] bg-sky-900/10 text-sky-950 px-2 py-0.5 rounded-full font-black">LV {profile.level}</span>
-                <span className="text-[9px] text-sky-950/70 font-semibold">{profile.xp % 100}/100 XP</span>
+        {/* ── Auto-hide header (absolute, slides out on inactivity) ─────────── */}
+        <header
+          id="app-header"
+          ref={headerRef}
+          className={`absolute top-0 left-0 right-0 z-40 bg-white/30 backdrop-blur-md border-b border-white/40 shadow-lg text-sky-950 px-${isPhoneMode ? '2' : '6'} py-${isPhoneMode ? '2' : '4'}
+            transition-transform duration-300 ease-in-out motion-reduce:transition-none
+            ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}`}
+          onMouseEnter={showHeaderAndReset}
+          onPointerDown={showHeaderAndReset}
+          onMouseLeave={() => { if (!isHeaderPinnedRef.current) setIsHeaderVisible(false); }}
+          aria-hidden={!isHeaderVisible}
+        >
+          <div className={`w-full flex items-center ${isPhoneMode ? 'gap-1.5' : 'gap-3'} bg-white/40 backdrop-blur-sm ${isPhoneMode ? 'px-3 py-2' : 'px-5 py-2.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap`}>
+            {/* Profile Avatar */}
+            <button
+             type="button"
+             onClick={() => { sound.playClick(); handleSwitchProfile(); }}
+             className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
+             id="profile-icon-btn"
+             title="Cambia profilo"
+            >
+             <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
+               {profile?.avatar?.emoji || '👦'}
+             </div>
+             <p
+               onClick={(e) => { e.stopPropagation(); handleDevModeGestureTap(); }}
+               className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
+             >
+               {profile?.name || 'Eroe'}
+             </p>
+             {devModeEnabled && (
+               <span className={`mt-0.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black tracking-wider ${isPhoneMode ? 'text-[6px]' : 'text-[8px]'}`}>DEV</span>
+             )}
+            </button>
+
+            {/* Monete & Gocce (Sovrapposte una sotto l'altra) */}
+            <div className={`flex flex-col justify-center gap-1 shrink-0 bg-white/65 rounded-2xl border border-white/80 ${isPhoneMode ? 'px-2 py-1 min-w-[72px]' : 'px-3 py-1.5 min-w-[105px]'}`}>
+              {/* Monete */}
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1 text-amber-600">
+                  <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
+                  <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Monete</span>
+                </div>
+                <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
+              </div>
+
+              {/* Gocce */}
+              <div className="flex items-center justify-between gap-1.5 border-t border-sky-950/10 pt-0.5">
+                <div className="flex items-center gap-1 text-sky-500">
+                  <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
+                  <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Gocce</span>
+                </div>
+                <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
               </div>
             </div>
-          </div>
 
-          {/* Quick Stats & Audio controller */}
-          <div className="flex items-center gap-3">
-            {/* Coins */}
-            <div className="bg-white/40 backdrop-blur-sm px-4 py-2 rounded-full border-2 border-white/60 flex items-center gap-2 shadow-md">
-              <span className="text-lg leading-none">🪙</span>
-              <span className="text-xs font-black text-sky-950">{profile.coins}</span>
+            {/* Controls */}
+            <div className={`ml-auto flex items-center gap-${isPhoneMode ? '1' : '2'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'} min-w-max`}>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${musicEnabled ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white/70 border-slate-200 text-slate-400'}`}
+                id="music-toggle" title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
+              >
+                <span className="relative flex items-center justify-center">
+                  <Music2 className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                  {!musicEnabled && <X className={`absolute -right-1 -bottom-1 stroke-[3.2] ${isPhoneMode ? 'w-1 h-1' : 'w-2 h-2'}`} />}
+                </span>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleEffects(); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${effectsEnabled ? 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-600' : 'bg-white/70 border-slate-200 text-slate-400'}`}
+                id="sfx-toggle" title={effectsEnabled ? "Disattiva effetti click" : "Attiva effetti click"}
+              >
+                <span className="relative flex items-center justify-center">
+                  <Volume2 className={isPhoneMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                  {!effectsEnabled && <X className={`absolute -right-1 -bottom-1 stroke-[3.2] ${isPhoneMode ? 'w-1 h-1' : 'w-2 h-2'}`} />}
+                </span>
+              </button>
+              <VoiceToggle isPhoneMode={isPhoneMode} />
+              {/* Cifre & Mnemoniche guide button */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); sound.playClick(); setShowDigitsGuideModal(true); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'px-2 h-6 text-[10px]' : 'px-2.5 h-8 text-xs'} bg-indigo-100 hover:bg-indigo-200 border-indigo-300 text-indigo-800 font-bold gap-1`}
+                title="Guida Cifre e Mnemoniche (0-9)"
+                id="digits-guide-btn"
+              >
+                <span>🔢</span>
+                {!isPhoneMode && <span>Cifre</span>}
+              </button>
+              {/* Pin/Unpin — blocca header sempre visibile */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); sound.playClick(); setIsHeaderPinned(prev => !prev); }}
+                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${isHeaderPinned ? 'bg-sky-200 border-sky-400 text-sky-700' : 'bg-white/70 border-slate-200 text-slate-400 hover:bg-white/90'}`}
+                aria-label={isHeaderPinned ? 'Sblocca barra (chiude fuori click o uscita mouse)' : 'Blocca barra sempre visibile'}
+                aria-pressed={isHeaderPinned}
+              >
+                <span className={isPhoneMode ? 'text-[9px]' : 'text-[11px]'} aria-hidden="true">{isHeaderPinned ? '📌' : '📍'}</span>
+              </button>
             </div>
-
-            {/* Light Drops */}
-            <div className="bg-white/40 backdrop-blur-sm px-4 py-2 rounded-full border-2 border-white/60 flex items-center gap-2 shadow-md">
-              <span className="text-lg leading-none">💧</span>
-              <span className="text-xs font-black text-sky-950">{profile.lightDrops}</span>
-            </div>
-
-            {/* Audio Toggle */}
-            <button
-              onClick={toggleMute}
-              className={`p-2.5 rounded-full border-2 transition-colors cursor-pointer shadow-md ${
-                isMuted 
-                  ? 'bg-rose-100/50 border-rose-300 text-rose-600 hover:bg-rose-200' 
-                  : 'bg-white/40 border-white/60 text-sky-950 hover:bg-white/60'
-              }`}
-              id="audio-mute-toggle"
-              title={isMuted ? "Riapri audio" : "Silenzia"}
-            >
-              {isMuted ? <VolumeX className="w-4.5 h-4.5" /> : <Volume2 className="w-4.5 h-4.5" />}
-            </button>
           </div>
         </header>
 
+        {/* Grip strip — trigger visibile quando header è nascosto */}
+        <div
+          className="absolute top-0 left-0 right-0 z-50 h-3 flex items-end justify-center pb-0.5 pointer-events-auto"
+          role="button"
+          tabIndex={isHeaderVisible ? -1 : 0}
+          aria-label="Mostra barra profilo"
+          onPointerDown={showHeaderAndReset}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') showHeaderAndReset(); }}
+        >
+          <div className={`w-10 h-1 rounded-full transition-all duration-300 ${isHeaderVisible ? 'bg-transparent' : 'bg-white/60'}`} />
+        </div>
+        {devModeNotice && (
+          <div className={`absolute left-1/2 -translate-x-1/2 z-50 bg-slate-900/85 text-white text-xs font-black px-3 py-1.5 rounded-full border border-white/20 shadow-lg pointer-events-none transition-all duration-300 ${isHeaderVisible ? 'top-16' : 'top-2'}`}>
+            {devModeNotice}
+          </div>
+        )}
+
+        {/* PIN Authentication Modal */}
+        <AnimatePresence>
+          {showPINModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={handleClosePINModal}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="text-center mb-4">
+                  <div className="text-4xl mb-2">🔐</div>
+                  <h2 className="text-xl font-black text-indigo-950">Area Genitori</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {showChangePINForm ? "Imposta un nuovo PIN" : isSettingPIN ? "Crea un PIN a 4 cifre" : "Inserisci il PIN"}
+                  </p>
+                </div>
+
+                {/* Show Change PIN Form or Normal PIN Entry */}
+                {showChangePINForm ? (
+                  <>
+                    {/* Change PIN Form */}
+                    <div className="space-y-4">
+                      {/* New PIN Input */}
+                      <div>
+                        <label className="text-xs font-bold text-indigo-700 block mb-2">Nuovo PIN (4 cifre)</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={newPINInput}
+                          onChange={e => setNewPINInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-center text-2xl font-black tracking-widest focus:outline-none focus:border-indigo-600"
+                          placeholder="••••"
+                        />
+                      </div>
+
+                      {/* Confirm PIN Input */}
+                      <div>
+                        <label className="text-xs font-bold text-indigo-700 block mb-2">Conferma PIN</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={confirmPINInput}
+                          onChange={e => setConfirmPINInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-center text-2xl font-black tracking-widest focus:outline-none focus:border-indigo-600"
+                          placeholder="••••"
+                        />
+                      </div>
+
+                      {/* Error Message */}
+                      {pinError && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-center text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
+                        >
+                          {pinError}
+                        </motion.div>
+                      )}
+
+                      {/* Buttons */}
+                      <div className="flex gap-3 mt-6">
+                        <button
+                          onClick={() => {
+                            setShowChangePINForm(false);
+                            setNewPINInput("");
+                            setConfirmPINInput("");
+                            setPinError("");
+                            setPinInput("");
+                          }}
+                          className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black rounded-lg transition-colors"
+                        >
+                          Annulla
+                        </button>
+                        <button
+                          onClick={handleSaveNewPIN}
+                          disabled={newPINInput.length !== 4 || confirmPINInput.length !== 4}
+                          className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Salva
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* PIN Display */}
+                    <div className="flex justify-center gap-2 mb-6">
+                      {[0, 1, 2, 3].map(i => (
+                        <motion.div
+                          key={i}
+                          animate={pinError ? { x: [-5, 5, -5, 0] } : {}}
+                          transition={{ duration: 0.3 }}
+                          className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-lg transition-all ${
+                            pinError
+                              ? 'bg-red-100 border-red-400 text-red-600'
+                              : 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                          }`}
+                        >
+                          {pinInput[i] ? '●' : '-'}
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* Error Message */}
+                    {pinError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center mb-4 text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
+                      >
+                        {pinError}
+                      </motion.div>
+                    )}
+
+                    {/* Numeric Keypad */}
+                    <NumericKeypad
+                      value={pinInput}
+                      onChange={v => setPinInput(v.slice(0, 4))}
+                      onSubmit={handlePINSubmit}
+                      maxDigits={4}
+                    />
+                  </>
+                )}
+
+                {!showChangePINForm && (
+                  <button
+                    onClick={handleClosePINModal}
+                    className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                  >
+                    Annulla
+                  </button>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Change PIN Modal (from Parent Dashboard) */}
+        <AnimatePresence>
+          {showChangePINForm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => {
+                setShowChangePINForm(false);
+                setNewPINInput("");
+                setConfirmPINInput("");
+                setPinError("");
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-4xl mb-2">🔑</div>
+                  <h2 className="text-xl font-black text-indigo-950">Modifica PIN</h2>
+                  <p className="text-xs text-slate-500 mt-2">
+                    {changePINStage === 'new' ? 'Inserisci il nuovo PIN (4 cifre)' : 'Conferma il PIN'}
+                  </p>
+                </div>
+
+                {/* PIN Display */}
+                <div className="flex justify-center gap-2 mb-6">
+                  {[0, 1, 2, 3].map(i => {
+                    const currentValue = changePINStage === 'new' ? newPINInput : confirmPINInput;
+                    return (
+                      <motion.div
+                        key={i}
+                        animate={pinError ? { x: [-5, 5, -5, 0] } : {}}
+                        transition={{ duration: 0.3 }}
+                        className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-lg transition-all ${
+                          pinError
+                            ? 'bg-red-100 border-red-400 text-red-600'
+                            : 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                        }`}
+                      >
+                        {currentValue[i] ? '●' : '-'}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                {/* Error Message */}
+                {pinError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center mb-4 text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
+                  >
+                    {pinError}
+                  </motion.div>
+                )}
+
+                {/* Numeric Keypad */}
+                <NumericKeypad
+                  value={changePINStage === 'new' ? newPINInput : confirmPINInput}
+                  onChange={handleChangePINInput}
+                  onSubmit={() => {}}
+                  maxDigits={4}
+                />
+
+                <button
+                  onClick={() => {
+                    setShowChangePINForm(false);
+                    setNewPINInput("");
+                    setConfirmPINInput("");
+                    setPinError("");
+                    setChangePINStage('new');
+                  }}
+                  className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  Annulla
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Content Panel Area */}
-        <div className="flex-1 overflow-hidden flex flex-row relative z-10">
+        <div className={`flex-1 overflow-hidden flex relative z-10 ${isPhoneMode ? 'flex-col' : 'flex-row'}`}>
           
           {/* Left Sidebar Navigation (Kid-Friendly Rail) */}
-          {selectedWorldId === null && (
+          {selectedWorldId === null && !isPhoneMode && (
             <div className="w-24 bg-white/20 backdrop-blur-md rounded-[32px] border-4 border-white/40 flex flex-col items-center py-8 gap-8 shadow-2xl z-20 m-4 md:flex hidden">
-              {[
-                { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
-                { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
-                { id: 'avatar', emoji: '🧑', color: 'bg-emerald-400 border-emerald-600' },
-                { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' }
-              ].map(tab => {
+              {APP_SIDEBAR_TABS.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => {
                       sound.playClick();
-                      setActiveTab(tab.id as any);
+                      if (tab.id === 'parents') {
+                        handleAccessParentArea();
+                      } else {
+                        setActiveTab(tab.id as any);
+                      }
                     }}
                     className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-110 active:scale-95 transition-all ${
                       isActive 
@@ -356,23 +1380,27 @@ export default function App() {
             <AnimatePresence mode="wait">
               {selectedWorldId !== null ? (
                 // Selected World Detail gameplay view
-                <motion.div
-                  key="world-detail"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="w-full h-full"
-                >
-                  <WorldDetail
-                    world={WORLDS_DATA.find(w => w.id === selectedWorldId)!}
-                    profile={profile}
-                    updateProfile={handleUpdateProfile}
-                    onBack={() => {
-                      sound.playClick();
-                      setSelectedWorldId(null);
-                    }}
-                  />
-                </motion.div>
+                profile ? (
+                  <motion.div
+                    key="world-detail"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="w-full h-full"
+                  >
+                    <WorldDetail
+                      world={WORLDS_DATA.find(w => w.id === selectedWorldId)!}
+                      profile={profile}
+                      updateProfile={handleUpdateProfile}
+                      compactLayout={isPhoneMode}
+                      devMode={devModeEnabled}
+                      onBack={() => {
+                        sound.playClick();
+                        setSelectedWorldId(null);
+                      }}
+                    />
+                  </motion.div>
+                ) : null
               ) : (
                 // Main Area Tabs
                 <motion.div
@@ -380,184 +1408,160 @@ export default function App() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="w-full h-full overflow-y-auto p-4 md:p-6"
+                  className={`w-full h-full overflow-y-auto ${isPhoneMode ? 'p-3' : 'p-4 md:p-6'}`}
                 >
                   {/* TAB 1: AVVENTURA (Main map with levels) */}
                   {activeTab === 'adventure' && (
                     <div className="space-y-6">
-                      <div className="text-center md:text-left bg-white/40 backdrop-blur-sm p-4 rounded-3xl border border-white/40 shadow-sm max-w-xl">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-sky-800 bg-sky-200/50 px-3 py-1 rounded-full font-sans">
-                          Modalità Avventura (Percorso Guidato)
-                        </span>
-                        <h2 className="text-xl md:text-2xl font-black text-sky-950 mt-2 font-sans">
-                          Mappa di Tabellandia
-                        </h2>
-                        <p className="text-xs text-sky-900/80 mt-1 font-medium leading-relaxed">
-                          Sconfiggi la tempesta di nebbia superando le terre una ad una. Sblocca il livello successivo completando gli esercizi del precedente.
-                        </p>
-                      </div>
+                      <SurfaceCard tone="soft" padding={isPhoneMode ? 'sm' : 'md'} className={`text-center ${isPhoneMode ? '' : 'md:text-left'}`}>
+                        <SectionHeader
+                          eyebrow="Modalità Avventura"
+                          title="Mappa di Tabellandia"
+                          description="Sconfiggi la tempesta di nebbia superando le terre una ad una. Sblocca il livello successivo completando gli esercizi del precedente."
+                        />
+                        <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-sky-900/80 sm:text-[11px]">
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 sm:px-3 sm:py-1">✅ Completato</span>
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 sm:px-3 sm:py-1">🧭 In corso</span>
+                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700 sm:px-3 sm:py-1">🔒 Bloccato</span>
+                        </div>
+                      </SurfaceCard>
 
-                      {/* Map staggered layout of 9 worlds styled as a beautiful 3D-feeling interactive island grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pb-8 justify-items-center">
+                      <ResponsiveGrid variant="cards" className="items-stretch">
                         {WORLDS_DATA.map(world => {
-                          const isUnlocked = profile.unlockedWorlds.includes(world.id);
-                          const worldProg = profile.worldProgress[world.id] || {
-                            worldId: world.id,
-                            completedSteps: [],
-                            rebuiltMonuments: [],
-                            creatureEvolution: 'egg',
-                            highScore: 0,
-                            stars: 0
-                          };
-                          
-                          // Count step progress
+                          const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
+                          const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
                           const stepsCount = worldProg.completedSteps.length;
-                          const rebuiltCount = worldProg.rebuiltMonuments.length;
-                          const rebuildPercent = Math.round((rebuiltCount / world.monuments.length) * 100);
-                          const isCompleted = stepsCount === 6;
-                          const isActive = isUnlocked && !isCompleted;
+                          const rebuiltCount = devModeEnabled
+                            ? world.monuments.length
+                            : worldProg.rebuiltMonuments.length;
+                          const isCompleted = stepsCount === ALL_STEP_IDS.length && rebuiltCount === world.monuments.length;
+                          const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'In corso';
 
                           return (
-                            <div
+                            <button
                               key={world.id}
-                              className={`relative flex flex-col items-center justify-between pb-6 group select-none w-full max-w-[240px] transition-all duration-300 ${
-                                isUnlocked ? 'hover:-translate-y-2' : 'opacity-60 grayscale'
+                              type="button"
+                              onClick={() => {
+                                if (!isUnlocked) return;
+                                sound.playPowerUp();
+                                setSelectedWorldId(world.id);
+                                setIsHeaderVisible(false);
+                              }}
+                              disabled={!isUnlocked}
+                              className={`w-full overflow-hidden text-left rounded-3xl border-2 p-3 sm:p-4 shadow-lg transition-all active:scale-[0.98] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+                                !isUnlocked
+                                  ? 'bg-slate-200 border-slate-300 text-slate-600 cursor-not-allowed'
+                                  : isCompleted
+                                    ? 'bg-gradient-to-br from-emerald-300 via-emerald-200 to-white border-emerald-500 text-emerald-950 cursor-pointer hover:shadow-xl hover:-translate-y-1'
+                                    : 'bg-gradient-to-br from-white via-sky-50 to-emerald-50 border-sky-300 text-sky-950 cursor-pointer hover:shadow-xl hover:-translate-y-1'
                               }`}
-                              id={`world-card-${world.id}`}
+                              aria-label={`${world.locationName}, stato ${statusLabel}, ${stepsCount} passi completati su ${ALL_STEP_IDS.length}`}
                             >
-                              {/* Glow Aura */}
-                              {isUnlocked && (
-                                <div className={`absolute inset-0 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
-                                  isActive ? 'animate-pulse opacity-40 bg-sky-300/40' : 'bg-emerald-300/20'
-                                }`} />
-                              )}
-
-                              {/* Main Island shape mimicking hand-drawn platforms from the design */}
-                              <div 
-                                onClick={() => {
-                                  if (isUnlocked) {
-                                    sound.playPowerUp();
-                                    setSelectedWorldId(world.id);
-                                  }
-                                }}
-                                className={`w-44 h-44 rounded-[48px] flex flex-col items-center justify-center relative cursor-pointer border-b-8 border-r-8 transition-all active:scale-95 shadow-2xl ${
-                                  !isUnlocked 
-                                    ? 'bg-stone-400 border-stone-600 text-stone-700'
-                                    : isCompleted
-                                      ? 'bg-gradient-to-br from-emerald-400 to-green-500 border-green-700 text-white'
-                                      : 'bg-gradient-to-br from-sky-400 to-blue-500 border-blue-700 text-white outline outline-4 outline-white outline-offset-2'
-                                }`}
-                              >
-                                {/* Large World Symbol */}
-                                <span className="text-6xl filter drop-shadow select-none transform group-hover:scale-110 transition-transform duration-300">
-                                  {world.symbol}
-                                </span>
-
-                                {/* Mascot Badge overlay */}
-                                {isUnlocked && (
-                                  <div className="absolute -top-3 -right-3 w-16 h-16 bg-white rounded-full border-4 border-sky-400 shadow-xl flex items-center justify-center text-3xl select-none" title={world.mascotName}>
-                                    {world.id === 2 ? '🦊' : world.id === 3 ? '🦕' : world.id === 4 ? '🦉' : world.id === 5 ? '🦖' : '🦁'}
+                              <div className="flex items-start justify-between gap-2.5 sm:gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
+                                  <div className="h-11 w-11 shrink-0 rounded-xl border-2 border-white bg-white/90 shadow-md flex items-center justify-center text-2xl sm:h-14 sm:w-14 sm:rounded-2xl sm:border-4 sm:text-3xl">
+                                    <span aria-hidden="true">{getTableIcon(world.id)}</span>
                                   </div>
-                                )}
-
-                                {/* Checkmark or Lock badge */}
-                                {!isUnlocked ? (
-                                  <div className="absolute top-3 left-3 bg-stone-700 text-white w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-lg text-sm font-bold">🔒</div>
-                                ) : isCompleted ? (
-                                  <div className="absolute top-3 left-3 bg-yellow-400 text-yellow-900 w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-lg font-black text-sm">✓</div>
-                                ) : null}
-                              </div>
-
-                              {/* World Name / Banner */}
-                              <div className="mt-4 bg-white px-5 py-1.5 rounded-full border-2 border-sky-400 shadow-md text-center max-w-[220px]">
-                                <p className="text-[10px] font-bold text-sky-500 tracking-wider uppercase">TAVOLA DEL {world.id}</p>
-                                <span className="text-xs font-black text-sky-950 leading-tight block">{world.locationName}</span>
-                              </div>
-
-                              {/* Progress badge */}
-                              {isUnlocked && (
-                                <div className="mt-2 bg-yellow-400 text-yellow-950 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-tight shadow-sm">
-                                  {isCompleted ? "Completato 🌟" : `In Corso: ${stepsCount}/6`}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-sky-600 sm:text-[10px] sm:tracking-[0.18em]">
+                                      {`Tabellina del ${world.id}`}
+                                    </p>
+                                    <h3 className="text-sm font-black leading-tight sm:text-base" title={world.locationName}>{world.locationName}</h3>
+                                  </div>
                                 </div>
-                              )}
-                            </div>
+
+                                <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
+                                  <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-black sm:px-3 sm:py-1 sm:text-[11px] ${
+                                    !isUnlocked
+                                      ? 'bg-slate-50 text-slate-700'
+                                      : isCompleted
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {!isUnlocked ? '🔒 Bloccato' : isCompleted ? '✅ Completato' : '🧭 In corso'}
+                                  </span>
+                                  {isUnlocked && <span className="text-xl sm:text-2xl" aria-hidden="true">{world.symbol}</span>}
+                                </div>
+                              </div>
+
+                              <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(3.5rem,1fr))] gap-1.5 sm:mt-4 sm:gap-2">
+                                {world.monuments.map(monument => {
+                                  const isBuilt = devModeEnabled || worldProg.rebuiltMonuments.includes(monument.id);
+                                  return (
+                                    <div
+                                      key={monument.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        sound.playClick();
+                                        setAppMonumentModal({
+                                          world,
+                                          monument,
+                                          canAfford: profile ? profile.lightDrops >= monument.cost : false,
+                                          isErected: isBuilt,
+                                        });
+                                      }}
+                                      className={`rounded-2xl border px-1.5 py-2 text-center sm:px-2 sm:py-2.5 transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+                                        isBuilt
+                                          ? 'bg-gradient-to-br from-amber-100 via-amber-50 to-emerald-100 border-amber-300/90 text-amber-950 shadow-xs ring-1 ring-amber-300/60'
+                                          : 'bg-slate-100/90 border-dashed border-slate-300/90 text-slate-500 shadow-2xs hover:border-amber-400 hover:bg-amber-50/50'
+                                      }`}
+                                      title={monument.name}
+                                    >
+                                      <div className={`text-lg leading-none sm:text-xl ${!isBuilt ? 'filter grayscale opacity-60' : ''}`}>
+                                        {monument.emoji}
+                                      </div>
+                                      <div className="mt-1 text-[10px] font-black leading-tight sm:text-[11px] flex items-center justify-center gap-0.5">
+                                        {isBuilt ? (
+                                          <span className="text-emerald-700 font-black">✓ Eretto</span>
+                                        ) : (
+                                          <span className="text-slate-600 font-extrabold flex items-center gap-0.5">
+                                            🔒 💧 {monument.cost}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              <div className="mt-3 space-y-2 sm:mt-4">
+                                <div className="flex items-center justify-between text-[11px] font-bold sm:text-xs">
+                                  <span>Passi completati</span>
+                                  <span>{stepsCount}/{ALL_STEP_IDS.length}</span>
+                                </div>
+                                <div className="h-1.5 rounded-full bg-white/70 overflow-hidden sm:h-2">
+                                  <div
+                                    className={`h-full rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-sky-500'}`}
+                                    style={{ width: `${(stepsCount / ALL_STEP_IDS.length) * 100}%` }}
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between gap-2 text-[10px] font-semibold text-sky-900/80 sm:text-[11px]">
+                                  <span className="min-w-0 truncate">Monumenti: {rebuiltCount}/{world.monuments.length}</span>
+                                  <span className="shrink-0">{isUnlocked ? 'Apri il mondo' : 'Completa il precedente'}</span>
+                                </div>
+                              </div>
+                            </button>
                           );
                         })}
-                      </div>
+                      </ResponsiveGrid>
                     </div>
                   )}
 
-                  {/* TAB 2: ALLENAMENTO (Unrestricted escolha libre) */}
+                  {/* TAB 2: ALLENAMENTO */}
                   {activeTab === 'training' && (
-                    <div className="space-y-6">
-                      <div className="text-center md:text-left bg-white/40 backdrop-blur-sm p-4 rounded-3xl border border-white/40 shadow-sm max-w-xl">
-                        <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full font-sans">
-                          Allenamento Libero (Nessun Blocco)
-                        </span>
-                        <h2 className="text-xl md:text-2xl font-black text-sky-950 mt-1.5 font-sans">
-                          Scegli una Tabellina da Allenare
-                        </h2>
-                        <p className="text-xs text-sky-900/85 mt-0.5 font-medium leading-relaxed">
-                          In questa modalità tutte le tabelline sono sbloccate liberamente per esercitarti senza limitazioni. Ottimo per ripassare le tue debolezze prima delle sfide!
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {WORLDS_DATA.map(world => (
-                          <button
-                            key={world.id}
-                            onClick={() => {
-                              sound.playPowerUp();
-                              // Temporary force unlock world progress to allow entering Detail
-                              handleUpdateProfile(p => {
-                                const nextProg = { ...p.worldProgress };
-                                if (!nextProg[world.id]) {
-                                  nextProg[world.id] = {
-                                    worldId: world.id,
-                                    completedSteps: [],
-                                    rebuiltMonuments: [],
-                                    creatureEvolution: 'egg',
-                                    highScore: 0,
-                                    stars: 0
-                                  };
-                                }
-                                const nextUnlocked = [...p.unlockedWorlds];
-                                if (!nextUnlocked.includes(world.id)) nextUnlocked.push(world.id);
-                                return {
-                                  ...p,
-                                  unlockedWorlds: nextUnlocked,
-                                  worldProgress: nextProg
-                                };
-                              });
-                              setSelectedWorldId(world.id);
-                            }}
-                            className={`p-4 rounded-3xl border-4 border-white/60 bg-white/40 backdrop-blur-sm shadow-md flex flex-col items-center justify-center gap-1.5 hover:shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95`}
-                            id={`training-world-btn-${world.id}`}
-                          >
-                            <span className="text-4xl filter drop-shadow select-none">{world.symbol}</span>
-                            <span className="text-xs font-black text-sky-950 font-sans">Tavola del {world.id}</span>
-                            <span className="text-[10px] text-sky-900/60 font-sans italic font-bold">{world.mascotName}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 3: CUSTOMIZE (Hero creation and emporio shop) */}
-                  {activeTab === 'avatar' && (
-                    <AvatarCreator
-                      profile={profile}
-                      updateProfile={handleUpdateProfile}
-                    />
+                    <TrainingHub profile={profile} updateProfile={handleUpdateProfile} compactLayout={isPhoneMode} />
                   )}
 
                   {/* TAB 4: PARENT AREA */}
-                  {activeTab === 'parents' && (
+                  {activeTab === 'parents' && parentAuthenticated && (
                     <ParentDashboard
                       profile={profile}
                       updateProfile={handleUpdateProfile}
+                      compactLayout={isPhoneMode}
+                      onChangePIN={handleStartChangePIN}
                       onClose={() => {
                         sound.playClick();
+                        setParentAuthenticated(false);
                         setActiveTab('adventure');
                       }}
                     />
@@ -568,20 +1572,32 @@ export default function App() {
           </main>
 
           {/* Right Profile Panel (Quick View) */}
-          {selectedWorldId === null && (
-            <div className="w-72 bg-white/20 backdrop-blur-md rounded-[36px] border-4 border-white/40 shadow-2xl p-5 flex flex-col items-center m-4 md:flex hidden justify-between text-slate-800 shrink-0">
+          {selectedWorldId === null && !isPhoneMode && (
+            <div className="m-4 hidden md:flex flex-col items-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsProfilePanelVisible(prev => !prev)}
+                aria-controls="profile-quick-panel"
+                aria-expanded={isProfilePanelVisible}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/60 bg-white/55 px-3 py-1.5 text-xs font-bold text-sky-950 shadow-sm transition-colors hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-sky-500 cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5" aria-hidden="true" />
+                {isProfilePanelVisible ? 'Nascondi profilo' : 'Mostra profilo'}
+              </button>
+
+              <div id="profile-quick-panel" className={`${isProfilePanelVisible ? 'flex' : 'hidden'} w-72 bg-white/20 backdrop-blur-md rounded-[36px] border-4 border-white/40 shadow-2xl p-5 flex-col items-center justify-between text-slate-800`}>
               <div className="w-full space-y-4">
                 <p className="text-xs font-black text-sky-950 uppercase tracking-widest text-center">La tua Squadra</p>
                 
-                {/* Creature Card */}
+                {/* Profile Card */}
                 <div className="w-full bg-white/40 backdrop-blur-sm rounded-3xl p-4 border-2 border-white/50 flex flex-col items-center">
                   <div className="w-20 h-20 bg-white rounded-full shadow-inner flex items-center justify-center text-4xl mb-2 border-2 border-sky-200 select-none">
-                    {profile.avatar.mascot !== 'Nessuna' ? '🦕' : '🦖'}
+                    {profile.avatar?.emoji || '👦'}
                   </div>
                   <p className="font-black text-sky-950 text-sm">
-                    {profile.avatar.mascot !== 'Nessuna' ? profile.avatar.mascot : 'Triplo-Saur'}
+                    {profile.name}
                   </p>
-                  <p className="text-[9px] text-sky-900/60 font-bold uppercase tracking-tighter">Grado: Socio d'Avventura</p>
+                  <p className="text-[9px] text-sky-900/60 font-bold uppercase tracking-tighter">Livello {profile.level}</p>
                   <div className="w-full h-1.5 bg-white/50 rounded-full mt-3 overflow-hidden">
                     <div className="h-full bg-sky-500 rounded-full" style={{ width: `${(profile.level % 1) * 100 || 65}%` }}></div>
                   </div>
@@ -592,7 +1608,10 @@ export default function App() {
                   <p className="text-[9px] font-black text-sky-900/60 uppercase tracking-widest px-2">Missione Attiva</p>
                   <div className="bg-white/40 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
                     <p className="text-xs font-bold text-sky-950 leading-tight">
-                      Abbatti la nebbia della Tabellina del {profile.unlockedWorlds[profile.unlockedWorlds.length - 1] || 2}!
+                      {(() => {
+                        const currentWorldId = profile.unlockedWorlds[profile.unlockedWorlds.length - 1] || 2;
+                            return `Abbatti la nebbia della ${withTableIcon(currentWorldId, `Tabellina del ${currentWorldId}`)}!`;
+                      })()}
                     </p>
                     <div className="flex gap-1.5 mt-2.5">
                       {Array.from({ length: 5 }).map((_, i) => (
@@ -608,7 +1627,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     sound.playClick();
-                    setActiveTab('parents');
+                    handleAccessParentArea();
                   }}
                   className="flex items-center gap-1.5 text-[10px] font-black text-sky-950/70 hover:text-sky-950 transition-colors cursor-pointer bg-white/40 px-3.5 py-1.5 rounded-full border border-white/50"
                   id="portal-quick-btn"
@@ -617,25 +1636,29 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </div>
           )}
         </div>
 
         {/* Global Bottom Navigation bar for mobile screens */}
-        {selectedWorldId === null && (
-          <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-2 flex justify-around items-center z-10 shadow-xl shrink-0 md:hidden">
-            {[
-              { id: 'adventure', name: 'Mappa Avventura', emoji: '🗺️', label: 'Mappa' },
-              { id: 'training', name: 'Allenamento', emoji: '🎒', label: 'Allenamento' },
-              { id: 'avatar', name: 'Armadio & Emporio', emoji: '🧑', label: 'Eroe' },
-              { id: 'parents', name: 'Area Genitori', emoji: '🔐', label: 'Genitori' }
-            ].map(tab => {
+        {selectedWorldId === null && isPhoneMode && (
+          <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-2 flex justify-around items-center z-10 shadow-xl shrink-0">
+           {[
+             { id: 'adventure', name: 'Mappa Avventura', emoji: '🗺️', label: 'Mappa' },
+             { id: 'training', name: 'Allenamento', emoji: '🎒', label: 'Allenamento' },
+             { id: 'parents', name: 'Area Genitori', emoji: '🔐', label: 'Genitori' }
+           ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => {
                     sound.playClick();
-                    setActiveTab(tab.id as any);
+                    if (tab.id === 'parents') {
+                      handleAccessParentArea();
+                    } else {
+                      setActiveTab(tab.id as any);
+                    }
                   }}
                   className={`flex flex-col items-center py-2 px-4 rounded-2xl transition-all cursor-pointer ${
                     isActive 
@@ -654,6 +1677,7 @@ export default function App() {
       </div>
 
       {/* Production specifications panel at the very bottom (collapsible documentation of architecture/MVP for the reviewers!) */}
+      {!isPhoneMode && (
       <div className="mt-8 max-w-4xl w-full bg-slate-800 rounded-3xl p-5 md:p-6 border border-slate-700 shadow-xl space-y-4">
         <h3 className="text-base font-black text-white flex items-center gap-1.5">
           <Settings className="w-5 h-5 text-indigo-400" />
@@ -666,43 +1690,202 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
             <h4 className="font-extrabold text-indigo-300 font-sans">1. Architettura Android Completa</h4>
-            <ul className="list-disc pl-4 space-y-1 text-slate-300 leading-relaxed font-sans">
-              <li><strong>UI Pattern:</strong> Jetpack Compose nativo con architettura MVI (Model-View-Intent) o MVVM per un flusso dati reattivo, deterministico e pulito.</li>
-              <li><strong>DI Engine:</strong> Hilt (Dagger) per gestire l'iniezione delle dipendenze del Database e del modulo di telemetry.</li>
-              <li><strong>Local Storage:</strong> Room Database SQL (con migration guidate) pre-popolato con le configurazioni dei mondi e schema QuestionAttempt.</li>
-              <li><strong>Cloud Storage:</strong> Firebase Firestore (opzionale) sincronizzato in background tramite WorkManager per salvare le sessioni di gioco.</li>
-            </ul>
+            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
+              <div role="listitem"><strong>UI Pattern:</strong> Jetpack Compose nativo con architettura MVI (Model-View-Intent) o MVVM per un flusso dati reattivo, deterministico e pulito.</div>
+              <div role="listitem"><strong>DI Engine:</strong> Hilt (Dagger) per gestire l'iniezione delle dipendenze del Database e del modulo di telemetry.</div>
+              <div role="listitem"><strong>Local Storage:</strong> Room Database SQL (con migration guidate) pre-popolato con le configurazioni dei mondi e schema QuestionAttempt.</div>
+              <div role="listitem"><strong>Cloud Storage:</strong> Firebase Firestore (opzionale) sincronizzato in background tramite WorkManager per salvare le sessioni di gioco.</div>
+            </div>
           </div>
 
           <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
             <h4 className="font-extrabold text-indigo-300 font-sans">2. Logica di Apprendimento Adattivo</h4>
-            <ul className="list-disc pl-4 space-y-1 text-slate-300 leading-relaxed font-sans">
-              <li><strong>Rilevamento Critico:</strong> Algoritmo basato su peso esponenziale degli errori (Leitner System adattivo). Ogni combinazione ha una forza memorica.</li>
-              <li><strong>Rallentamento:</strong> Se un'operazione fallisce &ge;3 volte in un intervallo di 15 domande, la coda del quiz inserisce automaticamente la visualizzazione a gruppi (GroupVisualizer).</li>
-              <li><strong>Interval Spacing:</strong> Le combinazioni fallite vengono ripresentate con una frequenza di 2, 5 e 10 posizioni successive per consolidare la ritenzione a lungo termine.</li>
-            </ul>
+            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
+              <div role="listitem"><strong>Rilevamento Critico:</strong> Algoritmo basato su peso esponenziale degli errori (Leitner System adattivo). Ogni combinazione ha una forza memorica.</div>
+              <div role="listitem"><strong>Rallentamento:</strong> Se un'operazione fallisce &ge;3 volte in un intervallo di 15 domande, la coda del quiz inserisce automaticamente la visualizzazione a gruppi (GroupVisualizer).</div>
+              <div role="listitem"><strong>Interval Spacing:</strong> Le combinazioni fallite vengono ripresentate con una frequenza di 2, 5 e 10 posizioni successive per consolidare la ritenzione a lungo termine.</div>
+            </div>
           </div>
 
           <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
             <h4 className="font-extrabold text-indigo-300 font-sans">3. UX per Bambini e Gamification</h4>
-            <ul className="list-disc pl-4 space-y-1 text-slate-300 leading-relaxed font-sans">
-              <li><strong>Assenza di Testo:</strong> Istruzioni vocali sintetizzate (TTS Android) e forte codifica a colori e icone (oggetti contabili unici).</li>
-              <li><strong>No Penalty:</strong> Nessun punteggio negativo o "vite perse". Errori attivano lo "Scudo della Saggezza" di incoraggiamento visivo.</li>
-              <li><strong>Progressione:</strong> Ricompense estetiche esclusive (Emporio) non acquistabili per agganciare la motivazione intrinseca dell'apprendimento.</li>
-            </ul>
+            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
+              <div role="listitem"><strong>Assenza di Testo:</strong> Istruzioni vocali sintetizzate (TTS Android) e forte codifica a colori e icone (oggetti contabili unici).</div>
+              <div role="listitem"><strong>No Penalty:</strong> Nessun punteggio negativo o "vite perse". Errori attivano lo "Scudo della Saggezza" di incoraggiamento visivo.</div>
+              <div role="listitem"><strong>Progressione:</strong> Ricompense estetiche esclusive (Emporio) non acquistabili per agganciare la motivazione intrinseca dell'apprendimento.</div>
+            </div>
           </div>
 
           <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
             <h4 className="font-extrabold text-indigo-300 font-sans">4. Piano di Sviluppo MVP & Roadmap</h4>
-            <ul className="list-disc pl-4 space-y-1 text-slate-300 leading-relaxed font-sans">
-              <li><strong>Sprint 1 (Fondamenta):</strong> Core Engine Matematico, Room DB, Profilo Locale, Asset Grafici base dei Mondi 2, 3, 5.</li>
-              <li><strong>Sprint 2 (Adattamento):</strong> Sistema di diagnostica, Scudo di Saggezza, Tracciamento heatmap e PIN Genitori.</li>
-              <li><strong>Sprint 3 (Gamification):</strong> Personalizzazione Avatar, Emporio monete, Emozioni delle Creature, Effetti sonori nativi SoundPool.</li>
-              <li><strong>Sprint 4 (Evoluzione):</strong> Supporto Cloud Sync, Mondi avanzati (11 e 12), e Localizzazione Multilingua.</li>
-            </ul>
+            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
+              <div role="listitem"><strong>Sprint 1 (Fondamenta):</strong> Core Engine Matematico, Room DB, Profilo Locale, Asset Grafici base dei Mondi 2, 3, 5.</div>
+              <div role="listitem"><strong>Sprint 2 (Adattamento):</strong> Sistema di diagnostica, Scudo di Saggezza, Tracciamento heatmap e PIN Genitori.</div>
+              <div role="listitem"><strong>Sprint 3 (Gamification):</strong> Personalizzazione Avatar, Emporio monete, Emozioni delle Creature, Effetti sonori nativi SoundPool.</div>
+              <div role="listitem"><strong>Sprint 4 (Evoluzione):</strong> Supporto Cloud Sync, Mondi avanzati (11 e 12), e Localizzazione Multilingua.</div>
+            </div>
           </div>
         </div>
       </div>
+      )}
+
+      {/* Digits and Mnemonics Guide Modal */}
+      <DigitsGuideModal
+        isOpen={showDigitsGuideModal}
+        onClose={() => setShowDigitsGuideModal(false)}
+        onOpenMatchingGame={() => setManualOnboardingGameOpen(true)}
+      />
+
+      {/* Mandatory Onboarding / Practice Game for 10 Digits Associations */}
+      <DigitsMatchingGameModal
+        isOpen={Boolean(
+          profile &&
+          (!profile.completedOnboardingGame || manualOnboardingGameOpen) &&
+          wizardStep === 0 &&
+          !showProfilePicker
+        )}
+        devMode={devModeEnabled}
+        onComplete={() => {
+          if (profile) {
+            handleUpdateProfile(p => ({
+              ...p,
+              completedOnboardingGame: true
+            }));
+          }
+          setManualOnboardingGameOpen(false);
+        }}
+      />
+
+      {/* Monument Unlock Confirmation / Insufficient Drops Modal (Main Screen) */}
+      {appMonumentModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-sans">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-indigo-100 text-center relative font-sans"
+          >
+            {appMonumentModal.isErected ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-sm">
+                  {appMonumentModal.monument.emoji}
+                </div>
+                <h3 className="text-base font-black text-indigo-950 mb-1">
+                  {appMonumentModal.monument.name}
+                </h3>
+                <span className="inline-block text-[10px] font-black text-amber-900 bg-amber-200 px-3 py-1 rounded-full mb-3">
+                  🏛️ ERETTO CON SUCCESSO ✓
+                </span>
+                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  {appMonumentModal.monument.description}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAppMonumentModal(null)}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                >
+                  Chiudi
+                </button>
+              </>
+            ) : appMonumentModal.canAfford ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-sm">
+                  {appMonumentModal.monument.emoji}
+                </div>
+                <h3 className="text-base font-black text-indigo-950 mb-1">
+                  Erigi {appMonumentModal.monument.name}?
+                </h3>
+                <div className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full mb-3">
+                  💧 Costo: <b>{appMonumentModal.monument.cost} Gocce</b>
+                </div>
+                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  Hai a disposizione <b>{profile?.lightDrops || 0} Gocce di Luce</b>. Vuoi spendere {appMonumentModal.monument.cost} Gocce per erigere questo monumento nel {appMonumentModal.world.title}?
+                </p>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAppMonumentModal(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playPowerUp();
+                      handleUpdateProfile(p => {
+                        const worldProg = p.worldProgress[appMonumentModal.world.id] || {
+                          worldId: appMonumentModal.world.id,
+                          completedSteps: [],
+                          rebuiltMonuments: [],
+                          creatureEvolution: 'egg',
+                          highScore: 0,
+                          stars: 0
+                        };
+                        const monuments = [...(worldProg.rebuiltMonuments || [])];
+                        if (!monuments.includes(appMonumentModal.monument.id)) {
+                          monuments.push(appMonumentModal.monument.id);
+                        }
+                        return {
+                          ...p,
+                          lightDrops: Math.max(0, p.lightDrops - appMonumentModal.monument.cost),
+                          worldProgress: {
+                            ...p.worldProgress,
+                            [appMonumentModal.world.id]: {
+                              ...worldProg,
+                              rebuiltMonuments: monuments
+                            }
+                          }
+                        };
+                      });
+                      setAppMonumentModal(null);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
+                  >
+                    🏛️ Si, Erigi Ora!
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-50 border-2 border-rose-200 flex items-center justify-center text-3xl shadow-sm">
+                  💧
+                </div>
+                <h3 className="text-base font-black text-rose-950 mb-1">
+                  Gocce Insufficienti!
+                </h3>
+                <div className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-200 px-3 py-1 rounded-full mb-3">
+                  Costo: 💧 {appMonumentModal.monument.cost} (Ne hai {profile?.lightDrops || 0})
+                </div>
+                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  Per erigere <b>{appMonumentModal.monument.name}</b> ti mancano <b>{appMonumentModal.monument.cost - (profile?.lightDrops || 0)} Gocce di Luce</b>.
+                  <br /><br />
+                  Entra nel Regno e gioca in <b>"Pratico (Avventura)"</b> per sconfiggere la nebbia e raccogliere le gocce!
+                </p>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAppMonumentModal(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const wId = appMonumentModal.world.id;
+                      setAppMonumentModal(null);
+                      setSelectedWorldId(wId);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                  >
+                    🛡️ Apri Regno
+                  </button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

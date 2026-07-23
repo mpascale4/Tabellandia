@@ -4,14 +4,15 @@
  */
 
 export interface AvatarConfig {
-  gender: 'kid1' | 'kid2';
-  hairStyle: string;
-  hairColor: string;
-  shirtColor: string;
-  pantsColor: string;
-  hat: string;
-  backpack: string;
-  mascot: string; // ID of the companion creature active
+  emoji: string; // Avatar emoji
+  gender?: 'kid1' | 'kid2';
+  hairStyle?: string;
+  hairColor?: string;
+  shirtColor?: string;
+  pantsColor?: string;
+  hat?: string;
+  backpack?: string;
+  mascot?: string;
 }
 
 export interface RebuiltMonument {
@@ -22,12 +23,18 @@ export interface RebuiltMonument {
 }
 
 export interface WorldProgress {
-  worldId: number; // 2 to 10
+  worldId: number; // 2 to 9
   completedSteps: string[]; // ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida']
   rebuiltMonuments: string[]; // IDs of monuments rebuilt
   creatureEvolution: 'egg' | 'child' | 'adult';
   highScore: number; // Max correct answers in Time Trial
   stars: number; // 0 to 3 stars
+  completedFactors?: {
+    comprendo?: number[];
+    salto?: number[];
+    costruisco?: number[];
+    trucchi?: number[];
+  };
 }
 
 export interface QuestionAttempt {
@@ -39,6 +46,8 @@ export interface QuestionAttempt {
 }
 
 export interface UserProfile {
+  id?: string;
+  birthYear?: number | null;
   name: string;
   level: number;
   xp: number;
@@ -49,10 +58,11 @@ export interface UserProfile {
   unlockedAccessories: string[]; // list of item IDs unlocked in shop
   worldProgress: { [worldId: number]: WorldProgress };
   history: QuestionAttempt[];
+  completedOnboardingGame?: boolean;
 }
 
 export interface WorldConfig {
-  id: number; // 2 to 10
+  id: number; // 2 to 9
   name: string;
   locationName: string; // e.g. "Foresta del 2"
   color: string; // Tailwind class
