@@ -62,7 +62,6 @@ export interface UserProfile {
   worldProgress: { [worldId: number]: WorldProgress };
   history: QuestionAttempt[];
   completedOnboardingGame?: boolean;
-  deletedAt?: string | null;
 }
 
 export interface WorldConfig {
