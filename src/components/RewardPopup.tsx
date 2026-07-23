@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Award, Coins, Droplets } from 'lucide-react';
+import { sound } from './SoundManager';
 
 interface RewardPopupProps {
   isOpen: boolean;
@@ -82,6 +83,10 @@ export default function RewardPopup({
 }: RewardPopupProps) {
   const stepData = stepMessages[stepName] || stepMessages.comprendo;
   const randomMessage = stepData.messages[Math.floor(Math.random() * stepData.messages.length)];
+  const handleClose = () => {
+    sound.playClick();
+    onClose();
+  };
 
   return (
     <AnimatePresence>
@@ -92,7 +97,7 @@ export default function RewardPopup({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
             className="fixed inset-0 bg-black/40 z-40"
           />
 
@@ -169,7 +174,7 @@ export default function RewardPopup({
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={onClose}
+                onClick={handleClose}
                 className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-xl py-3 px-4 transition-all shadow-lg cursor-pointer font-sans"
               >
                 Continua l'Avventura! 🚀

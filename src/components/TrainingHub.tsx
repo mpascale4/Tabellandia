@@ -6,9 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, WorldConfig } from '../types';
 import { WORLDS_DATA } from '../data';
-import { withTableIcon } from '../utils/tableLabels';
 import { sound } from './SoundManager';
-import { useVoice } from '../contexts/VoiceContext';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
@@ -37,26 +35,9 @@ const DIGIT_EMOJI: Record<number, string> = {
   9: '🚢',
 };
 
-const DIGIT_WORD: Record<number, string> = {
-  1: 'candela',
-  2: 'bue',
-  3: 're',
-  4: 'gatto',
-  5: 'mano',
-  6: 'chiocciola',
-  7: 'nano',
-  8: 'canotto',
-  9: 'nave',
-};
-
 const RESULT_DIGIT_EMOJI: Record<number, string> = {
   0: '⭕',
   ...DIGIT_EMOJI,
-};
-
-const RESULT_DIGIT_WORD: Record<number, string> = {
-  0: 'zero',
-  ...DIGIT_WORD,
 };
 
 const TRAINING_WORLD_ICON: Record<number, string> = {
@@ -69,6 +50,11 @@ const TRAINING_WORLD_ICON: Record<number, string> = {
   8: '🛶',
   9: '🚢',
 };
+
+function withTableIcon(worldId: number, label: string): string {
+  const icon = TRAINING_WORLD_ICON[worldId] ?? '🔢';
+  return label.trimEnd().endsWith(icon) ? label : `${label} ${icon}`;
+}
 
 const MOTIVATIONAL_CORRECT = [
   'Fantastico! 🎉', 'Bravo/a! 🌟', 'Perfetto! ✨', 'Esatto! 🏆',
@@ -86,20 +72,18 @@ function pickRandom<T>(arr: T[]): T {
 
 function buildResultMnemonic(answer: number): string {
   if (answer < 10) {
-    return `${RESULT_DIGIT_EMOJI[answer]} ${RESULT_DIGIT_WORD[answer]}`;
+    return RESULT_DIGIT_EMOJI[answer] ?? `${answer}`;
   }
 
   const tens = Math.floor(answer / 10);
   const units = answer % 10;
-  return `${RESULT_DIGIT_EMOJI[tens]} ${RESULT_DIGIT_WORD[tens]} e ${RESULT_DIGIT_EMOJI[units]} ${RESULT_DIGIT_WORD[units]}`;
+  return `${RESULT_DIGIT_EMOJI[tens] ?? `${tens}`} ${RESULT_DIGIT_EMOJI[units] ?? `${units}`}`;
 }
 
 function buildMnemonicPair(a: number, b: number, answer: number): string {
-  const leftWord = DIGIT_WORD[a] ?? `${a}`;
-  const rightWord = DIGIT_WORD[b] ?? `${b}`;
   const leftEmoji = DIGIT_EMOJI[a] ?? `${a}`;
   const rightEmoji = DIGIT_EMOJI[b] ?? `${b}`;
-  return `${leftWord} ${leftEmoji} × ${rightWord} ${rightEmoji} = ${buildResultMnemonic(answer)}`;
+  return `${leftEmoji} × ${rightEmoji} = ${buildResultMnemonic(answer)}`;
 }
 
 // ─── Tipi interni ─────────────────────────────────────────────────────────────
@@ -143,19 +127,6 @@ function buildQuestionDeck(worldId: number): Question[] {
 
 function getStars(profile: UserProfile, worldId: number): number {
   return profile.worldProgress?.[worldId]?.stars ?? 0;
-}
-
-function StarRow({ stars, className = '' }: { stars: number; className?: string }) {
-  return (
-    <span aria-label={`${stars} stelle su 3`} className={`flex gap-0.5 justify-center ${className}`}>
-      {[1, 2, 3].map(n => (
-        <span key={n} aria-hidden="true"
-          className={`text-base leading-none ${n <= stars ? 'opacity-100' : 'opacity-20'}`}>
-          ⭐
-        </span>
-      ))}
-    </span>
-  );
 }
 
 // ─── Card singola tabellina ───────────────────────────────────────────────────
@@ -206,7 +177,11 @@ function EmojiGrid({ rows, cols, emoji }: { rows: number; cols: number; emoji: s
       {Array.from({ length: displayRows }, (_, r) => (
         <div key={r} className="flex gap-1 flex-wrap justify-center">
           {Array.from({ length: cols }, (_, c) => (
-            <span key={c} aria-hidden="true" className="text-xl leading-none select-none">
+            <span
+              key={c}
+              aria-hidden="true"
+              className={`text-xl leading-none select-none ${c === 5 && cols > 5 ? 'ml-4 sm:ml-5' : ''}`}
+            >
               {emoji}
             </span>
           ))}
@@ -238,7 +213,6 @@ function TrainingSession({
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { speak } = useVoice();
 
   // Inizializza il mazzo al montaggio o cambio mondo
   useEffect(() => {
@@ -259,7 +233,6 @@ function TrainingSession({
 
     if (isCorrect) {
       sound.playSuccess();
-      speak(currentQuestion.answer.toString());
       setScore(s => s + 1);
       updateProfile(p => ({ ...p, coins: p.coins + 1 }));
       setFeedback({
@@ -304,7 +277,7 @@ function TrainingSession({
         aria-live="polite"
         tone="soft"
         padding="lg"
-        className="min-h-[260px] w-full flex items-center justify-center text-center"
+        className="min-h-65 w-full flex items-center justify-center text-center"
       >
         <p className="text-sm font-bold text-sky-900">Prepariamo la prossima domanda...</p>
       </SurfaceCard>
@@ -312,7 +285,6 @@ function TrainingSession({
   }
 
   const { multiplier, worldId, answer, options } = currentQuestion;
-  const digitEmojis = `${DIGIT_EMOJI[multiplier] ?? multiplier} × ${DIGIT_EMOJI[worldId] ?? worldId}`;
   const mnemonicPair = buildMnemonicPair(multiplier, worldId, answer);
 
   // Griglia visiva: multiplier righe da worldId colonne (o inverso se più compatto)
@@ -321,7 +293,7 @@ function TrainingSession({
     : [worldId, multiplier];
 
   return (
-    <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full">
+    <div className="flex w-full flex-col gap-4">
 
       {/* Header: back + punteggio */}
       <div className="flex items-center justify-between">
@@ -347,7 +319,7 @@ function TrainingSession({
         aria-labelledby="question-label"
         tone="soft"
         padding="lg"
-        className="flex flex-col items-center gap-3"
+        className="w-full flex flex-col items-center gap-3"
       >
         {/* Titolo tabellina */}
         <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest font-sans">
@@ -355,21 +327,17 @@ function TrainingSession({
         </p>
 
         {/* Emoji della domanda */}
-        <p id="question-label" className="text-4xl sm:text-5xl font-black text-sky-950 select-none leading-none text-center">
-          {digitEmojis} = ?
-        </p>
-
-        {/* Equazione numerica */}
-        <p className="text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.22em]">
-          {multiplier} × {worldId} = ?
-        </p>
-
         {/* Equazione visiva mnemonica */}
         <div className="w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sky-900 shadow-sm">
           <p className="text-sm sm:text-base font-black font-sans leading-tight">
             {mnemonicPair}
           </p>
         </div>
+
+        {/* Equazione numerica */}
+        <p id="question-label" className="text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.22em] text-center">
+          {multiplier} × {worldId} = ?
+        </p>
 
         {/* Griglia visiva */}
         <div className="mt-1 p-2.5 bg-white/50 rounded-2xl border border-white/40">
@@ -406,7 +374,7 @@ function TrainingSession({
               disabled={!!feedback}
               className={`rounded-2xl border-2 font-black text-2xl py-4 shadow-sm transition-all cursor-pointer
                           focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
-                          disabled:cursor-not-allowed ${cls}`}
+                          ${cls}`}
               aria-label={`Risposta ${opt}`}
             >
               {opt}
@@ -420,7 +388,7 @@ function TrainingSession({
         <div
           role="status"
           aria-live="polite"
-          className={`text-center rounded-2xl py-3 px-4 font-black text-sm transition-all
+          className={`w-full text-center rounded-2xl py-3 px-4 font-black text-sm transition-all
             ${feedback.correct
               ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
               : 'bg-red-50 text-red-700 border border-red-200'}`}

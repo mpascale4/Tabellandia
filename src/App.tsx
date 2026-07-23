@@ -33,6 +33,8 @@ const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
 const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
 const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
 const HEADER_REVEAL_TOUCH_ZONE_PX = 12;
+const PROFILE_RESTORE_WINDOW_DAYS = 30;
+const PROFILE_RESTORE_WINDOW_MS = PROFILE_RESTORE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -44,6 +46,46 @@ type ProfileStore = {
   profiles: ProfileRecord[];
 };
 
+const parseIsoDate = (value?: string | null) => {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+};
+
+const getProfileDeletionDeadline = (profile: Pick<ProfileRecord, 'deletedAt' | 'scheduledPermanentDeletionAt'>) => {
+  const explicitDeadline = parseIsoDate(profile.scheduledPermanentDeletionAt);
+  if (explicitDeadline !== null) return explicitDeadline;
+
+  const deletedAt = parseIsoDate(profile.deletedAt);
+  return deletedAt === null ? null : deletedAt + PROFILE_RESTORE_WINDOW_MS;
+};
+
+const isProfileDeleted = (profile: Pick<ProfileRecord, 'deletedAt' | 'scheduledPermanentDeletionAt'>, now = Date.now()) => {
+  const deletedAt = parseIsoDate(profile.deletedAt);
+  if (deletedAt === null) return false;
+
+  const deadline = getProfileDeletionDeadline(profile);
+  return deadline === null || now < deadline;
+};
+
+const shouldPurgeProfile = (profile: Pick<ProfileRecord, 'deletedAt' | 'scheduledPermanentDeletionAt'>, now = Date.now()) => {
+  const deadline = getProfileDeletionDeadline(profile);
+  return deadline !== null && now >= deadline;
+};
+
+const getActiveProfiles = (profiles: ProfileRecord[], now = Date.now()) => profiles.filter(profile => !isProfileDeleted(profile, now));
+
+const getDeletedProfiles = (profiles: ProfileRecord[], now = Date.now()) => profiles.filter(profile => isProfileDeleted(profile, now));
+
+const purgeExpiredProfiles = (profiles: ProfileRecord[], now = Date.now()) => profiles.filter(profile => !shouldPurgeProfile(profile, now));
+
+const resolveActiveProfileId = (profiles: ProfileRecord[], requestedId: string | null, now = Date.now()) => {
+  const activeProfiles = getActiveProfiles(profiles, now);
+  if (!requestedId) return activeProfiles[0]?.id || null;
+  const requestedProfile = activeProfiles.find(profile => profile.id === requestedId);
+  return requestedProfile?.id || activeProfiles[0]?.id || null;
+};
+
 const CURRENT_YEAR = new Date().getFullYear();
 const ALL_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'];
 const PROFILE_AVATAR_SECTIONS = [
@@ -53,6 +95,7 @@ const PROFILE_AVATAR_SECTIONS = [
 const APP_SIDEBAR_TABS = [
   { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
   { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
+  { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' },
 ] as const;
 
 const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devModeEnabled: boolean) => {
@@ -71,6 +114,8 @@ const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devMod
 };
 
 const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
+  deletedAt: null,
+  scheduledPermanentDeletionAt: null,
   name: "Eroe",
   level: 1,
   xp: 0,
@@ -113,6 +158,7 @@ const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string):
     id: profile.id || fallbackId || createProfileId(),
     birthYear: typeof profile.birthYear === 'number' ? profile.birthYear : null,
     deletedAt: profile.deletedAt || null,
+    scheduledPermanentDeletionAt: profile.scheduledPermanentDeletionAt || null,
     avatar: {
       ...BASE_PROFILE.avatar,
       ...(profile.avatar || {})
@@ -198,19 +244,9 @@ export default function App() {
     isErected: boolean;
   } | null>(null);
 
-  const rawProfile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
-  const profile = rawProfile || profiles.filter(p => !p.deletedAt)[0] || profiles[0] || normalizeProfile({
-    name: "Eroe",
-    level: 1,
-    xp: 0,
-    coins: 10,
-    lightDrops: 0,
-    avatar: { emoji: '👦' },
-    unlockedWorlds: [2],
-    unlockedAccessories: [],
-    worldProgress: { 2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], creatureEvolution: 'egg', highScore: 0, stars: 0 } },
-    history: []
-  } as any, 'default-profile');
+  const activeProfiles = getActiveProfiles(profiles);
+  const deletedProfiles = getDeletedProfiles(profiles);
+  const profile = activeProfileId ? activeProfiles.find(p => p.id === activeProfileId) || null : null;
 
   // Load profile on start
   useEffect(() => {
@@ -222,9 +258,10 @@ export default function App() {
           const nextProfiles = Array.isArray(parsed.profiles)
             ? parsed.profiles.map(p => normalizeProfile(p))
             : [];
+          const cleanedProfiles = purgeExpiredProfiles(nextProfiles);
           return {
-            activeProfileId: parsed.activeProfileId || nextProfiles[0]?.id || null,
-            profiles: nextProfiles
+            activeProfileId: resolveActiveProfileId(cleanedProfiles, parsed.activeProfileId || null),
+            profiles: cleanedProfiles
           };
         } catch (e) {
           console.error("Error loading profile store", e);
@@ -252,7 +289,7 @@ export default function App() {
     setProfiles(store.profiles);
     setActiveProfileId(store.activeProfileId);
     setShowLanding(true);
-    setShowProfilePicker(false);
+    setShowProfilePicker(store.activeProfileId === null && store.profiles.length > 0);
     setWizardStep(0);
     setIsLoaded(true);
   }, []);
@@ -325,20 +362,27 @@ export default function App() {
   };
 
   const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
+    const cleanedProfiles = purgeExpiredProfiles(nextProfiles);
+    const resolvedActiveProfileId = resolveActiveProfileId(cleanedProfiles, nextActiveProfileId);
     localStorage.setItem(
       PROFILE_STORE_KEY,
       JSON.stringify({
-        activeProfileId: nextActiveProfileId,
-        profiles: nextProfiles
+        activeProfileId: resolvedActiveProfileId,
+        profiles: cleanedProfiles
       } as ProfileStore)
     );
 
-    const currentProfile = nextActiveProfileId ? nextProfiles.find(p => p.id === nextActiveProfileId) || null : null;
+    const currentProfile = resolvedActiveProfileId ? cleanedProfiles.find(p => p.id === resolvedActiveProfileId) || null : null;
     if (currentProfile) {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentProfile));
     } else {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
+
+    return {
+      profiles: cleanedProfiles,
+      activeProfileId: resolvedActiveProfileId
+    };
   };
 
   // Sync back to local storage helper
@@ -353,8 +397,9 @@ export default function App() {
           ...updater(p)
         }, p.id);
       });
-      persistProfileStore(next, activeProfileId);
-      return next;
+      const persisted = persistProfileStore(next, activeProfileId);
+      setActiveProfileId(persisted.activeProfileId);
+      return persisted.profiles;
     });
   };
 
@@ -390,9 +435,9 @@ export default function App() {
     if (!draftProfile) return;
 
     const nextProfiles = [...profiles, draftProfile];
-    setProfiles(nextProfiles);
-    setActiveProfileId(draftProfile.id);
-    persistProfileStore(nextProfiles, draftProfile.id);
+    const persisted = persistProfileStore(nextProfiles, draftProfile.id);
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
 
     sound.playPowerUp();
     setDraftProfile(null);
@@ -404,8 +449,9 @@ export default function App() {
 
   const handleSelectProfile = (selectedId: string) => {
     sound.playClick();
-    setActiveProfileId(selectedId);
-    persistProfileStore(profiles, selectedId);
+    const persisted = persistProfileStore(profiles, selectedId);
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
     setShowProfilePicker(false);
     setWizardStep(0);
     setDraftProfile(null);
@@ -440,68 +486,9 @@ export default function App() {
     setWizardStep(0);
   };
 
-  const handleDeleteProfile = (profileId: string) => {
-    sound.playError();
-    const nextProfiles = profiles.map(p => {
-      if (p.id === profileId) {
-        return { ...p, deletedAt: new Date().toISOString() };
-      }
-      return p;
-    });
-
-    let nextActiveId = activeProfileId;
-    if (activeProfileId === profileId) {
-      const remainingActive = nextProfiles.filter(p => !p.deletedAt);
-      nextActiveId = remainingActive.length > 0 ? remainingActive[0].id : null;
-    }
-
-    setProfiles(nextProfiles);
-    setActiveProfileId(nextActiveId);
-    persistProfileStore(nextProfiles, nextActiveId);
-
-    if (!nextActiveId) {
-      setShowProfilePicker(true);
-      setParentAuthenticated(false);
-      setActiveTab('adventure');
-    } else if (activeProfileId === profileId) {
-      setParentAuthenticated(false);
-      setActiveTab('adventure');
-    }
-  };
-
-  const handleRestoreProfile = (profileId: string) => {
-    sound.playPowerUp();
-    const nextProfiles = profiles.map(p => {
-      if (p.id === profileId) {
-        return { ...p, deletedAt: null };
-      }
-      return p;
-    });
-    setProfiles(nextProfiles);
-    persistProfileStore(nextProfiles, activeProfileId);
-  };
-
-  const handlePermanentDeleteProfile = (profileId: string) => {
-    sound.playError();
-    const nextProfiles = profiles.filter(p => p.id !== profileId);
-    let nextActiveId = activeProfileId;
-    if (activeProfileId === profileId) {
-      const remainingActive = nextProfiles.filter(p => !p.deletedAt);
-      nextActiveId = remainingActive.length > 0 ? remainingActive[0].id : null;
-    }
-
-    setProfiles(nextProfiles);
-    setActiveProfileId(nextActiveId);
-    persistProfileStore(nextProfiles, nextActiveId);
-
-    if (!nextActiveId) {
-      setShowProfilePicker(true);
-      setParentAuthenticated(false);
-      setActiveTab('adventure');
-    } else if (activeProfileId === profileId) {
-      setParentAuthenticated(false);
-      setActiveTab('adventure');
-    }
+  const disableDevMode = () => {
+    setDevModeEnabled(false);
+    localStorage.setItem(DEV_MODE_KEY, 'false');
   };
 
   const toggleDevMode = () => {
@@ -535,6 +522,89 @@ export default function App() {
     }, 1200);
   };
 
+  const handleExitDevMode = () => {
+    sound.playClick();
+    disableDevMode();
+    setDevModeNotice("Modalità DEV disattivata");
+    window.setTimeout(() => setDevModeNotice(""), 1400);
+  };
+
+  const handleSoftDeleteProfile = (profileId: string) => {
+    const targetProfile = profiles.find(item => item.id === profileId);
+    if (!targetProfile) return;
+    if (getActiveProfiles(profiles).length <= 1) {
+      window.alert('Serve almeno un profilo attivo per continuare ad accedere alla Modalità Genitori e ripristinare eventuali profili eliminati.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Vuoi eliminare il profilo "${targetProfile.name}"? Potrai ripristinarlo entro ${PROFILE_RESTORE_WINDOW_DAYS} giorni dalla Modalità Genitori.`);
+    if (!confirmed) return;
+
+    const nowIso = new Date().toISOString();
+    const deletionDeadlineIso = new Date(Date.now() + PROFILE_RESTORE_WINDOW_MS).toISOString();
+    const nextProfiles = profiles.map(item => item.id === profileId
+      ? normalizeProfile({
+          ...item,
+          deletedAt: nowIso,
+          scheduledPermanentDeletionAt: deletionDeadlineIso
+        }, item.id)
+      : item
+    );
+    const persisted = persistProfileStore(nextProfiles, activeProfileId);
+
+    sound.playError();
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
+    setSelectedWorldId(null);
+    setActiveTab(parentAuthenticated ? 'parents' : 'adventure');
+
+    if (!persisted.activeProfileId) {
+      setParentAuthenticated(false);
+      setShowProfilePicker(true);
+    }
+  };
+
+  const handleRestoreDeletedProfile = (profileId: string) => {
+    const targetProfile = profiles.find(item => item.id === profileId);
+    if (!targetProfile) return;
+
+    const nextProfiles = profiles.map(item => item.id === profileId
+      ? normalizeProfile({
+          ...item,
+          deletedAt: null,
+          scheduledPermanentDeletionAt: null
+        }, item.id)
+      : item
+    );
+    const persisted = persistProfileStore(nextProfiles, activeProfileId || profileId);
+
+    sound.playPowerUp();
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
+  };
+
+  const handlePermanentDeleteProfile = (profileId: string) => {
+    const targetProfile = profiles.find(item => item.id === profileId);
+    if (!targetProfile) return;
+
+    const confirmed = window.confirm(`Eliminare definitivamente il profilo "${targetProfile.name}"? Questa operazione è irreversibile.`);
+    if (!confirmed) return;
+
+    const nextProfiles = profiles.filter(item => item.id !== profileId);
+    const persisted = persistProfileStore(nextProfiles, activeProfileId === profileId ? null : activeProfileId);
+
+    sound.playError();
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
+    setSelectedWorldId(null);
+    setActiveTab(parentAuthenticated ? 'parents' : 'adventure');
+
+    if (!persisted.activeProfileId) {
+      setParentAuthenticated(false);
+      setShowProfilePicker(true);
+    }
+  };
+
   const handleAccessParentArea = () => {
     const storedPIN = localStorage.getItem('tabellandia_parent_pin');
     if (!storedPIN) {
@@ -566,8 +636,6 @@ export default function App() {
           sound.playPowerUp();
           setParentAuthenticated(true);
           setShowPINModal(false);
-          setShowProfilePicker(false);
-          setShowLanding(false);
           setActiveTab('parents');
           setPinInput("");
           setPinError("");
@@ -579,8 +647,6 @@ export default function App() {
         sound.playPowerUp();
         setParentAuthenticated(true);
         setShowPINModal(false);
-        setShowProfilePicker(false);
-        setShowLanding(false);
         setActiveTab('parents');
         setPinInput("");
         setPinError("");
@@ -790,7 +856,15 @@ export default function App() {
             />
 
             <ResponsiveGrid variant="cards" className="overflow-y-auto pr-1 flex-1 items-stretch">
-            {profiles.map(p => {
+            {activeProfiles.length === 0 && (
+              <SurfaceCard padding="md" className="rounded-3xl border-dashed border-slate-300 bg-white/90 text-center">
+                <p className="text-sm font-black text-slate-800">Nessun profilo attivo disponibile</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  I profili eliminati si gestiscono dalla Modalità Genitori oppure puoi crearne uno nuovo.
+                </p>
+              </SurfaceCard>
+            )}
+            {activeProfiles.map(p => {
               const age = p.birthYear ? CURRENT_YEAR - p.birthYear : null;
               const isActive = activeProfileId === p.id;
               return (
@@ -831,152 +905,8 @@ export default function App() {
               <span className="text-[11px] text-slate-500 mt-1">Scegli base avatar e anno di nascita</span>
             </button>
             </ResponsiveGrid>
-
-            <div className="pt-4 mt-2 border-t border-slate-200/60 flex justify-center">
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  handleAccessParentArea();
-                }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-black text-xs shadow-md transition-colors cursor-pointer"
-                id="profile-picker-parent-btn"
-              >
-                <span>🔐</span> Area Genitori (PIN)
-              </button>
-            </div>
           </SurfaceCard>
         </motion.div>
-
-        {/* PIN Authentication Modal */}
-        <AnimatePresence>
-          {showPINModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              onClick={handleClosePINModal}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="text-center mb-4">
-                  <div className="text-4xl mb-2">🔐</div>
-                  <h2 className="text-xl font-black text-indigo-950">Area Genitori</h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {showChangePINForm ? "Imposta un nuovo PIN" : isSettingPIN ? "Crea un PIN a 4 cifre" : "Inserisci il PIN"}
-                  </p>
-                </div>
-
-                {showChangePINForm ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-xs font-bold text-indigo-700 block mb-2">Nuovo PIN (4 cifre)</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={newPINInput}
-                        onChange={e => setNewPINInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-center text-2xl font-black tracking-widest focus:outline-none focus:border-indigo-600"
-                        placeholder="••••"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-indigo-700 block mb-2">Conferma PIN</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={confirmPINInput}
-                        onChange={e => setConfirmPINInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-center text-2xl font-black tracking-widest focus:outline-none focus:border-indigo-600"
-                        placeholder="••••"
-                      />
-                    </div>
-                    {pinError && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
-                      >
-                        {pinError}
-                      </motion.div>
-                    )}
-                    <div className="flex gap-3 mt-6">
-                      <button
-                        onClick={() => {
-                          setShowChangePINForm(false);
-                          setNewPINInput("");
-                          setConfirmPINInput("");
-                          setPinError("");
-                          setPinInput("");
-                        }}
-                        className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black rounded-lg transition-colors"
-                      >
-                        Annulla
-                      </button>
-                      <button
-                        onClick={handleSaveNewPIN}
-                        disabled={newPINInput.length !== 4 || confirmPINInput.length !== 4}
-                        className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Salva
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex justify-center gap-2 mb-6">
-                      {[0, 1, 2, 3].map(i => (
-                        <motion.div
-                          key={i}
-                          animate={pinError ? { x: [-5, 5, -5, 0] } : {}}
-                          transition={{ duration: 0.3 }}
-                          className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-lg transition-all ${
-                            pinError
-                              ? 'bg-red-100 border-red-400 text-red-600'
-                              : 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                          }`}
-                        >
-                          {pinInput[i] ? '●' : '-'}
-                        </motion.div>
-                      ))}
-                    </div>
-                    {pinError && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center mb-4 text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
-                      >
-                        {pinError}
-                      </motion.div>
-                    )}
-                    <NumericKeypad
-                      value={pinInput}
-                      onChange={v => setPinInput(v.slice(0, 4))}
-                      onSubmit={handlePINSubmit}
-                      maxDigits={4}
-                    />
-                  </>
-                )}
-
-                {!showChangePINForm && (
-                  <button
-                    onClick={handleClosePINModal}
-                    className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
-                  >
-                    Annulla
-                  </button>
-                )}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     );
   }
@@ -1225,26 +1155,30 @@ export default function App() {
         >
           <div className={`w-full flex items-center ${isPhoneMode ? 'gap-1.5' : 'gap-3'} bg-white/40 backdrop-blur-sm ${isPhoneMode ? 'px-3 py-2' : 'px-5 py-2.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap`}>
             {/* Profile Avatar */}
-            <button
-             type="button"
-             onClick={() => { sound.playClick(); handleSwitchProfile(); }}
-             className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
-             id="profile-icon-btn"
-             title="Cambia profilo"
-            >
-             <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
-               {profile?.avatar?.emoji || '👦'}
-             </div>
-             <p
-               onClick={(e) => { e.stopPropagation(); handleDevModeGestureTap(); }}
-               className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
+            <div className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0`}>
+             <button
+              type="button"
+              onClick={() => { sound.playClick(); handleSwitchProfile(); }}
+              className="cursor-pointer hover:opacity-80 transition-opacity"
+              id="profile-icon-btn"
+              title="Cambia profilo"
+             >
+              <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
+                {profile?.avatar?.emoji || '👦'}
+              </div>
+             </button>
+             <button
+               type="button"
+               onClick={handleDevModeGestureTap}
+               className={`mt-0.5 font-black text-sky-950 uppercase tracking-wider leading-none cursor-pointer ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
+               aria-label="Attiva o disattiva la modalità sviluppatore"
              >
                {profile?.name || 'Eroe'}
-             </p>
+             </button>
              {devModeEnabled && (
                <span className={`mt-0.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black tracking-wider ${isPhoneMode ? 'text-[6px]' : 'text-[8px]'}`}>DEV</span>
              )}
-            </button>
+            </div>
 
             {/* Monete & Gocce (Sovrapposte una sotto l'altra) */}
             <div className={`flex flex-col justify-center gap-1 shrink-0 bg-white/65 rounded-2xl border border-white/80 ${isPhoneMode ? 'px-2 py-1 min-w-[72px]' : 'px-3 py-1.5 min-w-[105px]'}`}>
@@ -1269,8 +1203,19 @@ export default function App() {
 
             {/* Controls */}
             <div className={`ml-auto flex items-center gap-${isPhoneMode ? '1' : '2'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'} min-w-max`}>
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
+             {devModeEnabled && (
+               <button
+                 type="button"
+                 onClick={(e) => { e.stopPropagation(); handleExitDevMode(); }}
+                 className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 font-black ${isPhoneMode ? 'px-2 h-6 text-[9px]' : 'px-3 h-8 text-[11px]'} bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800`}
+                 id="dev-exit-btn"
+                 aria-label="Disattiva modalità sviluppatore"
+               >
+                 Esci DEV
+               </button>
+             )}
+             <button
+               onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
                 className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${musicEnabled ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white/70 border-slate-200 text-slate-400'}`}
                 id="music-toggle" title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
               >
@@ -1469,7 +1414,7 @@ export default function App() {
                 {!showChangePINForm && (
                   <button
                     onClick={handleClosePINModal}
-                    className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                    className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
                   >
                     Annulla
                   </button>
@@ -1570,7 +1515,7 @@ export default function App() {
         <div className={`flex-1 overflow-hidden flex relative z-10 ${isPhoneMode ? 'flex-col' : 'flex-row'}`}>
           
           {/* Left Sidebar Navigation (Kid-Friendly Rail) */}
-          {selectedWorldId === null && !isPhoneMode && activeTab !== 'parents' && (
+          {selectedWorldId === null && !isPhoneMode && (
             <div className="w-24 bg-white/20 backdrop-blur-md rounded-[32px] border-4 border-white/40 flex flex-col items-center py-8 gap-8 shadow-2xl z-20 m-4 md:flex hidden">
               {APP_SIDEBAR_TABS.map(tab => {
                 const isActive = activeTab === tab.id;
@@ -1579,7 +1524,11 @@ export default function App() {
                     key={tab.id}
                     onClick={() => {
                       sound.playClick();
-                      setActiveTab(tab.id as any);
+                      if (tab.id === 'parents') {
+                        handleAccessParentArea();
+                      } else {
+                        setActiveTab(tab.id as any);
+                      }
                     }}
                     className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-110 active:scale-95 transition-all ${
                       isActive 
@@ -1646,7 +1595,7 @@ export default function App() {
                         </div>
                       </SurfaceCard>
 
-                      <ResponsiveGrid variant="cards" className="items-stretch">
+                      <ResponsiveGrid columns={1} variant="cards" className="items-stretch max-w-2xl mx-auto">
                         {WORLDS_DATA.map(world => {
                           const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
                           const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
@@ -1773,20 +1722,21 @@ export default function App() {
                   )}
 
                   {/* TAB 4: PARENT AREA */}
-                  {activeTab === 'parents' && parentAuthenticated && (
+                  {activeTab === 'parents' && parentAuthenticated && profile && (
                     <ParentDashboard
                       profile={profile}
-                      profiles={profiles}
+                      activeProfiles={activeProfiles}
+                      deletedProfiles={deletedProfiles}
+                      activeProfileId={activeProfileId}
                       updateProfile={handleUpdateProfile}
-                      onDeleteProfile={handleDeleteProfile}
-                      onRestoreProfile={handleRestoreProfile}
+                      onSoftDeleteProfile={handleSoftDeleteProfile}
+                      onRestoreDeletedProfile={handleRestoreDeletedProfile}
                       onPermanentDeleteProfile={handlePermanentDeleteProfile}
                       compactLayout={isPhoneMode}
                       onChangePIN={handleStartChangePIN}
                       onClose={() => {
                         sound.playClick();
                         setParentAuthenticated(false);
-                        setShowProfilePicker(true);
                         setActiveTab('adventure');
                       }}
                     />
@@ -1797,7 +1747,7 @@ export default function App() {
           </main>
 
           {/* Right Profile Panel (Quick View) */}
-          {selectedWorldId === null && !isPhoneMode && activeTab !== 'parents' && (
+          {selectedWorldId === null && !isPhoneMode && (
             <div className="m-4 hidden md:flex flex-col items-end gap-2 shrink-0">
               <button
                 type="button"
@@ -1866,11 +1816,12 @@ export default function App() {
         </div>
 
         {/* Global Bottom Navigation bar for mobile screens */}
-        {selectedWorldId === null && isPhoneMode && activeTab !== 'parents' && (
+        {selectedWorldId === null && isPhoneMode && (
           <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-2 flex justify-around items-center z-10 shadow-xl shrink-0">
            {[
              { id: 'adventure', name: 'Mappa Avventura', emoji: '🗺️', label: 'Mappa' },
-             { id: 'training', name: 'Allenamento', emoji: '🎒', label: 'Allenamento' }
+             { id: 'training', name: 'Allenamento', emoji: '🎒', label: 'Allenamento' },
+             { id: 'parents', name: 'Area Genitori', emoji: '🔐', label: 'Genitori' }
            ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
@@ -1878,7 +1829,11 @@ export default function App() {
                   key={tab.id}
                   onClick={() => {
                     sound.playClick();
-                    setActiveTab(tab.id as any);
+                    if (tab.id === 'parents') {
+                      handleAccessParentArea();
+                    } else {
+                      setActiveTab(tab.id as any);
+                    }
                   }}
                   className={`flex flex-col items-center py-2 px-4 rounded-2xl transition-all cursor-pointer ${
                     isActive 
@@ -1896,54 +1851,56 @@ export default function App() {
         )}
       </div>
 
-      {/* Production specifications panel at the very bottom (collapsible documentation of architecture/MVP for the reviewers!) */}
+      {/* Info panel: current work in progress */}
       {!isPhoneMode && (
       <div className="mt-8 max-w-4xl w-full bg-slate-800 rounded-3xl p-5 md:p-6 border border-slate-700 shadow-xl space-y-4">
         <h3 className="text-base font-black text-white flex items-center gap-1.5">
           <Settings className="w-5 h-5 text-indigo-400" />
-          Scheda Progettazione Tecnica & Architettura Android MVP
+          Info: Work in progress
         </h3>
         <p className="text-xs text-slate-400 leading-relaxed font-sans">
-          In qualità di team multidisciplinare (Educational Designer, Gamification Expert, UX/UI, Sviluppatore Android, Scienze Cognitive), ecco la documentazione delle specifiche di produzione per l'implementazione nativa di <strong>Tabellandia</strong> su piattaforma Android.
+          Stiamo rifinendo Tabellandia passo dopo passo. Qui trovi in modo semplice cosa stiamo migliorando adesso e cosa arriva nei prossimi aggiornamenti.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
-            <h4 className="font-extrabold text-indigo-300 font-sans">1. Architettura Android Completa</h4>
-            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
-              <div role="listitem"><strong>UI Pattern:</strong> Jetpack Compose nativo con architettura MVI (Model-View-Intent) o MVVM per un flusso dati reattivo, deterministico e pulito.</div>
-              <div role="listitem"><strong>DI Engine:</strong> Hilt (Dagger) per gestire l'iniezione delle dipendenze del Database e del modulo di telemetry.</div>
-              <div role="listitem"><strong>Local Storage:</strong> Room Database SQL (con migration guidate) pre-popolato con le configurazioni dei mondi e schema QuestionAttempt.</div>
-              <div role="listitem"><strong>Cloud Storage:</strong> Firebase Firestore (opzionale) sincronizzato in background tramite WorkManager per salvare le sessioni di gioco.</div>
-            </div>
+        <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-4 text-xs">
+          <div role="listitem" className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
+            <h4 className="font-extrabold text-indigo-300 font-sans">1. Cosa stiamo facendo ora</h4>
+            <p className="text-slate-300 leading-relaxed font-sans">
+              Stiamo rendendo ogni passo più chiaro e veloce: meno confusione, più ritmo di gioco, più aiuto quando serve.
+            </p>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              Obiettivo: far capire le tabelline con serenità, senza frustrazione.
+            </p>
           </div>
 
-          <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
-            <h4 className="font-extrabold text-indigo-300 font-sans">2. Logica di Apprendimento Adattivo</h4>
-            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
-              <div role="listitem"><strong>Rilevamento Critico:</strong> Algoritmo basato su peso esponenziale degli errori (Leitner System adattivo). Ogni combinazione ha una forza memorica.</div>
-              <div role="listitem"><strong>Rallentamento:</strong> Se un'operazione fallisce &ge;3 volte in un intervallo di 15 domande, la coda del quiz inserisce automaticamente la visualizzazione a gruppi (GroupVisualizer).</div>
-              <div role="listitem"><strong>Interval Spacing:</strong> Le combinazioni fallite vengono ripresentate con una frequenza di 2, 5 e 10 posizioni successive per consolidare la ritenzione a lungo termine.</div>
-            </div>
+          <div role="listitem" className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
+            <h4 className="font-extrabold text-indigo-300 font-sans">2. Migliorie in arrivo</h4>
+            <p className="text-slate-300 leading-relaxed font-sans">
+              Nuove schermate guida, feedback più immediati e passaggi più fluidi tra allenamento, pratico e sfida.
+            </p>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              Ogni update punta a rendere il percorso più semplice da seguire anche per i più piccoli.
+            </p>
           </div>
 
-          <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
-            <h4 className="font-extrabold text-indigo-300 font-sans">3. UX per Bambini e Gamification</h4>
-            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
-              <div role="listitem"><strong>Assenza di Testo:</strong> Istruzioni vocali sintetizzate (TTS Android) e forte codifica a colori e icone (oggetti contabili unici).</div>
-              <div role="listitem"><strong>No Penalty:</strong> Nessun punteggio negativo o "vite perse". Errori attivano lo "Scudo della Saggezza" di incoraggiamento visivo.</div>
-              <div role="listitem"><strong>Progressione:</strong> Ricompense estetiche esclusive (Emporio) non acquistabili per agganciare la motivazione intrinseca dell'apprendimento.</div>
-            </div>
+          <div role="listitem" className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
+            <h4 className="font-extrabold text-indigo-300 font-sans">3. Come usiamo premi e progressi</h4>
+            <p className="text-slate-300 leading-relaxed font-sans">
+              Le monete aiutano a sbloccare opportunità di gioco, mentre le gocce restano la risorsa speciale per far rinascere i regni.
+            </p>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              Così ogni ricompensa ha un significato chiaro e motivante.
+            </p>
           </div>
 
-          <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
-            <h4 className="font-extrabold text-indigo-300 font-sans">4. Piano di Sviluppo MVP & Roadmap</h4>
-            <div role="list" className="grid grid-cols-1 gap-1 text-slate-300 leading-relaxed font-sans">
-              <div role="listitem"><strong>Sprint 1 (Fondamenta):</strong> Core Engine Matematico, Room DB, Profilo Locale, Asset Grafici base dei Mondi 2, 3, 5.</div>
-              <div role="listitem"><strong>Sprint 2 (Adattamento):</strong> Sistema di diagnostica, Scudo di Saggezza, Tracciamento heatmap e PIN Genitori.</div>
-              <div role="listitem"><strong>Sprint 3 (Gamification):</strong> Personalizzazione Avatar, Emporio monete, Emozioni delle Creature, Effetti sonori nativi SoundPool.</div>
-              <div role="listitem"><strong>Sprint 4 (Evoluzione):</strong> Supporto Cloud Sync, Mondi avanzati (11 e 12), e Localizzazione Multilingua.</div>
-            </div>
+          <div role="listitem" className="space-y-2 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-700/50">
+            <h4 className="font-extrabold text-indigo-300 font-sans">4. Roadmap breve</h4>
+            <p className="text-slate-300 leading-relaxed font-sans">
+              Prima consolidiamo stabilità e chiarezza didattica, poi espandiamo contenuti, personalizzazioni e strumenti per famiglie.
+            </p>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              Un passo alla volta, con aggiornamenti regolari e misurabili.
+            </p>
           </div>
         </div>
       </div>
@@ -1966,6 +1923,15 @@ export default function App() {
         )}
         devMode={devModeEnabled}
         onComplete={() => {
+          if (profile) {
+            handleUpdateProfile(p => ({
+              ...p,
+              completedOnboardingGame: true
+            }));
+          }
+          setManualOnboardingGameOpen(false);
+        }}
+        onSkip={() => {
           if (profile) {
             handleUpdateProfile(p => ({
               ...p,

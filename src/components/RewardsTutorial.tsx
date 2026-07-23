@@ -29,7 +29,7 @@ export default function RewardsTutorial({ isOpen, onClose }: RewardsTutorialProp
       description: 'Le gocce sono più rare e preziose! Le usi per ricostruire i monumenti distrutti.',
       how: [
         '✓ Completa Pratico: 10 gocce',
-        '✓ Completa Sfida: 20 gocce',
+        '✓ Record Sfida (da 15 in su): 50 gocce',
         '✓ Le gocce si usano per ricostruire monumenti',
         '✓ Più monumenti = più benefici speciali!'
       ],
@@ -38,10 +38,11 @@ export default function RewardsTutorial({ isOpen, onClose }: RewardsTutorialProp
     {
       title: '⚡ Guadagni Extra',
       emoji: '🎯',
-      description: 'Anche gli step del pratico e sfida danno monete extra!',
+      description: 'Le monete servono anche a sbloccare la Sfida finale!',
       how: [
         '✓ Ogni risposta corretta nel Pratico: +2 monete',
         '✓ Ogni risposta corretta nella Sfida: +2 monete',
+        '✓ Primo accesso Sfida: sblocco permanente a 100 monete',
         '✓ Bonus XP: +50 per ogni step completato',
         '✓ Livello up ogni 100 XP!'
       ],

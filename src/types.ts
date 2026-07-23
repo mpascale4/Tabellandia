@@ -25,6 +25,7 @@ export interface RebuiltMonument {
 export interface WorldProgress {
   worldId: number; // 2 to 9
   completedSteps: string[]; // ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida']
+  sfidaUnlocked?: boolean; // Permanent unlock for Sfida in this world/tabellina
   rebuiltMonuments: string[]; // IDs of monuments rebuilt
   creatureEvolution: 'egg' | 'child' | 'adult';
   highScore: number; // Max correct answers in Time Trial
@@ -48,6 +49,8 @@ export interface QuestionAttempt {
 export interface UserProfile {
   id?: string;
   birthYear?: number | null;
+  deletedAt?: string | null;
+  scheduledPermanentDeletionAt?: string | null;
   name: string;
   level: number;
   xp: number;

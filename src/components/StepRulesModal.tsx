@@ -18,145 +18,123 @@ interface StepRulesModalProps {
 }
 
 export default function StepRulesModal({ step, world, onClose, isMandatory = false, isPage = false }: StepRulesModalProps) {
-  const example_a = world.id;
-  const example_b = 4;
-  const example_result = example_a * example_b;
+  type StepRuleContent = {
+    title: string;
+    tone: string;
+    objective: string;
+    howTo: string[];
+    doneWhen: string;
+    tip: string;
+  };
 
-  // Render different content based on step
-  const renderRules = () => {
-    switch (step) {
-      case 'comprendo':
-        return (
-          <div className="space-y-4">
-            <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
-              <h4 className="font-bold text-indigo-900 mb-2">📚 Come funziona?</h4>
-              <p className="text-sm text-indigo-800">
-                La moltiplicazione è <strong>addizione ripetuta</strong>. Vedi i gruppi di oggetti e contali tutti insieme!
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-slate-200">
-              <p className="text-xs text-slate-500 mb-2 font-semibold">ESEMPIO:</p>
-              <p className="text-sm font-bold text-indigo-700 mb-3">
-                {example_a} x {example_b} = {example_a} + {example_a} + {example_a} + {example_a} = {example_result}
-              </p>
-              <p className="text-xs text-slate-600">
-                Vedi {example_a} ceste con {example_b} oggetti ciascuna. Quanti oggetti in totale? 
-                <strong className="block mt-1 text-lg text-emerald-600">{example_result} oggetti!</strong>
-              </p>
-            </div>
-          </div>
-        );
-
-      case 'salto':
-        return (
-          <div className="space-y-4">
-            <div className="bg-sky-50 rounded-xl p-4 border border-sky-200">
-              <h4 className="font-bold text-sky-900 mb-2">Come funziona?</h4>
-              <p className="text-sm text-sky-800">
-                La rana salta di {example_a} in {example_a}. Tocca il numero corretto per ogni salto!
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-slate-200">
-              <p className="text-xs text-slate-500 mb-2 font-semibold">SEQUENZA DEL {example_a}:</p>
-              <div className="flex items-center justify-center gap-2 flex-wrap my-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <span key={i} className="bg-sky-100 text-sky-700 font-bold rounded-full w-8 h-8 flex items-center justify-center text-sm">
-                    {(i + 1) * example_a}
-                  </span>
-                ))}
-              </div>
-              <p className="text-xs text-slate-600">
-                Ogni salto aumenta di {example_a}. Non confonderti!
-              </p>
-            </div>
-          </div>
-        );
-
-      case 'costruisco':
-        return (
-          <div className="space-y-4">
-            <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-              <h4 className="font-bold text-purple-900 mb-2">Come funziona?</h4>
-              <p className="text-sm text-purple-800">
-                Abbina i <strong>fattori</strong> ai loro <strong>risultati</strong> corretti. Trasforma il concetto in simboli!
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-slate-200">
-              <p className="text-xs text-slate-500 mb-2 font-semibold">ESEMPIO:</p>
-              <p className="text-sm font-bold text-purple-700 mb-3">
-                Sinistra: {example_a} x 2, {example_a} x 3, {example_a} x 4...
-              </p>
-              <p className="text-sm font-bold text-purple-700 mb-3">
-                Destra (palloncini): {example_a * 2}, {example_a * 4}, {example_a * 3}... (mesciolati!)
-              </p>
-              <p className="text-xs text-slate-600">
-                Tocca il fattore a sinistra, poi scegli il risultato corretto dai palloncini a destra.
-              </p>
-            </div>
-          </div>
-        );
-
-      case 'trucchi':
-        return (
-          <div className="space-y-4">
-            <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-              <h4 className="font-bold text-amber-900 mb-2">Come funziona?</h4>
-              <p className="text-sm text-amber-800">
-                {world.trickDescription}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-slate-200">
-              <p className="text-xs text-slate-500 mb-2 font-semibold">TRUCCO SPECIALE:</p>
-              <p className="text-sm font-bold text-amber-700">
-                {world.trickTitle}
-              </p>
-            </div>
-          </div>
-        );
-
-      case 'pratico':
-        return (
-          <div className="space-y-4">
-            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-              <h4 className="font-bold text-emerald-900 mb-2">Come funziona?</h4>
-              <p className="text-sm text-emerald-800">
-                Rispondi velocemente a tante domande! Ogni risposta corretta = 1 moneta + 1 goccia di luce.
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-slate-200">
-              <p className="text-xs text-slate-500 mb-2 font-semibold">MECCANICA:</p>
-              <div role="list" className="grid grid-cols-1 gap-1 text-sm text-slate-700">
-                <div role="listitem">✓ Risposta corretta = moneta + goccia luce</div>
-                <div role="listitem">✗ Risposta sbagliata = ri-tentare</div>
-                <div role="listitem">🔁 Domande sbagliate tornano alla fine</div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'sfida':
-        return (
-          <div className="space-y-4">
-            <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
-              <h4 className="font-bold text-rose-900 mb-2">Come funziona?</h4>
-              <p className="text-sm text-rose-800">
-                30 secondi cronometrati! Rispondi a più domande possibile per ottenere le stelle d'oro.
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-slate-200">
-              <p className="text-xs text-slate-500 mb-2 font-semibold">PUNTEGGI:</p>
-              <div role="list" className="grid grid-cols-1 gap-1 text-sm text-slate-700">
-                <div role="listitem">⭐ 4 risposte corrette = 1 stella</div>
-                <div role="listitem">⭐⭐ 8 risposte corrette = 2 stelle</div>
-                <div role="listitem">⭐⭐⭐ 12+ risposte corrette = 3 stelle</div>
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
+  const rulesByStep: Record<string, StepRuleContent> = {
+    comprendo: {
+      title: 'Comprendo',
+      tone: 'bg-indigo-50 border-indigo-200 text-indigo-950',
+      objective: 'Capire che moltiplicare vuol dire fare gruppi uguali.',
+      howTo: [
+        'Osserva i gruppi di oggetti e conta quanti elementi ci sono in totale.',
+        'Scegli il risultato corretto tra le opzioni.',
+        'Se sbagli, riprova con calma: l obiettivo e capire, non correre.'
+      ],
+      doneWhen: 'Completi tutte le 10 combinazioni della tabellina.',
+      tip: 'Pensa: "numero di gruppi x elementi per gruppo".'
+    },
+    salto: {
+      title: 'Salto',
+      tone: 'bg-sky-50 border-sky-200 text-sky-950',
+      objective: 'Allenare il conteggio a salti per memorizzare la sequenza.',
+      howTo: [
+        'Fai avanzare la rana saltando di numero in numero.',
+        'Ogni salto segue il ritmo della tabellina scelta.',
+        'Mantieni il ritmo: la sequenza ti guida alla risposta.'
+      ],
+      doneWhen: 'Raggiungi la fine del percorso per tutte le 10 combinazioni.',
+      tip: 'Leggi ad alta voce i numeri: aiuta la memoria.'
+    },
+    costruisco: {
+      title: 'Costruisco',
+      tone: 'bg-purple-50 border-purple-200 text-purple-950',
+      objective: 'Costruire la moltiplicazione nella griglia con ordine e precisione.',
+      howTo: [
+        'Guarda la griglia e individua il risultato corretto.',
+        'Seleziona i numeri giusti senza fretta.',
+        'Completa ogni schema per consolidare la regola.'
+      ],
+      doneWhen: 'Completi tutte le 10 combinazioni dello step.',
+      tip: 'Cerca i pattern: nella griglia i numeri si ripetono con logica.'
+    },
+    trucchi: {
+      title: 'Trucchi',
+      tone: 'bg-amber-50 border-amber-200 text-amber-950',
+      objective: 'Usare strategie semplici per rispondere più velocemente.',
+      howTo: [
+        'Memorizza piccoli indizi visivi e regole pratiche.',
+        'Riconosci i pattern ricorrenti della tabellina.',
+        'Applica il trucco e verifica subito se funziona.'
+      ],
+      doneWhen: 'Concludi con successo tutte le 10 combinazioni.',
+      tip: 'Un trucco alla volta: prima precisione, poi velocità.'
+    },
+    pratico: {
+      title: 'Pratico',
+      tone: 'bg-emerald-50 border-emerald-200 text-emerald-950',
+      objective: 'Rispondere in modo stabile e continuo come in una piccola avventura.',
+      howTo: [
+        'Risolvi un operazione alla volta scegliendo la risposta corretta.',
+        'Mantieni la concentrazione per aumentare la serie di risposte esatte.',
+        'Se sbagli, riparti e ricostruisci la tua serie.'
+      ],
+      doneWhen: 'Raggiungi l obiettivo di 10 risposte corrette consecutive.',
+      tip: 'Respira, guarda bene l operazione, poi scegli.'
+    },
+    sfida: {
+      title: 'Sfida',
+      tone: 'bg-rose-50 border-rose-200 text-rose-950',
+      objective: 'Fare più risposte corrette possibili prima che scada il tempo.',
+      howTo: [
+        'Hai 30 secondi: rispondi rapidamente ma con attenzione.',
+        'Ogni risposta giusta aumenta il punteggio.',
+        'Per il record servono almeno 15 risposte corrette.'
+      ],
+      doneWhen: 'Migliori il tuo record personale della tabellina.',
+      tip: 'Se una domanda ti blocca, passa subito alla prossima con decisione.'
     }
+  };
+
+  const content = rulesByStep[step];
+
+  const renderRules = () => {
+    if (!content) return null;
+    return (
+      <div className="space-y-4">
+        <div className={`rounded-2xl border p-4 ${content.tone}`}>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em]">Obiettivo</p>
+          <p className="mt-2 text-sm font-semibold leading-relaxed">{content.objective}</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Come si gioca</p>
+          <div role="list" className="mt-2 grid grid-cols-1 gap-2">
+            {content.howTo.map((item) => (
+              <div key={item} role="listitem" className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-sm text-slate-700 leading-relaxed">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em]">Quando hai finito</p>
+          <p className="mt-2 text-sm font-semibold leading-relaxed">{content.doneWhen}</p>
+        </div>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em]">Trucchetto utile</p>
+          <p className="mt-2 text-sm font-semibold leading-relaxed">{content.tip}</p>
+        </div>
+      </div>
+    );
   };
 
   const stepTitles: { [key: string]: string } = {
