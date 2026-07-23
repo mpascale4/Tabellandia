@@ -48,6 +48,8 @@ export interface QuestionAttempt {
 export interface UserProfile {
   id?: string;
   birthYear?: number | null;
+  deletedAt?: string | null;
+  scheduledPermanentDeletionAt?: string | null;
   name: string;
   level: number;
   xp: number;

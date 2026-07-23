@@ -15,7 +15,7 @@ export default function FontSizeControl() {
       <button
         onClick={decreaseFontSize}
         disabled={scale <= 0.8}
-        className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
         title="Diminuisci testo"
         aria-label="Diminuisci dimensione testo"
       >
@@ -29,7 +29,7 @@ export default function FontSizeControl() {
       <button
         onClick={increaseFontSize}
         disabled={scale >= 1.5}
-        className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
         title="Aumenta testo"
         aria-label="Aumenta dimensione testo"
       >
@@ -38,7 +38,7 @@ export default function FontSizeControl() {
       
       <button
         onClick={resetFontSize}
-        className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+        className="p-2 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
         title="Ripristina testo"
         aria-label="Ripristina dimensione testo predefinita"
       >

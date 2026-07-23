@@ -33,6 +33,8 @@ const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
 const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
 const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
 const HEADER_REVEAL_TOUCH_ZONE_PX = 12;
+const PROFILE_RESTORE_WINDOW_DAYS = 30;
+const PROFILE_RESTORE_WINDOW_MS = PROFILE_RESTORE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -42,6 +44,46 @@ type ProfileRecord = UserProfile & {
 type ProfileStore = {
   activeProfileId: string | null;
   profiles: ProfileRecord[];
+};
+
+const parseIsoDate = (value?: string | null) => {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+};
+
+const getProfileDeletionDeadline = (profile: Pick<ProfileRecord, 'deletedAt' | 'scheduledPermanentDeletionAt'>) => {
+  const explicitDeadline = parseIsoDate(profile.scheduledPermanentDeletionAt);
+  if (explicitDeadline !== null) return explicitDeadline;
+
+  const deletedAt = parseIsoDate(profile.deletedAt);
+  return deletedAt === null ? null : deletedAt + PROFILE_RESTORE_WINDOW_MS;
+};
+
+const isProfileDeleted = (profile: Pick<ProfileRecord, 'deletedAt' | 'scheduledPermanentDeletionAt'>, now = Date.now()) => {
+  const deletedAt = parseIsoDate(profile.deletedAt);
+  if (deletedAt === null) return false;
+
+  const deadline = getProfileDeletionDeadline(profile);
+  return deadline === null || now < deadline;
+};
+
+const shouldPurgeProfile = (profile: Pick<ProfileRecord, 'deletedAt' | 'scheduledPermanentDeletionAt'>, now = Date.now()) => {
+  const deadline = getProfileDeletionDeadline(profile);
+  return deadline !== null && now >= deadline;
+};
+
+const getActiveProfiles = (profiles: ProfileRecord[], now = Date.now()) => profiles.filter(profile => !isProfileDeleted(profile, now));
+
+const getDeletedProfiles = (profiles: ProfileRecord[], now = Date.now()) => profiles.filter(profile => isProfileDeleted(profile, now));
+
+const purgeExpiredProfiles = (profiles: ProfileRecord[], now = Date.now()) => profiles.filter(profile => !shouldPurgeProfile(profile, now));
+
+const resolveActiveProfileId = (profiles: ProfileRecord[], requestedId: string | null, now = Date.now()) => {
+  const activeProfiles = getActiveProfiles(profiles, now);
+  if (!requestedId) return activeProfiles[0]?.id || null;
+  const requestedProfile = activeProfiles.find(profile => profile.id === requestedId);
+  return requestedProfile?.id || activeProfiles[0]?.id || null;
 };
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -72,6 +114,8 @@ const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devMod
 };
 
 const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
+  deletedAt: null,
+  scheduledPermanentDeletionAt: null,
   name: "Eroe",
   level: 1,
   xp: 0,
@@ -113,6 +157,8 @@ const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string):
     ...profile,
     id: profile.id || fallbackId || createProfileId(),
     birthYear: typeof profile.birthYear === 'number' ? profile.birthYear : null,
+    deletedAt: profile.deletedAt || null,
+    scheduledPermanentDeletionAt: profile.scheduledPermanentDeletionAt || null,
     avatar: {
       ...BASE_PROFILE.avatar,
       ...(profile.avatar || {})
@@ -198,7 +244,9 @@ export default function App() {
     isErected: boolean;
   } | null>(null);
 
-  const profile = activeProfileId ? profiles.find(p => p.id === activeProfileId) || null : null;
+  const activeProfiles = getActiveProfiles(profiles);
+  const deletedProfiles = getDeletedProfiles(profiles);
+  const profile = activeProfileId ? activeProfiles.find(p => p.id === activeProfileId) || null : null;
 
   // Load profile on start
   useEffect(() => {
@@ -210,9 +258,10 @@ export default function App() {
           const nextProfiles = Array.isArray(parsed.profiles)
             ? parsed.profiles.map(p => normalizeProfile(p))
             : [];
+          const cleanedProfiles = purgeExpiredProfiles(nextProfiles);
           return {
-            activeProfileId: parsed.activeProfileId || nextProfiles[0]?.id || null,
-            profiles: nextProfiles
+            activeProfileId: resolveActiveProfileId(cleanedProfiles, parsed.activeProfileId || null),
+            profiles: cleanedProfiles
           };
         } catch (e) {
           console.error("Error loading profile store", e);
@@ -240,7 +289,7 @@ export default function App() {
     setProfiles(store.profiles);
     setActiveProfileId(store.activeProfileId);
     setShowLanding(true);
-    setShowProfilePicker(false);
+    setShowProfilePicker(store.activeProfileId === null && store.profiles.length > 0);
     setWizardStep(0);
     setIsLoaded(true);
   }, []);
@@ -313,20 +362,27 @@ export default function App() {
   };
 
   const persistProfileStore = (nextProfiles: ProfileRecord[], nextActiveProfileId: string | null) => {
+    const cleanedProfiles = purgeExpiredProfiles(nextProfiles);
+    const resolvedActiveProfileId = resolveActiveProfileId(cleanedProfiles, nextActiveProfileId);
     localStorage.setItem(
       PROFILE_STORE_KEY,
       JSON.stringify({
-        activeProfileId: nextActiveProfileId,
-        profiles: nextProfiles
+        activeProfileId: resolvedActiveProfileId,
+        profiles: cleanedProfiles
       } as ProfileStore)
     );
 
-    const currentProfile = nextActiveProfileId ? nextProfiles.find(p => p.id === nextActiveProfileId) || null : null;
+    const currentProfile = resolvedActiveProfileId ? cleanedProfiles.find(p => p.id === resolvedActiveProfileId) || null : null;
     if (currentProfile) {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentProfile));
     } else {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
+
+    return {
+      profiles: cleanedProfiles,
+      activeProfileId: resolvedActiveProfileId
+    };
   };
 
   // Sync back to local storage helper
@@ -341,8 +397,9 @@ export default function App() {
           ...updater(p)
         }, p.id);
       });
-      persistProfileStore(next, activeProfileId);
-      return next;
+      const persisted = persistProfileStore(next, activeProfileId);
+      setActiveProfileId(persisted.activeProfileId);
+      return persisted.profiles;
     });
   };
 
@@ -378,9 +435,9 @@ export default function App() {
     if (!draftProfile) return;
 
     const nextProfiles = [...profiles, draftProfile];
-    setProfiles(nextProfiles);
-    setActiveProfileId(draftProfile.id);
-    persistProfileStore(nextProfiles, draftProfile.id);
+    const persisted = persistProfileStore(nextProfiles, draftProfile.id);
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
 
     sound.playPowerUp();
     setDraftProfile(null);
@@ -392,8 +449,9 @@ export default function App() {
 
   const handleSelectProfile = (selectedId: string) => {
     sound.playClick();
-    setActiveProfileId(selectedId);
-    persistProfileStore(profiles, selectedId);
+    const persisted = persistProfileStore(profiles, selectedId);
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
     setShowProfilePicker(false);
     setWizardStep(0);
     setDraftProfile(null);
@@ -428,6 +486,11 @@ export default function App() {
     setWizardStep(0);
   };
 
+  const disableDevMode = () => {
+    setDevModeEnabled(false);
+    localStorage.setItem(DEV_MODE_KEY, 'false');
+  };
+
   const toggleDevMode = () => {
     setDevModeEnabled(prev => {
       const next = !prev;
@@ -457,6 +520,89 @@ export default function App() {
       devTapCountRef.current = 0;
       devTapResetTimerRef.current = null;
     }, 1200);
+  };
+
+  const handleExitDevMode = () => {
+    sound.playClick();
+    disableDevMode();
+    setDevModeNotice("Modalità DEV disattivata");
+    window.setTimeout(() => setDevModeNotice(""), 1400);
+  };
+
+  const handleSoftDeleteProfile = (profileId: string) => {
+    const targetProfile = profiles.find(item => item.id === profileId);
+    if (!targetProfile) return;
+    if (getActiveProfiles(profiles).length <= 1) {
+      window.alert('Serve almeno un profilo attivo per continuare ad accedere alla Modalità Genitori e ripristinare eventuali profili eliminati.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Vuoi eliminare il profilo "${targetProfile.name}"? Potrai ripristinarlo entro ${PROFILE_RESTORE_WINDOW_DAYS} giorni dalla Modalità Genitori.`);
+    if (!confirmed) return;
+
+    const nowIso = new Date().toISOString();
+    const deletionDeadlineIso = new Date(Date.now() + PROFILE_RESTORE_WINDOW_MS).toISOString();
+    const nextProfiles = profiles.map(item => item.id === profileId
+      ? normalizeProfile({
+          ...item,
+          deletedAt: nowIso,
+          scheduledPermanentDeletionAt: deletionDeadlineIso
+        }, item.id)
+      : item
+    );
+    const persisted = persistProfileStore(nextProfiles, activeProfileId);
+
+    sound.playError();
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
+    setSelectedWorldId(null);
+    setActiveTab(parentAuthenticated ? 'parents' : 'adventure');
+
+    if (!persisted.activeProfileId) {
+      setParentAuthenticated(false);
+      setShowProfilePicker(true);
+    }
+  };
+
+  const handleRestoreDeletedProfile = (profileId: string) => {
+    const targetProfile = profiles.find(item => item.id === profileId);
+    if (!targetProfile) return;
+
+    const nextProfiles = profiles.map(item => item.id === profileId
+      ? normalizeProfile({
+          ...item,
+          deletedAt: null,
+          scheduledPermanentDeletionAt: null
+        }, item.id)
+      : item
+    );
+    const persisted = persistProfileStore(nextProfiles, activeProfileId || profileId);
+
+    sound.playPowerUp();
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
+  };
+
+  const handlePermanentDeleteProfile = (profileId: string) => {
+    const targetProfile = profiles.find(item => item.id === profileId);
+    if (!targetProfile) return;
+
+    const confirmed = window.confirm(`Eliminare definitivamente il profilo "${targetProfile.name}"? Questa operazione è irreversibile.`);
+    if (!confirmed) return;
+
+    const nextProfiles = profiles.filter(item => item.id !== profileId);
+    const persisted = persistProfileStore(nextProfiles, activeProfileId === profileId ? null : activeProfileId);
+
+    sound.playError();
+    setProfiles(persisted.profiles);
+    setActiveProfileId(persisted.activeProfileId);
+    setSelectedWorldId(null);
+    setActiveTab(parentAuthenticated ? 'parents' : 'adventure');
+
+    if (!persisted.activeProfileId) {
+      setParentAuthenticated(false);
+      setShowProfilePicker(true);
+    }
   };
 
   const handleAccessParentArea = () => {
@@ -710,7 +856,15 @@ export default function App() {
             />
 
             <ResponsiveGrid variant="cards" className="overflow-y-auto pr-1 flex-1 items-stretch">
-            {profiles.map(p => {
+            {activeProfiles.length === 0 && (
+              <SurfaceCard padding="md" className="rounded-3xl border-dashed border-slate-300 bg-white/90 text-center">
+                <p className="text-sm font-black text-slate-800">Nessun profilo attivo disponibile</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  I profili eliminati si gestiscono dalla Modalità Genitori oppure puoi crearne uno nuovo.
+                </p>
+              </SurfaceCard>
+            )}
+            {activeProfiles.map(p => {
               const age = p.birthYear ? CURRENT_YEAR - p.birthYear : null;
               const isActive = activeProfileId === p.id;
               return (
@@ -1001,26 +1155,30 @@ export default function App() {
         >
           <div className={`w-full flex items-center ${isPhoneMode ? 'gap-1.5' : 'gap-3'} bg-white/40 backdrop-blur-sm ${isPhoneMode ? 'px-3 py-2' : 'px-5 py-2.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap`}>
             {/* Profile Avatar */}
-            <button
-             type="button"
-             onClick={() => { sound.playClick(); handleSwitchProfile(); }}
-             className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
-             id="profile-icon-btn"
-             title="Cambia profilo"
-            >
-             <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
-               {profile?.avatar?.emoji || '👦'}
-             </div>
-             <p
-               onClick={(e) => { e.stopPropagation(); handleDevModeGestureTap(); }}
-               className={`font-black text-sky-950 uppercase tracking-wider leading-none mt-0.5 ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
+            <div className={`flex flex-col items-center justify-center ${isPhoneMode ? 'w-12' : 'w-14'} shrink-0`}>
+             <button
+              type="button"
+              onClick={() => { sound.playClick(); handleSwitchProfile(); }}
+              className="cursor-pointer hover:opacity-80 transition-opacity"
+              id="profile-icon-btn"
+              title="Cambia profilo"
+             >
+              <div className={`${isPhoneMode ? 'w-10 h-10 text-lg' : 'w-11 h-11 text-2xl'} bg-orange-400 rounded-full border-2 border-white overflow-hidden shadow-inner flex items-center justify-center`}>
+                {profile?.avatar?.emoji || '👦'}
+              </div>
+             </button>
+             <button
+               type="button"
+               onClick={handleDevModeGestureTap}
+               className={`mt-0.5 font-black text-sky-950 uppercase tracking-wider leading-none cursor-pointer ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
+               aria-label="Attiva o disattiva la modalità sviluppatore"
              >
                {profile?.name || 'Eroe'}
-             </p>
+             </button>
              {devModeEnabled && (
                <span className={`mt-0.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black tracking-wider ${isPhoneMode ? 'text-[6px]' : 'text-[8px]'}`}>DEV</span>
              )}
-            </button>
+            </div>
 
             {/* Monete & Gocce (Sovrapposte una sotto l'altra) */}
             <div className={`flex flex-col justify-center gap-1 shrink-0 bg-white/65 rounded-2xl border border-white/80 ${isPhoneMode ? 'px-2 py-1 min-w-[72px]' : 'px-3 py-1.5 min-w-[105px]'}`}>
@@ -1045,8 +1203,19 @@ export default function App() {
 
             {/* Controls */}
             <div className={`ml-auto flex items-center gap-${isPhoneMode ? '1' : '2'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'} min-w-max`}>
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
+             {devModeEnabled && (
+               <button
+                 type="button"
+                 onClick={(e) => { e.stopPropagation(); handleExitDevMode(); }}
+                 className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 font-black ${isPhoneMode ? 'px-2 h-6 text-[9px]' : 'px-3 h-8 text-[11px]'} bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800`}
+                 id="dev-exit-btn"
+                 aria-label="Disattiva modalità sviluppatore"
+               >
+                 Esci DEV
+               </button>
+             )}
+             <button
+               onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
                 className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${musicEnabled ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white/70 border-slate-200 text-slate-400'}`}
                 id="music-toggle" title={musicEnabled ? "Disattiva musica" : "Attiva musica"}
               >
@@ -1245,7 +1414,7 @@ export default function App() {
                 {!showChangePINForm && (
                   <button
                     onClick={handleClosePINModal}
-                    className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                    className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
                   >
                     Annulla
                   </button>
@@ -1426,7 +1595,7 @@ export default function App() {
                         </div>
                       </SurfaceCard>
 
-                      <ResponsiveGrid variant="cards" className="items-stretch">
+                      <ResponsiveGrid columns={1} variant="cards" className="items-stretch max-w-2xl mx-auto">
                         {WORLDS_DATA.map(world => {
                           const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
                           const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
@@ -1553,10 +1722,16 @@ export default function App() {
                   )}
 
                   {/* TAB 4: PARENT AREA */}
-                  {activeTab === 'parents' && parentAuthenticated && (
+                  {activeTab === 'parents' && parentAuthenticated && profile && (
                     <ParentDashboard
                       profile={profile}
+                      activeProfiles={activeProfiles}
+                      deletedProfiles={deletedProfiles}
+                      activeProfileId={activeProfileId}
                       updateProfile={handleUpdateProfile}
+                      onSoftDeleteProfile={handleSoftDeleteProfile}
+                      onRestoreDeletedProfile={handleRestoreDeletedProfile}
+                      onPermanentDeleteProfile={handlePermanentDeleteProfile}
                       compactLayout={isPhoneMode}
                       onChangePIN={handleStartChangePIN}
                       onClose={() => {
@@ -1746,6 +1921,15 @@ export default function App() {
         )}
         devMode={devModeEnabled}
         onComplete={() => {
+          if (profile) {
+            handleUpdateProfile(p => ({
+              ...p,
+              completedOnboardingGame: true
+            }));
+          }
+          setManualOnboardingGameOpen(false);
+        }}
+        onSkip={() => {
           if (profile) {
             handleUpdateProfile(p => ({
               ...p,

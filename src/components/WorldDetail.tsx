@@ -4,11 +4,11 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
 import { Sparkles, HelpCircle, ArrowLeft, Check, AlertCircle, Award, Timer, Trophy, Compass, ShieldAlert } from 'lucide-react';
-import GroupVisualizer from './GroupVisualizer';
+import ComprendoBasketGame from './ComprendoBasketGame';
 import StepRulesModal from './StepRulesModal';
 import RewardPopup from './RewardPopup';
 import NumericKeypad from './NumericKeypad';
@@ -40,6 +40,54 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
   }
   return result;
 };
+
+const SUCCESS_ENCOURAGEMENTS = ['bravissimo!', 'ottimo lavoro!', 'grande!'] as const;
+const TRUCCHI_PYRAMID_ROWS = [1, 2, 3, 4] as const;
+const TRUCCHI_PREVIEW_MS = 1000;
+const TRUCCHI_REVEAL_MS = 260;
+const TRUCCHI_COLLAPSE_MS = 620;
+const OPERATION_CARD_THEMES = [
+  'bg-gradient-to-r from-[#3c358f] to-[#4d46b5]',
+  'bg-gradient-to-r from-[#ff9d08] to-[#ffb11f]',
+  'bg-gradient-to-r from-[#0ea5e9] to-[#22d3ee]',
+  'bg-gradient-to-r from-[#c026d3] to-[#7c3aed]',
+] as const;
+const GAMEPLAY_AUDIO_MESSAGES = {
+  saltoFall: 'Oh no, la ranocchia e caduta! Riproviamo.',
+  costruiscoWrong: 'Non questo. Cerca il numero giusto.',
+  costruiscoCorrect: 'Bravo, ma scoppia tutti gli altri palloncini.',
+  quizWrong: 'Quasi. Riprova con calma.',
+  sfidaWrong: 'Ops, risposta sbagliata.',
+  trucchiWrong: 'Non ancora. Prova un altro numero.',
+  trucchiCollapse: 'Oh no, la piramide e caduta! Riproviamo.',
+  combinationLocked: 'Questa combinazione e ancora bloccata.',
+  stepLocked: 'Questo passo e ancora bloccato.',
+  sfidaLocked: 'La sfida finale non e ancora pronta.',
+  notEnoughLightDrops: 'Non hai ancora abbastanza gocce di luce.',
+} as const;
+
+const COSTRUISCO_BALLOON_PALETTES = [
+  {
+    body: 'bg-gradient-to-b from-sky-300 to-sky-500 text-white border-white hover:from-sky-400 hover:to-sky-600',
+    knot: 'bg-sky-600',
+    string: 'bg-sky-300',
+  },
+  {
+    body: 'bg-gradient-to-b from-fuchsia-300 to-fuchsia-500 text-white border-white hover:from-fuchsia-400 hover:to-fuchsia-600',
+    knot: 'bg-fuchsia-600',
+    string: 'bg-fuchsia-300',
+  },
+  {
+    body: 'bg-gradient-to-b from-amber-300 to-orange-500 text-white border-white hover:from-amber-400 hover:to-orange-600',
+    knot: 'bg-orange-600',
+    string: 'bg-amber-300',
+  },
+  {
+    body: 'bg-gradient-to-b from-violet-300 to-violet-500 text-white border-white hover:from-violet-400 hover:to-violet-600',
+    knot: 'bg-violet-600',
+    string: 'bg-violet-300',
+  },
+] as const;
 
 export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise, devMode = false }: WorldDetailProps) {
   const { speak } = useVoice();
@@ -87,6 +135,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [trucchiSelectedFactor, setTrucchiSelectedFactor] = useState<number | null>(null);
   const [trucchiFlowStage, setTrucchiFlowStage] = useState<'objective' | 'game'>('objective');
   const [showTrucchiCompletionEffect, setShowTrucchiCompletionEffect] = useState<boolean>(false);
+  const [trucchiBrickValues, setTrucchiBrickValues] = useState<number[]>([]);
+  const [trucchiRemovedBricks, setTrucchiRemovedBricks] = useState<Set<number>>(new Set());
+  const [trucchiWrongChoices, setTrucchiWrongChoices] = useState<number>(0);
+  const [trucchiPyramidCollapsed, setTrucchiPyramidCollapsed] = useState<boolean>(false);
+  const [trucchiPreviewActive, setTrucchiPreviewActive] = useState<boolean>(false);
+  const [trucchiRevealedBrickIndex, setTrucchiRevealedBrickIndex] = useState<number | null>(null);
   
   // For the current game being played
   const [saltoIndex, setSaltoIndex] = useState<number>(0); // which multiple we are on (0 to 9)
@@ -101,8 +155,31 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
   const [costruiscoBalloons, setCostruiscoBalloons] = useState<number[]>([]);
   const [poppedBalloons, setPoppedBalloons] = useState<Set<number>>(new Set());
+  const [highlightedCorrectBalloon, setHighlightedCorrectBalloon] = useState<number | null>(null);
+  const [costruiscoBalloonPaletteMap, setCostruiscoBalloonPaletteMap] = useState<Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]>>({});
   const [selectedFactor, setSelectedFactor] = useState<number | null>(null);
   const [completedMonuments, setCompletedMonuments] = useState<string[]>([]); // Track completed monuments
+  const correctBalloonFeedbackTimeoutRef = useRef<number | null>(null);
+  const trucchiPreviewTimeoutRef = useRef<number | null>(null);
+  const trucchiRevealTimeoutRef = useRef<number | null>(null);
+  const trucchiCollapseTimeoutRef = useRef<number | null>(null);
+
+  const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
+    const encouragement = SUCCESS_ENCOURAGEMENTS[Math.floor(Math.random() * SUCCESS_ENCOURAGEMENTS.length)];
+    return speak(`${a} per ${b} fa ${result}, ${encouragement}`);
+  };
+
+  const speakSaltoSuccess = (a: number, b: number, result: number, isFinalStep: boolean) => {
+    if (isFinalStep) {
+      return speakMultiplicationSuccess(a, b, result);
+    }
+
+    return speak(result.toString());
+  };
+
+  const speakPraticoOperation = (a: number, b: number) => speak(`${a} per ${b}`);
+
+  const getOperationCardTheme = (index: number) => OPERATION_CARD_THEMES[((index % OPERATION_CARD_THEMES.length) + OPERATION_CARD_THEMES.length) % OPERATION_CARD_THEMES.length];
 
   // Trucchi (Step 4) state
   const [trucchiQuestionSolved, setTrucchiQuestionSolved] = useState<boolean>(false);
@@ -114,6 +191,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [selectedQuizOption, setSelectedQuizOption] = useState<number | null>(null);
   const [quizOptions, setQuizOptions] = useState<number[]>([]);
   const [quizCorrectCount, setQuizCorrectCount] = useState<number>(0);
+  const [quizCorrectStreak, setQuizCorrectStreak] = useState<number>(0);
+  const [quizStreakJustReset, setQuizStreakJustReset] = useState<boolean>(false);
+  const [quizInteractionLocked, setQuizInteractionLocked] = useState<boolean>(false);
   const [quizWrongAttempts, setQuizWrongAttempts] = useState<{ [key: string]: number }>({}); // tracks combinations failed in this session
   const [quizHistory, setQuizHistory] = useState<{ a: number; b: number; correct: boolean }[]>([]);
   
@@ -129,6 +209,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     userAnswer: number;
     correctAnswer: number;
   } | null>(null);
+  const [showPraticoCongrats, setShowPraticoCongrats] = useState<boolean>(false);
+  const [showSfidaResultPopup, setShowSfidaResultPopup] = useState<boolean>(false);
 
   // Path lock feedback modal message
   const [pathLockModalMessage, setPathLockModalMessage] = useState<string | null>(null);
@@ -144,15 +226,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [sfidaActive, setSfidaActive] = useState<boolean>(false);
   const [sfidaReady, setSfidaReady] = useState<boolean>(false); // true = START button showing, false = game running
   const [sfidaQuestion, setSfidaQuestion] = useState<{ a: number; b: number } | null>(null);
+  const [sfidaQuestionVersion, setSfidaQuestionVersion] = useState<number>(0);
   const [sfidaTimer, setSfidaTimer] = useState<number>(30);
   const [sfidaScore, setSfidaScore] = useState<number>(0);
   const [sfidaOptions, setSfidaOptions] = useState<number[]>([]);
   const [sfidaResult, setSfidaResult] = useState<{ correctAnswers: number; isNewRecord: boolean; previousRecord: number; passedSfida: boolean } | null>(null);
   const [showFireworks, setShowFireworks] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const praticoAnnouncementTimeoutRef = useRef<number | null>(null);
+  const sfidaAnnouncementTimeoutRef = useRef<number | null>(null);
+  const quizStreakResetTimeoutRef = useRef<number | null>(null);
+  const quizInteractionLockedRef = useRef(false);
+  const lastPraticoAnnouncementKeyRef = useRef<string | null>(null);
   const touchStartXRef = useRef<number | null>(null);
+  const currentPraticoQuestion = quizQuestions[currentQuizIdx] ?? null;
+  const praticoOperationCardTheme = getOperationCardTheme(currentQuizIdx);
+  const sfidaOperationCardTheme = getOperationCardTheme(sfidaQuestionVersion);
   const touchStartYRef = useRef<number | null>(null);
-  const saltoStoneRef = useRef<HTMLButtonElement | null>(null);
+  const saltoStoneRef = useRef<HTMLDivElement | null>(null);
   const saltoContainerRef = useRef<HTMLDivElement | null>(null);
   const saltoFinishRef = useRef<HTMLDivElement | null>(null);
 
@@ -322,6 +413,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   useEffect(() => {
     setCostruiscoGameCompleted(false);
+    setHighlightedCorrectBalloon(null);
+    if (correctBalloonFeedbackTimeoutRef.current !== null) {
+      window.clearTimeout(correctBalloonFeedbackTimeoutRef.current);
+      correctBalloonFeedbackTimeoutRef.current = null;
+    }
   }, [costruiscoSelectedFactor]);
 
   useEffect(() => {
@@ -329,6 +425,61 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setTrucchiFlowStage('objective');
     }
   }, [trucchiSelectedFactor]);
+
+  const clearTrucchiRoundTimeouts = () => {
+    if (trucchiPreviewTimeoutRef.current !== null) {
+      window.clearTimeout(trucchiPreviewTimeoutRef.current);
+      trucchiPreviewTimeoutRef.current = null;
+    }
+    if (trucchiRevealTimeoutRef.current !== null) {
+      window.clearTimeout(trucchiRevealTimeoutRef.current);
+      trucchiRevealTimeoutRef.current = null;
+    }
+    if (trucchiCollapseTimeoutRef.current !== null) {
+      window.clearTimeout(trucchiCollapseTimeoutRef.current);
+      trucchiCollapseTimeoutRef.current = null;
+    }
+  };
+
+  const generateTrucchiBrickValues = (worldId: number, factor: number) => {
+    const correct = worldId * factor;
+    return shuffleArray([
+      correct,
+      ...ALL_FACTORS.filter(candidate => candidate !== factor).map(candidate => worldId * candidate),
+    ]);
+  };
+
+  const resetTrucchiRound = (factor: number | null = trucchiSelectedFactor) => {
+    clearTrucchiRoundTimeouts();
+
+    if (factor === null) {
+      setTrucchiBrickValues([]);
+      setTrucchiRemovedBricks(new Set());
+      setTrucchiWrongChoices(0);
+      setTrucchiPyramidCollapsed(false);
+      setTrucchiPreviewActive(false);
+      setTrucchiRevealedBrickIndex(null);
+      return;
+    }
+
+    setTrucchiBrickValues(generateTrucchiBrickValues(world.id, factor));
+    setTrucchiRemovedBricks(new Set());
+    setTrucchiWrongChoices(0);
+    setTrucchiPyramidCollapsed(false);
+    setTrucchiPreviewActive(true);
+    setTrucchiRevealedBrickIndex(null);
+    setTrucchiQuestionSolved(false);
+    setShowTrucchiCompletionEffect(false);
+
+    trucchiPreviewTimeoutRef.current = window.setTimeout(() => {
+      setTrucchiPreviewActive(false);
+      trucchiPreviewTimeoutRef.current = null;
+    }, TRUCCHI_PREVIEW_MS);
+  };
+
+  useEffect(() => {
+    resetTrucchiRound(trucchiSelectedFactor);
+  }, [trucchiSelectedFactor, world.id]);
 
   // Helper to generate exactly 4 balloons for Costruisco (1 correct answer + 3 wrong distractors)
   const generateCostruisco4Balloons = (worldId: number, factor: number) => {
@@ -358,14 +509,28 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   // Initialize Costruisco balloons when a factor is selected
   useEffect(() => {
     if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) {
-      setCostruiscoBalloons(generateCostruisco4Balloons(world.id, costruiscoSelectedFactor));
+      const nextBalloons = generateCostruisco4Balloons(world.id, costruiscoSelectedFactor);
+      const shuffledPalettes = shuffleArray([...COSTRUISCO_BALLOON_PALETTES]);
+      const nextPaletteMap: Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]> = {};
+
+      nextBalloons.forEach((balloonValue, index) => {
+        nextPaletteMap[balloonValue] = shuffledPalettes[index % shuffledPalettes.length];
+      });
+
+      setCostruiscoBalloons(nextBalloons);
+      setCostruiscoBalloonPaletteMap(nextPaletteMap);
       setPoppedBalloons(new Set());
+      setHighlightedCorrectBalloon(null);
     }
   }, [costruiscoSelectedFactor, activeStep, world.id]);
 
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
+      clearTrucchiRoundTimeouts();
+      if (correctBalloonFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(correctBalloonFeedbackTimeoutRef.current);
+      }
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -390,11 +555,82 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
   }, [sfidaActive]);
 
+  useEffect(() => {
+    if (activeStep !== 'pratico' || !currentPraticoQuestion) {
+      if (praticoAnnouncementTimeoutRef.current !== null) {
+        window.clearTimeout(praticoAnnouncementTimeoutRef.current);
+        praticoAnnouncementTimeoutRef.current = null;
+      }
+      lastPraticoAnnouncementKeyRef.current = null;
+      return;
+    }
+
+    if (praticoAnnouncementTimeoutRef.current !== null) {
+      window.clearTimeout(praticoAnnouncementTimeoutRef.current);
+    }
+
+    const announcementKey = `${currentQuizIdx}-${currentPraticoQuestion.a}-${currentPraticoQuestion.b}`;
+    if (lastPraticoAnnouncementKeyRef.current === announcementKey) {
+      praticoAnnouncementTimeoutRef.current = null;
+      return;
+    }
+
+    lastPraticoAnnouncementKeyRef.current = announcementKey;
+    void speakPraticoOperation(currentPraticoQuestion.a, currentPraticoQuestion.b);
+    praticoAnnouncementTimeoutRef.current = null;
+
+    return () => {
+      if (praticoAnnouncementTimeoutRef.current !== null) {
+        window.clearTimeout(praticoAnnouncementTimeoutRef.current);
+        praticoAnnouncementTimeoutRef.current = null;
+      }
+    };
+  }, [activeStep, currentPraticoQuestion, currentQuizIdx, quizHistory.length]);
+
+  useEffect(() => {
+    if (activeStep !== 'sfida' || !sfidaActive || !sfidaQuestion) {
+      if (sfidaAnnouncementTimeoutRef.current !== null) {
+        window.clearTimeout(sfidaAnnouncementTimeoutRef.current);
+        sfidaAnnouncementTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (sfidaAnnouncementTimeoutRef.current !== null) {
+      window.clearTimeout(sfidaAnnouncementTimeoutRef.current);
+    }
+
+    void speakPraticoOperation(sfidaQuestion.a, sfidaQuestion.b);
+    sfidaAnnouncementTimeoutRef.current = null;
+
+    return () => {
+      if (sfidaAnnouncementTimeoutRef.current !== null) {
+        window.clearTimeout(sfidaAnnouncementTimeoutRef.current);
+        sfidaAnnouncementTimeoutRef.current = null;
+      }
+    };
+  }, [activeStep, sfidaActive, sfidaQuestion, sfidaQuestionVersion]);
+
+  useEffect(() => {
+    if (activeStep !== 'pratico') {
+      quizInteractionLockedRef.current = false;
+      setQuizInteractionLocked(false);
+    }
+  }, [activeStep]);
+
+  useEffect(() => {
+    return () => {
+      if (quizStreakResetTimeoutRef.current !== null) {
+        window.clearTimeout(quizStreakResetTimeoutRef.current);
+        quizStreakResetTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   // Generate Quiz (Pratico) questions
   const startQuizMode = () => {
     sound.playPowerUp();
-    // Generate 10 randomized operations for this times-table
-    // Cognitive rule: We include both (world.id * multiplier) and (multiplier * world.id) to build commutative fluency!
+    // Generate 10 randomized operations for this times-table while keeping the table number first.
     const questions: { a: number; b: number }[] = [];
     
     // Check if there are critical combinations for this world in user history
@@ -410,13 +646,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const shuffled = [...multipliers].sort(() => Math.random() - 0.5);
     
     shuffled.forEach(m => {
-      // Always put world.id as the first number (a = world.id) for consistent times table questions
       questions.push({ a: world.id, b: m });
     });
 
     setQuizQuestions(questions);
     setCurrentQuizIdx(0);
     setQuizCorrectCount(0);
+    setQuizCorrectStreak(0);
+    setQuizStreakJustReset(false);
+    quizInteractionLockedRef.current = false;
+    setQuizInteractionLocked(false);
     setQuizHistory([]);
     setQuizWrongAttempts({});
     generateQuizOptions(questions[0].a, questions[0].b);
@@ -472,6 +711,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setCostruiscoBalloons([]);
     }
     setPoppedBalloons(new Set());
+    setHighlightedCorrectBalloon(null);
+    if (correctBalloonFeedbackTimeoutRef.current !== null) {
+      window.clearTimeout(correctBalloonFeedbackTimeoutRef.current);
+      correctBalloonFeedbackTimeoutRef.current = null;
+    }
     setSelectedFactor(null);
     setCompletedMonuments([]); // Reset monuments when restarting
   };
@@ -480,7 +724,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const correct = world.id * (saltoIndex + 1);
     if (val === correct) {
       sound.playSuccess();
-      speak(val.toString());
+      speakSaltoSuccess(world.id, saltoIndex + 1, val, saltoIndex === 9);
       if (saltoIndex === 9) {
         // Mastered Salto!
         sound.playLevelUp();
@@ -492,6 +736,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       }
     } else {
       sound.playError();
+      speak(GAMEPLAY_AUDIO_MESSAGES.saltoFall);
       // gentle screen wobble or hint
     }
   };
@@ -503,7 +748,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       const expected = world.id * selectedFactor;
       if (val === expected) {
         sound.playSuccess();
-        speak(val.toString());
+        speakMultiplicationSuccess(world.id, selectedFactor, val);
         setCostruiscoProgress(prev => ({
           ...prev,
           [selectedFactor]: val
@@ -537,13 +782,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         }
       } else {
         sound.playError();
+        speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoWrong);
       }
     }
   };
 
   // Adaptive Learning - handles mistake on Quiz
   const handleQuizAnswer = (selectedVal: number) => {
+    if (quizInteractionLockedRef.current || quizInteractionLocked) return;
+
     const currentQ = quizQuestions[currentQuizIdx];
+    if (!currentQ) return;
+
+    quizInteractionLockedRef.current = true;
+    setQuizInteractionLocked(true);
+    if (praticoAnnouncementTimeoutRef.current !== null) {
+      window.clearTimeout(praticoAnnouncementTimeoutRef.current);
+      praticoAnnouncementTimeoutRef.current = null;
+    }
+
     const correctVal = currentQ.a * currentQ.b;
     const isCorrect = selectedVal === correctVal;
 
@@ -594,14 +851,32 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     if (isCorrect) {
       sound.playSuccess();
-      speak(correctVal.toString());
-      setQuizCorrectCount(prev => prev + 1);
+      const nextCorrectCount = quizCorrectCount + 1;
+      const nextCorrectStreak = quizCorrectStreak + 1;
+      setQuizCorrectCount(nextCorrectCount);
+      setQuizCorrectStreak(nextCorrectStreak);
+      setQuizStreakJustReset(false);
       setQuizHistory(prev => [...prev, { ...currentQ, correct: true }]);
-      
-      // Go to next question
+
+      if (nextCorrectStreak >= 10) {
+        void speak('Complimenti! Hai raggiunto 10 risposte consecutive!');
+        setShowPraticoCongrats(true);
+        return;
+      }
+
       proceedQuiz();
     } else {
       sound.playError();
+      void speak('Oh no... ripartiamo da 0');
+      setQuizCorrectStreak(0);
+      setQuizStreakJustReset(true);
+      if (quizStreakResetTimeoutRef.current !== null) {
+        window.clearTimeout(quizStreakResetTimeoutRef.current);
+      }
+      quizStreakResetTimeoutRef.current = window.setTimeout(() => {
+        setQuizStreakJustReset(false);
+        quizStreakResetTimeoutRef.current = null;
+      }, 1400);
       setQuizHistory(prev => [...prev, { ...currentQ, correct: false }]);
       
       // Adaptive learning engine triggers! 
@@ -631,6 +906,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
 
   const proceedQuiz = () => {
+    quizInteractionLockedRef.current = false;
+    setQuizInteractionLocked(false);
     if (currentQuizIdx < quizQuestions.length - 1) {
       const nextIdx = currentQuizIdx + 1;
       setCurrentQuizIdx(nextIdx);
@@ -638,13 +915,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     } else {
       // Finished Quiz!
       sound.playLevelUp();
-      const accuracy = Math.round((quizCorrectCount / 10) * 100);
-      
-      // If they passed with 80% accuracy, they complete the step
-      if (quizCorrectCount >= 8) {
-        saveStepCompleted('pratico');
-      }
-      
       setActiveStep('intro');
     }
   };
@@ -655,6 +925,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     proceedQuiz();
   };
 
+  const closePraticoCongrats = () => {
+    sound.playClick();
+    setShowPraticoCongrats(false);
+    saveStepCompleted('pratico');
+    setActiveStep('intro');
+  };
+
+  const closeSfidaResultPopup = () => {
+    sound.playClick();
+    setShowSfidaResultPopup(false);
+  };
+
   // Initialize Sfida with START button
   const initializeSfida = () => {
     sound.playPowerUp();
@@ -663,7 +945,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSfidaScore(0);
     setSfidaTimer(30);
     setSfidaQuestion(null);
+    setSfidaQuestionVersion(0);
     setSfidaOptions([]);
+    setShowSfidaResultPopup(false);
     setActiveStep('sfida');
   };
 
@@ -675,6 +959,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSfidaScore(0);
     setSfidaTimer(30);
     setSfidaResult(null);
+    setShowSfidaResultPopup(false);
     generateSfidaQuestion();
 
     // Timer logic
@@ -705,6 +990,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const factorB = Math.floor(Math.random() * 9) + 2; // from 2 to 10
     const currentQ = { a: world.id, b: factorB };
     setSfidaQuestion(currentQ);
+    setSfidaQuestionVersion(prev => prev + 1);
 
     const correct = world.id * factorB;
     const options = new Set<number>([correct]);
@@ -769,10 +1055,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     if (isCorrect) {
       sound.playSuccess();
-      speak(correctVal.toString());
       setSfidaScore(prev => prev + 1);
     } else {
       sound.playError();
+      speak(GAMEPLAY_AUDIO_MESSAGES.sfidaWrong);
     }
 
     if (sfidaActive) {
@@ -784,8 +1070,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     sound.playLevelUp();
     setSfidaActive(false);
     const score = finalScore !== undefined ? finalScore : sfidaScore;
-    const previousRecord = profile.worldProgress[world.id]?.highScore || 0;
-    const isNewRecord = score > 0 && score > previousRecord;
+    const currentHighScore = profile.worldProgress[world.id]?.highScore || 0;
+    const isNewRecord = score > 0 && score > currentHighScore;
     const passedSfida = score > 14; // Strictly MORE THAN 14 correct answers (15+)
 
     updateProfile(p => {
@@ -855,7 +1141,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setTimeout(() => sound.playLevelUp(), 600);
       setShowFireworks(true);
     }
-    setSfidaResult({ correctAnswers: score, isNewRecord, previousRecord, passedSfida });
+    setSfidaResult({ correctAnswers: score, isNewRecord, previousRecord: currentHighScore, passedSfida });
+    setShowSfidaResultPopup(true);
     setSfidaReady(true);
   };
 
@@ -928,6 +1215,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const handleRebuildMonument = (monId: string, cost: number) => {
     if (profile.lightDrops < cost) {
       sound.playError();
+      speak(GAMEPLAY_AUDIO_MESSAGES.notEnoughLightDrops);
       return;
     }
 
@@ -1083,6 +1371,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               onClick={() => {
                 if (isLocked) {
                   sound.playError();
+                  speak(GAMEPLAY_AUDIO_MESSAGES.combinationLocked);
                   setPathLockModalMessage(
                     `🔒 Combinazione Bloccata!\n\nPer sbloccare ${world.id}×${factor}, devi prima completare la scheda ${world.id}×${factor - 1}.`
                   );
@@ -1291,9 +1580,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelCostruiscoExercise();
   };
   const cancelTrucchiExercise = () => {
+    clearTrucchiRoundTimeouts();
     setTrucchiFlowStage('objective');
     setTrucchiQuestionSolved(false);
     setShowTrucchiCompletionEffect(false);
+    setTrucchiBrickValues([]);
+    setTrucchiRemovedBricks(new Set());
+    setTrucchiWrongChoices(0);
+    setTrucchiPyramidCollapsed(false);
+    setTrucchiPreviewActive(false);
+    setTrucchiRevealedBrickIndex(null);
     setTrucchiSelectedFactor(null);
   };
   const completeTrucchiExercise = () => {
@@ -1469,7 +1765,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     if (event.touches.length !== 1) return;
     const target = event.target as HTMLElement;
-    if (target.closest('button, input, textarea')) return;
+    if (target.closest('button, input, textarea, [data-touch-swipe-lock="true"]')) return;
     const touch = event.touches[0];
     touchStartXRef.current = touch.clientX;
     touchStartYRef.current = touch.clientY;
@@ -1509,44 +1805,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
             <div className="max-w-2xl mx-auto w-full">
             {(isGuideIntroView || isGuideStoryView) && (
-                <div 
-                  className={`rounded-3xl bg-gradient-to-r ${
-                    world.id === 2 ? 'from-emerald-500 to-green-600' :
-                    world.id === 3 ? 'from-sky-500 to-blue-600' :
-                    world.id === 4 ? 'from-amber-600 to-orange-700' :
-                    world.id === 5 ? 'from-yellow-500 to-amber-500' :
-                    world.id === 6 ? 'from-red-500 to-rose-600' :
-                    world.id === 7 ? 'from-purple-600 to-indigo-700' :
-                    world.id === 8 ? 'from-pink-500 to-rose-600' :
-                    world.id === 9 ? 'from-teal-500 to-cyan-600' :
-                    'from-yellow-600 to-amber-600'
-                  } p-6 text-white shadow-xl relative overflow-hidden`}
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full translate-x-12 -translate-y-12 filter blur-xl"></div>
-                  
-                  <div className="flex flex-col sm:flex-row gap-4 items-center relative z-10">
-                    <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl shadow-inner select-none filter drop-shadow">
-                      {worldProg.creatureEvolution === 'egg' ? '🥚' : worldProg.creatureEvolution === 'child' ? '👶' : '🐉'}
-                    </div>
-                    <div className="text-center sm:text-left flex-1">
-                      <span className="text-xs font-bold bg-white/25 px-2.5 py-0.5 rounded-full uppercase tracking-wider text-[10px]">
-                        {world.locationName}
-                      </span>
-                      <h2 className="text-xl sm:text-2xl font-black mt-1 font-sans">
-                        Incontra {worldProg.creatureEvolution === 'egg' ? `l'Uovo di ${world.creatureName}` : world.creatureName}!
-                      </h2>
-                      <p className="text-xs text-white/85 mt-1 max-w-xl">
-                        "{world.creatureDescription}" - Stato evoluzione: <strong>{worldProg.creatureEvolution.toUpperCase()}</strong>
-                      </p>
-                    </div>
+                <div className="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-6 text-slate-900 shadow-xl">
+                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">
+                      Info
+                    </p>
+                    <h2 className="mt-2 text-2xl font-black text-indigo-950">
+                      Work in progress
+                    </h2>
+                    <p className="mt-2 text-sm text-indigo-900">
+                      Stiamo riscrivendo questa schermata informativa di <strong>{guideStep}</strong>.
+                    </p>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-white/20">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">
-                      🎶 La Filastrocca del {world.id}
-                    </span>
-                    <p className="text-sm not-italic text-white leading-relaxed mt-2 font-sans font-medium">
-                      {world.filastrocca}
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Contenuto in aggiornamento
+                    </p>
+                    <p className="mt-2 text-sm text-slate-700">
+                      Anche le info introduttive del regno sono temporaneamente sostituite da un placeholder mentre prepariamo il nuovo testo.
                     </p>
                   </div>
                 </div>
@@ -1648,7 +1925,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider px-1 font-sans">
                 1. Passi Didattici di Apprendimento
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 gap-3">
                 {[
                   { id: 'comprendo', title: '1. Comprendo', desc: 'Rappresentazione e gruppi.', icon: '🍎', coins: 20, drops: 0, isFactorBased: true },
                   { id: 'salto', title: '2. Salto', desc: 'Conteggio ritmico sul ruscello.', icon: '🐸', coins: 20, drops: 0, isFactorBased: true },
@@ -1669,6 +1946,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       onClick={() => {
                         if (isLocked) {
                           sound.playError();
+                          speak(GAMEPLAY_AUDIO_MESSAGES.stepLocked);
                           setPathLockModalMessage(`🔒 Step Bloccato!\n\nCompleta prima il passo precedente per accedere a ${step.title}.`);
                           return;
                         }
@@ -1828,6 +2106,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     onClick={() => {
                       if (isSfidaLocked) {
                         sound.playError();
+                        speak(GAMEPLAY_AUDIO_MESSAGES.sfidaLocked);
                         if (!allMonumentsErected) {
                           setPathLockModalMessage(
                             `🏛️ Monumenti non eretti!\n\nPer affrontare la Sfida Finale e completare il Regno, devi erigere tutti e ${world.monuments.length} i monumenti del contesto!\n\nAttualmente eretti: ${rebuiltCount}/${world.monuments.length}.\nGioca in Pratico (Avventura) per guadagnare le gocce necessarie!`
@@ -1964,7 +2243,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                  {comprendoFlowStage === 'game' && (
                    <div className="bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-                     <GroupVisualizer
+                     <ComprendoBasketGame
                        a={world.id}
                        b={comprendoSelectedFactor}
                        itemEmoji={world.itemsToCount}
@@ -2124,7 +2403,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-indigo-50 p-3 rounded-2xl border border-purple-200 shadow-sm">
                       <button
                         type="button"
-                        onClick={() => speak(`${world.id} per ${saltoIndex + 1}`)}
+                        onClick={() => speak(`${world.id} per ${saltoSelectedFactor}`)}
                         className="flex items-center gap-2 text-left cursor-pointer hover:scale-[1.02] transition-transform"
                         title="Tocca per ascoltare l'operazione"
                       >
@@ -2134,7 +2413,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             Salto {saltoIndex + 1} di {saltoSelectedFactor}
                           </p>
                           <p className="text-base font-black text-indigo-950 font-mono">
-                            {world.id} × {saltoIndex + 1} = ?
+                            {world.id} × {saltoSelectedFactor} = ?
                           </p>
                         </div>
                       </button>
@@ -2149,9 +2428,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:16px_16px]" />
 
                       {/* River Stream Container */}
-                      <div className="relative z-10 my-1 flex items-center justify-between gap-1 px-2 py-2 bg-sky-900/30 backdrop-blur-xs rounded-2xl border border-sky-200/30">
+                      <div className="relative z-10 my-1 flex min-w-0 items-center justify-between gap-1 px-2 py-2 bg-sky-900/30 backdrop-blur-xs rounded-2xl border border-sky-200/30">
                         {/* Stepping Stones Container (Riva + Stones 1 to saltoSelectedFactor) */}
-                        <div ref={saltoContainerRef} className="flex-1 flex items-center justify-start gap-2.5 sm:gap-3.5 overflow-x-auto scroll-smooth pt-8 pb-2 px-2 relative">
+                        <div
+                          ref={saltoContainerRef}
+                          data-touch-swipe-lock="true"
+                          className="relative flex min-w-0 flex-1 items-center justify-start gap-2.5 overflow-x-auto scroll-smooth px-2 pt-8 pb-2 sm:gap-3.5"
+                          style={{ touchAction: 'pan-x' }}
+                        >
                           {/* Start Bank (Riva / Partenza) - Frog starts here! */}
                           <div
                             ref={saltoIndex === 0 && !saltoGameCompleted ? saltoStoneRef : null}
@@ -2188,7 +2472,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             const isNextTarget = !saltoGameCompleted && idx === saltoIndex;
 
                             return (
-                              <div key={idx} className="relative flex flex-col items-center justify-end min-w-[46px] shrink-0">
+                              <div
+                                key={idx}
+                                ref={isFrogHere ? saltoStoneRef : isFrogOnFinish ? saltoFinishRef : null}
+                                className="relative flex flex-col items-center justify-end min-w-[46px] shrink-0"
+                              >
                                 {/* Frog sitting on current stone during jumps */}
                                 {isFrogHere && (
                                   <motion.div
@@ -2220,7 +2508,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                                 {/* Stepping Stone 🪨 */}
                                 <motion.button
-                                  ref={isFrogHere ? saltoStoneRef : isFrogOnFinish ? saltoFinishRef : null}
                                   type="button"
                                   onClick={() => speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`)}
                                   whileHover={{ scale: 1.05 }}
@@ -2270,7 +2557,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm text-center py-3.5 px-4 rounded-2xl border-2 border-rose-300 shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 font-sans"
                       >
                         <span className="text-lg sm:text-xl">💦</span>
-                        <span>Oh no! La ranocchia è caduta! <u>Tocca qui per riprovare</u> 🐸</span>
+                        <span>Riprova</span>
                       </motion.button>
                     ) : (
                       <div className="w-full grid grid-cols-4 gap-2 sm:gap-3">
@@ -2287,7 +2574,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 const expected = world.id * (saltoIndex + 1);
                                 if (opt === expected) {
                                   sound.playSuccess();
-                                  speak(opt.toString());
+                                  speakSaltoSuccess(world.id, saltoIndex + 1, opt, saltoIndex + 1 >= saltoSelectedFactor);
                                   if (saltoIndex + 1 >= saltoSelectedFactor) {
                                     setSaltoGameCompleted(true);
                                     setShowSaltoCompletionEffect(true);
@@ -2297,6 +2584,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                   }
                                 } else {
                                   sound.playError();
+                                  speak(GAMEPLAY_AUDIO_MESSAGES.saltoFall);
                                   setIsFrogSplashing(true);
                                 }
                               }}
@@ -2481,6 +2769,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             const expected = world.id * costruiscoSelectedFactor;
                             const isSelected = costruiscoGameCompleted && ball === expected;
                             const isPopped = poppedBalloons.has(ball);
+                            const isCorrectBalloonHighlighted = highlightedCorrectBalloon === ball;
+                            const balloonPalette = costruiscoBalloonPaletteMap[ball] || COSTRUISCO_BALLOON_PALETTES[0];
 
                             if (isPopped) {
                               return (
@@ -2500,33 +2790,51 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               <motion.button
                                 key={ball}
                                 whileHover={{ scale: 1.15 }}
+                                animate={isCorrectBalloonHighlighted ? { scale: [1, 1.18, 1] } : { scale: 1 }}
+                                transition={isCorrectBalloonHighlighted ? { duration: 0.45, times: [0, 0.45, 1], ease: "easeInOut" } : { duration: 0.2 }}
                                 onClick={() => {
-                                  if (costruiscoGameCompleted || isPopped) return;
+                                  if (costruiscoGameCompleted || isPopped || highlightedCorrectBalloon !== null) return;
                                   sound.playClick();
                                   const expected = world.id * costruiscoSelectedFactor;
                                   if (ball === expected) {
                                     sound.playSuccess();
-                                    speak(`${world.id} per ${costruiscoSelectedFactor} fa ${ball}`);
-                                    setCostruiscoGameCompleted(true);
-                                    setShowCostruiscoCompletionEffect(true);
+                                    setHighlightedCorrectBalloon(ball);
+                                    if (correctBalloonFeedbackTimeoutRef.current !== null) {
+                                      window.clearTimeout(correctBalloonFeedbackTimeoutRef.current);
+                                    }
+                                    correctBalloonFeedbackTimeoutRef.current = window.setTimeout(() => {
+                                      setHighlightedCorrectBalloon(current => (current === ball ? null : current));
+                                      speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoCorrect);
+                                      correctBalloonFeedbackTimeoutRef.current = null;
+                                    }, 460);
                                   } else {
                                     sound.playError();
-                                    setPoppedBalloons(prev => new Set([...prev, ball]));
+                                    const nextPoppedBalloons = new Set([...poppedBalloons, ball]);
+                                    const wrongBalloonsCount = costruiscoBalloons.filter(candidate => candidate !== expected).length;
+
+                                    setPoppedBalloons(nextPoppedBalloons);
+
+                                    if (nextPoppedBalloons.size === wrongBalloonsCount) {
+                                      sound.playSuccess();
+                                      speakMultiplicationSuccess(world.id, costruiscoSelectedFactor, expected);
+                                      setCostruiscoGameCompleted(true);
+                                      setShowCostruiscoCompletionEffect(true);
+                                    }
                                   }
                                 }}
                                 className={`${compactLayout ? "w-12 h-14 text-xs" : "w-14 h-16 text-sm"} rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-md border relative select-none pb-2 pt-1 transition-all ${
-                                  isSelected
+                                  isSelected || isCorrectBalloonHighlighted
                                     ? "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white border-emerald-200 ring-4 ring-emerald-200 scale-110"
                                     : costruiscoGameCompleted
                                       ? "bg-sky-200 text-sky-800 border-sky-100 opacity-70 cursor-not-allowed"
-                                      : "bg-gradient-to-b from-sky-300 to-sky-500 text-white border-white hover:from-sky-400 hover:to-sky-600 cursor-pointer"
+                                      : `${balloonPalette.body} cursor-pointer`
                                 }`}
                                 id={`balloon-${ball}`}
                               >
                                 <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-white/60" />
                                 <span>{ball}</span>
-                                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-sky-600 rotate-45 rounded-[2px]" />
-                                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-[2px] h-2 bg-sky-300 rounded-full" />
+                                <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 rounded-[2px] ${isSelected || isCorrectBalloonHighlighted ? 'bg-emerald-700' : costruiscoGameCompleted ? 'bg-sky-300' : balloonPalette.knot}`} />
+                                <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-[2px] h-2 rounded-full ${isSelected || isCorrectBalloonHighlighted ? 'bg-emerald-300' : costruiscoGameCompleted ? 'bg-sky-200' : balloonPalette.string}`} />
                               </motion.button>
                             );
                           })}
@@ -2657,7 +2965,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </div>
             </div>
 
-            <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+            <div className={`flex-1 overflow-hidden ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
               <div className="max-w-xl mx-auto w-full space-y-5">
                 {trucchiFlowStage === 'objective' && (
                   <div className="bg-white rounded-3xl p-5 border border-amber-100 shadow-xl space-y-4">
@@ -2692,51 +3000,166 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 )}
 
                 {trucchiFlowStage === 'game' && (
-                  <div className="relative bg-white rounded-3xl p-5 border border-amber-100 shadow-xl space-y-5">
-                    <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5">
-                      <h4 className="text-sm font-bold text-amber-900 mb-2 text-center">
+                  <div className="relative min-h-[25rem] bg-white rounded-3xl border border-amber-100 shadow-xl p-4 sm:p-5 space-y-5">
+                    <div className="text-center space-y-2">
+                      <h4 className="text-sm font-bold text-amber-900">
                         Quanto fa <strong>{world.id} × {trucchiSelectedFactor}</strong>?
                       </h4>
-                      <p className="text-xs text-amber-800 text-center mb-4 font-sans">
-                        💡 Conta <strong>{trucchiSelectedFactor} mattoni</strong>: {Array.from({length: trucchiSelectedFactor}).map((_, i) => `${world.id}`).join(' + ')} = ?
+                      <p className="text-xs text-amber-800 font-sans">
+                        {trucchiPreviewActive
+                          ? 'Guarda bene i risultati nascosti: tra un attimo i mattoni si richiudono.'
+                          : 'Tocca un mattone e scopri se nasconde il risultato giusto.'}
                       </p>
-                      
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        {Array.from({ length: 10 }).map((_, idx) => {
-                          const value = (idx + 1) * world.id;
-                          const isCorrect = value === world.id * trucchiSelectedFactor;
-                          const isSelected = trucchiQuestionSolved && isCorrect;
-                          
-                          return (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                if (trucchiQuestionSolved) return;
-                                if (isCorrect) {
-                                  sound.playSuccess();
-                                  speak(`${world.id} per ${trucchiSelectedFactor} fa ${value}`);
-                                  setTrucchiQuestionSolved(true);
-                                  setShowTrucchiCompletionEffect(true);
-                                } else {
-                                  sound.playError();
-                                }
-                              }}
-                              disabled={trucchiQuestionSolved && !isCorrect}
-                              className={`w-12 h-12 rounded-xl font-bold text-sm transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-emerald-500 text-white ring-4 ring-emerald-300 scale-110 shadow-lg'
-                                  : trucchiQuestionSolved && !isCorrect
-                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                    : 'bg-white text-amber-900 border-2 border-amber-300 hover:bg-amber-100'
-                              }`}
-                              id={`trucchi-opt-${value}`}
-                            >
-                              {value}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-amber-600">
+                        Equilibrio rimasto: {Math.max(0, 3 - trucchiWrongChoices)}/3
+                      </p>
                     </div>
+
+                    {(() => {
+                      const correctValue = world.id * trucchiSelectedFactor;
+                      let brickCursor = 0;
+
+                      return (
+                        <div className="mx-auto flex h-[15.5rem] w-full max-w-[22rem] flex-col items-center justify-start gap-1.5 pt-1 sm:gap-2" role="list" aria-label="Piramide di mattoni 4 3 2 1">
+                          {TRUCCHI_PYRAMID_ROWS.map((rowLength, rowIndex) => {
+                            const rowStart = brickCursor;
+                            brickCursor += rowLength;
+
+                            return (
+                              <div key={`trucchi-row-${rowLength}`} className="flex h-12 items-center justify-center gap-1.5 sm:gap-2">
+                                <AnimatePresence mode="popLayout">
+                                  {Array.from({ length: rowLength }).map((_, brickIndex) => {
+                                    const globalIndex = rowStart + brickIndex;
+                                    const hiddenValue = trucchiBrickValues[globalIndex];
+                                    const isRemoved = trucchiRemovedBricks.has(globalIndex);
+
+                                    if (hiddenValue === undefined || isRemoved) {
+                                      return null;
+                                    }
+
+                                    const isCorrectBrick = hiddenValue === correctValue;
+                                    const isRevealed = trucchiPreviewActive || trucchiRevealedBrickIndex === globalIndex || (trucchiQuestionSolved && isCorrectBrick);
+                                    const tiltDirection = (brickIndex + rowIndex) % 2 === 0 ? -1 : 1;
+                                    const isBaseRow = rowIndex === TRUCCHI_PYRAMID_ROWS.length - 1;
+                                    const restingRotate = trucchiWrongChoices === 0 ? 0 : tiltDirection * (trucchiWrongChoices * (isBaseRow ? 2.4 : 1.5));
+                                    const collapsedX = tiltDirection * (26 + brickIndex * 10);
+                                    const collapsedY = 80 + (rowIndex * 16) + (brickIndex * 4);
+                                    const collapsedRotate = tiltDirection * (18 + rowIndex * 5);
+                                    const isLightBrick = globalIndex % 3 === 1 || globalIndex % 5 === 4;
+                                    const closedBrickClass = isLightBrick
+                                      ? 'border-orange-500 bg-gradient-to-b from-orange-200 via-orange-300 to-orange-500 text-orange-50'
+                                      : 'border-orange-700 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-700 text-orange-50';
+
+                                    return (
+                                      <motion.button
+                                        key={`trucchi-brick-${globalIndex}`}
+                                        type="button"
+                                        role="listitem"
+                                        initial={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+                                        exit={{ opacity: 0, scale: 0.72, y: 18 }}
+                                        animate={trucchiPyramidCollapsed
+                                          ? { x: collapsedX, y: collapsedY, rotate: collapsedRotate, opacity: 0 }
+                                          : { x: 0, y: trucchiWrongChoices >= 2 && isBaseRow ? 4 : 0, rotate: restingRotate, opacity: 1, scale: 1 }
+                                        }
+                                        transition={trucchiPyramidCollapsed
+                                          ? { duration: 0.55, ease: 'easeIn' }
+                                          : { duration: 0.22, ease: 'easeOut' }
+                                        }
+                                        disabled={trucchiPreviewActive || trucchiQuestionSolved || trucchiPyramidCollapsed || trucchiRevealedBrickIndex !== null}
+                                        onClick={() => {
+                                          if (trucchiPreviewActive || trucchiQuestionSolved || trucchiPyramidCollapsed || trucchiRevealedBrickIndex !== null) return;
+
+                                          setTrucchiRevealedBrickIndex(globalIndex);
+
+                                          if (isCorrectBrick) {
+                                            sound.playSuccess();
+                                            speakMultiplicationSuccess(world.id, trucchiSelectedFactor, hiddenValue);
+                                            setTrucchiQuestionSolved(true);
+                                            setShowTrucchiCompletionEffect(true);
+                                            return;
+                                          }
+
+                                          sound.playError();
+                                          const nextWrongChoices = trucchiWrongChoices + 1;
+                                          setTrucchiWrongChoices(nextWrongChoices);
+
+                                          trucchiRevealTimeoutRef.current = window.setTimeout(() => {
+                                            setTrucchiRevealedBrickIndex(current => (current === globalIndex ? null : current));
+
+                                            if (nextWrongChoices >= 3) {
+                                              setTrucchiPyramidCollapsed(true);
+                                              speak(GAMEPLAY_AUDIO_MESSAGES.trucchiCollapse);
+                                              trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
+                                                setTrucchiRemovedBricks(new Set(Array.from({ length: trucchiBrickValues.length }, (_, index) => index)));
+                                                trucchiCollapseTimeoutRef.current = null;
+                                              }, TRUCCHI_COLLAPSE_MS);
+                                            } else {
+                                              setTrucchiRemovedBricks(prev => {
+                                                const next = new Set(prev);
+                                                next.add(globalIndex);
+                                                return next;
+                                              });
+                                              speak(GAMEPLAY_AUDIO_MESSAGES.trucchiWrong);
+                                            }
+
+                                            trucchiRevealTimeoutRef.current = null;
+                                          }, TRUCCHI_REVEAL_MS);
+                                        }}
+                                        className={`relative flex h-12 w-[clamp(3.4rem,17vw,4.9rem)] items-center justify-center overflow-hidden rounded-none border shadow-[0_10px_16px_rgba(15,23,42,0.12)] transition-colors ${
+                                          isRevealed
+                                            ? 'border-stone-300 bg-gradient-to-b from-stone-50 via-orange-50 to-stone-100 text-stone-700'
+                                            : closedBrickClass
+                                        }`}
+                                        aria-label={isRevealed ? `Mattone con risultato ${hiddenValue}` : 'Mattone chiuso'}
+                                      >
+                                        {isRevealed ? (
+                                          <>
+                                            <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/60" aria-hidden="true" />
+                                            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-stone-300/80" aria-hidden="true" />
+                                            <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-stone-300/60" aria-hidden="true" />
+                                            <span className="text-base font-black sm:text-lg">{hiddenValue}</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/25" aria-hidden="true" />
+                                            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/50" aria-hidden="true" />
+                                            <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
+                                            <span className="absolute left-2/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
+                                            <span className="absolute inset-x-0 bottom-[0.38rem] h-px bg-orange-800/35" aria-hidden="true" />
+                                          </>
+                                        )}
+                                      </motion.button>
+                                    );
+                                  })}
+                                </AnimatePresence>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+
+                    {trucchiPyramidCollapsed && !trucchiQuestionSolved && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="absolute inset-0 flex items-center justify-center rounded-3xl bg-black/30 backdrop-blur-[1px]"
+                      >
+                        <div className="rounded-2xl border-2 border-rose-200 bg-white/95 px-5 py-4 text-center shadow-xl">
+                          <p className="text-sm font-black text-rose-700">La piramide e caduta!</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sound.playClick();
+                              resetTrucchiRound();
+                            }}
+                            className="mt-3 rounded-2xl bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-md transition-colors hover:bg-amber-700"
+                          >
+                            Riprova
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
 
                     {showTrucchiCompletionEffect && (
                       <motion.div
@@ -2769,20 +3192,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       Annulla
                     </button>
                     <button
-                      disabled={!trucchiQuestionSolved}
+                      disabled={!trucchiQuestionSolved && !trucchiPyramidCollapsed}
                       onClick={() => {
                         sound.playClick();
+                        if (trucchiPyramidCollapsed) {
+                          resetTrucchiRound();
+                          return;
+                        }
                         if (!trucchiQuestionSolved) return;
                         completeTrucchiExercise();
                       }}
                       className={`w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all ${
-                        trucchiQuestionSolved 
+                        trucchiQuestionSolved || trucchiPyramidCollapsed
                           ? 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer' 
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       }`}
                       id="trick-done-btn"
                     >
-                      Continua
+                      {trucchiPyramidCollapsed ? 'Riprova' : 'Continua'}
                     </button>
                   </ActionGrid>
                 ) : (
@@ -2802,17 +3229,41 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         )}
 
         {/* STEP 5: PRATICO (QUIZ MODE with ADAPTIVE assistance) */}
-        {activeStep === 'pratico' && quizQuestions.length > 0 && (
+        {activeStep === 'pratico' && currentPraticoQuestion && (
           <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
             {/* Progress and help button */}
-            <div className="flex justify-between items-center text-xs text-slate-400">
-              <span className="font-bold font-sans">
-                Liberazione Nebbia: {currentQuizIdx + 1} di {quizQuestions.length}
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="font-bold font-mono text-emerald-600">
-                  Corrette: {quizCorrectCount}
-                </span>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs">
+              <div aria-hidden="true" />
+              <div className="w-36 text-center">
+                <motion.div
+                  key={`quiz-streak-${quizCorrectStreak}-${quizStreakJustReset ? 'reset' : 'steady'}`}
+                  initial={quizStreakJustReset ? { scale: 0.92, y: -4 } : false}
+                  animate={quizStreakJustReset ? { scale: [0.92, 1.08, 1], y: [-4, 0, 0] } : { scale: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className={`mb-1 text-lg font-black font-mono leading-none ${
+                    quizStreakJustReset ? 'text-rose-600' : 'text-emerald-600'
+                  }`}
+                  aria-live="polite"
+                >
+                  {quizCorrectStreak}/10
+                </motion.div>
+                <div
+                  className="h-2 overflow-hidden rounded-full bg-slate-200"
+                  role="progressbar"
+                  aria-label="Progresso pratico"
+                  aria-valuemin={0}
+                  aria-valuemax={10}
+                  aria-valuenow={quizCorrectStreak}
+                >
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-300 ${
+                      quizStreakJustReset ? 'bg-rose-500' : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${Math.min(100, Math.max(0, (quizCorrectStreak / 10) * 100))}%` }}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
                 <button
                   onClick={() => pushView('guide-help-pratico')}
                   className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
@@ -2829,22 +3280,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             </div>
 
             {/* Quiz question card */}
-            <div className="bg-indigo-900 text-white rounded-3xl p-6 text-center relative overflow-hidden shadow-xl">
-              <div className="absolute top-0 left-0 w-24 h-24 bg-white/5 rounded-full -translate-x-10 -translate-y-10 filter blur-lg"></div>
-              
-              <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest block font-sans">
-                Quanto fa?
-              </span>
-              <h2 className="text-4xl font-black font-mono mt-2 tracking-wide">
-                {quizQuestions[currentQuizIdx].a} x {quizQuestions[currentQuizIdx].b}
+            <motion.div
+              key={`pratico-card-${currentQuizIdx}-${currentPraticoQuestion.a}-${currentPraticoQuestion.b}`}
+              initial={{ opacity: 0.8, scale: 0.97, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className={`${praticoOperationCardTheme} relative overflow-hidden rounded-3xl p-6 text-center text-white shadow-xl`}
+            >
+              <div className="absolute left-0 top-0 h-24 w-24 -translate-x-10 -translate-y-10 rounded-full bg-white/10 blur-lg" />
+              <div className="absolute right-0 bottom-0 h-20 w-20 translate-x-8 translate-y-8 rounded-full bg-black/10 blur-xl" />
+              <h2 className="relative text-5xl font-black font-mono tracking-wide">
+                {currentPraticoQuestion.a} x {currentPraticoQuestion.b}
               </h2>
-            </div>
+            </motion.div>
 
             {/* Question options */}
             <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
               {quizOptions.map((opt, idx) => {
                 const pressed = quizPressedFeedback?.opt === opt;
-                const isCorrectOpt = quizQuestions[currentQuizIdx] && opt === quizQuestions[currentQuizIdx].a * quizQuestions[currentQuizIdx].b;
+                const isCorrectOpt = opt === currentPraticoQuestion.a * currentPraticoQuestion.b;
                 const feedbackClass = pressed
                   ? quizPressedFeedback!.correct
                     ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
@@ -2853,11 +3307,19 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 return (
                   <button
                     key={idx}
-                    onPointerDown={() => setQuizPressedFeedback({ opt, correct: isCorrectOpt })}
-                    onPointerUp={() => { setQuizPressedFeedback(null); handleQuizAnswer(opt); }}
+                    disabled={quizInteractionLocked}
+                    onPointerDown={() => {
+                      if (quizInteractionLocked) return;
+                      setQuizPressedFeedback({ opt, correct: isCorrectOpt });
+                    }}
+                    onPointerUp={() => {
+                      setQuizPressedFeedback(null);
+                      if (quizInteractionLocked) return;
+                      handleQuizAnswer(opt);
+                    }}
                     onPointerLeave={() => setQuizPressedFeedback(null)}
                     onPointerCancel={() => setQuizPressedFeedback(null)}
-                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm cursor-pointer transition-all select-none ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass}`}
+                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${quizInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     id={`quiz-opt-${opt}`}
                     aria-label={`Risposta ${opt}`}
                   >
@@ -2893,46 +3355,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <p className="text-sm text-slate-600">Risolvi il maggior numero di operazioni prima che il tempo finisca!</p>
               <p className="text-xs text-slate-500 font-sans">Ogni risposta corretta vale 2 🪙 Monete! Guadagna più punti possibili prima dello scadere del tempo.</p>
             </div>
-
-            {/* Risultato sessione precedente */}
-            {sfidaResult && (
-              <div className={`w-full rounded-2xl p-4 text-center border-2 relative overflow-hidden shadow-sm ${
-                sfidaResult.passedSfida
-                  ? 'bg-gradient-to-b from-emerald-50 via-teal-50 to-amber-50 border-emerald-400'
-                  : 'bg-rose-50 border-rose-200'
-              }`}>
-                <div className="text-3xl mb-1" aria-hidden="true">
-                  {sfidaResult.passedSfida ? '🏆' : '⚡'}
-                </div>
-
-                <p className={`text-sm font-black uppercase tracking-wide mb-1 font-sans ${
-                  sfidaResult.passedSfida ? 'text-emerald-800' : 'text-rose-700'
-                }`}>
-                  {sfidaResult.passedSfida
-                    ? '🎉 SFIDA SUPERATA! REGNO COMPLETATO!'
-                    : '⚡ OBIETTIVO NON RAGGIUNTO'}
-                </p>
-
-                <p className="text-4xl font-black text-slate-900 font-mono">{sfidaResult.correctAnswers}</p>
-                <p className="text-xs text-slate-500 font-sans mt-0.5">risposte esatte in 30 secondi</p>
-
-                {sfidaResult.passedSfida ? (
-                  <div className="mt-2.5 text-xs font-bold text-emerald-900 bg-emerald-100/90 border border-emerald-200 p-2 rounded-xl font-sans">
-                    ✨ Hai guadagnato +20 💧 Gocce di Luce e +50 🪙 Monete! Lo step Sfida è completato!
-                  </div>
-                ) : (
-                  <div className="mt-2.5 text-xs font-medium text-rose-900 bg-rose-100/90 border border-rose-200 p-2 rounded-xl font-sans leading-relaxed">
-                    Per superare lo step Sfida e sbloccare il prossimo Regno sul Sentiero, devi fare <b>più di 14 risposte corrette</b> (almeno 15). Ti mancavano {Math.max(1, 15 - sfidaResult.correctAnswers)} risposte!
-                  </div>
-                )}
-
-                {sfidaResult.isNewRecord && (
-                  <p className="text-xs font-black text-amber-700 mt-2 font-sans">
-                    🏅 NUOVO RECORD PERSONALE!
-                  </p>
-                )}
-              </div>
-            )}
 
             <button
               onClick={beginSfidaGame}
@@ -3008,9 +3430,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             </div>
 
             {/* Large formula */}
-            <div className="bg-amber-500 text-white rounded-3xl p-6 text-center shadow-lg">
-              <h2 className="text-5xl font-black font-mono">{sfidaQuestion.a} x {sfidaQuestion.b}</h2>
-            </div>
+            <motion.div
+              key={`sfida-card-${sfidaQuestionVersion}-${sfidaQuestion.a}-${sfidaQuestion.b}`}
+              initial={{ opacity: 0.8, scale: 0.97, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.24, ease: 'easeOut' }}
+              className={`${sfidaOperationCardTheme} relative overflow-hidden rounded-3xl p-6 text-center text-white shadow-lg`}
+            >
+              <div className="absolute left-0 top-0 h-24 w-24 -translate-x-10 -translate-y-10 rounded-full bg-white/10 blur-lg" />
+              <div className="absolute right-0 bottom-0 h-20 w-20 translate-x-8 translate-y-8 rounded-full bg-black/10 blur-xl" />
+              <h2 className="relative text-5xl font-black font-mono">{sfidaQuestion.a} x {sfidaQuestion.b}</h2>
+            </motion.div>
 
             {/* Answers options */}
             <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
@@ -3054,6 +3484,129 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         )}
       </div>
         </>
+      )}
+
+      {errorFeedback && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.94, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm rounded-3xl border border-rose-200 bg-white p-6 text-center shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pratico-error-title"
+          >
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-3xl">
+              <AlertCircle className="h-7 w-7 text-rose-600" aria-hidden="true" />
+            </div>
+            <h3 id="pratico-error-title" className="mb-2 text-base font-black text-rose-950">
+              Oh no... ripartiamo da 0
+            </h3>
+            <p className="mb-4 text-sm font-bold text-slate-700">
+              Hai scelto <span className="font-mono text-rose-700">{errorFeedback.userAnswer}</span>, ma la risposta giusta era <span className="font-mono text-emerald-700">{errorFeedback.correctAnswer}</span>.
+            </p>
+            <p className="mb-5 text-xs text-slate-500">
+              L'operazione tornera' piu' avanti per allenarti ancora.
+            </p>
+            <button
+              type="button"
+              onClick={closeErrorFeedback}
+              className="w-full rounded-xl bg-rose-600 py-3 text-sm font-black text-white shadow-md transition-colors hover:bg-rose-700 cursor-pointer"
+            >
+              Continua
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {showPraticoCongrats && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.94, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm rounded-3xl border border-emerald-200 bg-white p-6 text-center shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pratico-congrats-title"
+          >
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-3xl">
+              <Award className="h-7 w-7 text-emerald-600" aria-hidden="true" />
+            </div>
+            <h3 id="pratico-congrats-title" className="mb-2 text-base font-black text-emerald-900">
+              Complimenti!
+            </h3>
+            <p className="mb-2 text-sm font-bold text-slate-700">
+              Hai raggiunto l'obiettivo: <span className="font-mono text-emerald-700">10 consecutive</span>.
+            </p>
+            <p className="mb-5 text-xs text-slate-500">
+              Hai liberato la nebbia di questo passo.
+            </p>
+            <button
+              type="button"
+              onClick={closePraticoCongrats}
+              className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-black text-white shadow-md transition-colors hover:bg-emerald-700 cursor-pointer"
+            >
+              Continua
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {showSfidaResultPopup && sfidaResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.94, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`w-full max-w-sm rounded-3xl border-2 p-6 text-center shadow-2xl ${
+              sfidaResult.passedSfida
+                ? 'border-emerald-400 bg-gradient-to-b from-emerald-50 via-teal-50 to-amber-50'
+                : 'border-rose-200 bg-rose-50'
+            }`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sfida-result-title"
+          >
+            <div className="mb-1 text-3xl" aria-hidden="true">
+              {sfidaResult.passedSfida ? '🏆' : '⚡'}
+            </div>
+            <h3
+              id="sfida-result-title"
+              className={`mb-1 text-sm font-black uppercase tracking-wide ${
+                sfidaResult.passedSfida ? 'text-emerald-800' : 'text-rose-700'
+              }`}
+            >
+              {sfidaResult.passedSfida
+                ? '🎉 SFIDA SUPERATA! REGNO COMPLETATO!'
+                : '⚡ OBIETTIVO NON RAGGIUNTO'}
+            </h3>
+            <p className="text-4xl font-black font-mono text-slate-900">{sfidaResult.correctAnswers}</p>
+            <p className="mt-0.5 text-xs text-slate-500">risposte esatte in 30 secondi</p>
+
+            {sfidaResult.passedSfida ? (
+              <div className="mt-2.5 rounded-xl border border-emerald-200 bg-emerald-100/90 p-2 text-xs font-bold text-emerald-900">
+                ✨ Hai guadagnato +20 💧 Gocce di Luce e +50 🪙 Monete! Lo step Sfida è completato!
+              </div>
+            ) : (
+              <div className="mt-2.5 rounded-xl border border-rose-200 bg-rose-100/90 p-2 text-xs font-medium leading-relaxed text-rose-900">
+                Per superare lo step Sfida e sbloccare il prossimo Regno sul Sentiero, devi fare <b>più di 14 risposte corrette</b> (almeno 15). Ti mancavano {Math.max(1, 15 - sfidaResult.correctAnswers)} risposte!
+              </div>
+            )}
+
+            {sfidaResult.isNewRecord && (
+              <p className="mt-2 text-xs font-black text-amber-700">🏅 NUOVO RECORD PERSONALE!</p>
+            )}
+
+            <button
+              type="button"
+              onClick={closeSfidaResultPopup}
+              className={`mt-4 w-full rounded-xl py-3 text-sm font-black text-white shadow-md transition-colors cursor-pointer ${
+                sfidaResult.passedSfida ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+              }`}
+            >
+              Continua
+            </button>
+          </motion.div>
+        </div>
       )}
 
       {/* Fuochi d'artificio: overlay celebrativo per nuovo record */}

@@ -7,7 +7,7 @@ import React from 'react';
 import { UserProfile, QuestionAttempt } from '../types';
 import { WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
-import { ShieldCheck, TrendingUp, AlertTriangle, Play, RotateCcw, Database } from 'lucide-react';
+import { ShieldCheck, TrendingUp, AlertTriangle, Play, RotateCcw, Database, Trash2, Undo2, UserRoundX } from 'lucide-react';
 import ActionGrid from './layout/ActionGrid';
 import ResponsiveGrid from './layout/ResponsiveGrid';
 import SectionHeader from './layout/SectionHeader';
@@ -15,22 +15,52 @@ import SurfaceCard from './layout/SurfaceCard';
 
 interface ParentDashboardProps {
   profile: UserProfile;
+  activeProfiles: UserProfile[];
+  deletedProfiles: UserProfile[];
+  activeProfileId: string | null;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
+  onSoftDeleteProfile: (profileId: string) => void;
+  onRestoreDeletedProfile: (profileId: string) => void;
+  onPermanentDeleteProfile: (profileId: string) => void;
   onClose: () => void;
   onChangePIN?: () => void;
   compactLayout?: boolean;
 }
 
-export default function ParentDashboard({ profile, updateProfile, onClose, onChangePIN, compactLayout = false }: ParentDashboardProps) {
+const formatDate = (value?: string | null) => {
+  if (!value) return 'Data non disponibile';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'Data non disponibile';
+  return parsed.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
 
-  // Seeding simulated stats for demonstrative purposes (if history is empty, help the parent understand how it looks!)
+const getDaysRemaining = (deadline?: string | null) => {
+  if (!deadline) return null;
+  const timestamp = Date.parse(deadline);
+  if (Number.isNaN(timestamp)) return null;
+  return Math.max(0, Math.ceil((timestamp - Date.now()) / (24 * 60 * 60 * 1000)));
+};
+
+export default function ParentDashboard({
+  profile,
+  activeProfiles,
+  deletedProfiles,
+  activeProfileId,
+  updateProfile,
+  onSoftDeleteProfile,
+  onRestoreDeletedProfile,
+  onPermanentDeleteProfile,
+  onClose,
+  onChangePIN,
+  compactLayout = false
+}: ParentDashboardProps) {
+
   const handleSeedMockData = () => {
     sound.playPowerUp();
     updateProfile(p => {
       const mockHistory: QuestionAttempt[] = [];
       const now = new Date();
-      
-      // World 2: Highly mastered
+
       for (let i = 0; i < 20; i++) {
         const factorB = Math.floor(Math.random() * 9) + 2;
         mockHistory.push({
@@ -42,7 +72,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
         });
       }
 
-      // World 3: Mastered
       for (let i = 0; i < 15; i++) {
         const factorB = Math.floor(Math.random() * 9) + 2;
         mockHistory.push({
@@ -54,7 +83,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
         });
       }
 
-      // World 7: Critical (specifically 7x8 and 7x6 errors)
       for (let i = 0; i < 12; i++) {
         const is8or6 = i % 3 === 0;
         mockHistory.push({
@@ -74,10 +102,10 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
   };
 
   const handleResetData = () => {
-    if (window.confirm("Sei sicuro di voler cancellare tutti i progressi di Tabellandia? Questa operazione è irreversibile.")) {
+    if (window.confirm('Sei sicuro di voler cancellare tutti i progressi di Tabellandia? Questa operazione è irreversibile.')) {
       sound.playError();
       updateProfile(() => ({
-        name: "Eroe",
+        name: 'Eroe',
         level: 1,
         xp: 0,
         coins: 10,
@@ -104,15 +132,13 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
     }
   };
 
-  // Compile calculations based on current history
   const totalAnswers = profile.history.length;
   const correctAnswers = profile.history.filter(h => h.correct).length;
   const accuracyRate = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
-  const averageSpeed = totalAnswers > 0 
+  const averageSpeed = totalAnswers > 0
     ? (profile.history.reduce((acc, h) => acc + h.responseTimeMs, 0) / totalAnswers / 1000).toFixed(2)
-    : "0.00";
+    : '0.00';
 
-  // Calculate stats per multiplier (2 to 9)
   const statsPerTable = Array.from({ length: 8 }).map((_, idx) => {
     const tableNum = idx + 2;
     const tableHistory = profile.history.filter(h => h.a === tableNum || h.b === tableNum);
@@ -122,10 +148,8 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
     return { tableNum, total: tableTotal, accuracy: tableAccuracy };
   });
 
-  // Calculate exact weak spot combinations (critical multiplications)
   const errorMap: { [key: string]: { correct: number; total: number; errors: number } } = {};
   profile.history.forEach(h => {
-    // Sort keys to handle commutation: e.g., 7x8 is identical to 8x7 in cognitive load
     const key = h.a <= h.b ? `${h.a} x ${h.b}` : `${h.b} x ${h.a}`;
     if (!errorMap[key]) {
       errorMap[key] = { correct: 0, total: 0, errors: 0 };
@@ -148,7 +172,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
     .filter(item => item.errors >= 2 || (item.total >= 2 && item.accuracy < 60))
     .sort((a, b) => b.errors - a.errors);
 
-  // Generate Automated Diagnostic Recommendations
   const getPedagogicalAdvice = () => {
     const advice: string[] = [];
     const mastered = statsPerTable.filter(s => s.accuracy !== null && s.accuracy >= 80).map(s => s.tableNum);
@@ -173,7 +196,7 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
     }
 
     if (advice.length === 0) {
-      advice.push("📋 Il bambino non ha ancora completato abbastanza esercizi per generare una diagnostica dettagliata. Continuate l'avventura per sbloccare i suggerimenti personalizzati!");
+      advice.push('📋 Il bambino non ha ancora completato abbastanza esercizi per generare una diagnostica dettagliata. Continuate l\'avventura per sbloccare i suggerimenti personalizzati!');
     }
 
     return advice;
@@ -206,8 +229,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
     },
   ];
 
-  // Safe PIN Screen - REMOVED, now goes directly to dashboard since authenticated via PIN modal
-  
   return (
     <div className={`w-full h-full bg-slate-50 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`} id="parent-dashboard-panel">
       <SurfaceCard padding={compactLayout ? 'sm' : 'md'} className="mb-6">
@@ -238,7 +259,135 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
         />
       </SurfaceCard>
 
-      {/* Main Grid: Overview cards */}
+      <SurfaceCard padding="md" className="mb-6 rounded-2xl border-slate-100">
+        <SectionHeader
+          eyebrow="Gestione profili"
+          title="Profili attivi ed eliminati"
+          description="Elimina in modo reversibile, ripristina entro 30 giorni oppure rimuovi definitivamente un profilo."
+          icon={<UserRoundX className="w-5 h-5 text-rose-500" aria-hidden="true" />}
+        />
+
+        <div className="space-y-6">
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-black text-slate-900">Profili attivi</h3>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                {activeProfiles.length} attivi
+              </span>
+            </div>
+            <p className="mb-3 text-[11px] text-slate-500">
+              Per sicurezza deve restare almeno un profilo attivo, così l'Area Genitori resta sempre accessibile per i ripristini.
+            </p>
+            <div role="list" className="grid grid-cols-1 gap-3">
+              {activeProfiles.map(item => {
+                const isCurrent = item.id === activeProfileId;
+                const canDeleteProfile = activeProfiles.length > 1 && Boolean(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    role="listitem"
+                    className={`rounded-2xl border p-4 shadow-sm ${isCurrent ? 'border-indigo-300 bg-indigo-50/70' : 'border-slate-200 bg-white'}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="h-12 w-12 shrink-0 rounded-full border-2 border-white bg-orange-400 text-2xl shadow-inner flex items-center justify-center">
+                        {item.avatar?.emoji || '👦'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-black text-slate-900">{item.name}</p>
+                          {isCurrent && (
+                            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-indigo-700">
+                              Attivo
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Livello {item.level} · {item.unlockedWorlds.length} mondi sbloccati
+                        </p>
+                      </div>
+                    </div>
+
+                    <ActionGrid columns={2} className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => item.id && onSoftDeleteProfile(item.id)}
+                        disabled={!canDeleteProfile}
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Elimina
+                      </button>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-[11px] font-semibold text-slate-600">
+                        {canDeleteProfile ? 'Ripristino non necessario' : 'Ultimo profilo attivo'}
+                      </div>
+                    </ActionGrid>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-black text-slate-900">Profili eliminati</h3>
+              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">
+                {deletedProfiles.length} in attesa
+              </span>
+            </div>
+            {deletedProfiles.length > 0 ? (
+              <div role="list" className="grid grid-cols-1 gap-3">
+                {deletedProfiles.map(item => {
+                  const daysRemaining = getDaysRemaining(item.scheduledPermanentDeletionAt);
+                  return (
+                    <div key={item.id} role="listitem" className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <div className="h-12 w-12 shrink-0 rounded-full border-2 border-white bg-slate-300 text-2xl shadow-inner flex items-center justify-center grayscale">
+                          {item.avatar?.emoji || '👦'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-black text-slate-900">{item.name}</p>
+                          <p className="mt-1 text-[11px] text-slate-600">
+                            Eliminato il {formatDate(item.deletedAt)} · scadenza recupero {formatDate(item.scheduledPermanentDeletionAt)}
+                          </p>
+                          <p className="mt-1 text-[11px] font-bold text-amber-800">
+                            {daysRemaining === null ? 'Tempo residuo non disponibile' : `${daysRemaining} giorni al ripristino definitivo`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <ActionGrid columns={2} className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => item.id && onRestoreDeletedProfile(item.id)}
+                          disabled={!item.id}
+                          className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Undo2 className="h-3.5 w-3.5" />
+                          Ripristina
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => item.id && onPermanentDeleteProfile(item.id)}
+                          disabled={!item.id}
+                          className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-2.5 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Cancella per sempre
+                        </button>
+                      </ActionGrid>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-5 text-center text-xs text-slate-500">
+                Nessun profilo eliminato in attesa di ripristino.
+              </div>
+            )}
+          </div>
+        </div>
+      </SurfaceCard>
+
       <ResponsiveGrid variant="cards" className="mb-6">
         {overviewCards.map(card => (
           <SurfaceCard key={card.key} padding="sm" className="flex items-center gap-4 rounded-2xl border-slate-100">
@@ -253,7 +402,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
         ))}
       </ResponsiveGrid>
 
-      {/* Recommendations & Pedagogical Guidance */}
       <SurfaceCard tone="indigo" padding="md" className="mb-6 rounded-2xl">
         <SectionHeader
           eyebrow="Lettura pedagogica"
@@ -262,8 +410,8 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
         />
         <div className="space-y-2.5">
           {getPedagogicalAdvice().map((adv, idx) => (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               className="text-xs text-indigo-900 leading-relaxed bg-white/60 p-2.5 rounded-xl border border-white/50"
               dangerouslySetInnerHTML={{ __html: adv }}
             />
@@ -271,9 +419,7 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
         </div>
       </SurfaceCard>
 
-      {/* Detailed Analysis Section */}
       <ResponsiveGrid variant="split" className="mb-6">
-        {/* Left column: Heatmap table representation of the 8x8 multiplier grid */}
         <SurfaceCard padding="md" className="rounded-2xl border-slate-100">
           <SectionHeader
             eyebrow="Analisi combinazioni"
@@ -283,7 +429,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
 
           <div className="w-full overflow-x-auto">
             <div className="min-w-[280px]">
-              {/* Header row */}
               <div className="grid grid-cols-9 gap-1 text-center font-bold text-[10px] text-slate-400 mb-1">
                 <div></div>
                 {Array.from({ length: 8 }).map((_, col) => (
@@ -291,7 +436,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
                 ))}
               </div>
 
-              {/* Grid content */}
               {Array.from({ length: 8 }).map((_, rowIdx) => {
                 const rowNum = rowIdx + 2;
                 return (
@@ -299,27 +443,25 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
                     <div className="font-bold text-[10px] text-slate-400 font-mono text-left pl-1">{rowNum}</div>
                     {Array.from({ length: 8 }).map((_, colIdx) => {
                       const colNum = colIdx + 2;
-                      
-                      // Get history for this exact combination (ignoring order)
-                      const combHistory = profile.history.filter(h => 
+                      const combHistory = profile.history.filter(h =>
                         (h.a === rowNum && h.b === colNum) || (h.a === colNum && h.b === rowNum)
                       );
                       const combTotal = combHistory.length;
                       const combCorrect = combHistory.filter(h => h.correct).length;
                       const combAccuracy = combTotal > 0 ? (combCorrect / combTotal) : null;
 
-                      let bgClass = "bg-slate-100 text-slate-400"; // No data
+                      let bgClass = 'bg-slate-100 text-slate-400';
                       let title = `${rowNum}x${colNum}: Nessun tentativo`;
-                      
+
                       if (combTotal > 0) {
-                        if (combAccuracy! >= 0.8) {
-                          bgClass = "bg-emerald-500 text-white font-bold";
-                        } else if (combAccuracy! >= 0.6) {
-                          bgClass = "bg-amber-400 text-slate-900 font-bold";
+                        if (combAccuracy !== null && combAccuracy >= 0.8) {
+                          bgClass = 'bg-emerald-500 text-white font-bold';
+                        } else if (combAccuracy !== null && combAccuracy >= 0.6) {
+                          bgClass = 'bg-amber-400 text-slate-900 font-bold';
                         } else {
-                          bgClass = "bg-rose-500 text-white font-bold animate-pulse";
+                          bgClass = 'bg-rose-500 text-white font-bold animate-pulse';
                         }
-                        title = `${rowNum}x${colNum}: ${Math.round(combAccuracy! * 100)}% di esattezza (${combCorrect}/${combTotal})`;
+                        title = `${rowNum}x${colNum}: ${Math.round((combAccuracy || 0) * 100)}% di esattezza (${combCorrect}/${combTotal})`;
                       }
 
                       return (
@@ -354,9 +496,7 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
           </ActionGrid>
         </SurfaceCard>
 
-        {/* Right column: Critical weaknesses and dev settings */}
         <div className="flex flex-col gap-6">
-          {/* Critical Weaknesses Card */}
           <SurfaceCard padding="md" className="rounded-2xl border-slate-100 flex-1">
             <SectionHeader
               eyebrow="Aree da rinforzare"
@@ -384,7 +524,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
             </div>
           </SurfaceCard>
 
-          {/* Development and diagnostic utilities */}
           <SurfaceCard padding="md" className="rounded-2xl border-slate-100">
             <SectionHeader
               eyebrow="Strumenti"

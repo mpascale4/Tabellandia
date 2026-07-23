@@ -50,7 +50,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
     const currentTotal = nextCount * b;
     if (nextCount === a) {
       sound.playLevelUp();
-      speak(`Evocati tutti e ${a} i gruppi! ${a} per ${b} fa ${totalItems}!`);
+      speak(`${a} per ${b} fa ${totalItems}!`);
     } else {
       speak(`Gruppo ${nextCount}: ${b} ${itemEmoji}! In totale ${currentTotal}`);
     }
@@ -81,7 +81,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
     sound.playPowerUp();
     sound.playLevelUp();
     setActiveGroups(a);
-    speak(`Evocazione magica! ${a} gruppi da ${b} fanno ${totalItems}!`);
+    speak(`${a} per ${b} fa ${totalItems}!`);
   };
 
   return (
@@ -134,20 +134,22 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
 
       {/* Dynamic Addition Formula */}
       <div className="w-full bg-white rounded-2xl p-3 border-2 border-indigo-100 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm font-bold text-indigo-950 font-sans shadow-sm">
-        <span
+        <button
+          type="button"
           className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-xs sm:text-sm font-mono font-black cursor-pointer hover:scale-105 transition-transform"
           onClick={() => speak(`${a} per ${b}`)}
           title="Ascolta l'operazione"
         >
           {a} × {b}
-        </span>
+        </button>
         <span>=</span>
         <div className="flex flex-wrap items-center gap-1.5">
           {Array.from({ length: a }).map((_, idx) => {
             const isSummoned = idx < activeGroups;
             return (
               <React.Fragment key={idx}>
-                <span
+                <button
+                  type="button"
                   onClick={() => !isSummoned && handleSummonGroup(idx)}
                   className={`px-2.5 py-1 rounded-xl font-mono text-xs sm:text-sm transition-all cursor-pointer ${
                     isSummoned
@@ -156,7 +158,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
                   }`}
                 >
                   {isSummoned ? b : '?'}
-                </span>
+                </button>
                 {idx < a - 1 && <span className="text-slate-300 font-black">+</span>}
               </React.Fragment>
             );
@@ -267,7 +269,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
               <span className="text-3xl">🎉</span>
               <div>
                 <h3 className="text-sm sm:text-base font-black font-sans text-amber-200">
-                  Perfetto! {a} gruppi da {b} fanno {totalItems}!
+                  Perfetto! {a} per {b} fa {totalItems}!
                 </h3>
                 <p className="text-xs text-emerald-50 font-medium">
                   Puoi toccare le singole {itemEmoji} sulle isole per riascoltare il conteggio!
@@ -277,7 +279,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
 
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => speak(`${a} gruppi da ${b} fanno ${totalItems} in totale!`)}
+                onClick={() => speak(`${a} per ${b} fa ${totalItems}!`)}
                 className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white font-bold text-xs rounded-xl border border-white/30 transition-colors cursor-pointer flex items-center gap-1"
               >
                 <Volume2 className="w-4 h-4" /> Ascolta

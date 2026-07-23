@@ -8,12 +8,14 @@ import { sound } from './SoundManager';
 interface DigitsMatchingGameModalProps {
   isOpen: boolean;
   onComplete: () => void;
+  onSkip?: () => void;
   devMode?: boolean;
 }
 
 export default function DigitsMatchingGameModal({
   isOpen,
   onComplete,
+  onSkip,
   devMode = false
 }: DigitsMatchingGameModalProps) {
   const { speak } = useVoice();
@@ -105,6 +107,11 @@ export default function DigitsMatchingGameModal({
     onComplete();
   };
 
+  const handleSkip = () => {
+    sound.playClick();
+    onSkip?.();
+  };
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
@@ -135,10 +142,20 @@ export default function DigitsMatchingGameModal({
               <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30 text-xs font-black font-mono">
                 {matchedDigits.size} / 10 completati
               </div>
+              {!isGameComplete && onSkip && (
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="text-[10px] sm:text-xs bg-white text-indigo-800 px-2.5 py-1.5 rounded-xl font-black border border-white/70 hover:bg-indigo-50 transition-colors cursor-pointer"
+                >
+                  Salta per ora
+                </button>
+              )}
               {devMode && (
                 <button
-                  onClick={handleFinish}
-                  className="text-[10px] bg-amber-400 text-amber-950 px-2 py-1 rounded font-black uppercase"
+                  type="button"
+                  onClick={handleSkip}
+                  className="text-[10px] bg-amber-400 text-amber-950 px-2 py-1 rounded font-black uppercase cursor-pointer"
                 >
                   Salta DEV
                 </button>
@@ -156,6 +173,11 @@ export default function DigitsMatchingGameModal({
                 transition={{ duration: 0.4 }}
               />
             </div>
+            {!isGameComplete && onSkip && (
+              <div className="rounded-2xl border border-indigo-100 bg-white px-4 py-3 text-xs text-slate-600">
+                Puoi saltare questo gioco e riprenderlo in seguito dalla guida delle cifre.
+              </div>
+            )}
 
             {/* Game Play Area */}
             {!isGameComplete ? (

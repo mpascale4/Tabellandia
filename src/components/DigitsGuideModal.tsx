@@ -131,8 +131,9 @@ export default function DigitsGuideModal({
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {DIGITS_INFO.map(info => (
-                  <div
+                  <button
                     key={info.digit}
+                    type="button"
                     onClick={() => handleSelectDigit(info)}
                     className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
                       selectedDigit?.digit === info.digit
@@ -150,7 +151,7 @@ export default function DigitsGuideModal({
                       </div>
                       <p className="text-xs text-slate-600 mt-1 line-clamp-2">{info.reason}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
