@@ -7,7 +7,7 @@ import React from 'react';
 import { UserProfile, QuestionAttempt } from '../types';
 import { WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
-import { ShieldCheck, TrendingUp, AlertTriangle, Play, RotateCcw, Database } from 'lucide-react';
+import { ShieldCheck, TrendingUp, AlertTriangle, Play, RotateCcw, Database, Trash2 } from 'lucide-react';
 import ActionGrid from './layout/ActionGrid';
 import ResponsiveGrid from './layout/ResponsiveGrid';
 import SectionHeader from './layout/SectionHeader';
@@ -15,13 +15,42 @@ import SurfaceCard from './layout/SurfaceCard';
 
 interface ParentDashboardProps {
   profile: UserProfile;
+  profiles?: UserProfile[];
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
+  onDeleteProfile?: (id: string) => void;
+  onRestoreProfile?: (id: string) => void;
+  onPermanentDeleteProfile?: (id: string) => void;
   onClose: () => void;
   onChangePIN?: () => void;
   compactLayout?: boolean;
 }
 
-export default function ParentDashboard({ profile, updateProfile, onClose, onChangePIN, compactLayout = false }: ParentDashboardProps) {
+export default function ParentDashboard({
+  profile,
+  profiles = [profile],
+  updateProfile,
+  onDeleteProfile,
+  onRestoreProfile,
+  onPermanentDeleteProfile,
+  onClose,
+  onChangePIN,
+  compactLayout = false
+}: ParentDashboardProps) {
+
+  const [confirmModal, setConfirmModal] = React.useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDangerous?: boolean;
+  } | null>(null);
+
+  const getDaysRemaining = (deletedAt?: string | null) => {
+    if (!deletedAt) return 30;
+    const deletedTime = new Date(deletedAt).getTime();
+    const now = new Date().getTime();
+    const diffDays = Math.floor((now - deletedTime) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 30 - diffDays);
+  };
 
   // Seeding simulated stats for demonstrative purposes (if history is empty, help the parent understand how it looks!)
   const handleSeedMockData = () => {
@@ -74,34 +103,40 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
   };
 
   const handleResetData = () => {
-    if (window.confirm("Sei sicuro di voler cancellare tutti i progressi di Tabellandia? Questa operazione è irreversibile.")) {
-      sound.playError();
-      updateProfile(() => ({
-        name: "Eroe",
-        level: 1,
-        xp: 0,
-        coins: 10,
-        lightDrops: 0,
-        avatar: {
-          emoji: '👦',
-          gender: 'kid1',
-          hairStyle: 'Nessuno',
-          hairColor: '#f59e0b',
-          shirtColor: '#3b82f6',
-          pantsColor: '#4b5563',
-          hat: 'Nessuno',
-          backpack: 'Nessuno',
-          mascot: 'Nessuna'
-        },
-        unlockedWorlds: [2],
-        unlockedAccessories: [],
-        worldProgress: {
-          2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], creatureEvolution: 'egg', highScore: 0, stars: 0 }
-        },
-        history: []
-      }));
-      onClose();
-    }
+    setConfirmModal({
+      title: "Azzera Gioco",
+      message: "Sei sicuro di voler cancellare tutti i progressi di Tabellandia? Questa operazione è irreversibile.",
+      isDangerous: true,
+      onConfirm: () => {
+        sound.playError();
+        updateProfile(() => ({
+          name: "Eroe",
+          level: 1,
+          xp: 0,
+          coins: 10,
+          lightDrops: 0,
+          avatar: {
+            emoji: '👦',
+            gender: 'kid1',
+            hairStyle: 'Nessuno',
+            hairColor: '#f59e0b',
+            shirtColor: '#3b82f6',
+            pantsColor: '#4b5563',
+            hat: 'Nessuno',
+            backpack: 'Nessuno',
+            mascot: 'Nessuna'
+          },
+          unlockedWorlds: [2],
+          unlockedAccessories: [],
+          worldProgress: {
+            2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], creatureEvolution: 'egg', highScore: 0, stars: 0 }
+          },
+          history: []
+        }));
+        setConfirmModal(null);
+        onClose();
+      }
+    });
   };
 
   // Compile calculations based on current history
@@ -225,13 +260,6 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
                 title="Modifica il PIN"
               >
                 🔑 Modifica PIN
-              </button>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors"
-                id="parent-close-btn"
-              >
-                Torna al Gioco
               </button>
             </>
           }
@@ -384,6 +412,100 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
             </div>
           </SurfaceCard>
 
+          {/* Profile Management Card */}
+          <SurfaceCard padding="md" className="rounded-2xl border-slate-100">
+            <SectionHeader
+              eyebrow="Gestione Account"
+              title="Cestino e Profili"
+              description="Elimina profili (ripristinabili entro 30 giorni) o procedi alla cancellazione definitiva."
+              icon={<Trash2 className="w-5 h-5 text-rose-500" aria-hidden="true" />}
+            />
+
+            <div className="space-y-3 mt-3">
+              {/* Active profiles list */}
+              <div>
+                <p className="text-xs font-bold text-slate-700 mb-2">Profili Attivi ({profiles.filter(p => !p.deletedAt).length})</p>
+                <div className="space-y-2">
+                  {profiles.filter(p => !p.deletedAt).map(p => (
+                    <div key={p.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{p.avatar?.emoji || '👦'}</span>
+                        <div>
+                          <p className="text-xs font-black text-slate-800">{p.name}</p>
+                          <p className="text-[10px] text-slate-500">Livello {p.level} • {p.coins} monete</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setConfirmModal({
+                            title: "Sposta nel Cestino",
+                            message: `Vuoi spostare il profilo di "${p.name}" nel cestino? Potrai ripristinarlo entro 30 giorni.`,
+                            isDangerous: true,
+                            onConfirm: () => {
+                              onDeleteProfile?.(p.id!);
+                              setConfirmModal(null);
+                            }
+                          });
+                        }}
+                        className="p-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl transition-colors cursor-pointer flex items-center justify-center"
+                        title="Sposta nel cestino"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Deleted profiles in trash (within 30 days) */}
+              {profiles.filter(p => p.deletedAt).length > 0 && (
+                <div className="pt-3 border-t border-slate-100">
+                  <p className="text-xs font-bold text-rose-700 mb-2">🗑️ Cestino (Profili in attesa di eliminazione)</p>
+                  <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                    {profiles.filter(p => p.deletedAt).map(p => {
+                      const daysLeft = getDaysRemaining(p.deletedAt);
+                      return (
+                        <div key={p.id} className="flex items-center justify-between bg-amber-50/60 border border-amber-200 rounded-xl p-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl opacity-75">{p.avatar?.emoji || '👦'}</span>
+                            <div>
+                              <p className="text-xs font-black text-slate-800">{p.name} <span className="text-[9px] text-amber-800 font-bold bg-amber-100 px-1.5 py-0.5 rounded ml-1">Scade tra {daysLeft} gg</span></p>
+                              <p className="text-[10px] text-slate-500">Eliminato di recente • Ripristinabile</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => onRestoreProfile?.(p.id!)}
+                              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              Ripristina
+                            </button>
+                            <button
+                              onClick={() => {
+                                setConfirmModal({
+                                  title: "Eliminazione Definitiva",
+                                  message: `⚠️ ATTENZIONE: Stai per eliminare DEFINITIVAMENTE il profilo di "${p.name}". Questa operazione è irreversibile e cancellerà tutti i progressi. Procedere?`,
+                                  isDangerous: true,
+                                  onConfirm: () => {
+                                    onPermanentDeleteProfile?.(p.id!);
+                                    setConfirmModal(null);
+                                  }
+                                });
+                              }}
+                              className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              Elimina Definitiva
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </SurfaceCard>
+
           {/* Development and diagnostic utilities */}
           <SurfaceCard padding="md" className="rounded-2xl border-slate-100">
             <SectionHeader
@@ -414,7 +536,52 @@ export default function ParentDashboard({ profile, updateProfile, onClose, onCha
             </ActionGrid>
           </SurfaceCard>
         </div>
+
+        {/* Large bottom exit button */}
+        <div className="mt-8 pb-4 flex justify-center">
+          <button
+            onClick={onClose}
+            className="w-full max-w-md py-4 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-base shadow-lg transition-colors cursor-pointer flex items-center justify-center gap-2"
+            id="parent-bottom-exit-btn"
+          >
+            <span>🚪 Esci e Torna alla Selezione Profilo</span>
+          </button>
+        </div>
       </ResponsiveGrid>
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-4 border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900">{confirmModal.title}</h3>
+                <p className="text-xs text-slate-500 font-semibold">Conferma operazione genitore</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-700 font-medium mb-6 leading-relaxed">
+              {confirmModal.message}
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className="flex-1 py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition-colors cursor-pointer shadow-lg shadow-rose-600/20"
+              >
+                Conferma
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
