@@ -22,83 +22,77 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
     title: string;
     tone: string;
     objective: string;
+    example: string;
     howTo: string[];
-    doneWhen: string;
-    tip: string;
   };
 
+  const exNum = world.id;
   const rulesByStep: Record<string, StepRuleContent> = {
     comprendo: {
       title: 'Comprendo',
       tone: 'bg-indigo-50 border-indigo-200 text-indigo-950',
-      objective: 'Capire che moltiplicare vuol dire fare gruppi uguali.',
+      objective: 'Capire che la moltiplicazione è un\'addizione ripetuta.',
+      example: `Esempio: ${exNum} × 3 = ${exNum} + ${exNum} + ${exNum} = ${exNum * 3}`,
       howTo: [
-        'Osserva i gruppi di oggetti e conta quanti elementi ci sono in totale.',
-        'Scegli il risultato corretto tra le opzioni.',
-        'Se sbagli, riprova con calma: l obiettivo e capire, non correre.'
-      ],
-      doneWhen: 'Completi tutte le 10 combinazioni della tabellina.',
-      tip: 'Pensa: "numero di gruppi x elementi per gruppo".'
+        'Osserva i gruppi di oggetti sullo schermo.',
+        'Conta gli elementi totali.',
+        'Tocca il risultato corretto tra le opzioni.'
+      ]
     },
     salto: {
       title: 'Salto',
       tone: 'bg-sky-50 border-sky-200 text-sky-950',
-      objective: 'Allenare il conteggio a salti per memorizzare la sequenza.',
+      objective: 'Eseguire il conteggio a salti sulla linea numerica.',
+      example: `Esempio (Tabellina del ${exNum}): salta di ${exNum} in ${exNum} (${exNum}, ${exNum * 2}, ${exNum * 3}...)`,
       howTo: [
-        'Fai avanzare la rana saltando di numero in numero.',
-        'Ogni salto segue il ritmo della tabellina scelta.',
-        'Mantieni il ritmo: la sequenza ti guida alla risposta.'
-      ],
-      doneWhen: 'Raggiungi la fine del percorso per tutte le 10 combinazioni.',
-      tip: 'Leggi ad alta voce i numeri: aiuta la memoria.'
+        'Fai saltare la rana di numero in numero.',
+        'Segui la sequenza progressiva della tabellina.',
+        'Tocca il numero successivo corretto.'
+      ]
     },
     costruisco: {
       title: 'Costruisco',
       tone: 'bg-purple-50 border-purple-200 text-purple-950',
-      objective: 'Costruire la moltiplicazione nella griglia con ordine e precisione.',
+      objective: 'Costruire le combinazioni e ripristinare i monumenti.',
+      example: `Esempio: Per ${exNum} × 4, posiziona il risultato ${exNum * 4} nella griglia per erigere il monumento.`,
       howTo: [
-        'Guarda la griglia e individua il risultato corretto.',
-        'Seleziona i numeri giusti senza fretta.',
-        'Completa ogni schema per consolidare la regola.'
-      ],
-      doneWhen: 'Completi tutte le 10 combinazioni dello step.',
-      tip: 'Cerca i pattern: nella griglia i numeri si ripetono con logica.'
+        'Seleziona il fattore e individua il palloncino col risultato.',
+        'Tocca il risultato giusto per completare l\'equazione.',
+        'Completa 10 combinazioni per ricostruire il monumento.'
+      ]
     },
     trucchi: {
       title: 'Trucchi',
       tone: 'bg-amber-50 border-amber-200 text-amber-950',
-      objective: 'Usare strategie semplici per rispondere più velocemente.',
+      objective: 'Imparare strategie e scorciatoie mentali.',
+      example: `Esempio: Proprietà commutativa (${exNum} × 2 è uguale a 2 × ${exNum}).`,
       howTo: [
-        'Memorizza piccoli indizi visivi e regole pratiche.',
-        'Riconosci i pattern ricorrenti della tabellina.',
-        'Applica il trucco e verifica subito se funziona.'
-      ],
-      doneWhen: 'Concludi con successo tutte le 10 combinazioni.',
-      tip: 'Un trucco alla volta: prima precisione, poi velocità.'
+        'Leggi il trucco visivo per la tabellina.',
+        'Comprendi la regola pratica.',
+        'Mettila subito alla prova.'
+      ]
     },
     pratico: {
       title: 'Pratico',
       tone: 'bg-emerald-50 border-emerald-200 text-emerald-950',
-      objective: 'Rispondere in modo stabile e continuo come in una piccola avventura.',
+      objective: 'Quiz di allenamento continuo per guadagnare gocce di luce.',
+      example: `Esempio: Appare "${exNum} × 5 = ?". Tocca subito ${exNum * 5} tra le 4 scelte per avanzare nella serie.`,
       howTo: [
-        'Risolvi un operazione alla volta scegliendo la risposta corretta.',
-        'Mantieni la concentrazione per aumentare la serie di risposte esatte.',
-        'Se sbagli, riparti e ricostruisci la tua serie.'
-      ],
-      doneWhen: 'Raggiungi l obiettivo di 10 risposte corrette consecutive.',
-      tip: 'Respira, guarda bene l operazione, poi scegli.'
+        'Leggi l\'operazione proposta sullo schermo.',
+        'Tocca la risposta corretta tra le 4 opzioni disponibili.',
+        'Raggiungi 10 risposte corrette consecutive per vincere.'
+      ]
     },
     sfida: {
       title: 'Sfida',
       tone: 'bg-rose-50 border-rose-200 text-rose-950',
-      objective: 'Fare più risposte corrette possibili prima che scada il tempo.',
+      objective: 'Test a tempo per mettere alla prova la velocità.',
+      example: `Esempio: Rispondi a più moltiplicazioni possibili prima dello scadere dei 30 secondi.`,
       howTo: [
-        'Hai 30 secondi: rispondi rapidamente ma con attenzione.',
-        'Ogni risposta giusta aumenta il punteggio.',
-        'Per il record servono almeno 15 risposte corrette.'
-      ],
-      doneWhen: 'Migliori il tuo record personale della tabellina.',
-      tip: 'Se una domanda ti blocca, passa subito alla prossima con decisione.'
+        'Avvia il timer di 30 secondi.',
+        'Risolvi rapidamente ogni operazione toccando il numero esatto.',
+        'Fai il record personale di risposte corrette.'
+      ]
     }
   };
 
@@ -110,28 +104,23 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
       <div className="space-y-4">
         <div className={`rounded-2xl border p-4 ${content.tone}`}>
           <p className="text-[10px] font-black uppercase tracking-[0.14em]">Obiettivo</p>
-          <p className="mt-2 text-sm font-semibold leading-relaxed">{content.objective}</p>
+          <p className="mt-1 text-sm font-semibold leading-relaxed">{content.objective}</p>
+        </div>
+
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 text-indigo-950">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-indigo-700">Esempio pratico</p>
+          <p className="mt-1 text-sm font-black font-mono">{content.example}</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Come si gioca</p>
           <div role="list" className="mt-2 grid grid-cols-1 gap-2">
             {content.howTo.map((item) => (
-              <div key={item} role="listitem" className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-sm text-slate-700 leading-relaxed">
+              <div key={item} role="listitem" className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-sm text-slate-700 leading-relaxed font-medium">
                 {item}
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em]">Quando hai finito</p>
-          <p className="mt-2 text-sm font-semibold leading-relaxed">{content.doneWhen}</p>
-        </div>
-
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em]">Trucchetto utile</p>
-          <p className="mt-2 text-sm font-semibold leading-relaxed">{content.tip}</p>
         </div>
       </div>
     );

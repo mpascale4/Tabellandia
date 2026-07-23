@@ -55,6 +55,12 @@ export default function ParentDashboard({
   compactLayout = false
 }: ParentDashboardProps) {
 
+  const handleSoftDeleteWithConfirm = (profileId: string, profileName: string) => {
+    if (window.confirm(`Vuoi eliminare il profilo "${profileName}"? Il profilo potrà essere ripristinato entro 30 giorni dalla Modalità Genitori.`)) {
+      onSoftDeleteProfile(profileId);
+    }
+  };
+
   const handleSeedMockData = () => {
     sound.playPowerUp();
     updateProfile(p => {
@@ -238,23 +244,14 @@ export default function ParentDashboard({
           description={`Monitora i progressi di ${profile.name}, scopri i suoi punti di forza e le aree critiche.`}
           icon={<ShieldCheck className="h-7 w-7 text-emerald-500" aria-hidden="true" />}
           actions={
-            <>
-              <button
-                onClick={onChangePIN}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors"
-                id="parent-change-pin-btn"
-                title="Modifica il PIN"
-              >
-                🔑 Modifica PIN
-              </button>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors"
-                id="parent-close-btn"
-              >
-                Torna al Gioco
-              </button>
-            </>
+            <button
+              onClick={onChangePIN}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors"
+              id="parent-change-pin-btn"
+              title="Modifica il PIN"
+            >
+              🔑 Modifica PIN
+            </button>
           }
         />
       </SurfaceCard>
@@ -281,7 +278,7 @@ export default function ParentDashboard({
             <div role="list" className="grid grid-cols-1 gap-3">
               {activeProfiles.map(item => {
                 const isCurrent = item.id === activeProfileId;
-                const canDeleteProfile = activeProfiles.length > 1 && Boolean(item.id);
+                const canDeleteProfile = Boolean(item.id);
                 return (
                   <div
                     key={item.id}
@@ -310,7 +307,7 @@ export default function ParentDashboard({
                     <ActionGrid columns={2} className="mt-3">
                       <button
                         type="button"
-                        onClick={() => item.id && onSoftDeleteProfile(item.id)}
+                        onClick={() => item.id && handleSoftDeleteWithConfirm(item.id, item.name)}
                         disabled={!canDeleteProfile}
                         className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                       >
@@ -554,6 +551,18 @@ export default function ParentDashboard({
           </SurfaceCard>
         </div>
       </ResponsiveGrid>
+
+      {/* Footer with Exit Button */}
+      <SurfaceCard padding="md" className="mt-6 rounded-2xl border-slate-200 bg-white flex items-center justify-end shadow-sm">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-6 py-3 rounded-xl text-xs font-black bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 cursor-pointer transition-colors flex items-center gap-2 shadow-sm"
+          id="parent-footer-exit-btn"
+        >
+          <span>🚪</span> Esci
+        </button>
+      </SurfaceCard>
     </div>
   );
 }

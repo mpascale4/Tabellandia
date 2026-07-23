@@ -868,8 +868,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setQuizStreakJustReset(false);
       setQuizHistory(prev => [...prev, { ...currentQ, correct: true }]);
 
-      if (nextCorrectStreak >= 10) {
-        void speak('Complimenti! Hai raggiunto 10 risposte consecutive!');
+      if (nextCorrectStreak >= targetPraticoStreak) {
+        saveStepCompleted('pratico');
         setShowPraticoCongrats(true);
         return;
       }
@@ -1350,8 +1350,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const isCostruiscoDone = devMode || effectiveCostruiscoCompleted.size >= 10;
   const isTrucchiDone = devMode || effectiveTrucchiCompleted.size >= 10;
   const isPraticoDone = devMode || worldProg.completedSteps.includes('pratico');
+  const targetPraticoStreak = 10 + (Number(world.id) - 1) * 2 + (worldProg.completedSteps.includes('pratico') ? 4 : 0);
   const isSfidaDone = devMode || worldProg.completedSteps.includes('sfida');
   const areSfidaPrerequisitesDone = isComprendoDone && isSaltoDone && isCostruiscoDone && isTrucchiDone && isPraticoDone;
+  const nextStepToPlay = !isComprendoDone
+    ? 'comprendo'
+    : !isSaltoDone
+      ? 'salto'
+      : !isCostruiscoDone
+        ? 'costruisco'
+        : !isTrucchiDone
+          ? 'trucchi'
+          : !isPraticoDone
+            ? 'pratico'
+            : (areSfidaPrerequisitesDone && !isSfidaDone)
+              ? 'sfida'
+              : null;
   const sfidaUnlocked = devMode || Boolean(worldProg.sfidaUnlocked) || worldProg.completedSteps.includes('sfida');
 
   const stepDoneMap: Record<string, boolean> = {
@@ -1492,6 +1506,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         const isCompleted = completed.has(factor);
         const isUnlocked = devMode || factor === 1 || completed.has(factor - 1);
         const isLocked = !isUnlocked;
+        const isNextFactor = !isCompleted && isUnlocked;
 
         return (
           <div key={`${stepKey}-${factor}`} role="listitem" className="h-full min-h-0">
@@ -1518,7 +1533,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               ? theme.done
                               : isLocked
                                 ? 'bg-slate-100/90 border-slate-200 text-slate-400 opacity-60 hover:border-slate-300'
-                                : theme.todo
+                                : isNextFactor
+                                  ? 'bg-amber-50 border-amber-500 ring-4 ring-amber-300 text-amber-950 shadow-md animate-pulse'
+                                  : theme.todo
                           }`}
               aria-label={`${world.id} per ${factor}${isCompleted ? ', completata' : isLocked ? ', bloccata' : ', da completare'}`}
             >
@@ -2071,6 +2088,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   const prevStepDone = idx === 0 || (prevStepId ? (stepDoneMap[prevStepId] || false) : true);
                   const isLocked = !devMode && !prevStepDone;
                   const factorCount = stepFactorsCountMap[step.id] || 0;
+                  const isNext = step.id === nextStepToPlay;
 
                   return (
                     <button
@@ -2093,9 +2111,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       className={`relative p-3.5 rounded-2xl border-2 flex flex-col justify-between text-left transition-all cursor-pointer ${
                         isLocked
                           ? 'opacity-60 bg-slate-100 border-slate-200'
-                          : isDone
-                            ? 'bg-emerald-50/90 border-emerald-300 shadow-sm hover:border-emerald-400'
-                            : 'bg-white border-indigo-100 hover:border-indigo-300 shadow-xs'
+                          : isNext
+                            ? 'bg-amber-50/90 border-amber-500 ring-4 ring-amber-300 shadow-md animate-pulse'
+                            : isDone
+                              ? 'bg-emerald-50/90 border-emerald-300 shadow-sm hover:border-emerald-400'
+                              : 'bg-white border-indigo-100 hover:border-indigo-300 shadow-xs'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -2131,7 +2151,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           {step.coins > 0 && <span>🪙+{step.coins}</span>}
                           {step.drops > 0 && <span>💧+{step.drops} Gocce</span>}
                         </div>
-                        {!isLocked && !isDone && (
+                        {!isLocked && !isDone && step.id !== 'pratico' && (
                           <span className="text-[9px] font-semibold text-indigo-600">Avvia ➔</span>
                         )}
                       </div>
@@ -2233,6 +2253,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 const isSfidaDone = stepDoneMap['sfida'];
                 const isSfidaLocked = isSfidaPathLocked;
                 const needsCoinUnlock = !sfidaUnlocked;
+                const isSfidaNext = nextStepToPlay === 'sfida';
 
                 return (
                   <button
@@ -2250,9 +2271,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between text-left transition-all cursor-pointer ${
                       isSfidaLocked
                         ? 'opacity-60 bg-slate-100 border-slate-200'
-                        : isSfidaDone
-                          ? 'bg-gradient-to-r from-emerald-100 via-amber-50 to-emerald-50 border-emerald-400 shadow-md'
-                          : 'bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-500 text-white shadow-lg hover:brightness-105'
+                        : isSfidaNext
+                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-amber-400 ring-4 ring-amber-300 text-white shadow-xl animate-pulse'
+                          : isSfidaDone
+                            ? 'bg-gradient-to-r from-emerald-100 via-amber-50 to-emerald-50 border-emerald-400 shadow-md'
+                            : 'bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-500 text-white shadow-lg hover:brightness-105'
                     }`}
                   >
                     <div className="flex items-center gap-3">

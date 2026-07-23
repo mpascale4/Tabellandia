@@ -130,7 +130,7 @@ export default function RewardPopup({
               </div>
 
               {/* Rewards Section */}
-              <div className="bg-white/80 rounded-2xl p-6 mb-6 backdrop-blur-sm">
+              <div className="bg-white/90 rounded-2xl p-5 mb-6 backdrop-blur-sm space-y-4 shadow-inner">
                 <div className="flex items-center justify-around">
                   {/* Coins */}
                   <motion.div
@@ -138,13 +138,13 @@ export default function RewardPopup({
                     transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 0.3 }}
                     className="text-center"
                   >
-                    <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="flex items-center justify-center gap-2 mb-1">
                       <Coins className="w-8 h-8 text-amber-600" />
                       <span className="text-4xl font-black text-amber-600 font-sans">
                         +{coins}
                       </span>
                     </div>
-                    <p className="text-sm font-bold text-amber-800">🪙 Monete</p>
+                    <p className="text-sm font-black text-amber-900">🪙 Monete</p>
                   </motion.div>
 
                   {/* Drops */}
@@ -158,14 +158,26 @@ export default function RewardPopup({
                       transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 0.4 }}
                       className="text-center"
                     >
-                      <div className="flex items-center justify-center gap-2 mb-2">
+                      <div className="flex items-center justify-center gap-2 mb-1">
                         <Droplets className="w-8 h-8 text-cyan-600" />
                         <span className="text-4xl font-black text-cyan-600 font-sans">
                           +{drops}
                         </span>
                       </div>
-                      <p className="text-sm font-bold text-cyan-800">Gocce</p>
+                      <p className="text-sm font-black text-cyan-900">💧 Gocce</p>
                     </motion.div>
+                  )}
+                </div>
+
+                {/* Explanation of what they are used for */}
+                <div className="pt-3 border-t border-amber-200/60 text-xs text-amber-950 space-y-1.5 font-medium text-center">
+                  <p>
+                    🪙 <b>Monete guadagnate:</b> Usale nel <b>Negozio Avatar</b> per comprare cappelli, vestiti e accessori esclusivi!
+                  </p>
+                  {drops > 0 && (
+                    <p>
+                      💧 <b>Gocce guadagnate:</b> Usale nella mappa per <b>erigere i monumenti</b> e sbloccare i segreti dei regni!
+                    </p>
                   )}
                 </div>
               </div>

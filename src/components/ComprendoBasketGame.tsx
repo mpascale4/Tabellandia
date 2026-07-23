@@ -87,7 +87,11 @@ const createReducedMotionLayout = (count: number, arena: ArenaSize): BasketParti
   });
 };
 
-export default function ComprendoBasketGame({ a, b, itemEmoji, onCompletionChange }: ComprendoBasketGameProps) {
+export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onCompletionChange }: ComprendoBasketGameProps) {
+  const displayA = propA;
+  const displayB = propB;
+  const a = propB; // number of baskets
+  const b = propA; // items per basket
   const { speak, voiceEnabled } = useVoice();
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const particlesRef = useRef<BasketParticle[]>([]);
@@ -417,7 +421,7 @@ export default function ComprendoBasketGame({ a, b, itemEmoji, onCompletionChang
       }
       sound.playLevelUp();
       isOutsidePromptSpeakingRef.current = false;
-      speak(`${a} per ${b} fa ${totalItems}!`);
+      speak(`${displayA} per ${displayB} fa ${totalItems}!`);
       return;
     }
 
@@ -430,10 +434,9 @@ export default function ComprendoBasketGame({ a, b, itemEmoji, onCompletionChang
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-black uppercase tracking-wide text-fuchsia-700">Comprendo</p>
-            <p className="text-xl font-black text-slate-800">{a} x {b} = ?</p>
-          </div>
-          <div className="shrink-0 rounded-full bg-fuchsia-100 px-3 py-1 text-xs font-black text-violet-700 shadow-sm">
-            Obiettivo: {totalItems}
+            <p className="text-xl font-black text-slate-800">
+              {displayA} x {displayB} = {isCompleted ? totalItems : '?'}
+            </p>
           </div>
         </div>
       </div>

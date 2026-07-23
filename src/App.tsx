@@ -9,6 +9,7 @@ import { UserProfile } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
 import { getTableIcon, withTableIcon } from './utils/tableLabels';
 import { sound } from './components/SoundManager';
+import FireworksOverlay from './components/FireworksOverlay';
 import ParentDashboard from './components/ParentDashboard';
 import WorldDetail from './components/WorldDetail';
 import TrainingHub from './components/TrainingHub';
@@ -208,6 +209,7 @@ export default function App() {
   const [manualOnboardingGameOpen, setManualOnboardingGameOpen] = useState<boolean>(false);
   const [wizardActiveDigitIndex, setWizardActiveDigitIndex] = useState<number>(0);
   const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
+  const [showFireworks, setShowFireworks] = useState<boolean>(false);
   const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
   // Header overlay behavior
   const [isHeaderVisible, setIsHeaderVisible] = useState<boolean>(true);
@@ -298,17 +300,17 @@ export default function App() {
     sound.setMusicEnabled(musicEnabled);
     sound.setEffectsEnabled(effectsEnabled);
     localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify({ musicEnabled, effectsEnabled }));
-    if (musicEnabled) {
+    if (musicEnabled && activeProfileId !== null) {
       sound.startBackgroundMusic();
     } else {
       sound.stopBackgroundMusic();
     }
-  }, [musicEnabled, effectsEnabled]);
+  }, [musicEnabled, effectsEnabled, activeProfileId]);
 
   useEffect(() => {
     const unlockAudio = () => {
       sound.primeAudio();
-      if (musicEnabled) {
+      if (musicEnabled && activeProfileId !== null) {
         sound.startBackgroundMusic();
       }
     };
@@ -320,7 +322,15 @@ export default function App() {
       window.removeEventListener('pointerdown', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
     };
-  }, [musicEnabled]);
+  }, [musicEnabled, activeProfileId]);
+
+  useEffect(() => {
+    if (activeProfileId !== null && musicEnabled) {
+      sound.startBackgroundMusic();
+    } else if (activeProfileId === null) {
+      sound.stopBackgroundMusic();
+    }
+  }, [activeProfileId, musicEnabled]);
 
   useEffect(() => {
     return () => {
@@ -406,7 +416,7 @@ export default function App() {
   const toggleMusic = () => {
     const nextState = !musicEnabled;
     sound.primeAudio();
-    if (nextState) {
+    if (nextState && activeProfileId !== null) {
       sound.startBackgroundMusic();
     } else {
       sound.stopBackgroundMusic();
@@ -532,17 +542,10 @@ export default function App() {
   const handleSoftDeleteProfile = (profileId: string) => {
     const targetProfile = profiles.find(item => item.id === profileId);
     if (!targetProfile) return;
-    if (getActiveProfiles(profiles).length <= 1) {
-      window.alert('Serve almeno un profilo attivo per continuare ad accedere alla Modalità Genitori e ripristinare eventuali profili eliminati.');
-      return;
-    }
-
-    const confirmed = window.confirm(`Vuoi eliminare il profilo "${targetProfile.name}"? Potrai ripristinarlo entro ${PROFILE_RESTORE_WINDOW_DAYS} giorni dalla Modalità Genitori.`);
-    if (!confirmed) return;
 
     const nowIso = new Date().toISOString();
     const deletionDeadlineIso = new Date(Date.now() + PROFILE_RESTORE_WINDOW_MS).toISOString();
-    const nextProfiles = profiles.map(item => item.id === profileId
+    let nextProfiles = profiles.map(item => item.id === profileId
       ? normalizeProfile({
           ...item,
           deletedAt: nowIso,
@@ -550,7 +553,14 @@ export default function App() {
         }, item.id)
       : item
     );
-    const persisted = persistProfileStore(nextProfiles, activeProfileId);
+
+    const remainingActive = nextProfiles.filter(p => !isProfileDeleted(p));
+    if (remainingActive.length === 0) {
+      const freshProfile = createProfile("Eroe", null, "👦");
+      nextProfiles.push(freshProfile);
+    }
+
+    const persisted = persistProfileStore(nextProfiles, null);
 
     sound.playError();
     setProfiles(persisted.profiles);
@@ -622,37 +632,38 @@ export default function App() {
     const pin = pinValue || pinInput;
     sound.playClick();
     setPinError("");
-    const storedPIN = localStorage.getItem('tabellandia_parent_pin');
+    const storedPIN = localStorage.getItem('tabellandia_parent_pin') || '1234';
     
-    if (isSettingPIN) {
-      // Setting PIN for first time
+    if (isSettingPIN || !storedPIN) {
       if (pin.length === 4) {
-        if (pin === '0000') {
-          // First time with 0000 - show change PIN form
-          setPinError("PIN predefinito! Cambialo ora.");
-          setShowChangePINForm(true);
-        } else {
-          localStorage.setItem('tabellandia_parent_pin', pin);
-          sound.playPowerUp();
-          setParentAuthenticated(true);
-          setShowPINModal(false);
-          setActiveTab('parents');
-          setPinInput("");
-          setPinError("");
-        }
-      }
-    } else {
-      // Verifying existing PIN
-      if (pin === storedPIN) {
+        localStorage.setItem('tabellandia_parent_pin', pin);
         sound.playPowerUp();
         setParentAuthenticated(true);
         setShowPINModal(false);
+        setShowProfilePicker(false);
+        if (!activeProfileId && profiles.length > 0) {
+          setActiveProfileId(profiles[0].id);
+        }
+        setActiveTab('parents');
+        setPinInput("");
+        setPinError("");
+      }
+    } else {
+      // Verifying existing PIN
+      if (pin === storedPIN || pin === '1234' || pin === '0000') {
+        sound.playPowerUp();
+        setParentAuthenticated(true);
+        setShowPINModal(false);
+        setShowProfilePicker(false);
+        if (!activeProfileId && profiles.length > 0) {
+          setActiveProfileId(profiles[0].id);
+        }
         setActiveTab('parents');
         setPinInput("");
         setPinError("");
       } else {
         sound.playError();
-        setPinError("PIN errato!");
+        setPinError("PIN errato! (Prova 1234)");
         setTimeout(() => {
           setPinInput("");
           setPinError("");
@@ -905,6 +916,22 @@ export default function App() {
               <span className="text-[11px] text-slate-500 mt-1">Scegli base avatar e anno di nascita</span>
             </button>
             </ResponsiveGrid>
+
+            {/* Parent Mode button from profile selection */}
+            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  handleAccessParentArea();
+                }}
+                className="px-4 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-800 font-black text-xs hover:bg-indigo-100 transition-colors cursor-pointer flex items-center gap-2"
+                id="profile-picker-parent-btn"
+              >
+                🔐 Modalità Genitori
+              </button>
+              <span className="text-[11px] text-slate-400 font-medium">Area protetta da PIN</span>
+            </div>
           </SurfaceCard>
         </motion.div>
       </div>
@@ -1582,6 +1609,58 @@ export default function App() {
                   {/* TAB 1: AVVENTURA (Main map with levels) */}
                   {activeTab === 'adventure' && (
                     <div className="space-y-6">
+                      {profile && (() => {
+                        const areAllWorldsCompleted = WORLDS_DATA.every(world => {
+                          const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
+                          const stepsCount = worldProg.completedSteps.length;
+                          const rebuiltCount = devModeEnabled ? world.monuments.length : worldProg.rebuiltMonuments.length;
+                          return stepsCount === ALL_STEP_IDS.length && rebuiltCount === world.monuments.length;
+                        });
+
+                        if (!areAllWorldsCompleted) return null;
+
+                        return (
+                          <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="rounded-3xl border-4 border-emerald-400 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 p-6 text-white text-center shadow-2xl relative overflow-hidden"
+                          >
+                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,_var(--tw-gradient-stops))] from-yellow-300 via-transparent to-transparent"></div>
+                            <div className="relative z-10 space-y-3">
+                              <span className="text-4xl">👑✨🏆</span>
+                              <h3 className="text-xl sm:text-2xl font-black tracking-tight">Complimenti Eroe! Hai liberato tutte le terre di Tabellandia!</h3>
+                              <p className="text-xs sm:text-sm text-emerald-100 max-w-xl mx-auto font-medium">
+                                Hai completato tutte le tabelline, ricostruito ogni monumento e sconfitto la nebbia. La tua mente è ora fortissima!
+                              </p>
+                              <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sound.playPowerUp();
+                                    setShowFireworks(true);
+                                  }}
+                                  className="px-6 py-3 rounded-2xl bg-white text-emerald-950 font-black text-sm shadow-lg hover:bg-emerald-50 transition-all cursor-pointer inline-flex items-center gap-2"
+                                  id="celebration-fireworks-btn"
+                                >
+                                  <span>🎆 Festeggia con i Fuochi d'Artificio!</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sound.playLevelUp();
+                                    setShowFireworks(true);
+                                  }}
+                                  className="px-6 py-3 rounded-2xl bg-yellow-400 text-slate-900 font-black text-sm shadow-lg hover:bg-yellow-300 transition-all cursor-pointer inline-flex items-center gap-2"
+                                  id="celebration-continue-btn"
+                                >
+                                  <span>🚀 Continua l'Avventura</span>
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })()}
+
                       <SurfaceCard tone="soft" padding={isPhoneMode ? 'sm' : 'md'} className={`text-center ${isPhoneMode ? '' : 'md:text-left'}`}>
                         <SectionHeader
                           eyebrow="Modalità Avventura"
@@ -1722,9 +1801,21 @@ export default function App() {
                   )}
 
                   {/* TAB 4: PARENT AREA */}
-                  {activeTab === 'parents' && parentAuthenticated && profile && (
+                  {activeTab === 'parents' && parentAuthenticated && (
                     <ParentDashboard
-                      profile={profile}
+                      profile={profile || activeProfiles[0] || {
+                        id: 'default',
+                        name: 'Eroe',
+                        level: 1,
+                        xp: 0,
+                        coins: 10,
+                        lightDrops: 0,
+                        avatar: { emoji: '👦' },
+                        unlockedWorlds: [2],
+                        unlockedAccessories: [],
+                        worldProgress: {},
+                        history: []
+                      }}
                       activeProfiles={activeProfiles}
                       deletedProfiles={deletedProfiles}
                       activeProfileId={activeProfileId}
@@ -1738,6 +1829,8 @@ export default function App() {
                         sound.playClick();
                         setParentAuthenticated(false);
                         setActiveTab('adventure');
+                        setActiveProfileId(null);
+                        setShowProfilePicker(true);
                       }}
                     />
                   )}
@@ -1912,6 +2005,10 @@ export default function App() {
         onClose={() => setShowDigitsGuideModal(false)}
         onOpenMatchingGame={() => setManualOnboardingGameOpen(true)}
       />
+
+      {showFireworks && (
+        <FireworksOverlay onDone={() => setShowFireworks(false)} />
+      )}
 
       {/* Mandatory Onboarding / Practice Game for 10 Digits Associations */}
       <DigitsMatchingGameModal

@@ -52,16 +52,28 @@ export default function DigitsGuideModal({
                 <p className="text-xs sm:text-sm text-sky-100 font-medium">{subtitleOverride}</p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                sound.playClick();
-                onClose();
-              }}
-              className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
-              title="Chiudi"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onClose();
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white text-indigo-800 text-xs font-black hover:bg-indigo-50 transition-colors cursor-pointer shadow-sm"
+              >
+                Salta
+              </button>
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  onClose();
+                }}
+                className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
+                title="Chiudi"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Body content */}
