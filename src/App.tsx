@@ -18,6 +18,7 @@ import VoiceToggle from './components/VoiceToggle';
 import RewardsTutorial from './components/RewardsTutorial';
 import DigitsGuideModal from './components/DigitsGuideModal';
 import DigitsMatchingGameModal from './components/DigitsMatchingGameModal';
+import CurrencyInfoModal from './components/CurrencyInfoModal';
 import { DIGITS_INFO } from './data/digitsData';
 import NumericKeypad from './components/NumericKeypad';
 import ActionGrid from './components/layout/ActionGrid';
@@ -206,6 +207,7 @@ export default function App() {
     return !seen; // Show if never seen before
   });
   const [showDigitsGuideModal, setShowDigitsGuideModal] = useState<boolean>(false);
+  const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
   const [manualOnboardingGameOpen, setManualOnboardingGameOpen] = useState<boolean>(false);
   const [wizardActiveDigitIndex, setWizardActiveDigitIndex] = useState<number>(0);
   const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
@@ -1369,22 +1371,32 @@ export default function App() {
                 {/* Monete & Gocce (Sovrapposte una sotto l'altra) */}
                 <div className={`flex flex-col justify-center gap-1 shrink-0 bg-white/65 rounded-2xl border border-white/80 ${isPhoneMode ? 'px-2 py-1 min-w-[72px]' : 'px-3 py-1.5 min-w-[105px]'}`}>
                   {/* Monete */}
-                  <div className="flex items-center justify-between gap-1.5">
-                    <div className="flex items-center gap-1 text-amber-600">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); sound.playClick(); setCurrencyModalType('coins'); }}
+                    className="flex items-center justify-between gap-1.5 hover:bg-amber-100/50 rounded px-1 transition-colors cursor-pointer text-left w-full group"
+                    title="Tocca per scoprire a cosa servono le Monete"
+                  >
+                    <div className="flex items-center gap-1 text-amber-600 group-hover:text-amber-700">
                       <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
-                      <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Monete</span>
+                      <span className={`font-bold uppercase tracking-wide text-sky-950/60 group-hover:text-amber-900 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Monete</span>
                     </div>
                     <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
-                  </div>
+                  </button>
 
                   {/* Gocce */}
-                  <div className="flex items-center justify-between gap-1.5 border-t border-sky-950/10 pt-0.5">
-                    <div className="flex items-center gap-1 text-sky-500">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); sound.playClick(); setCurrencyModalType('drops'); }}
+                    className="flex items-center justify-between gap-1.5 border-t border-sky-950/10 pt-0.5 hover:bg-sky-100/50 rounded px-1 transition-colors cursor-pointer text-left w-full group"
+                    title="Tocca per scoprire a cosa servono le Gocce"
+                  >
+                    <div className="flex items-center gap-1 text-sky-500 group-hover:text-sky-600">
                       <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
-                      <span className={`font-bold uppercase tracking-wide text-sky-950/60 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Gocce</span>
+                      <span className={`font-bold uppercase tracking-wide text-sky-950/60 group-hover:text-sky-900 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Gocce</span>
                     </div>
                     <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
-                  </div>
+                  </button>
                 </div>
               </>
             )}
@@ -2181,6 +2193,15 @@ export default function App() {
           </motion.div>
         </div>
       )}
+
+      {/* Modal Spiegazione Monete / Gocce */}
+      <CurrencyInfoModal
+        type={currencyModalType}
+        isOpen={!!currencyModalType}
+        onClose={() => setCurrencyModalType(null)}
+        lightDrops={profile?.lightDrops || 0}
+        coins={profile?.coins || 0}
+      />
     </div>
   );
 }

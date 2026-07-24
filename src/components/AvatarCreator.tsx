@@ -9,6 +9,7 @@ import { UserProfile, ShopItem, AvatarConfig } from '../types';
 import { SHOP_ITEMS, WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
 import { Sparkles, Coins, ShoppingBag, Palette, Shirt, Award, Check } from 'lucide-react';
+import CurrencyInfoModal from './CurrencyInfoModal';
 
 interface AvatarCreatorProps {
   profile: UserProfile;
@@ -20,6 +21,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
   const [activeTab, setActiveTab] = useState<'customize' | 'shop'>('customize');
   const [shopCategory, setShopCategory] = useState<'hair' | 'shirt' | 'pants' | 'hat' | 'backpack'>('hair');
   const [custCategory, setCustCategory] = useState<'base' | 'hair' | 'shirt' | 'pants' | 'hat' | 'backpack' | 'mascot'>('base');
+  const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
 
   // Available free selections
   const FREE_HAIR_COLORS = ["#f59e0b", "#3b82f6", "#ef4444", "#10b981", "#7c3aed", "#1f2937"];
@@ -202,20 +204,30 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
             <span className="text-xl font-black text-indigo-700 font-mono">{profile.level}</span>
           </div>
           <div className="h-8 w-px bg-indigo-100"></div>
-          <div className="text-center">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium font-sans">Monete</span>
+          <button
+            type="button"
+            onClick={() => { sound.playClick(); setCurrencyModalType('coins'); }}
+            className="text-center hover:bg-amber-100/50 p-1 rounded-xl transition-colors cursor-pointer group"
+            title="Tocca per scoprire a cosa servono le Monete"
+          >
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium font-sans group-hover:text-amber-800">Monete</span>
             <span className="text-xl font-black text-amber-600 font-mono flex items-center gap-1 justify-center">
               <Coins className="w-5 h-5 text-amber-500 fill-amber-500 animate-bounce" />
               {profile.coins}
             </span>
-          </div>
+          </button>
           <div className="h-8 w-px bg-indigo-100"></div>
-          <div className="text-center">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium">Gocce</span>
+          <button
+            type="button"
+            onClick={() => { sound.playClick(); setCurrencyModalType('drops'); }}
+            className="text-center hover:bg-sky-100/50 p-1 rounded-xl transition-colors cursor-pointer group"
+            title="Tocca per scoprire a cosa servono le Gocce"
+          >
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium group-hover:text-sky-800">Gocce</span>
             <span className="text-xl font-black text-sky-600 font-mono flex items-center gap-1 justify-center">
               💧 {profile.lightDrops}
             </span>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -688,6 +700,14 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
           </div>
         )}
       </div>
+
+      <CurrencyInfoModal
+        type={currencyModalType}
+        isOpen={!!currencyModalType}
+        onClose={() => setCurrencyModalType(null)}
+        lightDrops={profile.lightDrops}
+        coins={profile.coins}
+      />
     </div>
   );
 }

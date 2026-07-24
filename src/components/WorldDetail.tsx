@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
-import { Sparkles, HelpCircle, ArrowLeft, Check, AlertCircle, Award, Timer, Trophy, Compass, ShieldAlert } from 'lucide-react';
+import { Sparkles, HelpCircle, ArrowLeft, Check, AlertCircle, Award, Timer, Trophy, Compass, ShieldAlert, RotateCcw } from 'lucide-react';
 import ComprendoBasketGame from './ComprendoBasketGame';
 import StepRulesModal from './StepRulesModal';
 import RewardPopup from './RewardPopup';
@@ -15,6 +15,7 @@ import NumericKeypad from './NumericKeypad';
 import RewardsTutorial from './RewardsTutorial';
 import CombinationCarousel from './CombinationCarousel';
 import FireworksOverlay from './FireworksOverlay';
+import CurrencyInfoModal from './CurrencyInfoModal';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
@@ -64,7 +65,7 @@ const GAMEPLAY_AUDIO_MESSAGES = {
   costruiscoTooHigh: 'Oh no, i palloncini sono volati troppo in alto! Riproviamo questo turno.',
   quizWrong: 'Quasi. Riprova con calma.',
   sfidaWrong: 'Ops, risposta sbagliata.',
-  trucchiWrong: 'Non ancora. Prova un altro numero.',
+  trucchiWrong: 'Riprova. Prova un altro numero.',
   trucchiCollapse: 'Oh no, la piramide e caduta! Riproviamo.',
   combinationLocked: 'Questa combinazione e ancora bloccata.',
   stepLocked: 'Questo passo e ancora bloccato.',
@@ -106,6 +107,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [hasSeenStepRules, setHasSeenStepRules] = useState<Set<string>>(new Set()); // Track which steps have been seen
   const [hasReadRulesMandatory, setHasReadRulesMandatory] = useState<Set<string>>(new Set()); // Track mandatory rule reading
   const [showRewardPopup, setShowRewardPopup] = useState<{ step: string; coins: number; drops: number } | null>(null);
+  const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
 
   // View stack for modal-to-page conversion
   const [viewStack, setViewStack] = useState<string[]>([]); // Stack of views, e.g. ['rules-comprendo', 'intro']
@@ -160,10 +162,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Costruisco (Step 3) state
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
-  const [costruiscoBalloons, setCostruiscoBalloons] = useState<number[]>([]);
-  const [poppedBalloons, setPoppedBalloons] = useState<Set<number>>(new Set());
-  const [costruiscoBalloonPaletteMap, setCostruiscoBalloonPaletteMap] = useState<Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]>>({});
-  const [costruiscoRoundToken, setCostruiscoRoundToken] = useState<number>(0);
+  const [costruiscoCurrentBalloon, setCostruiscoCurrentBalloon] = useState<number | null>(null);
+  const [costruiscoBalloonPool, setCostruiscoBalloonPool] = useState<number[]>([]);
+  const [costruiscoBalloonPalette, setCostruiscoBalloonPalette] = useState<typeof COSTRUISCO_BALLOON_PALETTES[number]>(COSTRUISCO_BALLOON_PALETTES[0]);
+  const [costruiscoBalloonLane, setCostruiscoBalloonLane] = useState<number>(50);
+  const [costruiscoBalloonToken, setCostruiscoBalloonToken] = useState<number>(0);
+  const [costruiscoFailed, setCostruiscoFailed] = useState<boolean>(false);
+  const [costruiscoIsPopped, setCostruiscoIsPopped] = useState<boolean>(false);
   const [selectedFactor, setSelectedFactor] = useState<number | null>(null);
   const [completedMonuments, setCompletedMonuments] = useState<string[]>([]); // Track completed monuments
   const costruiscoFlightTimeoutRef = useRef<number | null>(null);
@@ -493,29 +498,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     resetTrucchiRound(trucchiSelectedFactor);
   }, [trucchiSelectedFactor, world.id]);
 
-  // Helper to generate exactly 4 balloons for Costruisco (1 correct answer + 3 wrong distractors)
-  const generateCostruisco4Balloons = (worldId: number, factor: number) => {
+  // Helper to generate candidate balloon numbers pool (1 correct answer + distractors)
+  const generateCostruiscoBalloonPool = (worldId: number, factor: number): number[] => {
     const correct = worldId * factor;
-    const optionsSet = new Set<number>([correct]);
-    
-    // Pick other multipliers from 1..10
-    const otherFactors = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(f => f !== factor);
-    const shuffledOthers = [...otherFactors].sort(() => Math.random() - 0.5);
-    
-    for (const f of shuffledOthers) {
-      if (optionsSet.size >= 4) break;
-      optionsSet.add(worldId * f);
-    }
+    const distractors = new Set<number>();
 
-    // Fallback if set is somehow smaller than 4
-    let offset = 1;
-    while (optionsSet.size < 4) {
-      const candidate = correct + offset * worldId;
-      if (candidate > 0) optionsSet.add(candidate);
-      offset = offset > 0 ? -offset : -offset + 1;
-    }
+    // Add close multiples and nearby numbers
+    if (factor > 1) distractors.add(worldId * (factor - 1));
+    distractors.add(worldId * (factor + 1));
+    if (factor > 2) distractors.add(worldId * (factor - 2));
+    distractors.add(worldId * (factor + 2));
 
-    return Array.from(optionsSet).sort(() => Math.random() - 0.5);
+    distractors.add(correct + 1);
+    if (correct > 1) distractors.add(correct - 1);
+    distractors.add(correct + 2);
+
+    // Remove correct answer if present in distractors set
+    distractors.delete(correct);
+
+    const shuffledDistractors = shuffleArray(Array.from(distractors)).slice(0, 3);
+    return shuffleArray([correct, ...shuffledDistractors]);
   };
 
   const clearCostruiscoFlightTimeout = () => {
@@ -525,54 +527,99 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
   };
 
-  const startCostruiscoRound = (factor: number) => {
-    const nextBalloons = generateCostruisco4Balloons(world.id, factor);
-    const shuffledPalettes = shuffleArray([...COSTRUISCO_BALLOON_PALETTES]);
-    const nextPaletteMap: Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]> = {};
-
-    nextBalloons.forEach((balloonValue, index) => {
-      nextPaletteMap[balloonValue] = shuffledPalettes[index % shuffledPalettes.length];
-    });
-
-    setCostruiscoBalloons(nextBalloons);
-    setCostruiscoBalloonPaletteMap(nextPaletteMap);
-    setPoppedBalloons(new Set());
-    setCostruiscoGameCompleted(false);
-    setShowCostruiscoCompletionEffect(false);
-    setCostruiscoRoundToken(prev => prev + 1);
+  const spawnNextCostruiscoBalloon = (factor: number, currentPool: number[]) => {
     clearCostruiscoFlightTimeout();
 
+    let pool = [...currentPool];
+    if (pool.length === 0) {
+      pool = generateCostruiscoBalloonPool(world.id, factor);
+    }
+
+    const nextVal = pool[0];
+    const remainingPool = pool.slice(1);
+
+    const palettes = COSTRUISCO_BALLOON_PALETTES;
+    const randomPalette = palettes[Math.floor(Math.random() * palettes.length)];
+    const lanes = [20, 35, 50, 65, 80];
+    const randomLane = lanes[Math.floor(Math.random() * lanes.length)];
+
+    setCostruiscoIsPopped(false);
+    setCostruiscoBalloonPool(remainingPool);
+    setCostruiscoCurrentBalloon(nextVal);
+    setCostruiscoBalloonPalette(randomPalette);
+    setCostruiscoBalloonLane(randomLane);
+    setCostruiscoBalloonToken(prev => prev + 1);
+
+    // Flight animation duration: 8.5 seconds
     costruiscoFlightTimeoutRef.current = window.setTimeout(() => {
-      sound.playError();
-      speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoTooHigh);
-      startCostruiscoRound(factor);
-    }, COSTRUISCO_BALLOON_FLIGHT_MS);
+      // Balloon floated out unpopped -> spawn next balloon from pool
+      spawnNextCostruiscoBalloon(factor, remainingPool);
+    }, 8500);
   };
 
-  // Initialize Costruisco balloons when a factor is selected
+  const startCostruiscoSingleBalloonGame = (factor?: number) => {
+    const activeFactor = factor ?? costruiscoSelectedFactor ?? 1;
+    clearCostruiscoFlightTimeout();
+    setCostruiscoGameCompleted(false);
+    setCostruiscoFailed(false);
+    setCostruiscoIsPopped(false);
+    setShowCostruiscoCompletionEffect(false);
+
+    const pool = generateCostruiscoBalloonPool(world.id, activeFactor);
+    spawnNextCostruiscoBalloon(activeFactor, pool);
+  };
+
+  const handleCostruiscoSingleBalloonTap = () => {
+    if (costruiscoCurrentBalloon === null || costruiscoIsPopped || costruiscoGameCompleted || costruiscoFailed) return;
+
+    clearCostruiscoFlightTimeout();
+    sound.playClick();
+    setCostruiscoIsPopped(true);
+
+    const factor = costruiscoSelectedFactor || 1;
+    const expected = world.id * factor;
+
+    if (costruiscoCurrentBalloon === expected) {
+      // SUCCESS!
+      sound.playSuccess();
+      speakMultiplicationSuccess(world.id, factor, expected);
+      setCostruiscoGameCompleted(true);
+      setCostruiscoFailed(false);
+      setShowCostruiscoCompletionEffect(true);
+    } else {
+      // FAILURE! (Wrong balloon popped)
+      sound.playError();
+      speak('Ops, numero sbagliato! Riprova da capo.');
+      setCostruiscoFailed(true);
+      setCostruiscoGameCompleted(false);
+    }
+  };
+
+  const handleCostruiscoRetry = () => {
+    sound.playClick();
+    if (costruiscoSelectedFactor !== null) {
+      startCostruiscoSingleBalloonGame(costruiscoSelectedFactor);
+    }
+  };
+
+  // Initialize Costruisco balloons when a factor is selected or stage changes
   useEffect(() => {
     if (activeStep !== 'costruisco' || costruiscoSelectedFactor === null) {
       clearCostruiscoFlightTimeout();
       return;
     }
     if (costruiscoFlowStage === 'game') {
-      if (costruiscoBalloons.length === 0) {
-        startCostruiscoRound(costruiscoSelectedFactor);
+      if (!costruiscoGameCompleted && !costruiscoFailed && costruiscoCurrentBalloon === null) {
+        startCostruiscoSingleBalloonGame(costruiscoSelectedFactor);
       }
       return;
     }
     clearCostruiscoFlightTimeout();
-    const nextBalloons = generateCostruisco4Balloons(world.id, costruiscoSelectedFactor);
-    const shuffledPalettes = shuffleArray([...COSTRUISCO_BALLOON_PALETTES]);
-    const nextPaletteMap: Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]> = {};
-    nextBalloons.forEach((balloonValue, index) => {
-      nextPaletteMap[balloonValue] = shuffledPalettes[index % shuffledPalettes.length];
-    });
-    setCostruiscoBalloons(nextBalloons);
-    setCostruiscoBalloonPaletteMap(nextPaletteMap);
-    setPoppedBalloons(new Set());
-    setCostruiscoRoundToken(prev => prev + 1);
-  }, [costruiscoSelectedFactor, activeStep, world.id, costruiscoFlowStage, costruiscoBalloons.length]);
+    setCostruiscoCurrentBalloon(null);
+    setCostruiscoFailed(false);
+    setCostruiscoGameCompleted(false);
+    setCostruiscoIsPopped(false);
+  }, [costruiscoSelectedFactor, activeStep, world.id, costruiscoFlowStage]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -752,14 +799,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       emptyProgress[i] = null;
     }
     setCostruiscoProgress(emptyProgress);
-    
-    if (costruiscoSelectedFactor !== null) {
-      setCostruiscoBalloons(generateCostruisco4Balloons(world.id, costruiscoSelectedFactor));
-    } else {
-      setCostruiscoBalloons([]);
-    }
-    setPoppedBalloons(new Set());
     clearCostruiscoFlightTimeout();
+    setCostruiscoCurrentBalloon(null);
+    setCostruiscoBalloonPool([]);
+    setCostruiscoFailed(false);
+    setCostruiscoGameCompleted(false);
+    setCostruiscoIsPopped(false);
+    setShowCostruiscoCompletionEffect(false);
+    setCostruiscoFlowStage('objective');
     setSelectedFactor(null);
     setCompletedMonuments([]); // Reset monuments when restarting
   };
@@ -782,52 +829,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       sound.playError();
       speak(GAMEPLAY_AUDIO_MESSAGES.saltoFall);
       // gentle screen wobble or hint
-    }
-  };
-
-  const handleCostruiscoBalloonTap = (val: number) => {
-    sound.playClick();
-    if (selectedFactor !== null) {
-      // Check if it fits
-      const expected = world.id * selectedFactor;
-      if (val === expected) {
-        sound.playSuccess();
-        speakMultiplicationSuccess(world.id, selectedFactor, val);
-        setCostruiscoProgress(prev => ({
-          ...prev,
-          [selectedFactor]: val
-        }));
-        // Remove from balloons
-        setCostruiscoBalloons(prev => prev.filter(b => b !== val));
-        setSelectedFactor(null);
-
-        // Erigere un monumento per ogni operazione completata (max 3 monumenti)
-        const updatedProgress = { ...costruiscoProgress, [selectedFactor]: val };
-        const completedCount = Object.values(updatedProgress).filter(v => v !== null).length;
-        
-        // Determina quale monumento erigere in base al numero di operazioni completate
-        if (world.monuments && world.monuments.length > 0) {
-          const monumentIndex = Math.min(Math.floor((completedCount - 1) / 4), world.monuments.length - 1);
-          const monumentId = world.monuments[monumentIndex].id;
-          
-          if (completedCount % 4 === 1 && !completedMonuments.includes(monumentId)) {
-            // Nuovo monumento ogni 4 operazioni (1, 5, 9)
-            sound.playPowerUp();
-            setCompletedMonuments(prev => [...prev, monumentId]);
-          }
-        }
-
-        // Check if finished
-        if (completedCount === 10) {
-          sound.playLevelUp();
-          saveStepCompleted('costruisco');
-          setActiveStep('intro');
-          resetCostruisco();
-        }
-      } else {
-        sound.playError();
-        speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoWrong);
-      }
     }
   };
 
@@ -1764,8 +1765,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setCostruiscoFlowStage('objective');
     setCostruiscoGameCompleted(false);
     setShowCostruiscoCompletionEffect(false);
-    setPoppedBalloons(new Set());
-    setCostruiscoBalloons([]);
+    setCostruiscoCurrentBalloon(null);
+    setCostruiscoBalloonPool([]);
+    setCostruiscoFailed(false);
+    setCostruiscoIsPopped(false);
     setCostruiscoSelectedFactor(null);
   };
   const completeCostruiscoExercise = () => {
@@ -1945,8 +1948,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
     if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) {
       if (costruiscoFlowStage === 'objective') {
-        setCostruiscoBalloons([]);
-        setCostruiscoFlowStage('game');
+        startCostruiscoSingleBalloonGame();
       } else if (costruiscoFlowStage === 'game' && costruiscoGameCompleted) {
         completeCostruiscoExercise();
       }
@@ -2108,9 +2110,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-black text-amber-900 bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-xl shadow-2xs">
-                  💧 {profile.lightDrops} Gocce
-                </span>
+                <button
+                  type="button"
+                  onClick={() => { sound.playClick(); setCurrencyModalType('drops'); }}
+                  className="text-xs font-black text-sky-950 bg-sky-100 hover:bg-sky-200 border border-sky-300 px-3 py-1.5 rounded-xl shadow-2xs transition-colors cursor-pointer flex items-center gap-1 group"
+                  title="Tocca per scoprire a cosa servono le Gocce di Luce"
+                >
+                  <span className="group-hover:scale-110 transition-transform">💧</span> {profile.lightDrops} Gocce
+                </button>
                 <button
                   type="button"
                   onClick={() => pushView('world-story')}
@@ -2890,9 +2897,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             onSelect: (factor) => {
               sound.playClick();
               setCostruiscoSelectedFactor(factor);
-              setCostruiscoBalloons([]);
-              setPoppedBalloons(new Set());
-              setCostruiscoFlowStage(factor === 1 ? 'objective' : 'game');
+              setCostruiscoCurrentBalloon(null);
+              setCostruiscoBalloonPool([]);
+              setCostruiscoFailed(false);
+              setCostruiscoIsPopped(false);
+              setCostruiscoFlowStage('objective');
               setCostruiscoGameCompleted(false);
               setShowCostruiscoCompletionEffect(false);
             },
@@ -2944,19 +2953,19 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          Costruisci: {world.id} × {costruiscoSelectedFactor}
                        </span>
                        <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
-                         Completa il risultato mancante!
+                         Scoppia il palloncino col risultato giusto!
                        </h3>
                        <p className="text-xs text-slate-500 mt-1">
-                         I palloncini salgono lentamente: scoppiali tutti prima che arrivino in alto.
+                         Un solo palloncino alla volta salirà sullo schermo.
                        </p>
                      </div>
                      <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
                        <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
                        <p className="text-slate-600 mt-1 leading-relaxed">
-                         Tocca tutti i palloncini, inclusa la risposta corretta, prima che escano in alto.
+                         Osserva il palloncino che sale. Se contiene il risultato giusto di <b>{world.id} × {costruiscoSelectedFactor}</b>, toccalo per scoppiarlo!
                        </p>
-                       <p className="text-slate-600 mt-1 leading-relaxed">
-                         Completi il turno quando hai fatto scoppiare tutti e 4 i palloncini.
+                       <p className="text-slate-600 mt-1 leading-relaxed text-rose-700 font-semibold">
+                         ⚠️ Se scoppi il palloncino sbagliato, la missione fallisce e dovrai fare click su Riprova!
                        </p>
                      </div>
                      <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -2964,7 +2973,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          💡 Obiettivo:
                        </h4>
                        <p className="mt-2 text-sm text-yellow-800">
-                         Abbina i fattori ai risultati corretti. Trasforma il concetto in simboli matematici.
+                         Identifica il prodotto corretto fra i vari numeri proposti nei palloncini.
                        </p>
                      </div>
                    </div>
@@ -2980,73 +2989,70 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      </div>
 
                      <div>
-                       <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wide text-center">
-                         I Palloncini dei Risultati
+                       <h4 className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide text-center">
+                         Un palloncino alla volta
                        </h4>
-                       <div className="relative mx-auto w-full max-w-md h-56 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50 to-cyan-100">
-                         {costruiscoBalloons.map((ball, index) => {
-                           const expected = world.id * costruiscoSelectedFactor;
-                           const isPopped = poppedBalloons.has(ball);
-                           const balloonPalette = costruiscoBalloonPaletteMap[ball] || COSTRUISCO_BALLOON_PALETTES[0];
-                           const laneLeft = COSTRUISCO_BALLOON_LANES[index % COSTRUISCO_BALLOON_LANES.length];
-
-                           if (isPopped) {
-                             return (
-                               <motion.div
-                                 key={`popped-${costruiscoRoundToken}-${ball}`}
-                                 initial={{ scale: 1, opacity: 1 }}
-                                 animate={{ scale: [1, 1.4, 0], opacity: [1, 1, 0] }}
-                                 transition={{ duration: 0.35, ease: "easeOut" }}
-                                 className={`${compactLayout ? "w-12 h-14 text-2xl" : "w-14 h-16 text-3xl"} absolute bottom-2 flex items-center justify-center -translate-x-1/2 select-none pointer-events-none`}
-                                 style={{ left: `${laneLeft}%` }}
-                               >
-                                 💥
-                               </motion.div>
-                             );
-                           }
-
-                           return (
-                             <motion.button
-                               key={`${costruiscoRoundToken}-${ball}`}
-                               whileHover={{ scale: 1.08 }}
-                               initial={{ y: 0, opacity: 1 }}
-                               animate={prefersReducedMotion ? { y: 0, opacity: 1 } : { y: [0, compactLayout ? -112 : -128], opacity: [1, 1, 0.96] }}
-                               transition={prefersReducedMotion ? { duration: 0.1 } : { duration: COSTRUISCO_BALLOON_FLIGHT_MS / 1000, ease: "linear" }}
-                               onClick={() => {
-                                 if (costruiscoGameCompleted || isPopped) return;
-                                 sound.playClick();
-                                 const nextPoppedBalloons = new Set([...poppedBalloons, ball]);
-                                 const isCorrectBalloon = ball === expected;
-                                 const allPopped = nextPoppedBalloons.size === costruiscoBalloons.length;
-
-                                 setPoppedBalloons(nextPoppedBalloons);
-
-                                 if (allPopped) {
-                                   clearCostruiscoFlightTimeout();
-                                   sound.playSuccess();
-                                   speakMultiplicationSuccess(world.id, costruiscoSelectedFactor, expected);
-                                   setCostruiscoGameCompleted(true);
-                                   setShowCostruiscoCompletionEffect(true);
-                                 } else if (isCorrectBalloon) {
-                                   sound.playSuccess();
-                                   speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoCorrect);
-                                 }
-                               }}
-                               className={`${compactLayout ? "w-12 h-14 text-xs" : "w-14 h-16 text-sm"} absolute bottom-2 rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-md border relative select-none pb-2 pt-1 transition-all -translate-x-1/2 ${
-                                 costruiscoGameCompleted
-                                   ? "bg-sky-200 text-sky-800 border-sky-100 opacity-70 cursor-not-allowed"
-                                   : `${balloonPalette.body} cursor-pointer`
-                               }`}
-                               style={{ left: `${laneLeft}%` }}
-                               id={`balloon-${ball}`}
+                       <div className="relative mx-auto w-full max-w-md h-64 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50 via-cyan-50 to-sky-100 flex items-center justify-center">
+                         {costruiscoFailed ? (
+                           <div className="text-center p-4 bg-white/95 backdrop-blur-xs rounded-2xl border border-rose-200 shadow-xl mx-4 space-y-2">
+                             <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-2xl">
+                               💥
+                             </div>
+                             <h3 className="text-base font-black text-rose-800">Fallimento!</h3>
+                             <p className="text-xs text-slate-600 leading-relaxed">
+                               Hai scoppiato il palloncino sbagliato (<b>{costruiscoCurrentBalloon}</b>)!<br />
+                               Per <b>{world.id} × {costruiscoSelectedFactor}</b> il risultato era un altro.
+                             </p>
+                             <button
+                               type="button"
+                               onClick={handleCostruiscoRetry}
+                               className="mt-2 py-2.5 px-5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 mx-auto"
                              >
-                               <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-white/60" />
-                               <span>{ball}</span>
-                               <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 rounded-[2px] ${costruiscoGameCompleted ? 'bg-sky-300' : balloonPalette.knot}`} />
-                               <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-[2px] h-2 rounded-full ${costruiscoGameCompleted ? 'bg-sky-200' : balloonPalette.string}`} />
+                               <RotateCcw className="w-4 h-4" /> Click per Riprovare
+                             </button>
+                           </div>
+                         ) : costruiscoGameCompleted ? (
+                           <div className="text-center p-4 bg-white/95 backdrop-blur-xs rounded-2xl border border-emerald-200 shadow-xl mx-4 space-y-2">
+                             <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl">
+                               🎉
+                             </div>
+                             <h3 className="text-base font-black text-emerald-800">Successo!</h3>
+                             <p className="text-xs text-slate-600">
+                               Bravo! Risposta esatta:<br />
+                               <b className="text-sm text-emerald-900 font-mono">{world.id} × {costruiscoSelectedFactor} = {world.id * (costruiscoSelectedFactor || 1)}</b>
+                             </p>
+                           </div>
+                         ) : costruiscoCurrentBalloon !== null ? (
+                           costruiscoIsPopped ? (
+                             <motion.div
+                               key={`popped-single-${costruiscoBalloonToken}`}
+                               initial={{ scale: 1, opacity: 1 }}
+                               animate={{ scale: [1, 1.6, 0], opacity: [1, 1, 0] }}
+                               transition={{ duration: 0.35, ease: "easeOut" }}
+                               className="text-5xl select-none pointer-events-none"
+                             >
+                               💥
+                             </motion.div>
+                           ) : (
+                             <motion.button
+                               key={`single-balloon-${costruiscoBalloonToken}`}
+                               whileHover={{ scale: 1.1 }}
+                               whileTap={{ scale: 0.95 }}
+                               initial={{ y: 80, opacity: 1 }}
+                               animate={prefersReducedMotion ? { y: 0, opacity: 1 } : { y: [80, -180], opacity: [1, 1, 0.95] }}
+                               transition={prefersReducedMotion ? { duration: 0.1 } : { duration: 8.5, ease: "linear" }}
+                               onClick={handleCostruiscoSingleBalloonTap}
+                               className={`${compactLayout ? "w-16 h-20 text-base" : "w-20 h-24 text-lg"} absolute bottom-2 rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-lg border select-none pb-2 pt-1 transition-all -translate-x-1/2 cursor-pointer ${costruiscoBalloonPalette.body}`}
+                               style={{ left: `${costruiscoBalloonLane}%` }}
+                               id={`balloon-single-${costruiscoCurrentBalloon}`}
+                             >
+                               <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
+                               <span className="text-xl font-black">{costruiscoCurrentBalloon}</span>
+                               <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rotate-45 rounded-[2px] ${costruiscoBalloonPalette.knot}`} />
+                               <span className={`absolute -bottom-3 left-1/2 -translate-x-1/2 w-[2px] h-3 rounded-full ${costruiscoBalloonPalette.string}`} />
                              </motion.button>
-                           );
-                         })}
+                           )
+                         ) : null}
                        </div>
                      </div>
 
@@ -3068,7 +3074,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
              </div>
 
                  {costruiscoFlowStage === 'game' ? (
-                   costruiscoGameCompleted ? (
+                   costruiscoFailed ? (
+                     <button
+                       onClick={handleCostruiscoRetry}
+                       className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md cursor-pointer transition-colors flex items-center justify-center gap-2"
+                     >
+                       <RotateCcw className="w-4 h-4" /> Click su Riprova
+                     </button>
+                   ) : costruiscoGameCompleted ? (
                      <button
                        onClick={() => {
                          sound.playClick();
@@ -3110,12 +3123,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <button
                      onClick={() => {
                        sound.playClick();
-                       setCostruiscoBalloons([]);
-                       setCostruiscoFlowStage('game');
+                       startCostruiscoSingleBalloonGame();
                      }}
                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
                    >
-                     Continua
+                     Inizia Gioco 🎈
                    </button>
                  )}
             </div>
@@ -4017,11 +4029,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 <div className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-200 px-3 py-1 rounded-full mb-3">
                   Costo: 💧 {monumentModal.monument.cost} (Ne hai {profile.lightDrops})
                 </div>
-                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                <p className="text-xs text-slate-600 mb-3 leading-relaxed">
                   Per erigere <b>{monumentModal.monument.name}</b> ti mancano <b>{monumentModal.monument.cost - profile.lightDrops} Gocce di Luce</b>.
                   <br /><br />
                   Gioca nel passo <b>"Pratico (Avventura)"</b> per sconfiggere la nebbia e raccogliere le gocce necessarie!
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMonumentModal(null);
+                    setCurrencyModalType('drops');
+                  }}
+                  className="text-xs text-sky-600 hover:text-sky-800 font-bold underline mb-4 block mx-auto cursor-pointer"
+                >
+                  A cosa servono le Gocce? 💧
+                </button>
                 <div className="flex gap-2.5">
                   <button
                     type="button"
@@ -4046,6 +4068,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           </motion.div>
         </div>
       )}
+
+      <CurrencyInfoModal
+        type={currencyModalType}
+        isOpen={!!currencyModalType}
+        onClose={() => setCurrencyModalType(null)}
+        lightDrops={profile.lightDrops}
+        coins={profile.coins}
+      />
     </div>
   );
 }
