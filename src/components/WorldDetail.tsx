@@ -1948,6 +1948,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
     if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) {
       if (costruiscoFlowStage === 'objective') {
+        setCostruiscoFlowStage('game');
         startCostruiscoSingleBalloonGame();
       } else if (costruiscoFlowStage === 'game' && costruiscoGameCompleted) {
         completeCostruiscoExercise();
@@ -3123,6 +3124,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <button
                      onClick={() => {
                        sound.playClick();
+                       setCostruiscoFlowStage('game');
                        startCostruiscoSingleBalloonGame();
                      }}
                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
