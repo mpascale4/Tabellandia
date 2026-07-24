@@ -19,6 +19,7 @@ import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 import { withTableIcon } from '../utils/tableLabels';
+import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import { useVoice } from '../contexts/VoiceContext';
 
 interface WorldDetailProps {
@@ -41,7 +42,6 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
   return result;
 };
 
-const SUCCESS_ENCOURAGEMENTS = ['bravissimo!', 'ottimo lavoro!', 'grande!'] as const;
 const TRUCCHI_PYRAMID_ROWS = [1, 2, 3, 4] as const;
 const TRUCCHI_PREVIEW_MS = 1000;
 const TRUCCHI_REVEAL_MS = 260;
@@ -49,6 +49,8 @@ const TRUCCHI_COLLAPSE_MS = 620;
 const SFIDA_UNLOCK_COST = 100;
 const SFIDA_RECORD_THRESHOLD = 15;
 const SFIDA_RECORD_DROP_REWARD = 50;
+const COSTRUISCO_BALLOON_FLIGHT_MS = 14000;
+const COSTRUISCO_BALLOON_LANES = [12, 37, 62, 87] as const;
 const OPERATION_CARD_THEMES = [
   'bg-gradient-to-r from-[#3c358f] to-[#4d46b5]',
   'bg-gradient-to-r from-[#ff9d08] to-[#ffb11f]',
@@ -59,6 +61,7 @@ const GAMEPLAY_AUDIO_MESSAGES = {
   saltoFall: 'Oh no, la ranocchia e caduta! Riproviamo.',
   costruiscoWrong: 'Non questo. Cerca il numero giusto.',
   costruiscoCorrect: 'Bravo, ma scoppia tutti gli altri palloncini.',
+  costruiscoTooHigh: 'Oh no, i palloncini sono volati troppo in alto! Riproviamo questo turno.',
   quizWrong: 'Quasi. Riprova con calma.',
   sfidaWrong: 'Ops, risposta sbagliata.',
   trucchiWrong: 'Non ancora. Prova un altro numero.',
@@ -149,6 +152,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [saltoIndex, setSaltoIndex] = useState<number>(0); // which multiple we are on (0 to 9)
   const saltoNumbers = Array.from({ length: 10 }).map((_, i) => world.id * (i + 1));
   const [saltoOptions, setSaltoOptions] = useState<number[]>([]);
+  const [saltoCorrectClicks, setSaltoCorrectClicks] = useState<Set<number>>(new Set());
   const [isFrogSplashing, setIsFrogSplashing] = useState<boolean>(false);
   const [hasSeenComprendoHelp, setHasSeenComprendoHelp] = useState<boolean>(() => {
     return localStorage.getItem(`comprendo-help-seen-${world.id}`) === 'true';
@@ -158,31 +162,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
   const [costruiscoBalloons, setCostruiscoBalloons] = useState<number[]>([]);
   const [poppedBalloons, setPoppedBalloons] = useState<Set<number>>(new Set());
-  const [highlightedCorrectBalloon, setHighlightedCorrectBalloon] = useState<number | null>(null);
   const [costruiscoBalloonPaletteMap, setCostruiscoBalloonPaletteMap] = useState<Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]>>({});
+  const [costruiscoRoundToken, setCostruiscoRoundToken] = useState<number>(0);
   const [selectedFactor, setSelectedFactor] = useState<number | null>(null);
   const [completedMonuments, setCompletedMonuments] = useState<string[]>([]); // Track completed monuments
-  const correctBalloonFeedbackTimeoutRef = useRef<number | null>(null);
+  const costruiscoFlightTimeoutRef = useRef<number | null>(null);
   const trucchiPreviewTimeoutRef = useRef<number | null>(null);
   const trucchiRevealTimeoutRef = useRef<number | null>(null);
   const trucchiCollapseTimeoutRef = useRef<number | null>(null);
 
   const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
-    const encouragement = SUCCESS_ENCOURAGEMENTS[Math.floor(Math.random() * SUCCESS_ENCOURAGEMENTS.length)];
-    return speak(`${a} per ${b} fa ${result}, ${encouragement}`);
+    return speak(buildMultiplicationResultSpeech(a, b, result));
   };
 
-  const speakSaltoSuccess = (a: number, b: number, result: number, isFinalStep: boolean) => {
-    if (isFinalStep) {
-      return speakMultiplicationSuccess(a, b, result);
-    }
-
-    return speak(result.toString());
+  const speakSaltoSuccess = (a: number, b: number, result: number) => {
+    return speakMultiplicationSuccess(a, b, result);
   };
 
   const speakPraticoOperation = (a: number, b: number) => speak(`${a} per ${b}`);
 
   const getOperationCardTheme = (index: number) => OPERATION_CARD_THEMES[((index % OPERATION_CARD_THEMES.length) + OPERATION_CARD_THEMES.length) % OPERATION_CARD_THEMES.length];
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Trucchi (Step 4) state
   const [trucchiQuestionSolved, setTrucchiQuestionSolved] = useState<boolean>(false);
@@ -354,25 +356,28 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     // }
   }, [activeStep, hasSeenStepRules]);
 
-  // Generate options for Salto mode
-  const generateSaltoOptions = () => {
-    if (saltoSelectedFactor === null) return;
-    const currentExpected = world.id * (saltoIndex + 1);
-    // Create random wrong options
-    const optionsSet = new Set<number>([currentExpected]);
+  // Generate a fixed option pool for the whole Salto run.
+  const generateSaltoOptions = (factor: number) => {
+    const optionsSet = new Set<number>();
+    const minOptionCount = Math.max(4, factor);
+
+    for (let step = 1; step <= factor; step++) {
+      optionsSet.add(world.id * step);
+    }
+
     let attempts = 0;
-    while (optionsSet.size < 4 && attempts < 50) {
-      const offset = (Math.floor(Math.random() * 5) - 2) * world.id;
-      const wrongVal = currentExpected + (offset === 0 ? world.id * 2 : offset);
-      if (wrongVal > 0 && wrongVal <= world.id * 12) {
-        optionsSet.add(wrongVal);
-      }
+    while (optionsSet.size < minOptionCount && attempts < 200) {
+      const randomMultiplier = Math.floor(Math.random() * 14) + 1;
+      optionsSet.add(world.id * randomMultiplier);
       attempts++;
     }
-    // Fallback if not enough options generated
-    while (optionsSet.size < 4) {
-      optionsSet.add(currentExpected + Math.floor(Math.random() * 20) + 1);
+
+    let fallbackMultiplier = factor + 1;
+    while (optionsSet.size < minOptionCount) {
+      optionsSet.add(world.id * fallbackMultiplier);
+      fallbackMultiplier++;
     }
+
     setSaltoOptions(shuffleArray(Array.from(optionsSet)));
   };
 
@@ -381,11 +386,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       activeStep === 'salto' &&
       saltoSelectedFactor !== null &&
       saltoFlowStage === 'game' &&
-      !saltoGameCompleted
+      !saltoGameCompleted &&
+      saltoOptions.length === 0
     ) {
-      generateSaltoOptions();
+      generateSaltoOptions(saltoSelectedFactor);
     }
-  }, [saltoSelectedFactor, activeStep, world.id, saltoIndex, saltoFlowStage, saltoGameCompleted]);
+  }, [saltoSelectedFactor, activeStep, world.id, saltoFlowStage, saltoGameCompleted, saltoOptions.length]);
 
   useEffect(() => {
     if (comprendoSelectedFactor === null) {
@@ -423,11 +429,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   useEffect(() => {
     setCostruiscoGameCompleted(false);
-    setHighlightedCorrectBalloon(null);
-    if (correctBalloonFeedbackTimeoutRef.current !== null) {
-      window.clearTimeout(correctBalloonFeedbackTimeoutRef.current);
-      correctBalloonFeedbackTimeoutRef.current = null;
-    }
+    clearCostruiscoFlightTimeout();
   }, [costruiscoSelectedFactor]);
 
   useEffect(() => {
@@ -516,31 +518,67 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     return Array.from(optionsSet).sort(() => Math.random() - 0.5);
   };
 
+  const clearCostruiscoFlightTimeout = () => {
+    if (costruiscoFlightTimeoutRef.current !== null) {
+      window.clearTimeout(costruiscoFlightTimeoutRef.current);
+      costruiscoFlightTimeoutRef.current = null;
+    }
+  };
+
+  const startCostruiscoRound = (factor: number) => {
+    const nextBalloons = generateCostruisco4Balloons(world.id, factor);
+    const shuffledPalettes = shuffleArray([...COSTRUISCO_BALLOON_PALETTES]);
+    const nextPaletteMap: Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]> = {};
+
+    nextBalloons.forEach((balloonValue, index) => {
+      nextPaletteMap[balloonValue] = shuffledPalettes[index % shuffledPalettes.length];
+    });
+
+    setCostruiscoBalloons(nextBalloons);
+    setCostruiscoBalloonPaletteMap(nextPaletteMap);
+    setPoppedBalloons(new Set());
+    setCostruiscoGameCompleted(false);
+    setShowCostruiscoCompletionEffect(false);
+    setCostruiscoRoundToken(prev => prev + 1);
+    clearCostruiscoFlightTimeout();
+
+    costruiscoFlightTimeoutRef.current = window.setTimeout(() => {
+      sound.playError();
+      speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoTooHigh);
+      startCostruiscoRound(factor);
+    }, COSTRUISCO_BALLOON_FLIGHT_MS);
+  };
+
   // Initialize Costruisco balloons when a factor is selected
   useEffect(() => {
-    if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) {
-      const nextBalloons = generateCostruisco4Balloons(world.id, costruiscoSelectedFactor);
-      const shuffledPalettes = shuffleArray([...COSTRUISCO_BALLOON_PALETTES]);
-      const nextPaletteMap: Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]> = {};
-
-      nextBalloons.forEach((balloonValue, index) => {
-        nextPaletteMap[balloonValue] = shuffledPalettes[index % shuffledPalettes.length];
-      });
-
-      setCostruiscoBalloons(nextBalloons);
-      setCostruiscoBalloonPaletteMap(nextPaletteMap);
-      setPoppedBalloons(new Set());
-      setHighlightedCorrectBalloon(null);
+    if (activeStep !== 'costruisco' || costruiscoSelectedFactor === null) {
+      clearCostruiscoFlightTimeout();
+      return;
     }
-  }, [costruiscoSelectedFactor, activeStep, world.id]);
+    if (costruiscoFlowStage === 'game') {
+      if (costruiscoBalloons.length === 0) {
+        startCostruiscoRound(costruiscoSelectedFactor);
+      }
+      return;
+    }
+    clearCostruiscoFlightTimeout();
+    const nextBalloons = generateCostruisco4Balloons(world.id, costruiscoSelectedFactor);
+    const shuffledPalettes = shuffleArray([...COSTRUISCO_BALLOON_PALETTES]);
+    const nextPaletteMap: Record<number, typeof COSTRUISCO_BALLOON_PALETTES[number]> = {};
+    nextBalloons.forEach((balloonValue, index) => {
+      nextPaletteMap[balloonValue] = shuffledPalettes[index % shuffledPalettes.length];
+    });
+    setCostruiscoBalloons(nextBalloons);
+    setCostruiscoBalloonPaletteMap(nextPaletteMap);
+    setPoppedBalloons(new Set());
+    setCostruiscoRoundToken(prev => prev + 1);
+  }, [costruiscoSelectedFactor, activeStep, world.id, costruiscoFlowStage, costruiscoBalloons.length]);
 
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       clearTrucchiRoundTimeouts();
-      if (correctBalloonFeedbackTimeoutRef.current !== null) {
-        window.clearTimeout(correctBalloonFeedbackTimeoutRef.current);
-      }
+      clearCostruiscoFlightTimeout();
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -721,11 +759,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setCostruiscoBalloons([]);
     }
     setPoppedBalloons(new Set());
-    setHighlightedCorrectBalloon(null);
-    if (correctBalloonFeedbackTimeoutRef.current !== null) {
-      window.clearTimeout(correctBalloonFeedbackTimeoutRef.current);
-      correctBalloonFeedbackTimeoutRef.current = null;
-    }
+    clearCostruiscoFlightTimeout();
     setSelectedFactor(null);
     setCompletedMonuments([]); // Reset monuments when restarting
   };
@@ -734,7 +768,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const correct = world.id * (saltoIndex + 1);
     if (val === correct) {
       sound.playSuccess();
-      speakSaltoSuccess(world.id, saltoIndex + 1, val, saltoIndex === 9);
+      speakSaltoSuccess(world.id, saltoIndex + 1, val);
       if (saltoIndex === 9) {
         // Mastered Salto!
         sound.playLevelUp();
@@ -1534,7 +1568,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               : isLocked
                                 ? 'bg-slate-100/90 border-slate-200 text-slate-400 opacity-60 hover:border-slate-300'
                                 : isNextFactor
-                                  ? 'bg-amber-50 border-amber-500 ring-4 ring-amber-300 text-amber-950 shadow-md animate-pulse'
+                                  ? 'bg-amber-50 border-amber-500 ring-4 ring-amber-300 ring-inset text-amber-950 shadow-md animate-pulse'
                                   : theme.todo
                           }`}
               aria-label={`${world.id} per ${factor}${isCompleted ? ', completata' : isLocked ? ', bloccata' : ', da completare'}`}
@@ -1603,7 +1637,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         <SectionHeader centered title={title} description={description} />
 
-        <div className="mt-6 flex-1 min-h-0 overflow-hidden">
+        <div className="mt-6 flex-1 min-h-0 overflow-visible px-1 pt-1">
           {renderStepFactorGrid({
             stepKey,
             completed,
@@ -1622,6 +1656,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               style={{ width: `${(completed.size / 10) * 100}%` }}
             />
           </div>
+          {completed.size >= 10 && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setActiveStep('intro');
+              }}
+              className="mt-4 w-full rounded-2xl bg-amber-500 px-4 py-3 text-sm font-black text-white shadow-lg transition-colors hover:bg-amber-600 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-amber-400 motion-safe:animate-pulse cursor-pointer"
+            >
+              Continua
+            </button>
+          )}
         </div>
       </SurfaceCard>
     </div>
@@ -1699,6 +1745,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const cancelSaltoExercise = () => {
     setSaltoFlowStage('objective');
     setSaltoIndex(0);
+    setSaltoOptions([]);
+    setSaltoCorrectClicks(new Set());
     setSaltoGameCompleted(false);
     setShowSaltoCompletionEffect(false);
     setSaltoSelectedFactor(null);
@@ -1712,9 +1760,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelSaltoExercise();
   };
   const cancelCostruiscoExercise = () => {
+    clearCostruiscoFlightTimeout();
     setCostruiscoFlowStage('objective');
     setCostruiscoGameCompleted(false);
     setShowCostruiscoCompletionEffect(false);
+    setPoppedBalloons(new Set());
+    setCostruiscoBalloons([]);
     setCostruiscoSelectedFactor(null);
   };
   const completeCostruiscoExercise = () => {
@@ -1894,6 +1945,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
     if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) {
       if (costruiscoFlowStage === 'objective') {
+        setCostruiscoBalloons([]);
         setCostruiscoFlowStage('game');
       } else if (costruiscoFlowStage === 'game' && costruiscoGameCompleted) {
         completeCostruiscoExercise();
@@ -2008,7 +2060,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   popView();
                   setHasReadRulesMandatory(prev => new Set([...prev, guideStep]));
                 }}
-                className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
               >
                 {isGuideIntroView ? 'Continua' : isGuideStoryView ? 'Chiudi' : 'Ho Capito! ✓'}
               </button>
@@ -2378,9 +2430,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                        </p>
                      </div>
                      <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
-                       <h4 className="font-bold text-indigo-950 font-sans">Spiegazione:</h4>
+                       <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
                        <p className="text-slate-600 mt-1 leading-relaxed">
-                         Pensa a <strong>{world.id} ceste</strong> di frutta. Se in ogni cesta mettiamo <strong>{comprendoSelectedFactor} mele</strong>, quante mele avremo in tutto? Le contiamo insieme ed otteniamo <strong>{world.id * comprendoSelectedFactor}</strong>! Questo significa moltiplicare.
+                         Tocca gli oggetti e contali uno alla volta: ogni gruppo contiene <strong>{comprendoSelectedFactor}</strong> elementi e ci sono <strong>{world.id}</strong> gruppi.
+                       </p>
+                       <p className="text-slate-600 mt-1 leading-relaxed">
+                         Quando hai contato tutto, collega il totale all'operazione <strong>{world.id} × {comprendoSelectedFactor} = {world.id * comprendoSelectedFactor}</strong>.
                        </p>
                      </div>
                      <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -2478,6 +2533,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               sound.playClick();
               setSaltoSelectedFactor(factor);
               setSaltoIndex(0);
+              setSaltoOptions([]);
+              setSaltoCorrectClicks(new Set());
               setSaltoFlowStage(factor === 1 ? 'objective' : 'game');
               setSaltoGameCompleted(false);
               setShowSaltoCompletionEffect(false);
@@ -2534,9 +2591,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       </p>
                     </div>
                     <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
-                      <h4 className="font-bold text-indigo-950 font-sans">Spiegazione:</h4>
+                      <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
                       <p className="text-slate-600 mt-1 leading-relaxed">
-                        Nel conteggio per salti aggiungi sempre lo stesso numero: ogni salto vale <strong>{world.id}</strong>, fino ad arrivare a <strong>{world.id * saltoSelectedFactor}</strong>.
+                        Osserva l'operazione e scegli il risultato corretto tra le opzioni: ogni salto aggiunge sempre <strong>{world.id}</strong>.
+                      </p>
+                      <p className="text-slate-600 mt-1 leading-relaxed">
+                        Continua finché completi il percorso e arrivi al totale giusto <strong>{world.id * saltoSelectedFactor}</strong>.
                       </p>
                     </div>
                     <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -2566,13 +2626,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             Salto {saltoIndex + 1} di {saltoSelectedFactor}
                           </p>
                           <p className="text-base font-black text-indigo-950 font-mono">
-                            {world.id} × {saltoSelectedFactor} = ?
+                            {world.id} × {saltoSelectedFactor} = {saltoGameCompleted ? world.id * saltoSelectedFactor : '?'}
                           </p>
                         </div>
                       </button>
-                      <span className="text-xs font-black text-purple-700 bg-purple-100/80 px-2.5 py-1 rounded-xl">
-                        Obiettivo: {world.id * saltoSelectedFactor}
-                      </span>
                     </div>
 
                     {/* River Stream with Stepping Stones & Frog */}
@@ -2705,7 +2762,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           sound.playClick();
                           setIsFrogSplashing(false);
                           setSaltoIndex(0);
-                          generateSaltoOptions();
+                          setSaltoCorrectClicks(new Set());
                         }}
                         className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm text-center py-3.5 px-4 rounded-2xl border-2 border-rose-300 shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 font-sans"
                       >
@@ -2717,6 +2774,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         {saltoOptions.map((opt, idx) => {
                           const solvedNum = world.id * saltoSelectedFactor;
                           const isSelected = saltoGameCompleted && opt === solvedNum;
+                          const isCorrectlyClicked = saltoCorrectClicks.has(opt);
 
                           return (
                             <button
@@ -2727,8 +2785,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 const expected = world.id * (saltoIndex + 1);
                                 if (opt === expected) {
                                   sound.playSuccess();
-                                  speakSaltoSuccess(world.id, saltoIndex + 1, opt, saltoIndex + 1 >= saltoSelectedFactor);
+                                  setSaltoCorrectClicks(prev => new Set([...prev, opt]));
                                   if (saltoIndex + 1 >= saltoSelectedFactor) {
+                                    speakSaltoSuccess(world.id, saltoSelectedFactor, opt);
                                     setSaltoGameCompleted(true);
                                     setShowSaltoCompletionEffect(true);
                                     setSaltoCompleted(prev => new Set([...prev, saltoSelectedFactor]));
@@ -2744,6 +2803,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               className={`py-3 sm:py-3.5 text-base sm:text-xl font-black font-mono w-full px-1 rounded-2xl border-2 bg-white shadow-sm transition-all ${
                                 isSelected
                                   ? 'border-emerald-400 bg-emerald-100 text-emerald-800 ring-4 ring-emerald-200 shadow-md scale-105 cursor-default'
+                                  : isCorrectlyClicked
+                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm cursor-pointer'
                                   : saltoGameCompleted
                                     ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed opacity-60'
                                     : 'border-purple-100 hover:border-purple-400 text-purple-950 hover:bg-purple-50 cursor-pointer shadow-xs active:scale-95'
@@ -2770,7 +2831,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         sound.playClick();
                         completeSaltoExercise();
                       }}
-                      className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                      className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
                     >
                       Continua
                     </button>
@@ -2829,6 +2890,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             onSelect: (factor) => {
               sound.playClick();
               setCostruiscoSelectedFactor(factor);
+              setCostruiscoBalloons([]);
+              setPoppedBalloons(new Set());
               setCostruiscoFlowStage(factor === 1 ? 'objective' : 'game');
               setCostruiscoGameCompleted(false);
               setShowCostruiscoCompletionEffect(false);
@@ -2884,13 +2947,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          Completa il risultato mancante!
                        </h3>
                        <p className="text-xs text-slate-500 mt-1">
-                         Tocca i 3 palloncini con le risposte errate per farli scoppiare. Quando rimarrà solo la risposta corretta, il palloncino si colorerà di verde!
+                         I palloncini salgono lentamente: scoppiali tutti prima che arrivino in alto.
                        </p>
                      </div>
                      <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
-                       <h4 className="font-bold text-indigo-950 font-sans">Spiegazione:</h4>
+                       <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
                        <p className="text-slate-600 mt-1 leading-relaxed">
-                         Abbina i fattori ai risultati corretti. Trasforma il concetto in simboli matematici.
+                         Tocca tutti i palloncini, inclusa la risposta corretta, prima che escano in alto.
+                       </p>
+                       <p className="text-slate-600 mt-1 leading-relaxed">
+                         Completi il turno quando hai fatto scoppiare tutti e 4 i palloncini.
                        </p>
                      </div>
                      <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -2917,80 +2983,70 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                        <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wide text-center">
                          I Palloncini dei Risultati
                        </h4>
-                       <div className="flex flex-wrap gap-2.5 justify-center">
-                         {costruiscoBalloons.map(ball => {
-                            const expected = world.id * costruiscoSelectedFactor;
-                            const isSelected = costruiscoGameCompleted && ball === expected;
-                            const isPopped = poppedBalloons.has(ball);
-                            const isCorrectBalloonHighlighted = highlightedCorrectBalloon === ball;
-                            const balloonPalette = costruiscoBalloonPaletteMap[ball] || COSTRUISCO_BALLOON_PALETTES[0];
+                       <div className="relative mx-auto w-full max-w-md h-56 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50 to-cyan-100">
+                         {costruiscoBalloons.map((ball, index) => {
+                           const expected = world.id * costruiscoSelectedFactor;
+                           const isPopped = poppedBalloons.has(ball);
+                           const balloonPalette = costruiscoBalloonPaletteMap[ball] || COSTRUISCO_BALLOON_PALETTES[0];
+                           const laneLeft = COSTRUISCO_BALLOON_LANES[index % COSTRUISCO_BALLOON_LANES.length];
 
-                            if (isPopped) {
-                              return (
-                                <motion.div
-                                  key={`popped-${ball}`}
-                                  initial={{ scale: 1, opacity: 1 }}
-                                  animate={{ scale: [1, 1.4, 0], opacity: [1, 1, 0] }}
-                                  transition={{ duration: 0.35, ease: "easeOut" }}
-                                  className={`${compactLayout ? "w-12 h-14 text-2xl" : "w-14 h-16 text-3xl"} flex items-center justify-center select-none pointer-events-none`}
-                                >
-                                  💥
-                                </motion.div>
-                              );
-                            }
+                           if (isPopped) {
+                             return (
+                               <motion.div
+                                 key={`popped-${costruiscoRoundToken}-${ball}`}
+                                 initial={{ scale: 1, opacity: 1 }}
+                                 animate={{ scale: [1, 1.4, 0], opacity: [1, 1, 0] }}
+                                 transition={{ duration: 0.35, ease: "easeOut" }}
+                                 className={`${compactLayout ? "w-12 h-14 text-2xl" : "w-14 h-16 text-3xl"} absolute bottom-2 flex items-center justify-center -translate-x-1/2 select-none pointer-events-none`}
+                                 style={{ left: `${laneLeft}%` }}
+                               >
+                                 💥
+                               </motion.div>
+                             );
+                           }
 
-                            return (
-                              <motion.button
-                                key={ball}
-                                whileHover={{ scale: 1.15 }}
-                                animate={isCorrectBalloonHighlighted ? { scale: [1, 1.18, 1] } : { scale: 1 }}
-                                transition={isCorrectBalloonHighlighted ? { duration: 0.45, times: [0, 0.45, 1], ease: "easeInOut" } : { duration: 0.2 }}
-                                onClick={() => {
-                                  if (costruiscoGameCompleted || isPopped || highlightedCorrectBalloon !== null) return;
-                                  sound.playClick();
-                                  const expected = world.id * costruiscoSelectedFactor;
-                                  if (ball === expected) {
-                                    sound.playSuccess();
-                                    setHighlightedCorrectBalloon(ball);
-                                    if (correctBalloonFeedbackTimeoutRef.current !== null) {
-                                      window.clearTimeout(correctBalloonFeedbackTimeoutRef.current);
-                                    }
-                                    correctBalloonFeedbackTimeoutRef.current = window.setTimeout(() => {
-                                      setHighlightedCorrectBalloon(current => (current === ball ? null : current));
-                                      speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoCorrect);
-                                      correctBalloonFeedbackTimeoutRef.current = null;
-                                    }, 460);
-                                  } else {
-                                    sound.playError();
-                                    const nextPoppedBalloons = new Set([...poppedBalloons, ball]);
-                                    const wrongBalloonsCount = costruiscoBalloons.filter(candidate => candidate !== expected).length;
+                           return (
+                             <motion.button
+                               key={`${costruiscoRoundToken}-${ball}`}
+                               whileHover={{ scale: 1.08 }}
+                               initial={{ y: 0, opacity: 1 }}
+                               animate={prefersReducedMotion ? { y: 0, opacity: 1 } : { y: [0, compactLayout ? -112 : -128], opacity: [1, 1, 0.96] }}
+                               transition={prefersReducedMotion ? { duration: 0.1 } : { duration: COSTRUISCO_BALLOON_FLIGHT_MS / 1000, ease: "linear" }}
+                               onClick={() => {
+                                 if (costruiscoGameCompleted || isPopped) return;
+                                 sound.playClick();
+                                 const nextPoppedBalloons = new Set([...poppedBalloons, ball]);
+                                 const isCorrectBalloon = ball === expected;
+                                 const allPopped = nextPoppedBalloons.size === costruiscoBalloons.length;
 
-                                    setPoppedBalloons(nextPoppedBalloons);
+                                 setPoppedBalloons(nextPoppedBalloons);
 
-                                    if (nextPoppedBalloons.size === wrongBalloonsCount) {
-                                      sound.playSuccess();
-                                      speakMultiplicationSuccess(world.id, costruiscoSelectedFactor, expected);
-                                      setCostruiscoGameCompleted(true);
-                                      setShowCostruiscoCompletionEffect(true);
-                                    }
-                                  }
-                                }}
-                                className={`${compactLayout ? "w-12 h-14 text-xs" : "w-14 h-16 text-sm"} rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-md border relative select-none pb-2 pt-1 transition-all ${
-                                  isSelected || isCorrectBalloonHighlighted
-                                    ? "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white border-emerald-200 ring-4 ring-emerald-200 scale-110"
-                                    : costruiscoGameCompleted
-                                      ? "bg-sky-200 text-sky-800 border-sky-100 opacity-70 cursor-not-allowed"
-                                      : `${balloonPalette.body} cursor-pointer`
-                                }`}
-                                id={`balloon-${ball}`}
-                              >
-                                <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-white/60" />
-                                <span>{ball}</span>
-                                <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 rounded-[2px] ${isSelected || isCorrectBalloonHighlighted ? 'bg-emerald-700' : costruiscoGameCompleted ? 'bg-sky-300' : balloonPalette.knot}`} />
-                                <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-[2px] h-2 rounded-full ${isSelected || isCorrectBalloonHighlighted ? 'bg-emerald-300' : costruiscoGameCompleted ? 'bg-sky-200' : balloonPalette.string}`} />
-                              </motion.button>
-                            );
-                          })}
+                                 if (allPopped) {
+                                   clearCostruiscoFlightTimeout();
+                                   sound.playSuccess();
+                                   speakMultiplicationSuccess(world.id, costruiscoSelectedFactor, expected);
+                                   setCostruiscoGameCompleted(true);
+                                   setShowCostruiscoCompletionEffect(true);
+                                 } else if (isCorrectBalloon) {
+                                   sound.playSuccess();
+                                   speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoCorrect);
+                                 }
+                               }}
+                               className={`${compactLayout ? "w-12 h-14 text-xs" : "w-14 h-16 text-sm"} absolute bottom-2 rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-md border relative select-none pb-2 pt-1 transition-all -translate-x-1/2 ${
+                                 costruiscoGameCompleted
+                                   ? "bg-sky-200 text-sky-800 border-sky-100 opacity-70 cursor-not-allowed"
+                                   : `${balloonPalette.body} cursor-pointer`
+                               }`}
+                               style={{ left: `${laneLeft}%` }}
+                               id={`balloon-${ball}`}
+                             >
+                               <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-white/60" />
+                               <span>{ball}</span>
+                               <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 rounded-[2px] ${costruiscoGameCompleted ? 'bg-sky-300' : balloonPalette.knot}`} />
+                               <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-[2px] h-2 rounded-full ${costruiscoGameCompleted ? 'bg-sky-200' : balloonPalette.string}`} />
+                             </motion.button>
+                           );
+                         })}
                        </div>
                      </div>
 
@@ -3018,7 +3074,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          sound.playClick();
                          completeCostruiscoExercise();
                        }}
-                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
                      >
                        Continua
                      </button>
@@ -3054,6 +3110,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <button
                      onClick={() => {
                        sound.playClick();
+                       setCostruiscoBalloons([]);
                        setCostruiscoFlowStage('game');
                      }}
                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
@@ -3135,9 +3192,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </div>
 
                     <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
-                      <h4 className="font-bold text-indigo-950 font-sans">Spiegazione:</h4>
+                      <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
                       <p className="text-slate-600 mt-1 leading-relaxed">
-                        {world.trickDescription}
+                        Leggi il trucco, poi applicalo subito alla domanda del turno.
+                      </p>
+                      <p className="text-slate-600 mt-1 leading-relaxed">
+                        Per completare, usa la strategia giusta e individua il risultato corretto senza perdere equilibrio.
                       </p>
                     </div>
 
@@ -3357,7 +3417,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       }}
                       className={`w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all ${
                         trucchiQuestionSolved || trucchiPyramidCollapsed
-                          ? 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer' 
+                          ? `${trucchiQuestionSolved && !trucchiPyramidCollapsed ? 'motion-safe:animate-pulse ' : ''}bg-amber-600 hover:bg-amber-700 text-white cursor-pointer` 
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       }`}
                       id="trick-done-btn"
@@ -3430,6 +3490,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <HelpCircle className={!hasReadRulesMandatory.has('pratico') ? 'w-5 h-5' : 'w-4 h-4'} />
                 </button>
               </div>
+            </div>
+
+            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
+              <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
+              <p className="text-slate-600 mt-1 leading-relaxed">
+                Rispondi in sequenza alle operazioni scegliendo l'opzione corretta tra le quattro proposte.
+              </p>
+              <p className="text-slate-600 mt-1 leading-relaxed">
+                Mantieni una serie positiva: più risposte corrette consecutive fai, più avanzi nel pratico.
+              </p>
             </div>
 
             {/* Quiz question card */}

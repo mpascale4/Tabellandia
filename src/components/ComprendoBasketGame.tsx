@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 
 interface ComprendoBasketGameProps {
   a: number;
@@ -26,6 +27,14 @@ interface ArenaRipple {
   id: number;
   x: number;
   y: number;
+}
+
+interface AppleBurst {
+  id: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
 }
 
 const BASKET_SIZE = 84;
@@ -101,6 +110,8 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const pulseTimeoutRef = useRef<number | null>(null);
   const rippleIdRef = useRef<number>(0);
   const rippleTimeoutsRef = useRef<number[]>([]);
+  const appleBurstIdRef = useRef<number>(0);
+  const appleBurstTimeoutsRef = useRef<number[]>([]);
   const isOutsidePromptSpeakingRef = useRef<boolean>(false);
   const [arenaSize, setArenaSize] = useState<ArenaSize>({ width: 0, height: 0 });
   const [basketCounts, setBasketCounts] = useState<number[]>(() => createEmptyCounts(a));
@@ -111,6 +122,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
   const [arenaRipples, setArenaRipples] = useState<ArenaRipple[]>([]);
   const [arenaPulseActive, setArenaPulseActive] = useState<boolean>(false);
+  const [appleBursts, setAppleBursts] = useState<AppleBurst[]>([]);
 
   const totalItems = a * b;
   const completedBaskets = basketCounts.filter(count => count === b).length;
@@ -164,6 +176,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
     setCelebratingBasket(null);
     setErrorBasket(null);
     setSpeedMultiplier(1);
+    setAppleBursts([]);
   }, [a, b]);
 
   useEffect(() => {
@@ -179,8 +192,34 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         window.clearTimeout(pulseTimeoutRef.current);
       }
       rippleTimeoutsRef.current.forEach(timeoutId => window.clearTimeout(timeoutId));
+      appleBurstTimeoutsRef.current.forEach(timeoutId => window.clearTimeout(timeoutId));
     };
   }, []);
+
+  const triggerAppleBurst = (basketIndex: number) => {
+    const basketPosition = positions[basketIndex];
+    const burstId = appleBurstIdRef.current + 1;
+    appleBurstIdRef.current = burstId;
+    const basketCenterX = (basketPosition?.x ?? (arenaSize.width / 2)) + (BASKET_SIZE / 2);
+    const basketCenterY = (basketPosition?.y ?? (arenaSize.height / 2)) + (BASKET_SIZE / 2);
+
+    const burst: AppleBurst = {
+      id: burstId,
+      startX: basketCenterX,
+      startY: Math.max(8, basketCenterY - 52),
+      endX: basketCenterX,
+      endY: basketCenterY - 2,
+    };
+
+    setAppleBursts(current => [...current, burst]);
+
+    const timeoutId = window.setTimeout(() => {
+      setAppleBursts(current => current.filter(item => item.id !== burstId));
+      appleBurstTimeoutsRef.current = appleBurstTimeoutsRef.current.filter(item => item !== timeoutId);
+    }, 420);
+
+    appleBurstTimeoutsRef.current.push(timeoutId);
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -406,6 +445,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
     sound.playPowerUp();
     setBasketCounts(nextCounts);
     setCelebratingBasket(basketIndex);
+    triggerAppleBurst(basketIndex);
     setErrorBasket(null);
     window.setTimeout(() => setCelebratingBasket(current => (current === basketIndex ? null : current)), 350);
 
@@ -421,7 +461,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       }
       sound.playLevelUp();
       isOutsidePromptSpeakingRef.current = false;
-      speak(`${displayA} per ${displayB} fa ${totalItems}!`);
+      speak(buildMultiplicationResultSpeech(displayA, displayB, totalItems));
       return;
     }
 
@@ -470,6 +510,21 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
                   marginTop: -14,
                 }}
               />
+            ))}
+          </AnimatePresence>
+          <AnimatePresence>
+            {appleBursts.map((burst) => (
+              <motion.span
+                key={`apple-burst-${burst.id}`}
+                initial={{ opacity: 0, x: burst.startX, y: burst.startY, scale: 0.86 }}
+                animate={{ opacity: 1, x: burst.endX, y: burst.endY, scale: 1.02 }}
+                exit={{ opacity: 0, x: burst.endX, y: burst.endY + 8, scale: 0.82 }}
+                transition={{ duration: 0.34, ease: 'easeInOut' }}
+                className="pointer-events-none absolute z-30 -translate-x-1/2 text-2xl drop-shadow-lg"
+                aria-hidden="true"
+              >
+                🍎
+              </motion.span>
             ))}
           </AnimatePresence>
 
@@ -559,19 +614,6 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
                     </span>
                     <span className="text-3xl" aria-hidden="true">🧺</span>
                     <span className="mt-1 text-[11px] font-black text-slate-700">{count}/{b}</span>
-                    <AnimatePresence>
-                      {celebratingBasket === index && (
-                        <motion.span
-                          initial={{ opacity: 0, y: 2, scale: 0.8 }}
-                          animate={{ opacity: 1, y: -18, scale: 1 }}
-                          exit={{ opacity: 0, y: -26, scale: 0.85 }}
-                          transition={{ duration: 0.35, ease: 'easeOut' }}
-                          className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-black text-white shadow-md"
-                        >
-                          +1
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
                   </motion.button>
                 </div>
               );

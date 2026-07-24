@@ -14,11 +14,9 @@ import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 
 interface ParentDashboardProps {
-  profile: UserProfile;
   activeProfiles: UserProfile[];
   deletedProfiles: UserProfile[];
-  activeProfileId: string | null;
-  updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
+  updateProfileById: (profileId: string, updater: (p: UserProfile) => UserProfile) => void;
   onSoftDeleteProfile: (profileId: string) => void;
   onRestoreDeletedProfile: (profileId: string) => void;
   onPermanentDeleteProfile: (profileId: string) => void;
@@ -42,11 +40,9 @@ const getDaysRemaining = (deadline?: string | null) => {
 };
 
 export default function ParentDashboard({
-  profile,
   activeProfiles,
   deletedProfiles,
-  activeProfileId,
-  updateProfile,
+  updateProfileById,
   onSoftDeleteProfile,
   onRestoreDeletedProfile,
   onPermanentDeleteProfile,
@@ -54,16 +50,53 @@ export default function ParentDashboard({
   onChangePIN,
   compactLayout = false
 }: ParentDashboardProps) {
+  const [profileDeleteModal, setProfileDeleteModal] = React.useState<{
+    mode: 'soft' | 'hard';
+    profileId: string;
+    profileName: string;
+  } | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = React.useState<string | null>(null);
 
-  const handleSoftDeleteWithConfirm = (profileId: string, profileName: string) => {
-    if (window.confirm(`Vuoi eliminare il profilo "${profileName}"? Il profilo potrà essere ripristinato entro 30 giorni dalla Modalità Genitori.`)) {
-      onSoftDeleteProfile(profileId);
+  React.useEffect(() => {
+    if (!selectedProfileId) return;
+    if (!activeProfiles.some(item => item.id === selectedProfileId)) {
+      setSelectedProfileId(null);
     }
+  }, [activeProfiles, selectedProfileId]);
+
+  const selectedProfile = selectedProfileId
+    ? activeProfiles.find(item => item.id === selectedProfileId) || null
+    : null;
+
+  const openSoftDeleteModal = (profileId: string, profileName: string) => {
+    sound.playClick();
+    setProfileDeleteModal({ mode: 'soft', profileId, profileName });
+  };
+
+  const openHardDeleteModal = (profileId: string, profileName: string) => {
+    sound.playClick();
+    setProfileDeleteModal({ mode: 'hard', profileId, profileName });
+  };
+
+  const closeProfileDeleteModal = () => {
+    sound.playClick();
+    setProfileDeleteModal(null);
+  };
+
+  const confirmProfileDeleteModal = () => {
+    if (!profileDeleteModal) return;
+    if (profileDeleteModal.mode === 'soft') {
+      onSoftDeleteProfile(profileDeleteModal.profileId);
+    } else {
+      onPermanentDeleteProfile(profileDeleteModal.profileId);
+    }
+    setProfileDeleteModal(null);
   };
 
   const handleSeedMockData = () => {
+    if (!selectedProfile?.id) return;
     sound.playPowerUp();
-    updateProfile(p => {
+    updateProfileById(selectedProfile.id, p => {
       const mockHistory: QuestionAttempt[] = [];
       const now = new Date();
 
@@ -108,9 +141,10 @@ export default function ParentDashboard({
   };
 
   const handleResetData = () => {
+    if (!selectedProfile?.id) return;
     if (window.confirm('Sei sicuro di voler cancellare tutti i progressi di Tabellandia? Questa operazione è irreversibile.')) {
       sound.playError();
-      updateProfile(() => ({
+      updateProfileById(selectedProfile.id, () => ({
         name: 'Eroe',
         level: 1,
         xp: 0,
@@ -138,16 +172,18 @@ export default function ParentDashboard({
     }
   };
 
-  const totalAnswers = profile.history.length;
-  const correctAnswers = profile.history.filter(h => h.correct).length;
+  const totalAnswers = selectedProfile ? selectedProfile.history.length : 0;
+  const correctAnswers = selectedProfile ? selectedProfile.history.filter(h => h.correct).length : 0;
   const accuracyRate = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
-  const averageSpeed = totalAnswers > 0
-    ? (profile.history.reduce((acc, h) => acc + h.responseTimeMs, 0) / totalAnswers / 1000).toFixed(2)
+  const averageSpeed = selectedProfile && totalAnswers > 0
+    ? (selectedProfile.history.reduce((acc, h) => acc + h.responseTimeMs, 0) / totalAnswers / 1000).toFixed(2)
     : '0.00';
 
   const statsPerTable = Array.from({ length: 8 }).map((_, idx) => {
     const tableNum = idx + 2;
-    const tableHistory = profile.history.filter(h => h.a === tableNum || h.b === tableNum);
+    const tableHistory = selectedProfile
+      ? selectedProfile.history.filter(h => h.a === tableNum || h.b === tableNum)
+      : [];
     const tableTotal = tableHistory.length;
     const tableCorrect = tableHistory.filter(h => h.correct).length;
     const tableAccuracy = tableTotal > 0 ? Math.round((tableCorrect / tableTotal) * 100) : null;
@@ -155,7 +191,7 @@ export default function ParentDashboard({
   });
 
   const errorMap: { [key: string]: { correct: number; total: number; errors: number } } = {};
-  profile.history.forEach(h => {
+  (selectedProfile?.history || []).forEach(h => {
     const key = h.a <= h.b ? `${h.a} x ${h.b}` : `${h.b} x ${h.a}`;
     if (!errorMap[key]) {
       errorMap[key] = { correct: 0, total: 0, errors: 0 };
@@ -230,7 +266,7 @@ export default function ParentDashboard({
       value: '🏆',
       valueClassName: 'text-2xl',
       label: 'Mondi Sbloccati',
-      description: `${profile.unlockedWorlds.length} aree su ${WORLDS_DATA.length} liberate`,
+      description: `${selectedProfile?.unlockedWorlds.length || 0} aree su ${WORLDS_DATA.length} liberate`,
       tone: 'bg-amber-50 text-amber-500',
     },
   ];
@@ -241,7 +277,9 @@ export default function ParentDashboard({
         <SectionHeader
           eyebrow="Area genitori"
           title="Dashboard Genitori & Diagnostica"
-          description={`Monitora i progressi di ${profile.name}, scopri i suoi punti di forza e le aree critiche.`}
+          description={selectedProfile
+            ? `Monitora i progressi di ${selectedProfile.name}, scopri i suoi punti di forza e le aree critiche.`
+            : 'Seleziona un profilo attivo per visualizzare statistiche e strumenti diagnostici.'}
           icon={<ShieldCheck className="h-7 w-7 text-emerald-500" aria-hidden="true" />}
           actions={
             <button
@@ -273,11 +311,11 @@ export default function ParentDashboard({
               </span>
             </div>
             <p className="mb-3 text-[11px] text-slate-500">
-              Per sicurezza deve restare almeno un profilo attivo, così l'Area Genitori resta sempre accessibile per i ripristini.
+              Puoi avere anche zero profili attivi: i profili eliminati restano disponibili qui sotto per il ripristino entro 30 giorni.
             </p>
             <div role="list" className="grid grid-cols-1 gap-3">
               {activeProfiles.map(item => {
-                const isCurrent = item.id === activeProfileId;
+                const isCurrent = item.id === selectedProfileId;
                 const canDeleteProfile = Boolean(item.id);
                 return (
                   <div
@@ -307,16 +345,25 @@ export default function ParentDashboard({
                     <ActionGrid columns={2} className="mt-3">
                       <button
                         type="button"
-                        onClick={() => item.id && handleSoftDeleteWithConfirm(item.id, item.name)}
+                        onClick={() => item.id && setSelectedProfileId(item.id)}
+                        disabled={!item.id}
+                        className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                          isCurrent
+                            ? 'border border-indigo-300 bg-indigo-600 text-white hover:bg-indigo-700'
+                            : 'border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                        }`}
+                      >
+                        {isCurrent ? 'Profilo selezionato' : 'Seleziona profilo'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => item.id && openSoftDeleteModal(item.id, item.name)}
                         disabled={!canDeleteProfile}
                         className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         Elimina
                       </button>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-[11px] font-semibold text-slate-600">
-                        {canDeleteProfile ? 'Ripristino non necessario' : 'Ultimo profilo attivo'}
-                      </div>
                     </ActionGrid>
                   </div>
                 );
@@ -364,7 +411,7 @@ export default function ParentDashboard({
                         </button>
                         <button
                           type="button"
-                          onClick={() => item.id && onPermanentDeleteProfile(item.id)}
+                          onClick={() => item.id && openHardDeleteModal(item.id, item.name)}
                           disabled={!item.id}
                           className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-2.5 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -385,6 +432,8 @@ export default function ParentDashboard({
         </div>
       </SurfaceCard>
 
+      {selectedProfile ? (
+        <>
       <ResponsiveGrid variant="cards" className="mb-6">
         {overviewCards.map(card => (
           <SurfaceCard key={card.key} padding="sm" className="flex items-center gap-4 rounded-2xl border-slate-100">
@@ -440,7 +489,7 @@ export default function ParentDashboard({
                     <div className="font-bold text-[10px] text-slate-400 font-mono text-left pl-1">{rowNum}</div>
                     {Array.from({ length: 8 }).map((_, colIdx) => {
                       const colNum = colIdx + 2;
-                      const combHistory = profile.history.filter(h =>
+                      const combHistory = selectedProfile.history.filter(h =>
                         (h.a === rowNum && h.b === colNum) || (h.a === colNum && h.b === rowNum)
                       );
                       const combTotal = combHistory.length;
@@ -532,6 +581,7 @@ export default function ParentDashboard({
             <ActionGrid columns={2}>
               <button
                 onClick={handleSeedMockData}
+                disabled={!selectedProfile?.id}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-bold text-xs cursor-pointer transition-colors"
                 id="parent-seed-btn"
               >
@@ -541,6 +591,7 @@ export default function ParentDashboard({
 
               <button
                 onClick={handleResetData}
+                disabled={!selectedProfile?.id}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs cursor-pointer transition-colors"
                 id="parent-reset-btn"
               >
@@ -551,18 +602,56 @@ export default function ParentDashboard({
           </SurfaceCard>
         </div>
       </ResponsiveGrid>
+        </>
+      ) : (
+        <SurfaceCard padding="md" className="mb-6 rounded-2xl border-dashed border-indigo-200 bg-indigo-50/40">
+          <div className="text-center space-y-2">
+            <h3 className="text-sm font-black text-indigo-900">Seleziona un profilo attivo</h3>
+            <p className="text-xs text-indigo-700">
+              In modalità genitori i profili sono disattivati globalmente: scegli un profilo dalla lista per vedere statistiche e strumenti.
+            </p>
+          </div>
+        </SurfaceCard>
+      )}
 
-      {/* Footer with Exit Button */}
-      <SurfaceCard padding="md" className="mt-6 rounded-2xl border-slate-200 bg-white flex items-center justify-end shadow-sm">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-6 py-3 rounded-xl text-xs font-black bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 cursor-pointer transition-colors flex items-center gap-2 shadow-sm"
-          id="parent-footer-exit-btn"
-        >
-          <span>🚪</span> Esci
-        </button>
-      </SurfaceCard>
+      {profileDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div
+            className="w-full max-w-sm rounded-3xl border border-indigo-100 bg-white p-6 text-center shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-delete-modal-title"
+          >
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-2xl">
+              🗑️
+            </div>
+            <h3 id="profile-delete-modal-title" className="text-base font-black text-indigo-950">
+              {profileDeleteModal.mode === 'soft' ? 'Cancellare il profilo?' : 'Eliminare definitivamente il profilo?'}
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">
+              {profileDeleteModal.mode === 'soft'
+                ? <>Il profilo <b>{profileDeleteModal.profileName}</b> verra spostato tra i profili ripristinabili. Potrai comunque ripristinarlo entro 30 giorni.</>
+                : <>Il profilo <b>{profileDeleteModal.profileName}</b> verra eliminato per sempre. Questa operazione e irreversibile.</>}
+            </p>
+            <div className="mt-5 flex gap-2.5">
+              <button
+                type="button"
+                onClick={closeProfileDeleteModal}
+                className="flex-1 rounded-xl bg-slate-100 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200 cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={confirmProfileDeleteModal}
+                className="flex-1 rounded-xl bg-rose-600 py-2.5 text-xs font-black text-white transition-colors hover:bg-rose-700 cursor-pointer"
+              >
+                {profileDeleteModal.mode === 'soft' ? 'Cancella profilo' : 'Elimina definitivamente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

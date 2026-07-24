@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
 import { Sparkles, Wand2, RotateCcw, CheckCircle, Volume2 } from 'lucide-react';
+import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 
 interface GroupVisualizerProps {
   a: number; // multiplier (e.g. 3) -> number of groups
@@ -50,7 +51,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
     const currentTotal = nextCount * b;
     if (nextCount === a) {
       sound.playLevelUp();
-      speak(`${a} per ${b} fa ${totalItems}!`);
+      speak(buildMultiplicationResultSpeech(a, b, totalItems));
     } else {
       speak(`Gruppo ${nextCount}: ${b} ${itemEmoji}! In totale ${currentTotal}`);
     }
@@ -81,7 +82,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
     sound.playPowerUp();
     sound.playLevelUp();
     setActiveGroups(a);
-    speak(`${a} per ${b} fa ${totalItems}!`);
+    speak(buildMultiplicationResultSpeech(a, b, totalItems));
   };
 
   return (
@@ -279,7 +280,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
 
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => speak(`${a} per ${b} fa ${totalItems}!`)}
+                onClick={() => speak(buildMultiplicationResultSpeech(a, b, totalItems))}
                 className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white font-bold text-xs rounded-xl border border-white/30 transition-colors cursor-pointer flex items-center gap-1"
               >
                 <Volume2 className="w-4 h-4" /> Ascolta
