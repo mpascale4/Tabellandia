@@ -2468,15 +2468,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   type="button"
                   role="listitem"
                   onClick={handleHeaderGocceBadgeClick}
-                  className={`rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-center shadow-sm transition-all ${
+                  className={`rounded-2xl border px-3 py-2 text-center shadow-sm transition-all ${
                     hasErectableBlockedMonuments
-                      ? 'cursor-pointer hover:border-sky-300 hover:bg-sky-100 motion-safe:animate-pulse'
-                      : 'cursor-pointer hover:border-sky-300 hover:bg-sky-100/70'
+                      ? 'cursor-pointer border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
+                      : 'cursor-pointer border-sky-200 bg-sky-50 hover:border-sky-300 hover:bg-sky-100/70'
                   }`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">Gocce</p>
                   <p className="text-lg font-black text-sky-800">💧 {profile.lightDrops}</p>
-                  <p className="text-[11px] font-black text-sky-900">Erigi monumenti</p>
+                  <p className={`text-[11px] font-black ${hasErectableBlockedMonuments ? 'text-amber-950 animate-badge-blink' : 'text-sky-900'}`}>
+                    {hasErectableBlockedMonuments ? '✨ Sblocca Monumenti! 🏛️' : 'Erigi monumenti'}
+                  </p>
                 </button>
               </div>
             </div>
@@ -2595,7 +2597,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       className={`p-3.5 rounded-2xl border-2 flex flex-col justify-between transition-all cursor-pointer ${
                         isErected
                           ? 'bg-gradient-to-br from-amber-100 via-yellow-50 to-emerald-100 border-amber-400 shadow-md ring-2 ring-amber-300/70 hover:scale-[1.02]'
-                          : 'bg-slate-100/90 border-dashed border-slate-300/90 hover:border-indigo-400 hover:bg-white shadow-2xs hover:scale-[1.01]'
+                          : canAfford
+                            ? 'bg-gradient-to-br from-amber-100 via-yellow-200 to-amber-100 border-amber-500 shadow-xl ring-4 ring-amber-400/80 animate-monument-glow hover:scale-[1.03]'
+                            : 'bg-slate-100/90 border-dashed border-slate-300/90 hover:border-indigo-400 hover:bg-white shadow-2xs hover:scale-[1.01]'
                       }`}
                     >
                       <div>
@@ -2604,8 +2608,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             <span className="text-3xl filter drop-shadow-xs">{monument.emoji}</span>
                           ) : (
                             <div className="relative">
-                              <span className="text-3xl filter grayscale opacity-50">{monument.emoji}</span>
-                              <span className="absolute -top-1 -right-1 text-xs">🔒</span>
+                              <span className={`text-3xl filter ${canAfford ? 'drop-shadow-md scale-110' : 'grayscale opacity-50'}`}>{monument.emoji}</span>
+                              {!canAfford && <span className="absolute -top-1 -right-1 text-xs">🔒</span>}
                             </div>
                           )}
 
@@ -2613,16 +2617,20 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             <span className="text-[10px] font-black text-amber-950 bg-amber-300 border border-amber-400 px-2.5 py-0.5 rounded-full font-sans shadow-2xs">
                               🏛️ ERETTO ✓
                             </span>
+                          ) : canAfford ? (
+                            <span className="text-[10px] font-black text-amber-950 bg-amber-300 border border-amber-500 px-2.5 py-0.5 rounded-full font-sans shadow-md animate-badge-blink flex items-center gap-1">
+                              ✨ 🔓 SBLOCCABILE!
+                            </span>
                           ) : (
                             <span className="text-[10px] font-black text-sky-900 bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full font-sans">
                               💧 {monument.cost} Gocce
                             </span>
                           )}
                         </div>
-                        <h5 className={`text-xs font-black font-sans mt-1 ${isErected ? 'text-amber-950' : 'text-slate-700'}`}>
+                        <h5 className={`text-xs font-black font-sans mt-1 ${isErected ? 'text-amber-950' : canAfford ? 'text-amber-950 font-black' : 'text-slate-700'}`}>
                           {monument.name}
                         </h5>
-                        <p className={`text-[10px] leading-tight mt-0.5 font-sans ${isErected ? 'text-amber-900/80' : 'text-slate-500'}`}>
+                        <p className={`text-[10px] leading-tight mt-0.5 font-sans ${isErected ? 'text-amber-900/80' : canAfford ? 'text-amber-900 font-medium' : 'text-slate-500'}`}>
                           {monument.description}
                         </p>
                       </div>
@@ -2641,13 +2649,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             setShouldReturnToMonumentsListAfterModal(false);
                             setMonumentModal({ monument, canAfford, isErected });
                           }}
-                          className={`mt-3 w-full py-2 px-2 rounded-xl text-xs font-black shadow-2xs cursor-pointer transition-all ${
+                          className={`mt-3 w-full py-2 px-2 rounded-xl text-xs font-black shadow-md cursor-pointer transition-all ${
                             canAfford
-                              ? 'bg-amber-500 hover:bg-amber-600 text-white active:scale-95 font-sans'
+                              ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 text-white font-black animate-bounce ring-2 ring-amber-300'
                               : 'bg-slate-200 hover:bg-slate-300 text-slate-600 font-sans'
                           }`}
                         >
-                          {canAfford ? `💧 Sblocca (${monument.cost} Gocce)` : `🔒 Gocce Insufficienti (${profile.lightDrops}/${monument.cost})`}
+                          {canAfford ? `✨ 🔓 SBLOCCA ORA (${monument.cost} 💧)` : `🔒 Gocce Insufficienti (${profile.lightDrops}/${monument.cost})`}
                         </button>
                       )}
                     </div>
@@ -4505,20 +4513,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       <div
                         key={monument.id}
                         role="listitem"
-                        className={`rounded-2xl border px-3 py-3 ${
-                          canAfford ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'
+                        className={`rounded-2xl border px-3.5 py-3 transition-all ${
+                          canAfford
+                            ? 'border-amber-500 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-50 animate-monument-glow shadow-md'
+                            : 'border-slate-200 bg-slate-50'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="text-sm font-black text-slate-900">{monument.emoji} {monument.name}</p>
-                            <p className="text-[11px] text-slate-600">Costo: 💧 {monument.cost}</p>
+                            <p className="text-[11px] font-bold text-amber-900">Costo: 💧 {monument.cost} Gocce</p>
                           </div>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${canAfford ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
-                            {canAfford ? 'Erigibile' : 'Bloccato'}
+                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                            canAfford
+                              ? 'bg-amber-300 text-amber-950 border border-amber-400 animate-badge-blink shadow-2xs'
+                              : 'bg-slate-200 text-slate-700'
+                          }`}>
+                            {canAfford ? '✨ Sbloccabile!' : '🔒 Bloccato'}
                           </span>
                         </div>
-                        <div className="mt-2 flex justify-end">
+                        <div className="mt-2.5 flex justify-end">
                           <button
                             type="button"
                             onClick={() => {
@@ -4531,13 +4545,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 isErected: false,
                               });
                             }}
-                            className={`rounded-xl px-3 py-1.5 text-xs font-black shadow-sm transition-colors cursor-pointer ${
+                            className={`rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md transition-all cursor-pointer ${
                               canAfford
-                                ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                                ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 text-white animate-bounce ring-2 ring-amber-300'
                                 : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
                             }`}
                           >
-                            {canAfford ? 'Erigi ora' : 'Dettagli'}
+                            {canAfford ? '✨ Erigi ora! 🏛️' : 'Dettagli'}
                           </button>
                         </div>
                       </div>

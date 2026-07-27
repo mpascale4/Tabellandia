@@ -89,13 +89,17 @@ export default function MonumentArea({
                   isCompleted
                     ? 'bg-white/90 border-emerald-300 shadow-xs hover:bg-emerald-50/50'
                     : userDrops >= monument.cost
-                      ? 'bg-white/95 border-amber-300 shadow-sm hover:border-amber-400 hover:scale-[1.01] active:scale-[0.99]'
+                      ? 'bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-50 border-amber-500 shadow-md ring-2 ring-amber-400/80 animate-monument-glow'
                       : 'bg-white/60 border-slate-200 opacity-80 hover:bg-white/80'
                 }`}
               >
                 {/* Emoji Icon */}
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 select-none ${
-                  isCompleted ? 'bg-emerald-100/80 border border-emerald-200' : 'bg-slate-100 border border-slate-200'
+                  isCompleted
+                    ? 'bg-emerald-100/80 border border-emerald-200'
+                    : userDrops >= monument.cost
+                      ? 'bg-amber-200/90 border border-amber-400 shadow-inner'
+                      : 'bg-slate-100 border border-slate-200'
                 }`}>
                   {monument.emoji}
                 </div>
@@ -103,7 +107,7 @@ export default function MonumentArea({
                 {/* Info Text */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h4 className={`text-xs font-black truncate ${isCompleted ? 'text-emerald-950' : 'text-slate-800'}`}>
+                    <h4 className={`text-xs font-black truncate ${isCompleted ? 'text-emerald-950' : userDrops >= monument.cost ? 'text-amber-950 font-black' : 'text-slate-800'}`}>
                       {monument.name}
                     </h4>
                   </div>
@@ -117,11 +121,13 @@ export default function MonumentArea({
                       isCompleted
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                         : userDrops >= monument.cost
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                          ? 'bg-amber-300 text-amber-950 border border-amber-500 animate-badge-blink shadow-2xs'
                           : 'bg-slate-100 text-slate-600 border border-slate-200'
                     }`}>
                       {isCompleted ? (
                         <>✓ Eretto</>
+                      ) : userDrops >= monument.cost ? (
+                        <>✨ Sbloccabile ora! (💧 {monument.cost})</>
                       ) : (
                         <>💧 Richiede {monument.cost} gocce</>
                       )}
@@ -136,8 +142,8 @@ export default function MonumentArea({
                       ✓
                     </span>
                   ) : userDrops >= monument.cost ? (
-                    <span className="text-[10px] font-black text-amber-900 bg-amber-200 border border-amber-400 px-2 py-1 rounded-lg shadow-xs hover:bg-amber-300">
-                      Sblocca 🔓
+                    <span className="text-[11px] font-black text-white bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 border border-amber-300 px-2.5 py-1 rounded-xl shadow-md animate-bounce hover:scale-105">
+                      Sblocca 🔓 ✨
                     </span>
                   ) : (
                     <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg">

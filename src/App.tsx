@@ -1763,6 +1763,7 @@ export default function App() {
                               <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(3.5rem,1fr))] gap-1.5 sm:mt-4 sm:gap-2">
                                 {world.monuments.map(monument => {
                                   const isBuilt = devModeEnabled || worldProg.rebuiltMonuments.includes(monument.id);
+                                  const canAfford = profile ? profile.lightDrops >= monument.cost : false;
                                   return (
                                     <div
                                       key={monument.id}
@@ -1772,23 +1773,29 @@ export default function App() {
                                         setAppMonumentModal({
                                           world,
                                           monument,
-                                          canAfford: profile ? profile.lightDrops >= monument.cost : false,
+                                          canAfford,
                                           isErected: isBuilt,
                                         });
                                       }}
                                       className={`rounded-2xl border px-1.5 py-2 text-center sm:px-2 sm:py-2.5 transition-all cursor-pointer hover:scale-105 active:scale-95 ${
                                         isBuilt
                                           ? 'bg-gradient-to-br from-amber-100 via-amber-50 to-emerald-100 border-amber-300/90 text-amber-950 shadow-xs ring-1 ring-amber-300/60'
-                                          : 'bg-slate-100/90 border-dashed border-slate-300/90 text-slate-500 shadow-2xs hover:border-amber-400 hover:bg-amber-50/50'
+                                          : canAfford
+                                            ? 'bg-gradient-to-br from-amber-100 via-yellow-200 to-amber-100 border-amber-500 text-amber-950 shadow-md ring-2 ring-amber-400 animate-monument-glow hover:scale-110'
+                                            : 'bg-slate-100/90 border-dashed border-slate-300/90 text-slate-500 shadow-2xs hover:border-amber-400 hover:bg-amber-50/50'
                                       }`}
                                       title={monument.name}
                                     >
-                                      <div className={`text-lg leading-none sm:text-xl ${!isBuilt ? 'filter grayscale opacity-60' : ''}`}>
+                                      <div className={`text-lg leading-none sm:text-xl ${isBuilt ? '' : canAfford ? 'scale-110 drop-shadow-sm' : 'filter grayscale opacity-60'}`}>
                                         {monument.emoji}
                                       </div>
                                       <div className="mt-1 text-[10px] font-black leading-tight sm:text-[11px] flex items-center justify-center gap-0.5">
                                         {isBuilt ? (
                                           <span className="text-emerald-700 font-black">✓ Eretto</span>
+                                        ) : canAfford ? (
+                                          <span className="text-amber-950 font-black flex items-center gap-0.5 animate-badge-blink">
+                                            ✨ 🔓 💧 {monument.cost}
+                                          </span>
                                         ) : (
                                           <span className="text-slate-600 font-extrabold flex items-center gap-0.5">
                                             🔒 💧 {monument.cost}
