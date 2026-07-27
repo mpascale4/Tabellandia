@@ -295,18 +295,8 @@ function TrainingSession({
   return (
     <div className="flex w-full flex-col gap-4">
 
-      {/* Header: back + punteggio */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-bold text-sky-950 bg-white/40 border border-white/60
-                     px-3 py-1.5 rounded-xl hover:bg-white/60 cursor-pointer transition-colors
-                     focus-visible:outline-2 focus-visible:outline-sky-500"
-          aria-label="Torna alla lista delle tabelline"
-        >
-          ← Indietro
-        </button>
+      {/* Score sessione */}
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-1.5 bg-white/40 backdrop-blur-sm border border-white/50
                         rounded-xl px-3 py-1.5 text-xs font-black text-sky-950">
           <span aria-hidden="true">🪙</span>
@@ -397,6 +387,16 @@ function TrainingSession({
           {feedback.correct && <span className="ml-1" aria-hidden="true">+1 🪙</span>}
         </div>
       )}
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
+                   focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+        aria-label="Torna alla lista delle tabelline"
+      >
+        Indietro
+      </button>
     </div>
   );
 }

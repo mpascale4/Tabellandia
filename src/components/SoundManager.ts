@@ -277,6 +277,34 @@ class SoundManager {
     });
   }
 
+  playRewardFanfare() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const notes = [659.25, 783.99, 987.77, 1318.51];
+
+    notes.forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+
+      gain.gain.setValueAtTime(0, now + idx * 0.07);
+      gain.gain.linearRampToValueAtTime(0.11, now + idx * 0.07 + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.07 + 0.19);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(now + idx * 0.07);
+      osc.stop(now + idx * 0.07 + 0.22);
+    });
+  }
+
   playTick() {
     if (!this.effectsEnabled) return;
     this.initContext();

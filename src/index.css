@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+/* Ensure clear affordance for interactive controls across the app. */
+:where(
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary
+) {
+  cursor: pointer;
+}
+
+:where(
+  button:disabled,
+  [role="button"][aria-disabled="true"]
+) {
+  cursor: not-allowed;
+}
+
 /* Microtuning training home on short screens to reduce vertical overflow. */
 @media (max-height: 740px) {
   .training-home--compact.training-home {
@@ -77,4 +94,3 @@
     font-size: 0.82rem;
   }
 }
-

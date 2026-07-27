@@ -25,6 +25,7 @@ export interface RebuiltMonument {
 export interface WorldProgress {
   worldId: number; // 2 to 9
   completedSteps: string[]; // ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida']
+  praticoCyclesCompleted?: number; // Number of completed Pratico streak cycles in this world
   sfidaUnlocked?: boolean; // Permanent unlock for Sfida in this world/tabellina
   rebuiltMonuments: string[]; // IDs of monuments rebuilt
   creatureEvolution: 'egg' | 'child' | 'adult';
