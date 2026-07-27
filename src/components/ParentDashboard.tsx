@@ -64,6 +64,16 @@ export default function ParentDashboard({
     }
   }, [activeProfiles, selectedProfileId]);
 
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const panel = document.getElementById('parent-dashboard-panel');
+    if (panel) panel.scrollTop = 0;
+    const scrollables = document.querySelectorAll('.overflow-y-auto');
+    scrollables.forEach(el => {
+      el.scrollTop = 0;
+    });
+  }, [selectedProfileId]);
+
   const selectedProfile = selectedProfileId
     ? activeProfiles.find(item => item.id === selectedProfileId) || null
     : null;

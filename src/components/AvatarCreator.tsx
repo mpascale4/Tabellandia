@@ -23,6 +23,14 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
   const [custCategory, setCustCategory] = useState<'base' | 'hair' | 'shirt' | 'pants' | 'hat' | 'backpack' | 'mascot'>('base');
   const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
 
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const scrollables = document.querySelectorAll('.overflow-y-auto');
+    scrollables.forEach(el => {
+      el.scrollTop = 0;
+    });
+  }, [activeTab, shopCategory, custCategory]);
+
   // Available free selections
   const FREE_HAIR_COLORS = ["#f59e0b", "#3b82f6", "#ef4444", "#10b981", "#7c3aed", "#1f2937"];
   const FREE_SHIRT_COLORS = ["#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#ec4899", "#8b5cf6"];

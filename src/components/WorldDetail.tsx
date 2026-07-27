@@ -474,6 +474,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
   }, [saltoIndex, activeStep, saltoFlowStage, isFrogSplashing, saltoGameCompleted]);
 
+  // Reset scroll in alto ad ogni cambio di step o sotto-schermata
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const scrollables = document.querySelectorAll('.overflow-y-auto');
+    scrollables.forEach(el => {
+      el.scrollTop = 0;
+    });
+  }, [
+    activeStep,
+    comprendoSelectedFactor,
+    comprendoFlowStage,
+    saltoSelectedFactor,
+    saltoFlowStage,
+    costruiscoSelectedFactor,
+    costruiscoFlowStage,
+    trucchiSelectedFactor,
+    trucchiFlowStage,
+    showMonumentUnlockList,
+    viewStack,
+    showIntroModal,
+    showStepRulesModal,
+  ]);
+
   // Initialize and generate options
   useEffect(() => {
     resetCostruisco();

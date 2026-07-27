@@ -447,6 +447,14 @@ function TrainingHome({
 export default function TrainingHub({ profile, updateProfile, compactLayout }: TrainingHubProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const scrollables = document.querySelectorAll('.overflow-y-auto');
+    scrollables.forEach(el => {
+      el.scrollTop = 0;
+    });
+  }, [selectedId]);
+
   const selectedWorld = selectedId !== null
     ? WORLDS_DATA.find(w => w.id === selectedId) ?? null
     : null;

@@ -353,6 +353,15 @@ export default function App() {
     localStorage.setItem(PROFILE_PANEL_VISIBLE_KEY, String(isProfilePanelVisible));
   }, [isProfilePanelVisible]);
 
+  // Quando si cambia schermata/sezione, ripristina lo scroll in alto
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const scrollables = document.querySelectorAll('.overflow-y-auto');
+    scrollables.forEach(el => {
+      el.scrollTop = 0;
+    });
+  }, [activeTab, selectedWorldId, showProfilePicker, wizardStep, activeProfileId, isParentModeActive]);
+
   useEffect(() => {
     isHeaderPinnedRef.current = isHeaderPinned;
     localStorage.setItem(HEADER_PINNED_KEY, String(isHeaderPinned));
