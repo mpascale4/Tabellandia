@@ -1,0 +1,13 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# JetBrains local workspace state (non condivisibile)
+.idea/workspace.xml
+.idea/copilotDiffState.xml
+
