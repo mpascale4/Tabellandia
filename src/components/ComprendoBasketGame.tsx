@@ -48,7 +48,7 @@ const BEE_START_FACTOR = 4;
 const COMPRENDO_AUDIO_MESSAGES = {
   turbo: 'Riempi la cesta con le mele.',
   basketFull: 'Questa cesta e gia piena.',
-  bee: 'Oh no! Il calabrone ti ha rubato le mele!',
+  bee: 'Oh no! Hai toccato il calabrone: turno perso!',
 } as const;
 const createEmptyCounts = (count: number) => Array.from({ length: count }, () => 0);
 const FINAL_BASKET_MAX_SIZE = 68;
@@ -128,6 +128,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const [arenaPulseActive, setArenaPulseActive] = useState<boolean>(false);
   const [appleBursts, setAppleBursts] = useState<AppleBurst[]>([]);
   const [beeHit, setBeeHit] = useState<boolean>(false);
+  const [beeDefeat, setBeeDefeat] = useState<boolean>(false);
   const clampedFactor = Math.max(1, Math.min(BOOST_FACTOR_MAX_STEP, displayB));
   const factorProgress = (clampedFactor - 1) / (BOOST_FACTOR_MAX_STEP - 1);
   const boostMaxForFactor = BOOST_MAX_MULTIPLIER + (BOOST_FACTOR_ACCELERATION_MAX * factorProgress);
@@ -135,6 +136,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const totalItems = a * b;
   const completedBaskets = basketCounts.filter(count => count === b).length;
   const isCompleted = completedBaskets === a;
+  const isFailed = beeDefeat;
   const finalBasketLayout = useMemo(() => {
     const availableWidth = Math.max(0, arenaSize.width - 32);
     const availableHeight = Math.max(0, arenaSize.height - 32);
@@ -180,6 +182,8 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
     setErrorBasket(null);
     setSpeedMultiplier(1);
     setAppleBursts([]);
+    setBeeDefeat(false);
+    setBeeHit(false);
   }, [a, b]);
 
   useEffect(() => {
@@ -275,7 +279,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   }, [isCompleted, onCompletionChange]);
 
   useEffect(() => {
-    if (prefersReducedMotion || isCompleted || arenaSize.width <= 0 || arenaSize.height <= 0 || positions.length !== a) return;
+    if (prefersReducedMotion || isCompleted || isFailed || arenaSize.width <= 0 || arenaSize.height <= 0 || positions.length !== a) return;
 
     let previousTime = performance.now();
 
@@ -333,7 +337,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         frameRef.current = null;
       }
     };
-  }, [a, arenaSize, basketCounts, b, isCompleted, positions.length, prefersReducedMotion, speedMultiplier]);
+  }, [a, arenaSize, basketCounts, b, isCompleted, isFailed, positions.length, prefersReducedMotion, speedMultiplier]);
 
   const speakOutsidePrompt = () => {
     if (!voiceEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -375,35 +379,25 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   };
 
   const handleBeeTap = () => {
-    if (isCompleted || beeHit) return;
+    if (isCompleted || isFailed || beeHit) return;
     setBeeHit(true);
+    setBeeDefeat(true);
+    setSpeedMultiplier(BOOST_MIN_MULTIPLIER);
+    if (boostTimeoutRef.current !== null) {
+      window.clearTimeout(boostTimeoutRef.current);
+      boostTimeoutRef.current = null;
+    }
+    if (cooldownTimeoutRef.current !== null) {
+      window.clearTimeout(cooldownTimeoutRef.current);
+      cooldownTimeoutRef.current = null;
+    }
     sound.playError();
     speak(COMPRENDO_AUDIO_MESSAGES.bee);
-    // Empty one apple from the basket with the most apples (not full)
-    setBasketCounts(prev => {
-      const next = [...prev];
-      let maxIdx = -1;
-      let maxCount = 0;
-      next.forEach((count, i) => {
-        if (count > 0 && count < b && count > maxCount) {
-          maxCount = count;
-          maxIdx = i;
-        }
-      });
-      if (maxIdx === -1) {
-        // All are either empty or full — empty a full one
-        const fullIdx = next.findIndex(c => c === b);
-        if (fullIdx !== -1) next[fullIdx] = Math.max(0, next[fullIdx] - 1);
-      } else {
-        next[maxIdx] = Math.max(0, next[maxIdx] - 1);
-      }
-      return next;
-    });
     window.setTimeout(() => setBeeHit(false), 600);
   };
 
   const triggerArenaBoost = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (isCompleted) return;
+    if (isCompleted || isFailed) return;
 
     sound.playTick();
     speakOutsidePrompt();
@@ -470,6 +464,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   };
 
   const handleFillBasket = (basketIndex: number) => {
+    if (isFailed) return;
     const currentBasketCount = basketCounts[basketIndex];
 
     if (currentBasketCount >= b) {
@@ -572,7 +567,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
           </AnimatePresence>
 
           {/* 🐝 Bee obstacles — 1 at ×4, 2 at ×6, 3 at ×8 */}
-          {displayB >= BEE_START_FACTOR && !isCompleted && (
+          {displayB >= BEE_START_FACTOR && !isCompleted && !isFailed && (
             Array.from({ length: getBeeCount(displayB) }).map((_, i) => {
               const speedMultipliers = [1, 0.75, 1.3];
               const topPercents = [0.28, 0.50, 0.70];
@@ -589,7 +584,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
                   onClick={(e) => { e.stopPropagation(); handleBeeTap(); }}
                   className={`absolute z-20 cursor-pointer select-none text-3xl transition-transform ${beeHit ? 'scale-125' : ''}`}
                   style={{ top: `${Math.floor(arenaSize.height * topPercents[i])}px` }}
-                  aria-label="Calabrone — non toccare, ruba le mele!"
+                  aria-label="Calabrone — non toccare, perdi il turno!"
                 >
                   🐝
                 </motion.button>
@@ -597,7 +592,29 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
             })
           )}
 
-          {isCompleted ? (
+          {isFailed ? (
+            <div className="absolute inset-0 z-40 flex items-center justify-center rounded-[1.35rem] bg-black/40 p-4">
+              <div className="w-full max-w-xs rounded-2xl border-2 border-rose-200 bg-white/95 px-5 py-4 text-center shadow-xl">
+                <p className="text-sm font-black text-rose-700">Hai perso il turno!</p>
+                <p className="mt-1 text-xs font-bold text-slate-700">Hai toccato il calabrone.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    setBeeDefeat(false);
+                    setBeeHit(false);
+                    setBasketCounts(createEmptyCounts(a));
+                    setCelebratingBasket(null);
+                    setErrorBasket(null);
+                    setSpeedMultiplier(BOOST_MIN_MULTIPLIER);
+                  }}
+                  className="mt-3 w-full rounded-xl bg-rose-600 py-2.5 text-xs font-black text-white shadow-md transition-colors hover:bg-rose-700 cursor-pointer"
+                >
+                  Riprova
+                </button>
+              </div>
+            </div>
+          ) : isCompleted ? (
             <div
               role="list"
               aria-label="Tutte le ceste completate"

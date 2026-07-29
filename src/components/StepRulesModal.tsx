@@ -37,7 +37,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
         'Le mele volano nell\'arena: toccale per farle cadere nel cesto.',
         'Ogni cesto si riempie con il numero giusto di mele.',
         'Riempi tutti i cesti per completare la moltiplicazione.',
-        '⚠️ Dal ×4 in poi: un 🐝 calabrone vola nell\'arena! Se lo tocchi ti ruba le mele da una cesta.'
+        '⚠️ Dal ×4 in poi: un 🐝 calabrone vola nell\'arena! Se lo tocchi perdi subito il turno.'
       ]
     },
     salto: {
