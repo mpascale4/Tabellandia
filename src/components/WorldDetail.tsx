@@ -145,7 +145,7 @@ const TRUCCHI_PYRAMID_ROWS = [1, 2, 3, 4] as const;
 const TRUCCHI_PREVIEW_MS = 1000;
 const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
-const TRUCCHI_HAMMER_START_FACTOR = 4;
+const TRUCCHI_HAMMER_START_FACTOR = 1;
 const TRUCCHI_HAMMER_TRAVEL_MS = 520;
 const SFIDA_FEEDBACK_HOLD_MS = 380;
 const SFIDA_UNLOCK_COST = 1;
@@ -302,6 +302,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [trucchiHammerHitBricks, setTrucchiHammerHitBricks] = useState<Set<number>>(new Set());
   const [trucchiHammerTargetIndex, setTrucchiHammerTargetIndex] = useState<number | null>(null);
   const [trucchiHammerTraveling, setTrucchiHammerTraveling] = useState<boolean>(false);
+  const [trucchiHammerHasStruck, setTrucchiHammerHasStruck] = useState<boolean>(false);
   const [trucchiHammerPose, setTrucchiHammerPose] = useState<{ x: number; y: number; visible: boolean; striking: boolean }>({
     x: 0,
     y: 0,
@@ -743,10 +744,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
 
   const getTrucchiHammerDelayRange = (factor: number): [number, number] => {
-    if (factor >= 10) return [900, 1300];
-    if (factor >= 8) return [1200, 1700];
-    if (factor >= 6) return [1800, 2300];
-    return [2600, 3000];
+    if (factor >= 8) return [950, 1350];
+    if (factor >= 6) return [1350, 1850];
+    if (factor >= 4) return [1850, 2500];
+    return [3200, 4100];
+  };
+
+  const getTrucchiHammerFirstDelayRange = (factor: number): [number, number] => {
+    if (factor >= 8) return [280, 520];
+    if (factor >= 6) return [420, 700];
+    if (factor >= 4) return [650, 950];
+    return [1200, 1800];
   };
 
   const getTrucchiHammerStartPoint = useCallback(() => {
@@ -793,6 +801,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setTrucchiHammerHitBricks(new Set());
       setTrucchiHammerTargetIndex(null);
       setTrucchiHammerTraveling(false);
+      setTrucchiHammerHasStruck(false);
       setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
       setTrucchiCollapseReason(null);
       return;
@@ -810,6 +819,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setTrucchiHammerHitBricks(new Set());
     setTrucchiHammerTargetIndex(null);
     setTrucchiHammerTraveling(false);
+    setTrucchiHammerHasStruck(false);
     setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
     setTrucchiCollapseReason(null);
 
@@ -818,6 +828,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setTrucchiPreviewActive(false);
       trucchiPreviewTimeoutRef.current = null;
       if (factor >= TRUCCHI_HAMMER_START_FACTOR) {
+        const start = getTrucchiHammerStartPoint();
+        setTrucchiHammerPose({ ...start, visible: true, striking: false });
+        setTrucchiHammerHasStruck(false);
         setTrucchiHammerActive(true);
       }
     }, previewDurationMs);
@@ -832,6 +845,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
     setTrucchiHammerTraveling(false);
     setTrucchiHammerTargetIndex(null);
+    setTrucchiHammerHasStruck(true);
     setTrucchiHammerPose(prev => ({ ...prev, striking: false }));
     setTrucchiHammerHitBricks(new Set([targetIndex]));
     if (trucchiHammerHitClearTimeoutRef.current !== null) {
@@ -944,7 +958,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     ) {
       return;
     }
-    const [minDelayMs, maxDelayMs] = getTrucchiHammerDelayRange(trucchiSelectedFactor);
+    const [minDelayMs, maxDelayMs] = trucchiHammerHasStruck
+      ? getTrucchiHammerDelayRange(trucchiSelectedFactor)
+      : getTrucchiHammerFirstDelayRange(trucchiSelectedFactor);
     const strikeDelayMs = randomInRange(minDelayMs, maxDelayMs);
     trucchiHammerStrikeTimeoutRef.current = window.setTimeout(() => {
       trucchiHammerStrikeTimeoutRef.current = null;
@@ -962,6 +978,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     trucchiBrickValues,
     trucchiHammerActive,
     trucchiHammerTraveling,
+    trucchiHammerHasStruck,
     trucchiPyramidCollapsed,
     trucchiPreviewActive,
     trucchiRevealedBrickIndex,
@@ -2546,6 +2563,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setTrucchiHammerHitBricks(new Set());
     setTrucchiHammerTargetIndex(null);
     setTrucchiHammerTraveling(false);
+    setTrucchiHammerHasStruck(false);
     setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
     setTrucchiCollapseReason(null);
     setTrucchiSelectedFactor(null);
@@ -4061,7 +4079,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       </p>
                       {(trucchiSelectedFactor ?? 0) >= TRUCCHI_HAMMER_START_FACTOR && (
                         <p className="text-rose-700 font-semibold mt-1 leading-relaxed">
-                          ⚠️ Dal ×4 arriva il 🔨 martello: si lancia verso un mattone e lo rompe. Se colpisce quello giusto, perdi!
+                          ⚠️ Il 🔨 martello parte gia da ×1: e lento all'inizio, accelera da ×4, ×6 e ×8. Se colpisce il mattone giusto, perdi!
                         </p>
                       )}
                     </div>
@@ -4183,6 +4201,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                             setTrucchiHammerHitBricks(new Set());
                                             setTrucchiHammerTargetIndex(null);
                                             setTrucchiHammerTraveling(false);
+                                            setTrucchiHammerHasStruck(false);
                                             setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
                                             setTrucchiQuestionSolved(true);
                                             setShowTrucchiCompletionEffect(true);
@@ -4202,6 +4221,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                               setTrucchiHammerHitBricks(new Set());
                                               setTrucchiHammerTargetIndex(null);
                                               setTrucchiHammerTraveling(false);
+                                              setTrucchiHammerHasStruck(false);
                                               setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
                                               setTrucchiCollapseReason('wrong');
                                               setTrucchiPyramidCollapsed(true);

@@ -70,7 +70,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
       howTo: [
         'Osserva i mattoni durante il flash iniziale: memorizza dove sono i numeri.',
         'Tocca il mattone che pensi contenga il risultato corretto.',
-        '⚠️ Dal ×4: arriva un 🔨 martello che si lancia verso un mattone e lo rompe. Se colpisce quello giusto, perdi subito!'
+        '⚠️ Il 🔨 martello parte gia da ×1: e lento all\'inizio, accelera da ×4, ×6 e ×8. Se colpisce quello giusto, perdi subito!'
       ]
     },
     pratico: {
