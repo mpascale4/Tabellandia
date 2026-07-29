@@ -812,14 +812,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const getBombCountForFactor = (factor: number): number => {
     if (factor < COSTRUISCO_BOMB_START_FACTOR) return 0;
+    if (factor >= 10) return 4;
+    if (factor >= 8) return 3;
     if (factor >= 6) return 2;
     return 1;
+  };
+
+  const getBombSpawnDelayMs = (factor: number): [number, number] => {
+    if (factor >= 10) return [600, 1200];
+    if (factor >= 8) return [900, 1800];
+    if (factor >= 6) return [1400, 2800];
+    return [2000, 4000];
   };
 
   const queueCostruiscoBombSpawn = (factor: number, bombsLeft: number) => {
     if (bombsLeft <= 0) return;
     if (costruiscoBombTimeoutRef.current !== null) return;
-    const delayMs = randomInRange(2000, 4000);
+    const [minDelay, maxDelay] = getBombSpawnDelayMs(factor);
+    const delayMs = randomInRange(minDelay, maxDelay);
     costruiscoBombTimeoutRef.current = window.setTimeout(() => {
       costruiscoBombTimeoutRef.current = null;
       if (costruiscoFailedRef.current || costruiscoGameCompletedRef.current) return;
@@ -3648,7 +3658,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                  animate={prefersReducedMotion ? { y: 0, opacity: 1 } : { y: [80, COSTRUISCO_BALLOON_EXIT_Y], opacity: [1, 1, 0.95] }}
                                  transition={prefersReducedMotion ? { duration: 0.1 } : { duration: balloon.flightMs / 1000, ease: "linear" }}
                                  onClick={() => handleCostruiscoSingleBalloonTap(balloon)}
-                                 className={`${compactLayout ? "w-16 h-20 text-base" : "w-20 h-24 text-lg"} absolute bottom-2 rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-lg border select-none pb-2 pt-1 transition-all -translate-x-1/2 cursor-pointer ${balloon.palette.body}`}
+                                 className={`${compactLayout ? "w-16 h-20 text-base" : "w-20 h-24 text-lg"} absolute bottom-2 rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-lg border select-none pb-2 pt-1 transition-all -translate-x-1/2 cursor-pointer ${balloon.isCorrect ? 'z-20' : 'z-10'} ${balloon.palette.body}`}
                                  style={{ left: `${balloon.lane}%` }}
                                  id={`balloon-single-${balloon.id}`}
                                  aria-label={balloon.isTrap ? 'Palloncino bomba — non toccare!' : `Palloncino ${balloon.value}`}
