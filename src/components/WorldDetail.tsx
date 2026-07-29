@@ -200,7 +200,7 @@ const GAMEPLAY_AUDIO_MESSAGES = {
   costruiscoWrong: 'Non questo. Cerca il numero giusto.',
   costruiscoCorrect: 'Bravo, ma scoppia tutti gli altri palloncini.',
   costruiscoTooHigh: 'Oh no il palloncino e volato via.',
-  costruiscoBomb: 'Boom! Hai toccato la bomba! Riprova.',
+  costruiscoBomb: 'Trappola! Il numero era giusto ma era una bomba. Cerca il palloncino colorato!',
   quizWrong: 'Quasi. Riprova con calma.',
   sfidaWrong: 'Ops, risposta sbagliata.',
   trucchiWrong: 'Riprova. Prova un altro numero.',
@@ -830,7 +830,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       );
       const bomb: CostruiscoActiveBalloon = {
         id: bombId,
-        value: 0,
+        value: world.id * factor,
         lane: randomInRange(8, 92),
         flightMs,
         palette: COSTRUISCO_BOMB_PALETTE,
@@ -3555,7 +3555,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          Tocca il palloncino con il risultato giusto di <b>{world.id} × {costruiscoSelectedFactor}</b>.
                        </p>
                        <p className="text-slate-600 mt-1 leading-relaxed text-rose-700 font-semibold">
-                         ⚠️ Se tocchi quello sbagliato o la 💣 bomba fallisci subito. Se scappa in alto quello corretto, fallisci il turno.
+                         ⚠️ Attenzione: c'è un 💣 palloncino trappola col numero corretto! Cerca quello <b>colorato</b>, non quello scuro.
                        </p>
                      </div>
                      <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -3592,7 +3592,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                              <p className="text-xs text-slate-600 leading-relaxed">
                                {costruiscoFailReason === 'wrong-tap' ? (
                                  costruiscoWrongTappedValue === null ? (
-                                   <>💣 Hai toccato la bomba!<br />Occhio ai palloncini neri nella prossima round.</>
+                                   <>💣 Palloncino trappola! Il numero era giusto, ma era una bomba.<br />Il palloncino vero aveva lo stesso numero ma era colorato!</>
                                  ) : (
                                    <>
                                      Hai scoppiato il palloncino sbagliato (<b>{costruiscoWrongTappedValue}</b>)!<br />
@@ -3655,13 +3655,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                >
                                  {balloon.isTrap ? (
                                    <>
-                                     <span className="text-2xl select-none" aria-hidden="true">💣</span>
-                                     <motion.span
-                                       animate={{ opacity: [1, 0.3, 1] }}
-                                       transition={{ repeat: Infinity, duration: 0.8 }}
-                                       className="absolute -top-1 -right-1 text-xs font-black text-rose-400"
+                                     <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/20" />
+                                     <span className="text-xl font-black">{balloon.value}</span>
+                                     <span
+                                       className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-[9px] shadow-md"
                                        aria-hidden="true"
-                                     >✸</motion.span>
+                                     >💣</span>
                                    </>
                                  ) : (
                                    <>
