@@ -58,7 +58,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
       example: `Esempio: Per ${exNum} × 4, cerca il palloncino colorato col numero ${exNum * 4} e toccalo.`,
       howTo: [
         'I palloncini salgono con numeri diversi: trova quello col risultato giusto.',
-        '⚠️ Dal ×4: un 💣 palloncino scuro compare con lo stesso numero corretto — è una trappola! Tocca solo quello colorato.',
+        '⚠️ Dal ×4: compare un palloncino trappola con badge 💣 e lo stesso numero corretto — evita il badge!',
         'Se il palloncino giusto scappa in alto senza essere toccato, il turno è perso.'
       ]
     },
@@ -70,7 +70,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
       howTo: [
         'Osserva i mattoni durante il flash iniziale: memorizza dove sono i numeri.',
         'Tocca il mattone che pensi contenga il risultato corretto.',
-        '⚠️ Dal ×4: un 👻 fantasma volteggia sopra la piramide — se lo tocchi crolla tutto! Tre errori sui mattoni e ricomincia.'
+        '⚠️ Dal ×4: arriva un 🔨 martello che rompe mattoni a caso. Se colpisce il mattone giusto, perdi subito!'
       ]
     },
     pratico: {

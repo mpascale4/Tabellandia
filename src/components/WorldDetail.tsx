@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
@@ -145,7 +145,7 @@ const TRUCCHI_PYRAMID_ROWS = [1, 2, 3, 4] as const;
 const TRUCCHI_PREVIEW_MS = 1000;
 const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
-const TRUCCHI_GHOST_START_FACTOR = 4;
+const TRUCCHI_HAMMER_START_FACTOR = 4;
 const SFIDA_FEEDBACK_HOLD_MS = 380;
 const SFIDA_UNLOCK_COST = 1;
 const SFIDA_RECORD_THRESHOLD = 15;
@@ -200,7 +200,7 @@ const GAMEPLAY_AUDIO_MESSAGES = {
   sfidaWrong: 'Ops, risposta sbagliata.',
   trucchiWrong: 'Riprova. Prova un altro numero.',
   trucchiCollapse: 'Oh no, la piramide e caduta! Riproviamo.',
-  trucchiGhost: 'Il fantasma ha fatto crollare la piramide! Riproviamo.',
+  trucchiHammer: 'Oh no! Il martello ha distrutto il mattone giusto!',
   combinationLocked: 'Questa combinazione e ancora bloccata.',
   stepLocked: 'Questo passo e ancora bloccato.',
   sfidaLocked: 'La sfida finale non e ancora pronta.',
@@ -297,7 +297,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [trucchiPyramidCollapsed, setTrucchiPyramidCollapsed] = useState<boolean>(false);
   const [trucchiPreviewActive, setTrucchiPreviewActive] = useState<boolean>(false);
   const [trucchiRevealedBrickIndex, setTrucchiRevealedBrickIndex] = useState<number | null>(null);
-  const [trucchiGhostActive, setTrucchiGhostActive] = useState<boolean>(false);
+  const [trucchiHammerActive, setTrucchiHammerActive] = useState<boolean>(false);
+  const [trucchiHammerHitBricks, setTrucchiHammerHitBricks] = useState<Set<number>>(new Set());
+  const [trucchiCollapseReason, setTrucchiCollapseReason] = useState<'wrong' | 'hammer' | null>(null);
   
   // For the current game being played
   const [saltoIndex, setSaltoIndex] = useState<number>(0); // which multiple we are on (0 to 9)
@@ -331,6 +333,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const trucchiPreviewTimeoutRef = useRef<number | null>(null);
   const trucchiRevealTimeoutRef = useRef<number | null>(null);
   const trucchiCollapseTimeoutRef = useRef<number | null>(null);
+  const trucchiHammerStrikeTimeoutRef = useRef<number | null>(null);
+  const trucchiHammerHitClearTimeoutRef = useRef<number | null>(null);
 
   const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
     return speak(buildMultiplicationResultSpeech(a, b, result));
@@ -697,13 +701,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       window.clearTimeout(trucchiCollapseTimeoutRef.current);
       trucchiCollapseTimeoutRef.current = null;
     }
+    if (trucchiHammerStrikeTimeoutRef.current !== null) {
+      window.clearTimeout(trucchiHammerStrikeTimeoutRef.current);
+      trucchiHammerStrikeTimeoutRef.current = null;
+    }
+    if (trucchiHammerHitClearTimeoutRef.current !== null) {
+      window.clearTimeout(trucchiHammerHitClearTimeoutRef.current);
+      trucchiHammerHitClearTimeoutRef.current = null;
+    }
   };
 
-  const getTrucchiGhostSpeedMs = (factor: number): number => {
-    if (factor >= 10) return 1300;
-    if (factor >= 8) return 1800;
-    if (factor >= 6) return 2500;
-    return 3500;
+  const getTrucchiHammerDelayRange = (factor: number): [number, number] => {
+    if (factor >= 10) return [900, 1300];
+    if (factor >= 8) return [1200, 1700];
+    if (factor >= 6) return [1800, 2300];
+    return [2600, 3000];
+  };
+
+  const getTrucchiHammerHitsPerStrike = (factor: number): number => {
+    if (factor >= 8) return 2;
+    return 1;
   };
 
   const generateTrucchiBrickValues = (worldId: number, factor: number) => {
@@ -724,7 +741,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setTrucchiPyramidCollapsed(false);
       setTrucchiPreviewActive(false);
       setTrucchiRevealedBrickIndex(null);
-      setTrucchiGhostActive(false);
+      setTrucchiHammerActive(false);
+      setTrucchiHammerHitBricks(new Set());
+      setTrucchiCollapseReason(null);
       return;
     }
 
@@ -736,17 +755,116 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setTrucchiRevealedBrickIndex(null);
     setTrucchiQuestionSolved(false);
     setShowTrucchiCompletionEffect(false);
-    setTrucchiGhostActive(false); // ghost activates after preview ends
+    setTrucchiHammerActive(false);
+    setTrucchiHammerHitBricks(new Set());
+    setTrucchiCollapseReason(null);
 
     const previewDurationMs = scaleDurationByFactor(TRUCCHI_PREVIEW_MS, factor, TRUCCHI_PREVIEW_SCALE_MIN);
     trucchiPreviewTimeoutRef.current = window.setTimeout(() => {
       setTrucchiPreviewActive(false);
       trucchiPreviewTimeoutRef.current = null;
-      if (factor >= TRUCCHI_GHOST_START_FACTOR) {
-        setTrucchiGhostActive(true);
+      if (factor >= TRUCCHI_HAMMER_START_FACTOR) {
+        setTrucchiHammerActive(true);
       }
     }, previewDurationMs);
   };
+
+  const strikeTrucchiHammer = useCallback((factor: number) => {
+    if (
+      trucchiPreviewActive
+      || trucchiPyramidCollapsed
+      || trucchiQuestionSolved
+      || trucchiRevealedBrickIndex !== null
+      || !trucchiHammerActive
+    ) {
+      return;
+    }
+    const correctValue = world.id * factor;
+    const availableBrickIndexes = trucchiBrickValues
+      .map((_, index) => index)
+      .filter(index => !trucchiRemovedBricks.has(index));
+
+    if (availableBrickIndexes.length === 0) {
+      return;
+    }
+
+    const hitsPerStrike = Math.min(getTrucchiHammerHitsPerStrike(factor), availableBrickIndexes.length);
+    const targetIndexes = shuffleArray(availableBrickIndexes).slice(0, hitsPerStrike);
+    setTrucchiHammerHitBricks(new Set(targetIndexes));
+    if (trucchiHammerHitClearTimeoutRef.current !== null) {
+      window.clearTimeout(trucchiHammerHitClearTimeoutRef.current);
+    }
+    trucchiHammerHitClearTimeoutRef.current = window.setTimeout(() => {
+      setTrucchiHammerHitBricks(new Set());
+      trucchiHammerHitClearTimeoutRef.current = null;
+    }, 420);
+
+    const hitCorrectBrick = targetIndexes.some(index => trucchiBrickValues[index] === correctValue);
+    if (hitCorrectBrick) {
+      setTrucchiHammerActive(false);
+      setTrucchiCollapseReason('hammer');
+      sound.playError();
+      speak(GAMEPLAY_AUDIO_MESSAGES.trucchiHammer);
+      setTrucchiPyramidCollapsed(true);
+      trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
+        setTrucchiRemovedBricks(new Set(Array.from({ length: trucchiBrickValues.length }, (_, index) => index)));
+        trucchiCollapseTimeoutRef.current = null;
+      }, TRUCCHI_COLLAPSE_MS);
+      return;
+    }
+
+    setTrucchiRemovedBricks(prev => {
+      const next = new Set(prev);
+      targetIndexes.forEach(index => next.add(index));
+      return next;
+    });
+  }, [
+    speak,
+    trucchiBrickValues,
+    trucchiHammerActive,
+    trucchiPreviewActive,
+    trucchiRevealedBrickIndex,
+    trucchiPyramidCollapsed,
+    trucchiQuestionSolved,
+    trucchiRemovedBricks,
+    world.id,
+  ]);
+
+  useEffect(() => {
+    if (
+      !trucchiHammerActive
+      || trucchiSelectedFactor === null
+      || trucchiPreviewActive
+      || trucchiRevealedBrickIndex !== null
+      || trucchiPyramidCollapsed
+      || trucchiQuestionSolved
+    ) {
+      return;
+    }
+    const [minDelayMs, maxDelayMs] = getTrucchiHammerDelayRange(trucchiSelectedFactor);
+    const strikeDelayMs = randomInRange(minDelayMs, maxDelayMs);
+    trucchiHammerStrikeTimeoutRef.current = window.setTimeout(() => {
+      trucchiHammerStrikeTimeoutRef.current = null;
+      strikeTrucchiHammer(trucchiSelectedFactor);
+    }, strikeDelayMs);
+
+    return () => {
+      if (trucchiHammerStrikeTimeoutRef.current !== null) {
+        window.clearTimeout(trucchiHammerStrikeTimeoutRef.current);
+        trucchiHammerStrikeTimeoutRef.current = null;
+      }
+    };
+  }, [
+    strikeTrucchiHammer,
+    trucchiBrickValues,
+    trucchiHammerActive,
+    trucchiPyramidCollapsed,
+    trucchiPreviewActive,
+    trucchiRevealedBrickIndex,
+    trucchiQuestionSolved,
+    trucchiRemovedBricks,
+    trucchiSelectedFactor,
+  ]);
 
   useEffect(() => {
     resetTrucchiRound(trucchiSelectedFactor);
@@ -2320,7 +2438,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setTrucchiPyramidCollapsed(false);
     setTrucchiPreviewActive(false);
     setTrucchiRevealedBrickIndex(null);
-    setTrucchiGhostActive(false);
+    setTrucchiHammerActive(false);
+    setTrucchiHammerHitBricks(new Set());
+    setTrucchiCollapseReason(null);
     setTrucchiSelectedFactor(null);
   };
   const completeTrucchiExercise = () => {
@@ -3832,9 +3952,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       <p className="text-slate-600 mt-1 leading-relaxed">
                         Per completare, usa la strategia giusta e individua il risultato corretto senza perdere equilibrio.
                       </p>
-                      {(trucchiSelectedFactor ?? 0) >= TRUCCHI_GHOST_START_FACTOR && (
+                      {(trucchiSelectedFactor ?? 0) >= TRUCCHI_HAMMER_START_FACTOR && (
                         <p className="text-rose-700 font-semibold mt-1 leading-relaxed">
-                          ⚠️ Attenzione al 👻 fantasma: se lo tocchi, la piramide crolla!
+                          ⚠️ Dal ×4 arriva il 🔨 martello: rompe mattoni a caso. Se colpisce quello giusto, perdi!
                         </p>
                       )}
                     </div>
@@ -3852,51 +3972,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                 {trucchiFlowStage === 'game' && (
                   <div className="relative min-h-[25rem] bg-white rounded-3xl border border-amber-100 shadow-xl p-4 sm:p-5 space-y-5">
-                    {/* 👻 Ghost obstacle — appears from factor 4+ after preview */}
-                    {trucchiGhostActive && !trucchiPyramidCollapsed && !trucchiQuestionSolved && (
-                      <motion.button
-                        initial={{ x: '-5%' }}
-                        animate={{ x: ['-5%', '105%'] }}
-                        transition={{ repeat: Infinity, repeatType: 'mirror', duration: getTrucchiGhostSpeedMs(trucchiSelectedFactor || 4) / 1000, ease: 'linear' }}
-                        onClick={() => {
-                          setTrucchiGhostActive(false);
-                          sound.playError();
-                          speak(GAMEPLAY_AUDIO_MESSAGES.trucchiGhost);
-                          setTrucchiPyramidCollapsed(true);
-                          trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
-                            setTrucchiRemovedBricks(new Set(Array.from({ length: trucchiBrickValues.length }, (_, i) => i)));
-                            trucchiCollapseTimeoutRef.current = null;
-                          }, 820);
-                        }}
-                        className="absolute left-0 z-20 text-3xl cursor-pointer select-none"
-                        style={{ top: '42%' }}
-                        aria-label="Fantasma — non toccare, fa crollare la piramide!"
+                    {trucchiHammerActive && !trucchiPyramidCollapsed && !trucchiQuestionSolved && (
+                      <motion.div
+                        initial={{ y: -12, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="absolute top-2 right-2 z-20 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-800 shadow-sm"
+                        aria-live="polite"
                       >
-                        👻
-                      </motion.button>
-                    )}
-                    {/* 👻 Second ghost — appears from factor 8+ in opposite direction */}
-                    {trucchiGhostActive && !trucchiPyramidCollapsed && !trucchiQuestionSolved && (trucchiSelectedFactor || 0) >= 8 && (
-                      <motion.button
-                        initial={{ x: '105%' }}
-                        animate={{ x: ['105%', '-5%'] }}
-                        transition={{ repeat: Infinity, repeatType: 'mirror', duration: getTrucchiGhostSpeedMs(trucchiSelectedFactor || 4) * 0.8 / 1000, ease: 'linear' }}
-                        onClick={() => {
-                          setTrucchiGhostActive(false);
-                          sound.playError();
-                          speak(GAMEPLAY_AUDIO_MESSAGES.trucchiGhost);
-                          setTrucchiPyramidCollapsed(true);
-                          trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
-                            setTrucchiRemovedBricks(new Set(Array.from({ length: trucchiBrickValues.length }, (_, i) => i)));
-                            trucchiCollapseTimeoutRef.current = null;
-                          }, 820);
-                        }}
-                        className="absolute left-0 z-20 text-3xl cursor-pointer select-none"
-                        style={{ top: '65%' }}
-                        aria-label="Fantasma — non toccare, fa crollare la piramide!"
-                      >
-                        👻
-                      </motion.button>
+                        🔨 Martello in azione
+                      </motion.div>
                     )}
                     <div className="text-center space-y-2">
                       <h4 className="text-sm font-bold text-amber-900">
@@ -3937,6 +4021,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                     const isCorrectBrick = hiddenValue === correctValue;
                                     const isRevealed = trucchiPreviewActive || trucchiRevealedBrickIndex === globalIndex || (trucchiQuestionSolved && isCorrectBrick);
                                     const isBrickLocked = trucchiPreviewActive || trucchiQuestionSolved || trucchiPyramidCollapsed || trucchiRevealedBrickIndex !== null;
+                                    const isHammerHit = trucchiHammerHitBricks.has(globalIndex);
                                     const tiltDirection = (brickIndex + rowIndex) % 2 === 0 ? -1 : 1;
                                     const isBaseRow = rowIndex === TRUCCHI_PYRAMID_ROWS.length - 1;
                                     const restingRotate = trucchiWrongChoices === 0 ? 0 : tiltDirection * (trucchiWrongChoices * (isBaseRow ? 2.4 : 1.5));
@@ -3972,6 +4057,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                           if (isCorrectBrick) {
                                             sound.playSuccess();
                                             speakMultiplicationSuccess(world.id, trucchiSelectedFactor, hiddenValue);
+                                            setTrucchiHammerActive(false);
+                                            setTrucchiHammerHitBricks(new Set());
                                             setTrucchiQuestionSolved(true);
                                             setShowTrucchiCompletionEffect(true);
                                             return;
@@ -3985,6 +4072,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                             setTrucchiRevealedBrickIndex(current => (current === globalIndex ? null : current));
 
                                             if (nextWrongChoices >= 3) {
+                                              setTrucchiHammerActive(false);
+                                              setTrucchiHammerHitBricks(new Set());
+                                              setTrucchiCollapseReason('wrong');
                                               setTrucchiPyramidCollapsed(true);
                                               speak(GAMEPLAY_AUDIO_MESSAGES.trucchiCollapse);
                                               trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
@@ -4012,6 +4102,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                       >
                                         {isRevealed ? (
                                           <>
+                                            {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">🔨</span>}
                                             <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/60" aria-hidden="true" />
                                             <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-stone-300/80" aria-hidden="true" />
                                             <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-stone-300/60" aria-hidden="true" />
@@ -4019,6 +4110,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                           </>
                                         ) : (
                                           <>
+                                            {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">🔨</span>}
                                             <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/25" aria-hidden="true" />
                                             <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/50" aria-hidden="true" />
                                             <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
@@ -4044,7 +4136,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         className="absolute inset-0 flex items-center justify-center rounded-3xl bg-black/30 backdrop-blur-[1px]"
                       >
                         <div className="rounded-2xl border-2 border-rose-200 bg-white/95 px-5 py-4 text-center shadow-xl">
-                          <p className="text-sm font-black text-rose-700">La piramide e caduta!</p>
+                          <p className="text-sm font-black text-rose-700">
+                            {trucchiCollapseReason === 'hammer'
+                              ? 'Il martello ha colpito il mattone giusto!'
+                              : 'La piramide e caduta!'}
+                          </p>
                           <button
                             type="button"
                             onClick={() => {
