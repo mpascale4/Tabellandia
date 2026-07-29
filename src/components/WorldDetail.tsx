@@ -163,11 +163,6 @@ const COSTRUISCO_BALLOON_MAX_ACTIVE = 5;
 const COSTRUISCO_BALLOON_EXIT_Y = -340;
 const COSTRUISCO_CORRECT_FAIL_PROGRESS = 0.75;
 const COSTRUISCO_BOMB_START_FACTOR = 4;
-const COSTRUISCO_BOMB_PALETTE = {
-  body: 'bg-gradient-to-b from-slate-600 to-slate-900 text-white border-slate-500 hover:from-slate-700 hover:to-black',
-  knot: 'bg-slate-900',
-  string: 'bg-slate-400',
-} as const;
 const DIFFICULTY_FACTOR_MIN = 1;
 const DIFFICULTY_FACTOR_MAX = 10;
 const COSTRUISCO_SPAWN_SCALE_MIN = 0.45;
@@ -843,7 +838,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         value: world.id * factor,
         lane: randomInRange(8, 92),
         flightMs,
-        palette: COSTRUISCO_BOMB_PALETTE,
+        palette: COSTRUISCO_BALLOON_PALETTES[Math.floor(Math.random() * COSTRUISCO_BALLOON_PALETTES.length)],
         isCorrect: false,
         isTrap: true,
       };
@@ -3665,10 +3660,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                >
                                  {balloon.isTrap ? (
                                    <>
-                                     <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/20" />
+                                     <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
                                      <span className="text-xl font-black">{balloon.value}</span>
                                      <span
-                                       className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-[9px] shadow-md"
+                                       className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-white text-[11px] shadow-md"
                                        aria-hidden="true"
                                      >💣</span>
                                    </>
@@ -3875,6 +3870,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         }}
                         className="absolute left-0 z-20 text-3xl cursor-pointer select-none"
                         style={{ top: '42%' }}
+                        aria-label="Fantasma — non toccare, fa crollare la piramide!"
+                      >
+                        👻
+                      </motion.button>
+                    )}
+                    {/* 👻 Second ghost — appears from factor 8+ in opposite direction */}
+                    {trucchiGhostActive && !trucchiPyramidCollapsed && !trucchiQuestionSolved && (trucchiSelectedFactor || 0) >= 8 && (
+                      <motion.button
+                        initial={{ x: '105%' }}
+                        animate={{ x: ['105%', '-5%'] }}
+                        transition={{ repeat: Infinity, repeatType: 'mirror', duration: getTrucchiGhostSpeedMs(trucchiSelectedFactor || 4) * 0.8 / 1000, ease: 'linear' }}
+                        onClick={() => {
+                          setTrucchiGhostActive(false);
+                          sound.playError();
+                          speak(GAMEPLAY_AUDIO_MESSAGES.trucchiGhost);
+                          setTrucchiPyramidCollapsed(true);
+                          trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
+                            setTrucchiRemovedBricks(new Set(Array.from({ length: trucchiBrickValues.length }, (_, i) => i)));
+                            trucchiCollapseTimeoutRef.current = null;
+                          }, 820);
+                        }}
+                        className="absolute left-0 z-20 text-3xl cursor-pointer select-none"
+                        style={{ top: '65%' }}
                         aria-label="Fantasma — non toccare, fa crollare la piramide!"
                       >
                         👻

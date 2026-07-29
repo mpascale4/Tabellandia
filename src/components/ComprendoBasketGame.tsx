@@ -368,6 +368,12 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
     return 3500;
   };
 
+  const getBeeCount = (factor: number): number => {
+    if (factor >= 8) return 3;
+    if (factor >= 6) return 2;
+    return 1;
+  };
+
   const handleBeeTap = () => {
     if (isCompleted || beeHit) return;
     setBeeHit(true);
@@ -565,20 +571,30 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
             ))}
           </AnimatePresence>
 
-          {/* 🐝 Bee obstacle — appears from factor 4+ */}
+          {/* 🐝 Bee obstacles — 1 at ×4, 2 at ×6, 3 at ×8 */}
           {displayB >= BEE_START_FACTOR && !isCompleted && (
-            <motion.button
-              key={`bee-${displayB}`}
-              initial={{ x: 0 }}
-              animate={prefersReducedMotion ? { x: arenaSize.width * 0.6 } : { x: [0, arenaSize.width - BASKET_SIZE] }}
-              transition={prefersReducedMotion ? { duration: 0.1 } : { repeat: Infinity, repeatType: 'mirror', duration: getBeeSpeedMs(displayB) / 1000, ease: 'linear' }}
-              onClick={(e) => { e.stopPropagation(); handleBeeTap(); }}
-              className={`absolute z-20 cursor-pointer select-none text-3xl transition-transform ${beeHit ? 'scale-125' : ''}`}
-              style={{ top: `${Math.floor(arenaSize.height * 0.28)}px` }}
-              aria-label="Calabrone — non toccare, ruba le mele!"
-            >
-              🐝
-            </motion.button>
+            Array.from({ length: getBeeCount(displayB) }).map((_, i) => {
+              const speedMultipliers = [1, 0.75, 1.3];
+              const topPercents = [0.28, 0.50, 0.70];
+              const startsRight = i % 2 === 1; // alternate starting sides
+              const speedMs = getBeeSpeedMs(displayB) * speedMultipliers[i];
+              return (
+                <motion.button
+                  key={`bee-${displayB}-${i}`}
+                  initial={{ x: startsRight ? arenaSize.width - BASKET_SIZE : 0 }}
+                  animate={prefersReducedMotion
+                    ? { x: arenaSize.width * 0.6 }
+                    : { x: startsRight ? [arenaSize.width - BASKET_SIZE, 0] : [0, arenaSize.width - BASKET_SIZE] }}
+                  transition={prefersReducedMotion ? { duration: 0.1 } : { repeat: Infinity, repeatType: 'mirror', duration: speedMs / 1000, ease: 'linear' }}
+                  onClick={(e) => { e.stopPropagation(); handleBeeTap(); }}
+                  className={`absolute z-20 cursor-pointer select-none text-3xl transition-transform ${beeHit ? 'scale-125' : ''}`}
+                  style={{ top: `${Math.floor(arenaSize.height * topPercents[i])}px` }}
+                  aria-label="Calabrone — non toccare, ruba le mele!"
+                >
+                  🐝
+                </motion.button>
+              );
+            })
           )}
 
           {isCompleted ? (
