@@ -752,9 +752,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const getTrucchiHammerStartPoint = useCallback(() => {
     const arena = trucchiArenaRef.current;
     if (!arena) {
-      return { x: 280, y: 16 };
+      return { x: 280, y: 34 };
     }
-    return { x: Math.max(22, arena.clientWidth - 28), y: 16 };
+    return { x: Math.max(22, arena.clientWidth - 28), y: 34 };
   }, []);
 
   const getTrucchiBrickCenter = useCallback((brickIndex: number) => {
@@ -4079,16 +4079,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                 {trucchiFlowStage === 'game' && (
                   <div ref={trucchiArenaRef} className="relative min-h-[25rem] bg-white rounded-3xl border border-amber-100 shadow-xl p-4 sm:p-5 space-y-5">
-                    {trucchiHammerActive && !trucchiPyramidCollapsed && !trucchiQuestionSolved && (
-                      <motion.div
-                        initial={{ y: -12, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        className="absolute top-2 right-2 z-20 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-800 shadow-sm"
-                        aria-live="polite"
-                      >
-                        🔨 Martello in azione
-                      </motion.div>
-                    )}
                     {trucchiHammerPose.visible && !trucchiPyramidCollapsed && (
                       <motion.div
                         aria-hidden="true"
