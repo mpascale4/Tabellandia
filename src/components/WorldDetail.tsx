@@ -146,7 +146,7 @@ const TRUCCHI_PREVIEW_MS = 1000;
 const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
 const TRUCCHI_HAMMER_START_FACTOR = 4;
-const TRUCCHI_HAMMER_TRAVEL_MS = 320;
+const TRUCCHI_HAMMER_TRAVEL_MS = 520;
 const SFIDA_FEEDBACK_HOLD_MS = 380;
 const SFIDA_UNLOCK_COST = 1;
 const SFIDA_RECORD_THRESHOLD = 15;
@@ -347,6 +347,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const trucchiHammerResolveTimeoutRef = useRef<number | null>(null);
   const trucchiArenaRef = useRef<HTMLDivElement | null>(null);
   const trucchiBrickRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const trucchiHammerActiveRef = useRef<boolean>(false);
+  const trucchiQuestionSolvedRef = useRef<boolean>(false);
+  const trucchiPyramidCollapsedRef = useRef<boolean>(false);
 
   const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
     return speak(buildMultiplicationResultSpeech(a, b, result));
@@ -411,6 +414,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [quizInteractionLocked, setQuizInteractionLocked] = useState<boolean>(false);
   const [quizWrongAttempts, setQuizWrongAttempts] = useState<{ [key: string]: number }>({}); // tracks combinations failed in this session
   const [quizHistory, setQuizHistory] = useState<{ a: number; b: number; correct: boolean }[]>([]);
+  
+  useEffect(() => {
+    trucchiHammerActiveRef.current = trucchiHammerActive;
+  }, [trucchiHammerActive]);
+
+  useEffect(() => {
+    trucchiQuestionSolvedRef.current = trucchiQuestionSolved;
+  }, [trucchiQuestionSolved]);
+
+  useEffect(() => {
+    trucchiPyramidCollapsedRef.current = trucchiPyramidCollapsed;
+  }, [trucchiPyramidCollapsed]);
   
   // Visual press feedback for quiz/sfida options (shows while button is held down)
   const [quizPressedFeedback, setQuizPressedFeedback] = useState<{ opt: number; correct: boolean } | null>(null);
@@ -809,6 +824,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
 
   const resolveTrucchiHammerStrike = useCallback((factor: number, targetIndex: number) => {
+    if (!trucchiHammerActiveRef.current || trucchiQuestionSolvedRef.current || trucchiPyramidCollapsedRef.current) {
+      setTrucchiHammerTraveling(false);
+      setTrucchiHammerTargetIndex(null);
+      setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
+      return;
+    }
     setTrucchiHammerTraveling(false);
     setTrucchiHammerTargetIndex(null);
     setTrucchiHammerPose(prev => ({ ...prev, striking: false }));
@@ -4165,6 +4186,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                           setTrucchiRevealedBrickIndex(globalIndex);
 
                                           if (isCorrectBrick) {
+                                            clearTrucchiRoundTimeouts();
                                             sound.playSuccess();
                                             speakMultiplicationSuccess(world.id, trucchiSelectedFactor, hiddenValue);
                                             setTrucchiHammerActive(false);
@@ -4185,6 +4207,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                             setTrucchiRevealedBrickIndex(current => (current === globalIndex ? null : current));
 
                                             if (nextWrongChoices >= 3) {
+                                              clearTrucchiRoundTimeouts();
                                               setTrucchiHammerActive(false);
                                               setTrucchiHammerHitBricks(new Set());
                                               setTrucchiHammerTargetIndex(null);
