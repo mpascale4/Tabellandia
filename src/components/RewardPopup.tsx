@@ -13,43 +13,43 @@ interface RewardPopupProps {
 
 const stepMessages: { [key: string]: { title: string; emoji: string; messages: string[] } } = {
   comprendo: {
-    title: '🍎 Fantastico Comprendo!',
+    title: '🍎 Super Raccogli!',
     emoji: '🎉',
     messages: [
-      'Hai capito il concetto!',
-      'Moltiplicazione conquistata!',
+      'Ceste piene di mele!',
+      'Hai raccolto tutto!',
       'Gruppi perfetti!',
-      'Hai vinto i frutti della conoscenza!'
+      'Il frutteto è tuo!'
     ]
   },
   salto: {
-    title: '🐸 Super Salto!',
+    title: '🐸 Super Salta!',
     emoji: '🐸',
     messages: [
       'Saltelli perfetti!',
       'La rana è orgogliosa di te!',
-      'Sequenze conquistate!',
+      'Sassi conquistati!',
       'Hai raggiunto la sponda!'
     ]
   },
   costruisco: {
-    title: '🧱 Bravo Costruttore!',
-    emoji: '🏗️',
+    title: '🎈 Scoppia da campione!',
+    emoji: '💥',
     messages: [
-      'La griglia è perfetta!',
-      'Sei un maestro builder!',
-      'Strutture solide!',
-      'Il castello ammira il tuo talento!'
+      'Palloncino giusto!',
+      'Mira perfetta!',
+      'Scoppiato al primo colpo!',
+      'I cieli di Tabellandia ti applaudono!'
     ]
   },
   trucchi: {
-    title: '🧠 Genio dei Trucchi!',
-    emoji: '💡',
+    title: '🧱 Bravo Trova!',
+    emoji: '🔍',
     messages: [
-      'La memoria è un superpotere!',
-      'Strategie geniali!',
-      'Hai sbloccato il segreto!',
-      'Il cervello brilla di gioia!'
+      'Mattone trovato!',
+      'La piramide è tua!',
+      'Hai scoperto il numero giusto!',
+      'Occhio di falco!'
     ]
   },
   pratico: {

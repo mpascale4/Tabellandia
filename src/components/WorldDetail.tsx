@@ -145,6 +145,7 @@ const TRUCCHI_PYRAMID_ROWS = [1, 2, 3, 4] as const;
 const TRUCCHI_PREVIEW_MS = 1000;
 const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
+const TRUCCHI_GHOST_START_FACTOR = 4;
 const SFIDA_FEEDBACK_HOLD_MS = 380;
 const SFIDA_UNLOCK_COST = 1;
 const SFIDA_RECORD_THRESHOLD = 15;
@@ -154,13 +155,31 @@ const SFIDA_DROPS_HIGH_THRESHOLD = 17;
 const SFIDA_DROPS_LOW_REWARD = 15;
 const SFIDA_DROPS_MID_REWARD = 30;
 const SFIDA_DROPS_HIGH_REWARD = 45;
-const COSTRUISCO_BALLOON_SPAWN_MIN_MS = 800;
-const COSTRUISCO_BALLOON_SPAWN_MAX_MS = 1800;
+const COSTRUISCO_BALLOON_SPAWN_MIN_MS = 260;
+const COSTRUISCO_BALLOON_SPAWN_MAX_MS = 650;
 const COSTRUISCO_BALLOON_FLIGHT_MIN_MS = 4500;
 const COSTRUISCO_BALLOON_FLIGHT_MAX_MS = 6500;
 const COSTRUISCO_BALLOON_MAX_ACTIVE = 5;
 const COSTRUISCO_BALLOON_EXIT_Y = -340;
 const COSTRUISCO_CORRECT_FAIL_PROGRESS = 0.75;
+const COSTRUISCO_BOMB_START_FACTOR = 4;
+const COSTRUISCO_BOMB_PALETTE = {
+  body: 'bg-gradient-to-b from-slate-600 to-slate-900 text-white border-slate-500 hover:from-slate-700 hover:to-black',
+  knot: 'bg-slate-900',
+  string: 'bg-slate-400',
+} as const;
+const DIFFICULTY_FACTOR_MIN = 1;
+const DIFFICULTY_FACTOR_MAX = 10;
+const COSTRUISCO_SPAWN_SCALE_MIN = 0.45;
+const COSTRUISCO_FLIGHT_SCALE_MIN = 0.5;
+const TRUCCHI_PREVIEW_SCALE_MIN = 0.48;
+const SALTO_OBSTACLE_START_FACTOR = 4;
+const SALTO_ANTAGONISTS = [
+  { id: 'snake', label: 'serpente', emoji: '🐍' },
+  { id: 'bat', label: 'pipistrello', emoji: '🦇' },
+  { id: 'spider', label: 'ragno', emoji: '🕷️' },
+  { id: 'scorpion', label: 'scorpione', emoji: '🦂' },
+] as const;
 const OPERATION_CARD_THEMES = [
   'bg-gradient-to-r from-[#3c358f] to-[#4d46b5]',
   'bg-gradient-to-r from-[#ff9d08] to-[#ffb11f]',
@@ -176,13 +195,17 @@ const STEP_MOTIVATION_MESSAGES = [
 ] as const;
 const GAMEPLAY_AUDIO_MESSAGES = {
   saltoFall: 'Oh no, la ranocchia e caduta! Riproviamo.',
+  saltoObstacleBlocked: 'Oh no! L antagonista ti ha fermato.',
+  saltoObstacleSuccess: 'Salto perfetto!',
   costruiscoWrong: 'Non questo. Cerca il numero giusto.',
   costruiscoCorrect: 'Bravo, ma scoppia tutti gli altri palloncini.',
   costruiscoTooHigh: 'Oh no il palloncino e volato via.',
+  costruiscoBomb: 'Boom! Hai toccato la bomba! Riprova.',
   quizWrong: 'Quasi. Riprova con calma.',
   sfidaWrong: 'Ops, risposta sbagliata.',
   trucchiWrong: 'Riprova. Prova un altro numero.',
   trucchiCollapse: 'Oh no, la piramide e caduta! Riproviamo.',
+  trucchiGhost: 'Il fantasma ha fatto crollare la piramide! Riproviamo.',
   combinationLocked: 'Questa combinazione e ancora bloccata.',
   stepLocked: 'Questo passo e ancora bloccato.',
   sfidaLocked: 'La sfida finale non e ancora pronta.',
@@ -213,6 +236,7 @@ const COSTRUISCO_BALLOON_PALETTES = [
 ] as const;
 
 type CostruiscoBalloonPalette = typeof COSTRUISCO_BALLOON_PALETTES[number];
+type SaltoAntagonist = typeof SALTO_ANTAGONISTS[number];
 type CostruiscoActiveBalloon = {
   id: number;
   value: number;
@@ -220,6 +244,7 @@ type CostruiscoActiveBalloon = {
   flightMs: number;
   palette: CostruiscoBalloonPalette;
   isCorrect: boolean;
+  isTrap?: boolean;
 };
 
 export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise, devMode = false }: WorldDetailProps) {
@@ -277,6 +302,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [trucchiPyramidCollapsed, setTrucchiPyramidCollapsed] = useState<boolean>(false);
   const [trucchiPreviewActive, setTrucchiPreviewActive] = useState<boolean>(false);
   const [trucchiRevealedBrickIndex, setTrucchiRevealedBrickIndex] = useState<number | null>(null);
+  const [trucchiGhostActive, setTrucchiGhostActive] = useState<boolean>(false);
   
   // For the current game being played
   const [saltoIndex, setSaltoIndex] = useState<number>(0); // which multiple we are on (0 to 9)
@@ -284,9 +310,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [saltoOptions, setSaltoOptions] = useState<number[]>([]);
   const [saltoCorrectClicks, setSaltoCorrectClicks] = useState<Set<number>>(new Set());
   const [isFrogSplashing, setIsFrogSplashing] = useState<boolean>(false);
-  const [hasSeenComprendoHelp, setHasSeenComprendoHelp] = useState<boolean>(() => {
-    return localStorage.getItem(`comprendo-help-seen-${world.id}`) === 'true';
-  });
+  const [saltoEnemySteps, setSaltoEnemySteps] = useState<number[]>([]);
+  const [saltoJumpedEnemySteps, setSaltoJumpedEnemySteps] = useState<Set<number>>(new Set());
+  const [saltoAntagonistsByStep, setSaltoAntagonistsByStep] = useState<Record<number, SaltoAntagonist>>({});
+  const [saltoFrogPosition, setSaltoFrogPosition] = useState<number>(0);
+  const [saltoLeap, setSaltoLeap] = useState<{ from: number; to: number } | null>(null);
 
   // Costruisco (Step 3) state
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
@@ -299,6 +327,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [completedMonuments, setCompletedMonuments] = useState<string[]>([]); // Track completed monuments
   const costruiscoBalloonTokenRef = useRef<number>(0);
   const costruiscoSpawnTimeoutRef = useRef<number | null>(null);
+  const costruiscoBombTimeoutRef = useRef<number | null>(null);
   const costruiscoEscapeTimeoutsRef = useRef<Record<number, number>>({});
   const costruiscoActiveBalloonsRef = useRef<CostruiscoActiveBalloon[]>([]);
   const costruiscoBalloonPoolRef = useRef<number[]>([]);
@@ -318,10 +347,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const speakPraticoOperation = (a: number, b: number) => speak(`${a} per ${b}`);
   const stepMotivationLabels: Record<'comprendo' | 'salto' | 'costruisco' | 'trucchi', string> = {
-    comprendo: 'Comprendo',
-    salto: 'Salto',
-    costruisco: 'Costruisco',
-    trucchi: 'Trucchi',
+    comprendo: 'Raccogli',
+    salto: 'Salta',
+    costruisco: 'Scoppia',
+    trucchi: 'Trova',
   };
 
   const showStepMotivationPopup = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
@@ -452,7 +481,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             targetStone = saltoFinishRef.current;
           } else if (saltoStoneRef.current) {
             targetStone = saltoStoneRef.current;
-          } else if (saltoIndex === 0) {
+          } else if (saltoFrogPosition === 0) {
             // If on Riva (index 0), scroll to start (0)
             container.scrollTo({ left: 0, behavior: 'smooth' });
             return;
@@ -472,7 +501,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       }, 80);
       return () => clearTimeout(timer);
     }
-  }, [saltoIndex, activeStep, saltoFlowStage, isFrogSplashing, saltoGameCompleted]);
+  }, [saltoIndex, saltoFrogPosition, activeStep, saltoFlowStage, isFrogSplashing, saltoGameCompleted]);
 
   // Reset scroll in alto ad ogni cambio di step o sotto-schermata
   useEffect(() => {
@@ -585,6 +614,32 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSaltoOptions(shuffleArray(Array.from(optionsSet)));
   };
 
+  const pickRandomSaltoAntagonist = (): SaltoAntagonist => {
+    const index = Math.floor(Math.random() * SALTO_ANTAGONISTS.length);
+    return SALTO_ANTAGONISTS[index];
+  };
+
+  const buildSaltoEnemyLayout = (factor: number): { steps: number[]; antagonistsByStep: Record<number, SaltoAntagonist> } => {
+    if (factor < SALTO_OBSTACLE_START_FACTOR) {
+      return { steps: [], antagonistsByStep: {} };
+    }
+    const enemyCountTarget =
+      factor >= 8
+        ? 3
+        : factor >= 6
+          ? 2
+          : 1;
+    const availableSteps = Array.from({ length: Math.max(0, factor - 2) }).map((_, idx) => idx + 2);
+    const selectedSteps = shuffleArray(availableSteps)
+      .slice(0, Math.min(enemyCountTarget, availableSteps.length))
+      .sort((a, b) => a - b);
+    const antagonistsByStep: Record<number, SaltoAntagonist> = {};
+    selectedSteps.forEach((step) => {
+      antagonistsByStep[step] = pickRandomSaltoAntagonist();
+    });
+    return { steps: selectedSteps, antagonistsByStep };
+  };
+
   useEffect(() => {
     if (
       activeStep === 'salto' &&
@@ -602,14 +657,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setComprendoFlowStage('objective');
     }
   }, [comprendoSelectedFactor]);
-
-  useEffect(() => {
-    if (activeStep === 'comprendo' && !hasSeenComprendoHelp) {
-      pushView('guide-help-comprendo');
-      setHasSeenComprendoHelp(true);
-      localStorage.setItem(`comprendo-help-seen-${world.id}`, 'true');
-    }
-  }, [activeStep, hasSeenComprendoHelp, world.id]);
 
   useEffect(() => {
     setComprendoGameCompleted(false);
@@ -657,6 +704,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
   };
 
+  const getTrucchiGhostSpeedMs = (factor: number): number => {
+    if (factor >= 10) return 1300;
+    if (factor >= 8) return 1800;
+    if (factor >= 6) return 2500;
+    return 3500;
+  };
+
   const generateTrucchiBrickValues = (worldId: number, factor: number) => {
     const correct = worldId * factor;
     return shuffleArray([
@@ -675,6 +729,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setTrucchiPyramidCollapsed(false);
       setTrucchiPreviewActive(false);
       setTrucchiRevealedBrickIndex(null);
+      setTrucchiGhostActive(false);
       return;
     }
 
@@ -686,36 +741,57 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setTrucchiRevealedBrickIndex(null);
     setTrucchiQuestionSolved(false);
     setShowTrucchiCompletionEffect(false);
+    setTrucchiGhostActive(false); // ghost activates after preview ends
 
+    const previewDurationMs = scaleDurationByFactor(TRUCCHI_PREVIEW_MS, factor, TRUCCHI_PREVIEW_SCALE_MIN);
     trucchiPreviewTimeoutRef.current = window.setTimeout(() => {
       setTrucchiPreviewActive(false);
       trucchiPreviewTimeoutRef.current = null;
-    }, TRUCCHI_PREVIEW_MS);
+      if (factor >= TRUCCHI_GHOST_START_FACTOR) {
+        setTrucchiGhostActive(true);
+      }
+    }, previewDurationMs);
   };
 
   useEffect(() => {
     resetTrucchiRound(trucchiSelectedFactor);
   }, [trucchiSelectedFactor, world.id]);
 
-  // Helper to generate candidate balloon numbers pool (1 correct answer + distractors)
+  // Helper to generate candidate balloon numbers pool (1 correct answer + many distractors)
   const generateCostruiscoBalloonPool = (worldId: number, factor: number): number[] => {
     const correct = worldId * factor;
     const distractors = new Set<number>();
+    const targetDistractorsCount = 9;
 
     // Add close multiples and nearby numbers
     if (factor > 1) distractors.add(worldId * (factor - 1));
     distractors.add(worldId * (factor + 1));
     if (factor > 2) distractors.add(worldId * (factor - 2));
     distractors.add(worldId * (factor + 2));
+    if (factor > 3) distractors.add(worldId * (factor - 3));
+    distractors.add(worldId * (factor + 3));
 
     distractors.add(correct + 1);
     if (correct > 1) distractors.add(correct - 1);
     distractors.add(correct + 2);
+    if (correct > 2) distractors.add(correct - 2);
+    distractors.add(correct + 3);
+    if (correct > 3) distractors.add(correct - 3);
+    distractors.add(correct + worldId);
+    if (correct - worldId > 0) distractors.add(correct - worldId);
 
-    // Remove correct answer if present in distractors set
     distractors.delete(correct);
 
-    const shuffledDistractors = shuffleArray(Array.from(distractors)).slice(0, 3);
+    let fillerStep = 1;
+    while (distractors.size < targetDistractorsCount) {
+      const high = correct + fillerStep;
+      const low = correct - fillerStep;
+      if (high !== correct) distractors.add(high);
+      if (low > 0 && low !== correct) distractors.add(low);
+      fillerStep++;
+    }
+
+    const shuffledDistractors = shuffleArray(Array.from(distractors)).slice(0, targetDistractorsCount);
     return shuffleArray([correct, ...shuffledDistractors]);
   };
 
@@ -724,10 +800,51 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       window.clearTimeout(costruiscoSpawnTimeoutRef.current);
       costruiscoSpawnTimeoutRef.current = null;
     }
+    if (costruiscoBombTimeoutRef.current !== null) {
+      window.clearTimeout(costruiscoBombTimeoutRef.current);
+      costruiscoBombTimeoutRef.current = null;
+    }
     (Object.values(costruiscoEscapeTimeoutsRef.current) as number[]).forEach(timeoutId => {
       window.clearTimeout(timeoutId);
     });
     costruiscoEscapeTimeoutsRef.current = {};
+  };
+
+  const getBombCountForFactor = (factor: number): number => {
+    if (factor < COSTRUISCO_BOMB_START_FACTOR) return 0;
+    if (factor >= 6) return 2;
+    return 1;
+  };
+
+  const queueCostruiscoBombSpawn = (factor: number, bombsLeft: number) => {
+    if (bombsLeft <= 0) return;
+    if (costruiscoBombTimeoutRef.current !== null) return;
+    const delayMs = randomInRange(2000, 4000);
+    costruiscoBombTimeoutRef.current = window.setTimeout(() => {
+      costruiscoBombTimeoutRef.current = null;
+      if (costruiscoFailedRef.current || costruiscoGameCompletedRef.current) return;
+      const bombId = ++costruiscoBalloonTokenRef.current;
+      const flightMs = randomInRange(
+        scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MIN_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
+        scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MAX_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
+      );
+      const bomb: CostruiscoActiveBalloon = {
+        id: bombId,
+        value: 0,
+        lane: randomInRange(8, 92),
+        flightMs,
+        palette: COSTRUISCO_BOMB_PALETTE,
+        isCorrect: false,
+        isTrap: true,
+      };
+      setCostruiscoActiveBalloons(prev => [...prev, bomb]);
+      const escapeMs = Math.floor(flightMs * COSTRUISCO_CORRECT_FAIL_PROGRESS);
+      costruiscoEscapeTimeoutsRef.current[bombId] = window.setTimeout(() => {
+        delete costruiscoEscapeTimeoutsRef.current[bombId];
+        setCostruiscoActiveBalloons(prev => prev.filter(b => b.id !== bombId));
+      }, escapeMs);
+      queueCostruiscoBombSpawn(factor, bombsLeft - 1);
+    }, delayMs);
   };
 
   const clearSfidaFeedbackTimeout = () => {
@@ -741,9 +858,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
+  const getFactorProgress = (factor: number) => {
+    const clamped = Math.max(DIFFICULTY_FACTOR_MIN, Math.min(DIFFICULTY_FACTOR_MAX, factor));
+    return (clamped - DIFFICULTY_FACTOR_MIN) / (DIFFICULTY_FACTOR_MAX - DIFFICULTY_FACTOR_MIN);
+  };
+
+  const scaleDurationByFactor = (baseMs: number, factor: number, minScale: number) => {
+    const progress = getFactorProgress(factor);
+    const scale = 1 - ((1 - minScale) * progress);
+    return Math.max(140, Math.floor(baseMs * scale));
+  };
+
   const queueCostruiscoSpawn = (factor: number) => {
     if (costruiscoSpawnTimeoutRef.current !== null) return;
-    const delayMs = randomInRange(COSTRUISCO_BALLOON_SPAWN_MIN_MS, COSTRUISCO_BALLOON_SPAWN_MAX_MS);
+    const spawnMinMs = scaleDurationByFactor(COSTRUISCO_BALLOON_SPAWN_MIN_MS, factor, COSTRUISCO_SPAWN_SCALE_MIN);
+    const spawnMaxMs = scaleDurationByFactor(COSTRUISCO_BALLOON_SPAWN_MAX_MS, factor, COSTRUISCO_SPAWN_SCALE_MIN);
+    const delayMs = randomInRange(spawnMinMs, spawnMaxMs);
     costruiscoSpawnTimeoutRef.current = window.setTimeout(() => {
       costruiscoSpawnTimeoutRef.current = null;
 
@@ -764,7 +894,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         id: balloonId,
         value: nextVal,
         lane: randomInRange(8, 92),
-        flightMs: randomInRange(COSTRUISCO_BALLOON_FLIGHT_MIN_MS, COSTRUISCO_BALLOON_FLIGHT_MAX_MS),
+        flightMs: randomInRange(
+          scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MIN_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
+          scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MAX_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
+        ),
         palette: COSTRUISCO_BALLOON_PALETTES[Math.floor(Math.random() * COSTRUISCO_BALLOON_PALETTES.length)],
         isCorrect: nextVal === world.id * factor,
       };
@@ -810,6 +943,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setCostruiscoBalloonPool(pool);
 
     queueCostruiscoSpawn(activeFactor);
+    queueCostruiscoBombSpawn(activeFactor, getBombCountForFactor(activeFactor));
   };
 
   const handleCostruiscoSingleBalloonTap = (balloon: CostruiscoActiveBalloon) => {
@@ -827,6 +961,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     window.setTimeout(() => {
       setCostruiscoPopBursts(prev => prev.filter(burst => burst.id !== balloon.id));
     }, 380);
+
+    // Bomb trap: immediate fail
+    if (balloon.isTrap) {
+      sound.playError();
+      speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoBomb);
+      setCostruiscoFailReason('wrong-tap');
+      setCostruiscoWrongTappedValue(null);
+      setCostruiscoFailed(true);
+      setCostruiscoGameCompleted(false);
+      clearCostruiscoFlightTimeout();
+      return;
+    }
 
     const factor = costruiscoSelectedFactor || 1;
     const expected = world.id * factor;
@@ -1115,14 +1261,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       // Append attempt to history
       const nextHistory = [...p.history, attempt];
       
-      // Calculate XP, Coins, and Light Drops if correct
+      // Calculate XP and Light Drops if correct
       let nextXP = p.xp;
       let nextCoins = p.coins;
       let nextLightDrops = p.lightDrops;
 
       if (isCorrect) {
         nextXP += 10;
-        nextCoins += 1; // 1 coin per correct math answer
         nextLightDrops += 1; // 1 Light Drop to restore Tabellandia!
       }
 
@@ -1350,7 +1495,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     updateProfile(p => {
       let nextXP = p.xp + (isCorrect ? 15 : 0);
-      let nextCoins = p.coins + (isCorrect ? 2 : 0); // Sfida awards double!
+      let nextCoins = p.coins;
       let nextLevel = p.level;
       if (nextXP >= nextLevel * 100) nextLevel += 1;
 
@@ -1508,7 +1653,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       salto: { coins: 0, drops: 0 },
       costruisco: { coins: 0, drops: 0 },
       trucchi: { coins: 0, drops: 0 },
-      pratico: { coins: 5, drops: 0 },
+      pratico: { coins: 3, drops: 0 },
       sfida: { coins: 0, drops: 0 }
     };
     
@@ -1686,6 +1831,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   // Sfida path lock: all didactic steps (1-5) must be completed before accessing step 6
   const allMonumentsErected = rebuiltCount === world.monuments.length;
   const isSfidaPathLocked = !devMode && !areSfidaPrerequisitesDone;
+  const shouldHighlightSfidaCta = canGoToSfidaFromCoins && !isSfidaDone && !isSfidaPathLocked && nextStepToPlay === 'sfida';
   const previousView = viewStack.length > 1 ? viewStack[viewStack.length - 2] : null;
   const isGuideStoryView = currentView === 'world-story';
   const isGuideIntroView = currentView === 'intro' || currentView?.startsWith('guide-intro-');
@@ -1701,15 +1847,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const isInPlayableStepView = ALL_STEP_IDS.includes(activeStep);
   const guideIntroCopy: Record<string, { title: string; lead: string; bullets: string[] }> = {
     comprendo: {
-      title: 'Comprendo: partiamo dal significato',
-      lead: 'Qui scopri che la moltiplicazione nasce da gruppi uguali.',
+      title: 'Raccogli: partiamo dal significato',
+      lead: 'Qui scopri che la moltiplicazione nasce da gruppi uguali di mele.',
       bullets: [
-        'Osserva i gruppi con calma.',
+        'Osserva i cesti e le mele che volano.',
         'Conta e collega il risultato all operazione.'
       ]
     },
     salto: {
-      title: 'Salto: conta a ritmo',
+      title: 'Salta: conta a ritmo',
       lead: 'In questo passo alleni il conteggio per salti con una sequenza chiara.',
       bullets: [
         'Segui il ritmo della tabellina.',
@@ -1717,16 +1863,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       ]
     },
     costruisco: {
-      title: 'Costruisco: metti in ordine i numeri',
-      lead: 'Costruisci la risposta nella griglia e riconosci i pattern della tabellina.',
+      title: 'Scoppia: mira al numero giusto',
+      lead: 'Scoppia il palloncino che porta il risultato corretto prima che voli via.',
       bullets: [
-        'Cerca la casella giusta.',
+        'Cerca il palloncino giusto tra quelli in volo.',
         'Completa lo schema un passaggio alla volta.'
       ]
     },
     trucchi: {
-      title: 'Trucchi: strategie veloci',
-      lead: 'Impari scorciatoie semplici per rispondere con piu sicurezza.',
+      title: 'Trova: strategia veloce',
+      lead: 'Impari a trovare il mattone giusto usando scorciatoie e pattern mnemonici.',
       bullets: [
         'Memorizza una regola per volta.',
         'Prima precisione, poi velocita.'
@@ -2121,6 +2267,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSaltoCorrectClicks(new Set());
     setSaltoGameCompleted(false);
     setShowSaltoCompletionEffect(false);
+    setIsFrogSplashing(false);
+    setSaltoEnemySteps([]);
+    setSaltoJumpedEnemySteps(new Set());
+    setSaltoAntagonistsByStep({});
+    setSaltoFrogPosition(0);
+    setSaltoLeap(null);
     setSaltoSelectedFactor(null);
   };
   const completeSaltoExercise = () => {
@@ -2163,6 +2315,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setTrucchiPyramidCollapsed(false);
     setTrucchiPreviewActive(false);
     setTrucchiRevealedBrickIndex(null);
+    setTrucchiGhostActive(false);
     setTrucchiSelectedFactor(null);
   };
   const completeTrucchiExercise = () => {
@@ -2381,8 +2534,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             {(isGuideIntroView || isGuideStoryView) && (
                 <div className="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-6 text-slate-900 shadow-xl">
                   <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">
-                      Info
+                    <p className="mt-1 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 motion-safe:animate-pulse">
+                      Work in progress
                     </p>
                     <h2 className="mt-2 text-2xl font-black text-indigo-950">
                       {currentGuideIntro.title}
@@ -2478,14 +2631,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   role="listitem"
                   onClick={handleMoneteBadgeClick}
                   className={`rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-center shadow-sm transition-all ${
-                    canGoToSfidaFromCoins
-                      ? 'cursor-pointer hover:border-amber-300 hover:bg-amber-100 motion-safe:animate-pulse'
+                    shouldHighlightSfidaCta
+                      ? 'cursor-pointer border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
                       : 'cursor-pointer hover:border-amber-300 hover:bg-amber-100/70'
                   }`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Monete</p>
                   <p className="text-lg font-black text-amber-800">🪙 {profile.coins}</p>
-                  <p className="text-[11px] font-black text-amber-900">Vai alla Sfida</p>
+                  <p className={`text-[11px] font-black ${shouldHighlightSfidaCta ? 'text-amber-950 animate-badge-blink' : 'text-amber-900'}`}>
+                    {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
+                  </p>
                 </button>
                 <button
                   type="button"
@@ -2504,19 +2659,69 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </p>
                 </button>
               </div>
+
+              <div className="mt-3 rounded-2xl border border-indigo-100 bg-white/80 p-2.5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-[11px] font-black text-indigo-900 uppercase tracking-wider font-sans">
+                    Monumenti del Regno ({rebuiltCount}/{world.monuments.length})
+                  </h4>
+                </div>
+                <div role="list" className="flex gap-2 overflow-x-auto pb-1">
+                  {world.monuments.map(monument => {
+                    const isErected = devMode || worldProg.rebuiltMonuments.includes(monument.id);
+                    const canAfford = profile.lightDrops >= monument.cost;
+
+                    return (
+                      <button
+                        key={`compact-monument-${monument.id}`}
+                        type="button"
+                        role="listitem"
+                        onClick={() => {
+                          sound.playClick();
+                          setShouldReturnToMonumentsListAfterModal(false);
+                          setMonumentModal({ monument, canAfford, isErected });
+                        }}
+                        className={`w-[6.5rem] shrink-0 rounded-2xl border px-2 py-2 text-left shadow-sm transition-all cursor-pointer ${
+                          isErected
+                            ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-400'
+                            : canAfford
+                              ? 'border-amber-500 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-100 ring-2 ring-amber-300 animate-monument-glow'
+                              : 'border-slate-200 border-dashed bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className={`text-lg leading-none ${isErected ? '' : canAfford ? 'scale-110' : 'grayscale opacity-60'}`}>
+                            {monument.emoji}
+                          </span>
+                          <span className={`text-[10px] font-black ${
+                            isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900' : 'text-slate-600'
+                          }`}>
+                            {isErected ? '✓' : '🔒'}
+                          </span>
+                        </div>
+                        <p className={`mt-0.5 text-xs font-black ${
+                          isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900 animate-badge-blink' : 'text-sky-800'
+                        }`}>
+                          💧 {monument.cost}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* PARTE 2: PASSI DIDATTICI (1 - 5) */}
             <div className="space-y-2 order-2">
               <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider px-1 font-sans">
-                2. Passi Didattici di Apprendimento
+                Passi Didattici
               </h4>
               <div className="grid grid-cols-1 gap-3">
                 {[
-                  { id: 'comprendo', title: '1. Comprendo', desc: 'Rappresentazione e gruppi.', icon: '🍎', coins: 0, drops: 0, isFactorBased: true },
-                  { id: 'salto', title: '2. Salto', desc: 'Conteggio ritmico sul ruscello.', icon: '🐸', coins: 0, drops: 0, isFactorBased: true },
-                  { id: 'costruisco', title: '3. Costruisco', desc: 'Griglia dei moltiplicatori.', icon: '🧱', coins: 0, drops: 0, isFactorBased: true },
-                  { id: 'trucchi', title: '4. Trucchi', desc: 'Regole e scorciatoie cognitive.', icon: '🧠', coins: 0, drops: 0, isFactorBased: true },
+                  { id: 'comprendo', title: '1. Raccogli', desc: 'Raccogli le mele nei cesti.', icon: '🍎', coins: 0, drops: 0, isFactorBased: true },
+                  { id: 'salto', title: '2. Salta', desc: 'Salta di sasso in sasso sul ruscello.', icon: '🐸', coins: 0, drops: 0, isFactorBased: true },
+                  { id: 'costruisco', title: '3. Scoppia', desc: 'Scoppia il palloncino giusto.', icon: '🎈', coins: 0, drops: 0, isFactorBased: true },
+                  { id: 'trucchi', title: '4. Trova', desc: 'Trova il mattone corretto.', icon: '🧱', coins: 0, drops: 0, isFactorBased: true },
                   { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Sconfiggi la nebbia e raccogli monete per la Sfida.', icon: '🛡️', coins: 5, drops: 0, isFactorBased: false },
                 ].map((step, idx) => {
                   const isDone = stepDoneMap[step.id] || false;
@@ -2597,96 +2802,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </div>
             </div>
 
-            {/* PARTE 1: MONUMENTI DEL REGNO (incorporati nel Sentiero) */}
-            <div className="space-y-2 order-1">
-              <div className="flex items-center justify-between px-1">
-                <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider font-sans">
-                  1. Monumenti del Regno ({rebuiltCount}/{world.monuments.length} Eretti)
-                </h4>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {world.monuments.map(monument => {
-                  const isErected = devMode || worldProg.rebuiltMonuments.includes(monument.id);
-                  const canAfford = profile.lightDrops >= monument.cost;
-
-                  return (
-                    <div
-                      key={monument.id}
-                      onClick={() => {
-                        sound.playClick();
-                        setShouldReturnToMonumentsListAfterModal(false);
-                        setMonumentModal({ monument, canAfford, isErected });
-                      }}
-                      className={`p-3.5 rounded-2xl border-2 flex flex-col justify-between transition-all cursor-pointer ${
-                        isErected
-                          ? 'bg-gradient-to-br from-amber-100 via-yellow-50 to-emerald-100 border-amber-400 shadow-md ring-2 ring-amber-300/70 hover:scale-[1.02]'
-                          : canAfford
-                            ? 'bg-gradient-to-br from-amber-100 via-yellow-200 to-amber-100 border-amber-500 shadow-xl ring-4 ring-amber-400/80 animate-monument-glow hover:scale-[1.03]'
-                            : 'bg-slate-100/90 border-dashed border-slate-300/90 hover:border-indigo-400 hover:bg-white shadow-2xs hover:scale-[1.01]'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          {isErected ? (
-                            <span className="text-3xl filter drop-shadow-xs">{monument.emoji}</span>
-                          ) : (
-                            <div className="relative">
-                              <span className={`text-3xl filter ${canAfford ? 'drop-shadow-md scale-110' : 'grayscale opacity-50'}`}>{monument.emoji}</span>
-                              {!canAfford && <span className="absolute -top-1 -right-1 text-xs">🔒</span>}
-                            </div>
-                          )}
-
-                          {isErected ? (
-                            <span className="text-[10px] font-black text-amber-950 bg-amber-300 border border-amber-400 px-2.5 py-0.5 rounded-full font-sans shadow-2xs">
-                              🏛️ ERETTO ✓
-                            </span>
-                          ) : canAfford ? (
-                            <span className="text-[10px] font-black text-amber-950 bg-amber-300 border border-amber-500 px-2.5 py-0.5 rounded-full font-sans shadow-md animate-badge-blink flex items-center gap-1">
-                              ✨ 🔓 SBLOCCABILE!
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-black text-sky-900 bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full font-sans">
-                              💧 {monument.cost} Gocce
-                            </span>
-                          )}
-                        </div>
-                        <h5 className={`text-xs font-black font-sans mt-1 ${isErected ? 'text-amber-950' : canAfford ? 'text-amber-950 font-black' : 'text-slate-700'}`}>
-                          {monument.name}
-                        </h5>
-                        <p className={`text-[10px] leading-tight mt-0.5 font-sans ${isErected ? 'text-amber-900/80' : canAfford ? 'text-amber-900 font-medium' : 'text-slate-500'}`}>
-                          {monument.description}
-                        </p>
-                      </div>
-
-                      {isErected ? (
-                        <div className="mt-3 pt-1.5 border-t border-amber-200/80 text-[10px] font-black text-emerald-800 font-sans flex items-center justify-between">
-                          <span>✨ Monumento Attivo</span>
-                          <span className="text-xs font-black">✓</span>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            sound.playClick();
-                            setShouldReturnToMonumentsListAfterModal(false);
-                            setMonumentModal({ monument, canAfford, isErected });
-                          }}
-                          className={`mt-3 w-full py-2 px-2 rounded-xl text-xs font-black shadow-md cursor-pointer transition-all ${
-                            canAfford
-                              ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 text-white font-black animate-bounce ring-2 ring-amber-300'
-                              : 'bg-slate-200 hover:bg-slate-300 text-slate-600 font-sans'
-                          }`}
-                        >
-                          {canAfford ? `✨ 🔓 SBLOCCA ORA (${monument.cost} 💧)` : `🔒 Gocce Insufficienti (${profile.lightDrops}/${monument.cost})`}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* PARTE 3: SFIDA FINALE DEL REGNO */}
             <div className="space-y-2 order-3">
               <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider px-1 font-sans">
@@ -2751,14 +2866,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'comprendo' && comprendoSelectedFactor === null && (
           renderStepSelectionScreen({
             stepKey: 'comprendo',
-            badge: 'Passo 1: Comprendo',
+            badge: 'Passo 1: Raccogli',
             title: 'Scegli una moltiplicazione',
             description: 'Completa tutte e 10 le moltiplicazioni per costruire il concetto.',
             completed: effectiveComprendoCompleted,
             onSelect: (factor) => {
               sound.playClick();
               setComprendoSelectedFactor(factor);
-              setComprendoFlowStage(factor === 1 ? 'objective' : 'game');
+              setComprendoFlowStage('game');
               setShowComprendoCompletionEffect(false);
             },
             onHelp: () => pushView('guide-help-comprendo'),
@@ -2831,16 +2946,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                        >
                          <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                           <button
-                             type="button"
-                             onClick={() => {
-                               sound.playClick();
-                               completeComprendoExercise();
-                             }}
-                             className="mt-3 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-indigo-700 cursor-pointer motion-safe:animate-pulse"
-                           >
-                             Continua
-                           </button>
+                           <p className="mt-2 text-xs font-bold text-slate-700">Prosegui con il bottone Continua nel footer.</p>
                          </div>
                        </motion.div>
                      )}
@@ -2850,50 +2956,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                </div>
              </div>
 
-             {!(comprendoFlowStage === 'game' && showComprendoCompletionEffect) && (
-               <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
-                 <div className={`${comprendoFlowStage === 'game' ? 'max-w-2xl' : 'max-w-xl'} mx-auto w-full`}>
-                   {comprendoFlowStage === 'game' ? (
-                     comprendoGameCompleted ? (
-                       <button
-                         onClick={() => {
-                           sound.playClick();
-                           completeComprendoExercise();
-                         }}
-                         className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
-                       >
-                         Continua
-                       </button>
-                     ) : (
-                       <ActionGrid columns={2}>
-                         <button
-                           onClick={() => {
-                             sound.playClick();
-                             cancelComprendoExercise();
-                           }}
-                           className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
-                         >
-                           Annulla
-                         </button>
-                         <button
-                           onClick={() => {
-                             sound.playClick();
-                             if (!comprendoGameCompleted) return;
-                             completeComprendoExercise();
-                           }}
-                           disabled={!comprendoGameCompleted}
-                           className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors ${
-                             comprendoGameCompleted
-                               ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
-                               : 'bg-indigo-300 cursor-not-allowed opacity-70'
-                           }`}
-                         >
-                           Continua
-                         </button>
-                       </ActionGrid>
-                     )
+             <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
+               <div className={`${comprendoFlowStage === 'game' ? 'max-w-2xl' : 'max-w-xl'} mx-auto w-full`}>
+                 {comprendoFlowStage === 'game' ? (
+                   comprendoGameCompleted ? (
+                     <button
+                       onClick={() => {
+                         sound.playClick();
+                         completeComprendoExercise();
+                       }}
+                       className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                     >
+                       Continua
+                     </button>
                    ) : (
-                     <div className="space-y-2">
+                     <ActionGrid columns={2}>
                        <button
                          onClick={() => {
                            sound.playClick();
@@ -2901,22 +2978,49 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          }}
                          className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
                        >
-                         Torna alle combinazioni
+                         Annulla
                        </button>
                        <button
                          onClick={() => {
                            sound.playClick();
-                           setComprendoFlowStage('game');
+                           if (!comprendoGameCompleted) return;
+                           completeComprendoExercise();
                          }}
-                         className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                         disabled={!comprendoGameCompleted}
+                         className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors ${
+                           comprendoGameCompleted
+                             ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
+                             : 'bg-indigo-300 cursor-not-allowed opacity-70'
+                         }`}
                        >
                          Continua
                        </button>
-                     </div>
-                   )}
-                 </div>
+                     </ActionGrid>
+                   )
+                 ) : (
+                   <div className="space-y-2">
+                     <button
+                       onClick={() => {
+                         sound.playClick();
+                         cancelComprendoExercise();
+                       }}
+                       className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                     >
+                       Torna alle combinazioni
+                     </button>
+                     <button
+                       onClick={() => {
+                         sound.playClick();
+                         setComprendoFlowStage('game');
+                       }}
+                       className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                     >
+                       Continua
+                     </button>
+                   </div>
+                 )}
                </div>
-             )}
+             </div>
            </div>
         )}
 
@@ -2924,19 +3028,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'salto' && saltoSelectedFactor === null && (
           renderStepSelectionScreen({
             stepKey: 'salto',
-            badge: 'Passo 2: Conteggio per salti',
-            title: '🐸 Aiuta a saltare i sassi!',
+            badge: 'Passo 2: Salta',
+            title: '🐸 Fai saltare la rana sui sassi!',
             description: 'Completa tutte e 10 le combinazioni per consolidare il ritmo del conteggio.',
             completed: effectiveSaltoCompleted,
             onSelect: (factor) => {
               sound.playClick();
+              const enemyLayout = buildSaltoEnemyLayout(factor);
               setSaltoSelectedFactor(factor);
               setSaltoIndex(0);
               setSaltoOptions([]);
               setSaltoCorrectClicks(new Set());
-              setSaltoFlowStage(factor === 1 ? 'objective' : 'game');
+              setSaltoFlowStage('game');
               setSaltoGameCompleted(false);
               setShowSaltoCompletionEffect(false);
+              setIsFrogSplashing(false);
+              setSaltoEnemySteps(enemyLayout.steps);
+              setSaltoJumpedEnemySteps(new Set());
+              setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
+              setSaltoFrogPosition(0);
+              setSaltoLeap(null);
             },
             onHelp: () => pushView('guide-help-salto'),
             theme: {
@@ -2958,14 +3069,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
               <div className="max-w-xl mx-auto w-full space-y-6">
-                {saltoFlowStage === 'objective' && (
+                {saltoFlowStage === 'objective' && saltoSelectedFactor !== 1 && (
                   <div className="bg-white rounded-3xl p-5 border border-purple-100 shadow-xl space-y-4">
                     <div className="text-center">
                       <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2.5 py-0.5 rounded-full font-sans">
                         Salto: {world.id} × {saltoSelectedFactor}
                       </span>
                       <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
-                        🐸 Aiuta {world.mascotName} a saltare i sassi!
+                        🐸 Fai saltare {world.mascotName} sui sassi!
                       </h3>
                       <p className="text-xs text-slate-500 mt-1">
                         Tocca il numero corretto per completare la sequenza.
@@ -3004,7 +3115,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         <span className="text-xl">🐸</span>
                         <div>
                           <p className="text-[10px] font-bold text-purple-600 uppercase font-sans">
-                            Salto {saltoIndex + 1} di {saltoSelectedFactor}
+                            Salta {saltoIndex + 1} di {saltoSelectedFactor}
                           </p>
                           <p className="text-base font-black text-indigo-950 font-mono">
                             {world.id} × {saltoSelectedFactor} = {saltoGameCompleted ? world.id * saltoSelectedFactor : '?'}
@@ -3017,6 +3128,33 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between">
                       {/* Water sparkles background */}
                       <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:16px_16px]" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
+                          sound.playClick();
+                          const currentEnemyStep = saltoIndex + 1;
+                          const isJumpWindowOpen =
+                            saltoEnemySteps.includes(currentEnemyStep) &&
+                            !saltoJumpedEnemySteps.has(currentEnemyStep);
+                          if (!isJumpWindowOpen) return;
+                          const fromStep = saltoFrogPosition;
+                          const toStep = currentEnemyStep;
+                          const leapMs = prefersReducedMotion ? 140 : 420;
+                          setSaltoLeap({ from: fromStep, to: toStep });
+                          speak(GAMEPLAY_AUDIO_MESSAGES.saltoObstacleSuccess);
+                          window.setTimeout(() => {
+                            setSaltoJumpedEnemySteps(prev => new Set(prev).add(currentEnemyStep));
+                            setSaltoFrogPosition(toStep);
+                            setSaltoLeap(null);
+                          }, leapMs);
+                        }}
+                        className="absolute left-3 bottom-3 z-20 h-11 w-11 rounded-2xl border-2 border-purple-200 bg-white text-xl text-purple-900 shadow-sm transition-all cursor-pointer active:scale-95 flex items-center justify-center"
+                        aria-label="Salta"
+                        title="Salta"
+                      >
+                        🐸
+                      </button>
 
                       {/* River Stream Container */}
                       <div className="relative z-10 my-1 flex min-w-0 items-center justify-between gap-1 px-2 py-2 bg-sky-900/30 backdrop-blur-xs rounded-2xl border border-sky-200/30">
@@ -3029,16 +3167,28 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         >
                           {/* Start Bank (Riva / Partenza) - Frog starts here! */}
                           <div
-                            ref={saltoIndex === 0 && !saltoGameCompleted ? saltoStoneRef : null}
+                            ref={saltoFrogPosition === 0 && !saltoGameCompleted ? saltoStoneRef : null}
                             className="relative flex flex-col items-center justify-end shrink-0 min-w-[50px] pt-8 pb-2 px-1"
                           >
                             {/* Frog sitting on Riva when starting (saltoIndex === 0) */}
-                            {saltoIndex === 0 && !saltoGameCompleted && (
+                            {saltoFrogPosition === 0 && !saltoGameCompleted && (
                               <motion.div
-                                key={`frog-start-${isFrogSplashing}`}
+                                key={`frog-start-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
                                 initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
-                                animate={isFrogSplashing ? { y: 28, rotate: 180, scale: 1.15 } : { y: [0, -6, 0], scale: 1 }}
-                                transition={isFrogSplashing ? { duration: 0.4, ease: "easeOut" } : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }}
+                                animate={
+                                  isFrogSplashing
+                                    ? { y: 28, rotate: 180, scale: 1.15 }
+                                    : saltoLeap?.from === 0
+                                      ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
+                                      : { y: [0, -6, 0], scale: 1 }
+                                }
+                                transition={
+                                  isFrogSplashing
+                                    ? { duration: 0.4, ease: "easeOut" }
+                                    : saltoLeap?.from === 0
+                                      ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
+                                      : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
+                                }
                                 className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
                               >
                                 <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
@@ -3055,78 +3205,116 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                           {/* Stepping Stones (1 to saltoSelectedFactor) */}
                           {Array.from({ length: saltoSelectedFactor }).map((_, idx) => {
+                            const stoneStep = idx + 1;
                             const stoneNum = world.id * (idx + 1);
                             const isLastStone = idx === saltoSelectedFactor - 1;
-                            const isFrogHere = !saltoGameCompleted && saltoIndex > 0 && idx === saltoIndex - 1;
+                            const isFrogHere = !saltoGameCompleted && saltoFrogPosition === stoneStep;
                             const isFrogOnFinish = saltoGameCompleted && isLastStone;
-                            const isReached = (idx + 1 <= saltoIndex) || saltoGameCompleted;
-                            const isNextTarget = !saltoGameCompleted && idx === saltoIndex;
+                            const isReached = (stoneStep <= saltoIndex) || saltoGameCompleted;
+                            const hasEnemyStep = saltoEnemySteps.includes(idx + 1);
+                            const isEnemyStepPending = hasEnemyStep && !saltoJumpedEnemySteps.has(stoneStep) && !isReached;
+                            const isNextTarget = !saltoGameCompleted && idx === saltoIndex && !isEnemyStepPending;
+                            const enemyForStep = saltoAntagonistsByStep[idx + 1];
 
                             return (
-                              <div
-                                key={idx}
-                                ref={isFrogHere ? saltoStoneRef : isFrogOnFinish ? saltoFinishRef : null}
-                                className="relative flex flex-col items-center justify-end min-w-[46px] shrink-0"
-                              >
-                                {/* Frog sitting on current stone during jumps */}
-                                {isFrogHere && (
-                                  <motion.div
-                                    key={`frog-${idx}-${isFrogSplashing}`}
-                                    initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
-                                    animate={isFrogSplashing ? { y: 28, rotate: 180, scale: 1.15 } : { y: [0, -6, 0], scale: 1 }}
-                                    transition={isFrogSplashing ? { duration: 0.4, ease: "easeOut" } : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }}
-                                    className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
-                                  >
-                                    <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                    {isFrogSplashing && (
-                                      <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
-                                    )}
-                                  </motion.div>
+                              <React.Fragment key={idx}>
+                                {hasEnemyStep && (
+                                  <div className="relative flex flex-col items-center justify-end min-w-[40px] shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (!enemyForStep) return;
+                                        speak(`Antagonista ${enemyForStep.label}`);
+                                      }}
+                                      className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center shadow-sm transition-all cursor-pointer ${
+                                        isEnemyStepPending
+                                          ? 'bg-rose-100 border-rose-400 ring-4 ring-rose-200 motion-safe:animate-pulse'
+                                          : 'bg-slate-100 border-slate-300 opacity-65'
+                                      }`}
+                                      aria-label={enemyForStep ? `Step antagonista ${enemyForStep.label}` : 'Step antagonista'}
+                                    >
+                                      <span className="text-base leading-none" role="img" aria-hidden="true">
+                                        {enemyForStep ? enemyForStep.emoji : '👾'}
+                                      </span>
+                                    </button>
+                                  </div>
                                 )}
-
-                                {/* Frog sitting on final stone on completion */}
-                                {isFrogOnFinish && (
-                                  <motion.div
-                                    initial={{ scale: 0, y: -15 }}
-                                    animate={{ scale: [1, 1.2, 1], y: [0, -8, 0] }}
-                                    transition={{ repeat: Infinity, duration: 0.9, ease: "easeInOut" }}
-                                    className="absolute -top-7 z-30 flex flex-col items-center pointer-events-none"
-                                  >
-                                    <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                    <span className="absolute -top-2.5 -right-1.5 text-base animate-bounce">👑</span>
-                                  </motion.div>
-                                )}
-
-                                {/* Stepping Stone 🪨 */}
-                                <motion.button
-                                  type="button"
-                                  onClick={() => speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`)}
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-mono font-black text-xs sm:text-sm border-2 shadow-sm transition-all cursor-pointer relative ${
-                                    isFrogOnFinish
-                                      ? 'bg-amber-300 border-amber-500 text-amber-950 ring-4 ring-amber-300 shadow-lg scale-105'
-                                      : isReached
-                                        ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-md ring-2 ring-emerald-300/50'
-                                        : isNextTarget
-                                          ? 'bg-amber-50 border-amber-400 text-amber-900 ring-4 ring-amber-300/80 shadow-md animate-pulse'
-                                          : 'bg-slate-200/90 border-slate-300 text-slate-600'
-                                  }`}
+                                <div
+                                  ref={isFrogHere ? saltoStoneRef : isFrogOnFinish ? saltoFinishRef : null}
+                                  className="relative flex flex-col items-center justify-end min-w-[46px] shrink-0"
                                 >
-                                  {isReached ? stoneNum : isNextTarget ? '?' : '🪨'}
-                                </motion.button>
+                                  {/* Frog sitting on current stone during jumps */}
+                                  {isFrogHere && (
+                                    <motion.div
+                                      key={`frog-${idx}-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
+                                      initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
+                                      animate={
+                                        isFrogSplashing
+                                          ? { y: 28, rotate: 180, scale: 1.15 }
+                                          : saltoLeap?.from === stoneStep
+                                            ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
+                                            : { y: [0, -6, 0], scale: 1 }
+                                      }
+                                      transition={
+                                        isFrogSplashing
+                                          ? { duration: 0.4, ease: "easeOut" }
+                                          : saltoLeap?.from === stoneStep
+                                            ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
+                                            : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
+                                      }
+                                      className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
+                                    >
+                                      <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
+                                      {isFrogSplashing && (
+                                        <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
+                                      )}
+                                    </motion.div>
+                                  )}
 
-                                {/* Badge below last stone */}
-                                {isLastStone && (
-                                  <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded mt-1 shadow-2xs ${
-                                    isFrogOnFinish
-                                      ? 'bg-amber-300 text-amber-950 border border-amber-400 font-sans'
-                                      : 'bg-indigo-100 text-indigo-900 border border-indigo-200 font-sans'
-                                  }`}>
-                                    {isFrogOnFinish ? 'Traguardo! 👑' : `Traguardo ${stoneNum}`}
-                                  </span>
-                                )}
-                              </div>
+                                  {/* Frog sitting on final stone on completion */}
+                                  {isFrogOnFinish && (
+                                    <motion.div
+                                      initial={{ scale: 0, y: -15 }}
+                                      animate={{ scale: [1, 1.2, 1], y: [0, -8, 0] }}
+                                      transition={{ repeat: Infinity, duration: 0.9, ease: "easeInOut" }}
+                                      className="absolute -top-7 z-30 flex flex-col items-center pointer-events-none"
+                                    >
+                                      <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
+                                      <span className="absolute -top-2.5 -right-1.5 text-base animate-bounce">👑</span>
+                                    </motion.div>
+                                  )}
+
+                                  {/* Stepping Stone 🪨 */}
+                                  <motion.button
+                                    type="button"
+                                    onClick={() => speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`)}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-mono font-black text-xs sm:text-sm border-2 shadow-sm transition-all cursor-pointer relative ${
+                                      isFrogOnFinish
+                                        ? 'bg-amber-300 border-amber-500 text-amber-950 ring-4 ring-amber-300 shadow-lg scale-105'
+                                        : isReached
+                                          ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-md ring-2 ring-emerald-300/50'
+                                          : isNextTarget
+                                            ? 'bg-amber-50 border-amber-400 text-amber-900 ring-4 ring-amber-300/80 shadow-md animate-pulse'
+                                            : 'bg-slate-200/90 border-slate-300 text-slate-600'
+                                    }`}
+                                  >
+                                    {isReached ? stoneNum : isNextTarget ? '?' : '🪨'}
+                                  </motion.button>
+
+                                  {/* Badge below last stone */}
+                                  {isLastStone && (
+                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded mt-1 shadow-2xs ${
+                                      isFrogOnFinish
+                                        ? 'bg-amber-300 text-amber-950 border border-amber-400 font-sans'
+                                        : 'bg-indigo-100 text-indigo-900 border border-indigo-200 font-sans'
+                                    }`}>
+                                      {isFrogOnFinish ? 'Traguardo! 👑' : `Traguardo ${stoneNum}`}
+                                    </span>
+                                  )}
+                                </div>
+                              </React.Fragment>
                             );
                           })}
                         </div>
@@ -3144,6 +3332,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           setIsFrogSplashing(false);
                           setSaltoIndex(0);
                           setSaltoCorrectClicks(new Set());
+                          setSaltoFrogPosition(0);
+                          setSaltoLeap(null);
+                          if (saltoSelectedFactor !== null) {
+                            const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
+                            setSaltoEnemySteps(enemyLayout.steps);
+                            setSaltoJumpedEnemySteps(new Set());
+                            setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
+                          }
                         }}
                         className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm text-center py-3.5 px-4 rounded-2xl border-2 border-rose-300 shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 font-sans"
                       >
@@ -3151,7 +3347,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         <span>Riprova</span>
                       </motion.button>
                     ) : (
-                      <div className="w-full grid grid-cols-4 gap-2 sm:gap-3">
+                      <div className="w-full space-y-2.5">
+                        <div className="grid grid-cols-4 gap-2 sm:gap-3">
                         {saltoOptions.map((opt, idx) => {
                           const solvedNum = world.id * saltoSelectedFactor;
                           const isSelected = saltoGameCompleted && opt === solvedNum;
@@ -3162,11 +3359,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               key={idx}
                               disabled={saltoGameCompleted}
                               onClick={() => {
-                                if (saltoGameCompleted || isFrogSplashing) return;
+                                if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
+                                const isObstacleBlocking =
+                                  saltoEnemySteps.includes(saltoIndex + 1) &&
+                                  !saltoJumpedEnemySteps.has(saltoIndex + 1);
+                                if (isObstacleBlocking) {
+                                  sound.playError();
+                                  speak(GAMEPLAY_AUDIO_MESSAGES.saltoObstacleBlocked);
+                                  setIsFrogSplashing(true);
+                                  return;
+                                }
                                 const expected = world.id * (saltoIndex + 1);
                                 if (opt === expected) {
                                   sound.playSuccess();
                                   setSaltoCorrectClicks(prev => new Set([...prev, opt]));
+                                  setSaltoFrogPosition(saltoIndex + 1);
+                                  setSaltoLeap(null);
                                   if (saltoIndex + 1 >= saltoSelectedFactor) {
                                     speakSaltoSuccess(world.id, saltoSelectedFactor, opt);
                                     setSaltoGameCompleted(true);
@@ -3196,6 +3404,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             </button>
                           );
                         })}
+                        </div>
                       </div>
                     )}
 
@@ -3208,16 +3417,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       >
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sound.playClick();
-                              completeSaltoExercise();
-                            }}
-                            className="mt-3 w-full rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-purple-700 cursor-pointer motion-safe:animate-pulse"
-                          >
-                            Continua
-                          </button>
+                          <p className="mt-2 text-xs font-bold text-slate-700">Prosegui con il bottone Continua nel footer.</p>
                         </div>
                       </motion.div>
                     )}
@@ -3226,50 +3426,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </div>
             </div>
 
-            {!(saltoFlowStage === 'game' && showSaltoCompletionEffect) && (
-              <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
-                <div className="max-w-xl mx-auto w-full">
-                  {saltoFlowStage === 'game' ? (
-                    saltoGameCompleted ? (
-                      <button
-                        onClick={() => {
-                          sound.playClick();
-                          completeSaltoExercise();
-                        }}
-                        className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
-                      >
-                        Continua
-                      </button>
-                    ) : (
-                      <ActionGrid columns={2}>
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            cancelSaltoExercise();
-                          }}
-                          className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
-                        >
-                          Annulla
-                        </button>
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            if (!saltoGameCompleted) return;
-                            completeSaltoExercise();
-                          }}
-                          disabled={!saltoGameCompleted}
-                          className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors ${
-                            saltoGameCompleted
-                              ? 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
-                              : 'bg-purple-300 cursor-not-allowed opacity-70'
-                          }`}
-                        >
-                          Continua
-                        </button>
-                      </ActionGrid>
-                    )
+            <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
+              <div className="max-w-xl mx-auto w-full">
+                {saltoFlowStage === 'game' ? (
+                  saltoGameCompleted ? (
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        completeSaltoExercise();
+                      }}
+                      className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
+                    >
+                      Continua
+                    </button>
                   ) : (
-                    <div className="space-y-2">
+                    <ActionGrid columns={2}>
                       <button
                         onClick={() => {
                           sound.playClick();
@@ -3277,22 +3448,49 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         }}
                         className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
                       >
-                        Torna alle combinazioni
+                        Annulla
                       </button>
                       <button
                         onClick={() => {
                           sound.playClick();
-                          setSaltoFlowStage('game');
+                          if (!saltoGameCompleted) return;
+                          completeSaltoExercise();
                         }}
-                        className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                        disabled={!saltoGameCompleted}
+                        className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors ${
+                          saltoGameCompleted
+                            ? 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
+                            : 'bg-purple-300 cursor-not-allowed opacity-70'
+                        }`}
                       >
                         Continua
                       </button>
-                    </div>
-                  )}
-                </div>
+                    </ActionGrid>
+                  )
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        cancelSaltoExercise();
+                      }}
+                      className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    >
+                      Torna alle combinazioni
+                    </button>
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        setSaltoFlowStage('game');
+                      }}
+                      className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    >
+                      Continua
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -3300,8 +3498,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'costruisco' && costruiscoSelectedFactor === null && (
           renderStepSelectionScreen({
             stepKey: 'costruisco',
-            badge: 'Passo 3: Costruisci la Tabellina',
-            title: '🏗️ Scegli una moltiplicazione da costruire',
+            badge: 'Passo 3: Scoppia',
+            title: '🎈 Scegli una moltiplicazione da scoppiare',
             description: 'Completa tutte e 10 le operazioni e trasforma i concetti in risultati.',
             completed: effectiveCostruiscoCompleted,
             onSelect: (factor) => {
@@ -3313,7 +3511,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setCostruiscoFailed(false);
               setCostruiscoFailReason(null);
               setCostruiscoWrongTappedValue(null);
-              setCostruiscoFlowStage(factor === 1 ? 'objective' : 'game');
+              setCostruiscoFlowStage('game');
               setCostruiscoGameCompleted(false);
               setShowCostruiscoCompletionEffect(false);
             },
@@ -3342,7 +3540,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <div className="bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-4">
                      <div className="text-center">
                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full font-sans">
-                         Costruisci: {world.id} × {costruiscoSelectedFactor}
+                         Scoppia: {world.id} × {costruiscoSelectedFactor}
                        </span>
                        <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
                          Scoppia il palloncino col risultato giusto!
@@ -3357,7 +3555,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          Tocca il palloncino con il risultato giusto di <b>{world.id} × {costruiscoSelectedFactor}</b>.
                        </p>
                        <p className="text-slate-600 mt-1 leading-relaxed text-rose-700 font-semibold">
-                         ⚠️ Se tocchi quello sbagliato fallisci subito. Se scappa in alto quello corretto, fallisci il turno.
+                         ⚠️ Se tocchi quello sbagliato o la 💣 bomba fallisci subito. Se scappa in alto quello corretto, fallisci il turno.
                        </p>
                      </div>
                      <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -3393,10 +3591,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                              <h3 className="text-base font-black text-rose-800">Fallimento!</h3>
                              <p className="text-xs text-slate-600 leading-relaxed">
                                {costruiscoFailReason === 'wrong-tap' ? (
-                                 <>
-                                   Hai scoppiato il palloncino sbagliato (<b>{costruiscoWrongTappedValue}</b>)!<br />
-                                   Per <b>{world.id} × {costruiscoSelectedFactor}</b> il risultato era un altro.
-                                 </>
+                                 costruiscoWrongTappedValue === null ? (
+                                   <>💣 Hai toccato la bomba!<br />Occhio ai palloncini neri nella prossima round.</>
+                                 ) : (
+                                   <>
+                                     Hai scoppiato il palloncino sbagliato (<b>{costruiscoWrongTappedValue}</b>)!<br />
+                                     Per <b>{world.id} × {costruiscoSelectedFactor}</b> il risultato era un altro.
+                                   </>
+                                 )
                                ) : (
                                  <>
                                    Oh no il palloncino e volato via!<br />
@@ -3449,9 +3651,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                  className={`${compactLayout ? "w-16 h-20 text-base" : "w-20 h-24 text-lg"} absolute bottom-2 rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-lg border select-none pb-2 pt-1 transition-all -translate-x-1/2 cursor-pointer ${balloon.palette.body}`}
                                  style={{ left: `${balloon.lane}%` }}
                                  id={`balloon-single-${balloon.id}`}
+                                 aria-label={balloon.isTrap ? 'Palloncino bomba — non toccare!' : `Palloncino ${balloon.value}`}
                                >
-                                 <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
-                                 <span className="text-xl font-black">{balloon.value}</span>
+                                 {balloon.isTrap ? (
+                                   <>
+                                     <span className="text-2xl select-none" aria-hidden="true">💣</span>
+                                     <motion.span
+                                       animate={{ opacity: [1, 0.3, 1] }}
+                                       transition={{ repeat: Infinity, duration: 0.8 }}
+                                       className="absolute -top-1 -right-1 text-xs font-black text-rose-400"
+                                       aria-hidden="true"
+                                     >✸</motion.span>
+                                   </>
+                                 ) : (
+                                   <>
+                                     <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
+                                     <span className="text-xl font-black">{balloon.value}</span>
+                                   </>
+                                 )}
                                  <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rotate-45 rounded-[2px] ${balloon.palette.knot}`} />
                                  <span className={`absolute -bottom-3 left-1/2 -translate-x-1/2 w-[2px] h-3 rounded-full ${balloon.palette.string}`} />
                                </motion.button>
@@ -3475,16 +3692,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                        >
                          <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                           <button
-                             type="button"
-                             onClick={() => {
-                               sound.playClick();
-                               completeCostruiscoExercise();
-                             }}
-                             className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-700 cursor-pointer motion-safe:animate-pulse"
-                           >
-                             Continua
-                           </button>
+                           <p className="mt-2 text-xs font-bold text-slate-700">Prosegui con il bottone Continua nel footer.</p>
                          </div>
                        </motion.div>
                      )}
@@ -3493,50 +3701,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                </div>
              </div>
 
-             {!(costruiscoFlowStage === 'game' && showCostruiscoCompletionEffect) && (
-               <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
-                 <div className="max-w-2xl mx-auto w-full">
-                   {costruiscoFlowStage === 'game' ? (
-                     costruiscoGameCompleted ? (
-                       <button
-                         onClick={() => {
-                           sound.playClick();
-                           completeCostruiscoExercise();
-                         }}
-                         className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
-                       >
-                         Continua
-                       </button>
-                     ) : (
-                       <ActionGrid columns={2}>
-                         <button
-                           onClick={() => {
-                             sound.playClick();
-                             cancelCostruiscoExercise();
-                           }}
-                           className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
-                         >
-                           Annulla
-                         </button>
-                         <button
-                           onClick={() => {
-                             sound.playClick();
-                             if (!costruiscoGameCompleted) return;
-                             completeCostruiscoExercise();
-                           }}
-                           disabled={!costruiscoGameCompleted}
-                           className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors ${
-                             costruiscoGameCompleted
-                               ? 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
-                               : 'bg-emerald-300 cursor-not-allowed opacity-70'
-                           }`}
-                         >
-                           Continua
-                         </button>
-                       </ActionGrid>
-                     )
+             <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
+               <div className="max-w-2xl mx-auto w-full">
+                 {costruiscoFlowStage === 'game' ? (
+                   costruiscoGameCompleted ? (
+                     <button
+                       onClick={() => {
+                         sound.playClick();
+                         completeCostruiscoExercise();
+                       }}
+                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
+                     >
+                       Continua
+                     </button>
                    ) : (
-                     <div className="space-y-2">
+                     <ActionGrid columns={2}>
                        <button
                          onClick={() => {
                            sound.playClick();
@@ -3544,22 +3723,49 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          }}
                          className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
                        >
-                         Torna alle combinazioni
+                         Annulla
                        </button>
                        <button
                          onClick={() => {
                            sound.playClick();
-                           startCostruiscoSingleBalloonGame();
+                           if (!costruiscoGameCompleted) return;
+                           completeCostruiscoExercise();
                          }}
-                         className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                         disabled={!costruiscoGameCompleted}
+                         className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors ${
+                           costruiscoGameCompleted
+                             ? 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
+                             : 'bg-emerald-300 cursor-not-allowed opacity-70'
+                         }`}
                        >
-                         Inizia Gioco 🎈
+                         Continua
                        </button>
-                     </div>
-                   )}
-                 </div>
+                     </ActionGrid>
+                   )
+                 ) : (
+                   <div className="space-y-2">
+                     <button
+                       onClick={() => {
+                         sound.playClick();
+                         cancelCostruiscoExercise();
+                       }}
+                       className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                     >
+                       Torna alle combinazioni
+                     </button>
+                     <button
+                       onClick={() => {
+                         sound.playClick();
+                         startCostruiscoSingleBalloonGame();
+                       }}
+                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                     >
+                       Inizia Gioco 🎈
+                     </button>
+                   </div>
+                 )}
                </div>
-             )}
+             </div>
             </div>
           </div>
         )}
@@ -3568,14 +3774,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'trucchi' && trucchiSelectedFactor === null && (
           renderStepSelectionScreen({
             stepKey: 'trucchi',
-            badge: 'Passo 4: Il Trucco Mnemonico',
-            title: '🦉 Scegli un trucco da imparare',
+            badge: 'Passo 4: Trova',
+            title: '🧱 Scegli un mattone da trovare',
             description: 'Completa tutte e 10 le combinazioni per memorizzare più rapidamente.',
             completed: effectiveTrucchiCompleted,
             onSelect: (factor) => {
               sound.playClick();
               setTrucchiSelectedFactor(factor);
-              setTrucchiFlowStage(factor === 1 ? 'objective' : 'game');
+              setTrucchiFlowStage('game');
               setTrucchiQuestionSolved(false);
               setShowTrucchiCompletionEffect(false);
               setTrucchiAnswer('');
@@ -3604,7 +3810,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <div className="bg-white rounded-3xl p-5 border border-amber-100 shadow-xl space-y-4">
                     <div className="text-center">
                       <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full font-sans">
-                        Trucco: {world.id} × {trucchiSelectedFactor}
+                        Trova: {world.id} × {trucchiSelectedFactor}
                       </span>
                       <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
                         {world.trickTitle}
@@ -3622,6 +3828,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       <p className="text-slate-600 mt-1 leading-relaxed">
                         Per completare, usa la strategia giusta e individua il risultato corretto senza perdere equilibrio.
                       </p>
+                      {(trucchiSelectedFactor ?? 0) >= TRUCCHI_GHOST_START_FACTOR && (
+                        <p className="text-rose-700 font-semibold mt-1 leading-relaxed">
+                          ⚠️ Attenzione al 👻 fantasma: se lo tocchi, la piramide crolla!
+                        </p>
+                      )}
                     </div>
 
                     <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -3637,6 +3848,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                 {trucchiFlowStage === 'game' && (
                   <div className="relative min-h-[25rem] bg-white rounded-3xl border border-amber-100 shadow-xl p-4 sm:p-5 space-y-5">
+                    {/* 👻 Ghost obstacle — appears from factor 4+ after preview */}
+                    {trucchiGhostActive && !trucchiPyramidCollapsed && !trucchiQuestionSolved && (
+                      <motion.button
+                        initial={{ x: '-5%' }}
+                        animate={{ x: ['-5%', '105%'] }}
+                        transition={{ repeat: Infinity, repeatType: 'mirror', duration: getTrucchiGhostSpeedMs(trucchiSelectedFactor || 4) / 1000, ease: 'linear' }}
+                        onClick={() => {
+                          setTrucchiGhostActive(false);
+                          sound.playError();
+                          speak(GAMEPLAY_AUDIO_MESSAGES.trucchiGhost);
+                          setTrucchiPyramidCollapsed(true);
+                          trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
+                            setTrucchiRemovedBricks(new Set(Array.from({ length: trucchiBrickValues.length }, (_, i) => i)));
+                            trucchiCollapseTimeoutRef.current = null;
+                          }, 820);
+                        }}
+                        className="absolute left-0 z-20 text-3xl cursor-pointer select-none"
+                        style={{ top: '42%' }}
+                        aria-label="Fantasma — non toccare, fa crollare la piramide!"
+                      >
+                        👻
+                      </motion.button>
+                    )}
                     <div className="text-center space-y-2">
                       <h4 className="text-sm font-bold text-amber-900">
                         Quanto fa <strong>{world.id} × {trucchiSelectedFactor}</strong>?
@@ -3807,16 +4041,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       >
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sound.playClick();
-                              completeTrucchiExercise();
-                            }}
-                            className="mt-3 w-full rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-amber-700 cursor-pointer motion-safe:animate-pulse"
-                          >
-                            Continua
-                          </button>
+                          <p className="mt-2 text-xs font-bold text-slate-700">Prosegui con il bottone Continua nel footer.</p>
                         </div>
                       </motion.div>
                     )}
@@ -3825,43 +4050,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </div>
             </div>
 
-            {!(trucchiFlowStage === 'game' && showTrucchiCompletionEffect) && (
-              <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
-                <div className="max-w-xl mx-auto w-full">
-                  {trucchiFlowStage === 'game' ? (
-                    trucchiQuestionSolved ? (
-                      <button
-                        onClick={() => {
-                          sound.playClick();
-                          completeTrucchiExercise();
-                        }}
-                        className="w-full py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
-                        id="trick-done-btn"
-                      >
-                        Continua
-                      </button>
-                    ) : (
-                      <ActionGrid columns={2}>
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            cancelTrucchiExercise();
-                          }}
-                          className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
-                        >
-                          Annulla
-                        </button>
-                        <button
-                          disabled
-                          className="w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all bg-slate-100 text-slate-400 cursor-not-allowed"
-                          id="trick-done-btn"
-                        >
-                          Continua
-                        </button>
-                      </ActionGrid>
-                    )
+            <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
+              <div className="max-w-xl mx-auto w-full">
+                {trucchiFlowStage === 'game' ? (
+                  trucchiQuestionSolved ? (
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        completeTrucchiExercise();
+                      }}
+                      className="w-full py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
+                      id="trick-done-btn"
+                    >
+                      Continua
+                    </button>
                   ) : (
-                    <div className="space-y-2">
+                    <ActionGrid columns={2}>
                       <button
                         onClick={() => {
                           sound.playClick();
@@ -3869,22 +4073,41 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         }}
                         className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
                       >
-                        Torna alle combinazioni
+                        Annulla
                       </button>
                       <button
-                        onClick={() => {
-                          sound.playClick();
-                          setTrucchiFlowStage('game');
-                        }}
-                        className="w-full py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                        disabled
+                        className="w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all bg-slate-100 text-slate-400 cursor-not-allowed"
+                        id="trick-done-btn"
                       >
                         Continua
                       </button>
-                    </div>
-                  )}
-                </div>
+                    </ActionGrid>
+                  )
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        cancelTrucchiExercise();
+                      }}
+                      className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    >
+                      Torna alle combinazioni
+                    </button>
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        setTrucchiFlowStage('game');
+                      }}
+                      className="w-full py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    >
+                      Continua
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -4025,7 +4248,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <p className="text-sm text-slate-600">Risolvi il maggior numero di operazioni prima che il tempo finisca!</p>
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-left text-xs text-slate-700 font-sans space-y-1">
                 <p className="font-black text-indigo-900">Ogni Sfida costa: {SFIDA_UNLOCK_COST} 🪙 moneta</p>
-                <p>Ogni risposta corretta vale 2 🪙 monete.</p>
+                <p>La Sfida non assegna monete: le monete si vincono nel Pratico.</p>
                 <p>Da 10 a 13 corrette: <b>+{SFIDA_DROPS_LOW_REWARD} 💧</b></p>
                 <p>Da 14 a 16 corrette: <b>+{SFIDA_DROPS_MID_REWARD} 💧</b></p>
                 <p>Da 17 in su: <b>+{SFIDA_DROPS_HIGH_REWARD} 💧</b></p>
@@ -4294,14 +4517,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 role="listitem"
                 onClick={handleMoneteBadgeClick}
                 className={`rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-center shadow-sm transition-all ${
-                  canGoToSfidaFromCoins
-                    ? 'cursor-pointer hover:border-amber-300 hover:bg-amber-100 motion-safe:animate-pulse'
+                  shouldHighlightSfidaCta
+                    ? 'cursor-pointer border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
                     : 'cursor-pointer hover:border-amber-300 hover:bg-amber-100/70'
                 }`}
               >
                 <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Monete vinte</p>
-                <p className="text-lg font-black text-amber-800">🪙 +5</p>
-                <p className="text-[11px] font-black text-amber-900">Vai alla Sfida</p>
+                <p className="text-lg font-black text-amber-800">🪙 +3</p>
+                <p className={`text-[11px] font-black ${shouldHighlightSfidaCta ? 'text-amber-950 animate-badge-blink' : 'text-amber-900'}`}>
+                  {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
+                </p>
               </button>
               <button
                 type="button"

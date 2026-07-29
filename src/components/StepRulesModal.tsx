@@ -29,47 +29,47 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
   const exNum = world.id;
   const rulesByStep: Record<string, StepRuleContent> = {
     comprendo: {
-      title: 'Comprendo',
+      title: 'Raccogli',
       tone: 'bg-indigo-50 border-indigo-200 text-indigo-950',
-      objective: 'Capire che la moltiplicazione è un\'addizione ripetuta.',
-      example: `Esempio: ${exNum} × 3 = ${exNum} + ${exNum} + ${exNum} = ${exNum * 3}`,
+      objective: 'Raccogli le mele nei cesti giusti: ogni cesto rappresenta un gruppo.',
+      example: `Esempio: ${exNum} × 3 = ${exNum} cesti da 3 mele = ${exNum * 3} mele in tutto`,
       howTo: [
-        'Osserva i gruppi di oggetti sullo schermo.',
-        'Conta gli elementi totali.',
-        'Tocca il risultato corretto tra le opzioni.'
+        'Le mele volano nell\'arena: toccale per farle cadere nel cesto.',
+        'Ogni cesto si riempie con il numero giusto di mele.',
+        'Riempi tutti i cesti per completare la moltiplicazione.'
       ]
     },
     salto: {
-      title: 'Salto',
+      title: 'Salta',
       tone: 'bg-sky-50 border-sky-200 text-sky-950',
-      objective: 'Eseguire il conteggio a salti sulla linea numerica.',
+      objective: 'Fai saltare la rana di sasso in sasso seguendo il ritmo della tabellina.',
       example: `Esempio (Tabellina del ${exNum}): salta di ${exNum} in ${exNum} (${exNum}, ${exNum * 2}, ${exNum * 3}...)`,
       howTo: [
-        'Fai saltare la rana di numero in numero.',
-        'Segui la sequenza progressiva della tabellina.',
-        'Tocca il numero successivo corretto.'
+        'Osserva i sassi nel ruscello e la rana in partenza.',
+        'Tocca il numero corretto sul sasso giusto per farla saltare.',
+        'Attenzione agli antagonisti: premi il tasto salta per superarli!'
       ]
     },
     costruisco: {
-      title: 'Costruisco',
+      title: 'Scoppia',
       tone: 'bg-purple-50 border-purple-200 text-purple-950',
-      objective: 'Costruire le combinazioni e ripristinare i monumenti.',
-      example: `Esempio: Per ${exNum} × 4, posiziona il risultato ${exNum * 4} nella griglia per erigere il monumento.`,
+      objective: 'Scoppia il palloncino che porta il risultato corretto prima che voli via.',
+      example: `Esempio: Per ${exNum} × 4, cerca il palloncino col numero ${exNum * 4} e toccalo.`,
       howTo: [
-        'Seleziona il fattore e individua il palloncino col risultato.',
-        'Tocca il risultato giusto per completare l\'equazione.',
-        'Completa 10 combinazioni per ricostruire il monumento.'
+        'I palloncini salgono con numeri diversi: trova quello col risultato giusto.',
+        'Tocca solo il palloncino corretto — sbagliare significa ricominciare.',
+        'Fai attenzione: se il palloncino giusto scappa in alto, il turno è perso.'
       ]
     },
     trucchi: {
-      title: 'Trucchi',
+      title: 'Trova',
       tone: 'bg-amber-50 border-amber-200 text-amber-950',
-      objective: 'Imparare strategie e scorciatoie mentali.',
-      example: `Esempio: Proprietà commutativa (${exNum} × 2 è uguale a 2 × ${exNum}).`,
+      objective: 'Trova il mattone che nasconde il risultato giusto nella piramide.',
+      example: `Esempio: Per ${exNum} × 2, trova il mattone con ${exNum * 2} prima che la piramide crolli.`,
       howTo: [
-        'Leggi il trucco visivo per la tabellina.',
-        'Comprendi la regola pratica.',
-        'Mettila subito alla prova.'
+        'Osserva i mattoni durante il flash iniziale: memorizza dove sono i numeri.',
+        'Tocca il mattone che pensi contenga il risultato corretto.',
+        'Tre errori e la piramide crolla: usa il trucco mnemonico per orientarti!'
       ]
     },
     pratico: {
@@ -127,10 +127,10 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
   };
 
   const stepTitles: { [key: string]: string } = {
-    comprendo: '1. Comprendo il concetto 🍎',
-    salto: '2. Conteggio per salti 🐸',
-    costruisco: '3. Costruisco le equazioni 🧱',
-    trucchi: '4. Trucchi e strategie 🧠',
+    comprendo: '1. Raccogli le mele 🍎',
+    salto: '2. Salta sui sassi 🐸',
+    costruisco: '3. Scoppia il palloncino 🎈',
+    trucchi: '4. Trova il mattone 🧱',
     pratico: '5. Pratico (Avventura) 🛡️',
     sfida: '6. Sfida cronometrata ⚡'
   };
@@ -143,6 +143,9 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
           <h2 className="text-3xl sm:text-4xl font-black text-indigo-950 font-sans mb-2">
             {stepTitles[step] || 'Regole'}
           </h2>
+          <p className="mb-2 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 motion-safe:animate-pulse">
+            Work in progress
+          </p>
           <p className="text-sm sm:text-base text-indigo-700 font-bold">
             {withTableIcon(world.id, `Tabellina del ${world.id}`)}
           </p>
@@ -187,6 +190,9 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
           <h2 className="text-3xl sm:text-4xl font-black text-indigo-950 font-sans mb-2">
             {stepTitles[step] || 'Regole'}
           </h2>
+          <p className="mb-2 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 motion-safe:animate-pulse">
+            Work in progress
+          </p>
           <p className="text-sm sm:text-base text-indigo-700 font-bold">
             {withTableIcon(world.id, `Tabellina del ${world.id}`)}
           </p>

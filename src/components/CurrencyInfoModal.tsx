@@ -29,7 +29,7 @@ export default function CurrencyInfoModal({
     "Le Gocce di Luce servono per ricostruire ed erigere i Monumenti Magici nei Regni di Tabellandia! Le guadagni superando i passi del sentiero e facendo nuovi record nelle sfide.";
 
   const coinsSpeechText =
-    "Le Monete d'Oro servono nel Sarto del Regno per sbloccare vestiti, cappelli, accessori e mascotte per il tuo personaggio! Le guadagni risolvendo i giochi e gli esercizi delle tabelline.";
+    "Le Monete d'Oro servono nel Sarto del Regno per sbloccare vestiti, cappelli, accessori e mascotte per il tuo personaggio! Le guadagni nel Pratico quando superi l obiettivo di risposte consecutive.";
 
   useEffect(() => {
     if (isOpen && type) {
@@ -105,6 +105,9 @@ export default function CurrencyInfoModal({
               <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {isDrops ? 'Risorsa magica per i Monumenti' : 'Moneta del Regno per il Guardaroba'}
               </p>
+              <p className="mt-1 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 motion-safe:animate-pulse">
+                Work in progress
+              </p>
             </div>
           </div>
 
@@ -169,7 +172,7 @@ export default function CurrencyInfoModal({
                   <>
                     <li className="flex items-start gap-1.5">
                       <span className="shrink-0">🗺️</span>
-                      <span>Completando i passi del <b>Sentiero</b> (Comprendo, Salto, Costruisco, Pratico).</span>
+                      <span>Completando i passi del <b>Sentiero</b> (Raccogli, Salta, Scoppia, Pratico).</span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="shrink-0">⚡</span>
@@ -184,11 +187,11 @@ export default function CurrencyInfoModal({
                   <>
                     <li className="flex items-start gap-1.5">
                       <span className="shrink-0">🧮</span>
-                      <span>Risolvendo correttamente i problemi nel <b>Comprendo</b> e nei vari passi.</span>
+                      <span>Nel <b>Pratico</b>, quando superi l'obiettivo di consecutive (+3 monete).</span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="shrink-0">🎯</span>
-                      <span>Avanzando negli <b>Allenamenti Liberi</b> e nelle attività quotidiane.</span>
+                      <span>La <b>Sfida</b> non assegna monete: assegna gocce in base al risultato.</span>
                     </li>
                   </>
                 )}

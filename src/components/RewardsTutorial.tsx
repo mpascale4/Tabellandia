@@ -14,12 +14,12 @@ export default function RewardsTutorial({ isOpen, onClose }: RewardsTutorialProp
     {
       title: '🪙 Le Monete d\'Oro',
       emoji: '💰',
-      description: 'Guadagni monete completando ogni esercizio! Le monete sono il tuo tesoro principale.',
+      description: 'Le monete si vincono nel Pratico quando superi l obiettivo di consecutive.',
       how: [
-        '✓ Completa Comprendo: 20 monete',
-        '✓ Completa Salto: 20 monete',
-        '✓ Completa Costruisco: 20 monete',
-        '✓ Completa Trucchi: 20 monete'
+        '✓ Supera l obiettivo nel Pratico: +3 monete',
+        '✓ Le monete servono per outfit e accessori',
+        '✓ La Sfida non assegna monete',
+        '✓ Le monete aiutano a sbloccare la Sfida'
       ],
       icon: <Coins className="w-12 h-12 text-amber-500" />
     },
@@ -40,9 +40,9 @@ export default function RewardsTutorial({ isOpen, onClose }: RewardsTutorialProp
       emoji: '🎯',
       description: 'Le monete servono anche a sbloccare la Sfida finale!',
       how: [
-        '✓ Ogni risposta corretta nel Pratico: +2 monete',
-        '✓ Ogni risposta corretta nella Sfida: +2 monete',
         '✓ Primo accesso Sfida: sblocco permanente a 100 monete',
+        '✓ Le gocce si guadagnano con la Sfida',
+        '✓ Le monete si vincono nel Pratico (+3 obiettivo)',
         '✓ Bonus XP: +50 per ogni step completato',
         '✓ Livello up ogni 100 XP!'
       ],
@@ -76,6 +76,9 @@ export default function RewardsTutorial({ isOpen, onClose }: RewardsTutorialProp
                 <div>
                   <h2 className="text-2xl font-black font-sans">Come Guadagnare Premi</h2>
                   <p className="text-sm text-indigo-100 mt-1">Scopri il sistema di ricompense di Tabellandia!</p>
+                  <p className="mt-2 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 motion-safe:animate-pulse">
+                    Work in progress
+                  </p>
                 </div>
                 <button
                   onClick={onClose}

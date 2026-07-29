@@ -42,9 +42,13 @@ const BOOST_DURATION_MS = 3000;
 const BOOST_COOLDOWN_MS = 420;
 const BOOST_MAX_MULTIPLIER = 5;
 const BOOST_MIN_MULTIPLIER = 1;
+const BOOST_FACTOR_MAX_STEP = 10;
+const BOOST_FACTOR_ACCELERATION_MAX = 0.7;
+const BEE_START_FACTOR = 4;
 const COMPRENDO_AUDIO_MESSAGES = {
   turbo: 'Riempi la cesta con le mele.',
   basketFull: 'Questa cesta e gia piena.',
+  bee: 'Oh no! Il calabrone ti ha rubato le mele!',
 } as const;
 const createEmptyCounts = (count: number) => Array.from({ length: count }, () => 0);
 const FINAL_BASKET_MAX_SIZE = 68;
@@ -123,15 +127,14 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const [arenaRipples, setArenaRipples] = useState<ArenaRipple[]>([]);
   const [arenaPulseActive, setArenaPulseActive] = useState<boolean>(false);
   const [appleBursts, setAppleBursts] = useState<AppleBurst[]>([]);
+  const [beeHit, setBeeHit] = useState<boolean>(false);
+  const clampedFactor = Math.max(1, Math.min(BOOST_FACTOR_MAX_STEP, displayB));
+  const factorProgress = (clampedFactor - 1) / (BOOST_FACTOR_MAX_STEP - 1);
+  const boostMaxForFactor = BOOST_MAX_MULTIPLIER + (BOOST_FACTOR_ACCELERATION_MAX * factorProgress);
 
   const totalItems = a * b;
   const completedBaskets = basketCounts.filter(count => count === b).length;
   const isCompleted = completedBaskets === a;
-  const completedBasketIndices = useMemo(
-    () => basketCounts.map((count, index) => (count >= b ? index : -1)).filter(index => index !== -1),
-    [b, basketCounts],
-  );
-  const progressPercent = a === 0 ? 0 : (completedBaskets / a) * 100;
   const finalBasketLayout = useMemo(() => {
     const availableWidth = Math.max(0, arenaSize.width - 32);
     const availableHeight = Math.max(0, arenaSize.height - 32);
@@ -359,12 +362,46 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
     speak(`Cesta ${basketIndex + 1}`);
   };
 
+  const getBeeSpeedMs = (factor: number): number => {
+    if (factor >= 8) return 1600;
+    if (factor >= 6) return 2400;
+    return 3500;
+  };
+
+  const handleBeeTap = () => {
+    if (isCompleted || beeHit) return;
+    setBeeHit(true);
+    sound.playError();
+    speak(COMPRENDO_AUDIO_MESSAGES.bee);
+    // Empty one apple from the basket with the most apples (not full)
+    setBasketCounts(prev => {
+      const next = [...prev];
+      let maxIdx = -1;
+      let maxCount = 0;
+      next.forEach((count, i) => {
+        if (count > 0 && count < b && count > maxCount) {
+          maxCount = count;
+          maxIdx = i;
+        }
+      });
+      if (maxIdx === -1) {
+        // All are either empty or full — empty a full one
+        const fullIdx = next.findIndex(c => c === b);
+        if (fullIdx !== -1) next[fullIdx] = Math.max(0, next[fullIdx] - 1);
+      } else {
+        next[maxIdx] = Math.max(0, next[maxIdx] - 1);
+      }
+      return next;
+    });
+    window.setTimeout(() => setBeeHit(false), 600);
+  };
+
   const triggerArenaBoost = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isCompleted) return;
 
     sound.playTick();
     speakOutsidePrompt();
-    setSpeedMultiplier(BOOST_MAX_MULTIPLIER);
+    setSpeedMultiplier(boostMaxForFactor);
     setArenaPulseActive(true);
 
     if (pulseTimeoutRef.current !== null) {
@@ -408,7 +445,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       const easeBack = () => {
         const progress = Math.min(1, (performance.now() - cooldownStart) / BOOST_COOLDOWN_MS);
         const easedProgress = 1 - Math.pow(1 - progress, 2);
-        const nextMultiplier = BOOST_MAX_MULTIPLIER - ((BOOST_MAX_MULTIPLIER - BOOST_MIN_MULTIPLIER) * easedProgress);
+        const nextMultiplier = boostMaxForFactor - ((boostMaxForFactor - BOOST_MIN_MULTIPLIER) * easedProgress);
 
         setSpeedMultiplier(nextMultiplier);
 
@@ -473,7 +510,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       <div className="rounded-[1.6rem] border border-violet-200 bg-gradient-to-b from-violet-50 to-fuchsia-50 px-4 py-3 shadow-[0_8px_18px_rgba(124,58,237,0.10)]">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-wide text-fuchsia-700">Comprendo</p>
+            <p className="text-[11px] font-black uppercase tracking-wide text-fuchsia-700">Raccogli</p>
             <p className="text-xl font-black text-slate-800">
               {displayA} x {displayB} = {isCompleted ? totalItems : '?'}
             </p>
@@ -527,6 +564,22 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
               </motion.span>
             ))}
           </AnimatePresence>
+
+          {/* 🐝 Bee obstacle — appears from factor 4+ */}
+          {displayB >= BEE_START_FACTOR && !isCompleted && (
+            <motion.button
+              key={`bee-${displayB}`}
+              initial={{ x: 0 }}
+              animate={prefersReducedMotion ? { x: arenaSize.width * 0.6 } : { x: [0, arenaSize.width - BASKET_SIZE] }}
+              transition={prefersReducedMotion ? { duration: 0.1 } : { repeat: Infinity, repeatType: 'mirror', duration: getBeeSpeedMs(displayB) / 1000, ease: 'linear' }}
+              onClick={(e) => { e.stopPropagation(); handleBeeTap(); }}
+              className={`absolute z-20 cursor-pointer select-none text-3xl transition-transform ${beeHit ? 'scale-125' : ''}`}
+              style={{ top: `${Math.floor(arenaSize.height * 0.28)}px` }}
+              aria-label="Calabrone — non toccare, ruba le mele!"
+            >
+              🐝
+            </motion.button>
+          )}
 
           {isCompleted ? (
             <div
@@ -622,27 +675,6 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         </div>
       </div>
 
-      <div className="mt-4 rounded-[1.3rem] border border-violet-200 bg-violet-50/70 p-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <p className="text-[11px] font-black uppercase tracking-wide text-violet-700">Ceste complete</p>
-          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-violet-700 shadow-sm">
-            {completedBasketIndices.length}/{a}
-          </span>
-        </div>
-        <div
-          className="h-3 overflow-hidden rounded-full bg-white/80 ring-1 ring-violet-100"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={a}
-          aria-valuenow={completedBasketIndices.length}
-          aria-label="Progresso delle ceste complete"
-        >
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-fuchsia-400 via-violet-500 to-cyan-400 transition-[width] duration-300 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </div>
     </div>
   );
 }

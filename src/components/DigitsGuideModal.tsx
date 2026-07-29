@@ -57,6 +57,9 @@ export default function DigitsGuideModal({
               <div className="min-w-0">
                 <h2 className="text-base sm:text-xl font-black tracking-tight leading-tight line-clamp-2">{titleOverride}</h2>
                 <p className="hidden sm:block text-sm text-sky-100 font-medium">{subtitleOverride}</p>
+                <p className="mt-1 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 motion-safe:animate-pulse">
+                  Work in progress
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">

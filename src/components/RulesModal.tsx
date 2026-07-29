@@ -59,7 +59,7 @@ export default function RulesModal({ world, onClose }: RulesModalProps) {
           <div className="bg-indigo-50/50 rounded-2xl p-4 border-2 border-indigo-200">
             <h3 className="text-lg font-bold text-indigo-900 mb-2 flex items-center gap-2">
               <span className="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">1</span>
-              Comprendo il concetto
+              Raccogli
             </h3>
             <p className="text-sm text-indigo-800">
               La moltiplicazione è <strong>addizione ripetuta</strong>. Ad esempio: <strong>{example_a} x {example_b} = {example_a} + {example_a} + {example_a} + {example_a}</strong>
@@ -84,7 +84,7 @@ export default function RulesModal({ world, onClose }: RulesModalProps) {
           <div className="bg-sky-50/50 rounded-2xl p-4 border-2 border-sky-200">
             <h3 className="text-lg font-bold text-sky-900 mb-2 flex items-center gap-2">
               <span className="bg-sky-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">2</span>
-              Conteggio per salti
+              Salta
             </h3>
             <p className="text-sm text-sky-800">
               Salta di <strong>{example_a} in {example_a}</strong>. Tocca il numero corretto nella sequenza.
@@ -104,7 +104,7 @@ export default function RulesModal({ world, onClose }: RulesModalProps) {
           <div className="bg-purple-50/50 rounded-2xl p-4 border-2 border-purple-200">
             <h3 className="text-lg font-bold text-purple-900 mb-2 flex items-center gap-2">
               <span className="bg-purple-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">3</span>
-              Costruisco le equazioni
+              Scoppia
             </h3>
             <p className="text-sm text-purple-800">
               Abbina i fattori ai risultati corretti. Trasforma il concetto in simboli matematici.
@@ -115,7 +115,7 @@ export default function RulesModal({ world, onClose }: RulesModalProps) {
           <div className="bg-amber-50/50 rounded-2xl p-4 border-2 border-amber-200">
             <h3 className="text-lg font-bold text-amber-900 mb-2 flex items-center gap-2">
               <span className="bg-amber-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">4</span>
-              Trucchi e strategie
+              Trova
             </h3>
             <p className="text-sm text-amber-800">
               Scopri scorciatoie e pattern per memorizzare le tabelline più velocemente.

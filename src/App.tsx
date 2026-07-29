@@ -220,6 +220,7 @@ export default function App() {
   const headerRef = useRef<HTMLElement | null>(null);
   const devTapCountRef = useRef<number>(0);
   const devTapResetTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const worldCardRefs = useRef<Record<number, HTMLButtonElement | null>>({});
 
   // Setup Wizard State
   const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: char_create, 2: ready
@@ -252,6 +253,17 @@ export default function App() {
   const deletedProfiles = getDeletedProfiles(profiles);
   const profile = activeProfileId ? activeProfiles.find(p => p.id === activeProfileId) || null : null;
   const isParentModeActive = parentAuthenticated && activeTab === 'parents';
+  const activeAdventureWorldId = (() => {
+    if (!profile || selectedWorldId !== null) return null;
+    const firstPlayableWorld = WORLDS_DATA.find(world => {
+      const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
+      if (!isUnlocked) return false;
+      const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
+      const isCompleted = worldProg.completedSteps.length === ALL_STEP_IDS.length && worldProg.rebuiltMonuments.length === world.monuments.length;
+      return !isCompleted;
+    });
+    return firstPlayableWorld?.id ?? null;
+  })();
 
   useEffect(() => {
     if (isParentModeActive && activeProfileId !== null) {
@@ -361,6 +373,13 @@ export default function App() {
       el.scrollTop = 0;
     });
   }, [activeTab, selectedWorldId, showProfilePicker, wizardStep, activeProfileId, isParentModeActive]);
+
+  useEffect(() => {
+    if (activeTab !== 'adventure' || selectedWorldId !== null || activeAdventureWorldId === null) return;
+    const activeCard = worldCardRefs.current[activeAdventureWorldId];
+    if (!activeCard) return;
+    activeCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  }, [activeTab, selectedWorldId, activeAdventureWorldId]);
 
   useEffect(() => {
     isHeaderPinnedRef.current = isHeaderPinned;
@@ -1706,7 +1725,7 @@ export default function App() {
                         />
                         <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-sky-900/80 sm:text-[11px]">
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 sm:px-3 sm:py-1">✅ Completato</span>
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 sm:px-3 sm:py-1">🧭 In corso</span>
+                          <span className="rounded-full border border-amber-400 bg-amber-300 px-2 py-0.5 text-amber-950 shadow-sm motion-safe:animate-pulse sm:px-3 sm:py-1">🚀 Entra</span>
                           <span className="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700 sm:px-3 sm:py-1">🔒 Bloccato</span>
                         </div>
                       </SurfaceCard>
@@ -1720,12 +1739,16 @@ export default function App() {
                             ? world.monuments.length
                             : worldProg.rebuiltMonuments.length;
                           const isCompleted = stepsCount === ALL_STEP_IDS.length && rebuiltCount === world.monuments.length;
-                          const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'In corso';
+                          const isActiveWorld = isUnlocked && !isCompleted && world.id === activeAdventureWorldId;
+                          const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'Entra';
 
                           return (
                             <button
                               key={world.id}
                               type="button"
+                              ref={(el) => {
+                                worldCardRefs.current[world.id] = el;
+                              }}
                               onClick={() => {
                                 if (!isUnlocked) return;
                                 sound.playPowerUp();
@@ -1738,7 +1761,9 @@ export default function App() {
                                   ? 'bg-slate-200 border-slate-300 text-slate-600 cursor-not-allowed'
                                   : isCompleted
                                     ? 'bg-gradient-to-br from-emerald-300 via-emerald-200 to-white border-emerald-500 text-emerald-950 cursor-pointer hover:shadow-xl hover:-translate-y-1'
-                                    : 'bg-gradient-to-br from-white via-sky-50 to-emerald-50 border-sky-300 text-sky-950 cursor-pointer hover:shadow-xl hover:-translate-y-1'
+                                    : isActiveWorld
+                                      ? 'bg-gradient-to-br from-amber-50 via-yellow-100 to-emerald-100 border-amber-500 ring-4 ring-amber-300/80 text-sky-950 cursor-pointer hover:shadow-xl hover:-translate-y-1 motion-safe:animate-pulse'
+                                      : 'bg-gradient-to-br from-white via-sky-50 to-emerald-50 border-sky-300 text-sky-950 cursor-pointer hover:shadow-xl hover:-translate-y-1'
                               }`}
                               aria-label={`${world.locationName}, stato ${statusLabel}, ${stepsCount} passi completati su ${ALL_STEP_IDS.length}`}
                             >
@@ -1761,9 +1786,11 @@ export default function App() {
                                       ? 'bg-slate-50 text-slate-700'
                                       : isCompleted
                                         ? 'bg-emerald-100 text-emerald-800'
-                                        : 'bg-amber-100 text-amber-800'
+                                       : isActiveWorld
+                                         ? 'bg-amber-300 text-amber-950 border border-amber-500 shadow-sm motion-safe:animate-pulse'
+                                         : 'bg-amber-100 text-amber-800'
                                   }`}>
-                                    {!isUnlocked ? '🔒 Bloccato' : isCompleted ? '✅ Completato' : '🧭 In corso'}
+                                   {!isUnlocked ? '🔒 Bloccato' : isCompleted ? '✅ Completato' : '🚀 Entra'}
                                   </span>
                                   {isUnlocked && <span className="text-xl sm:text-2xl" aria-hidden="true">{world.symbol}</span>}
                                 </div>
@@ -1988,7 +2015,7 @@ export default function App() {
       <div className="mt-8 max-w-4xl w-full bg-slate-800 rounded-3xl p-5 md:p-6 border border-slate-700 shadow-xl space-y-4">
         <h3 className="text-base font-black text-white flex items-center gap-1.5">
           <Settings className="w-5 h-5 text-indigo-400" />
-          Info: Work in progress
+          Work in progress
         </h3>
         <p className="text-xs text-slate-400 leading-relaxed font-sans">
           Stiamo rifinendo Tabellandia passo dopo passo. Qui trovi in modo semplice cosa stiamo migliorando adesso e cosa arriva nei prossimi aggiornamenti.
