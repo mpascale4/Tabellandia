@@ -3663,7 +3663,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                      <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
                                      <span className="text-xl font-black">{balloon.value}</span>
                                      <span
-                                       className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-white text-[11px] shadow-md"
+                                       className="absolute top-1.5 right-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-white text-[13px] shadow-lg"
                                        aria-hidden="true"
                                      >💣</span>
                                    </>
