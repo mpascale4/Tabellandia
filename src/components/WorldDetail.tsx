@@ -2916,7 +2916,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     Monumenti del Regno ({rebuiltCount}/{world.monuments.length})
                   </h4>
                 </div>
-                <div role="list" className="flex gap-2 overflow-x-auto pb-1">
+                <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(5.4rem,1fr))] gap-2 pb-1">
                   {world.monuments.map(monument => {
                     const isErected = devMode || worldProg.rebuiltMonuments.includes(monument.id);
                     const canAfford = profile.lightDrops >= monument.cost;
@@ -2931,7 +2931,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           setShouldReturnToMonumentsListAfterModal(false);
                           setMonumentModal({ monument, canAfford, isErected });
                         }}
-                        className={`w-[6.5rem] shrink-0 rounded-2xl border px-2 py-2 text-left shadow-sm transition-all cursor-pointer ${
+                        className={`rounded-2xl border px-2 py-2 text-left shadow-sm transition-all cursor-pointer min-w-0 ${
                           isErected
                             ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-400'
                             : canAfford
@@ -4432,16 +4432,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <HelpCircle className={!hasReadRulesMandatory.has('pratico') ? 'w-5 h-5' : 'w-4 h-4'} />
                 </button>
               </div>
-            </div>
-
-            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
-              <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
-              <p className="text-slate-600 mt-1 leading-relaxed">
-                Rispondi in sequenza alle operazioni scegliendo l'opzione corretta tra le quattro proposte.
-              </p>
-              <p className="text-slate-600 mt-1 leading-relaxed">
-                Mantieni una serie positiva: più risposte corrette consecutive fai, più avanzi nel pratico.
-              </p>
             </div>
 
             {/* Quiz question card */}
