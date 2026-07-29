@@ -36,7 +36,8 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
       howTo: [
         'Le mele volano nell\'arena: toccale per farle cadere nel cesto.',
         'Ogni cesto si riempie con il numero giusto di mele.',
-        'Riempi tutti i cesti per completare la moltiplicazione.'
+        'Riempi tutti i cesti per completare la moltiplicazione.',
+        '⚠️ Dal ×4 in poi: un 🐝 calabrone vola nell\'arena! Se lo tocchi ti ruba le mele da una cesta.'
       ]
     },
     salto: {
@@ -47,18 +48,18 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
       howTo: [
         'Osserva i sassi nel ruscello e la rana in partenza.',
         'Tocca il numero corretto sul sasso giusto per farla saltare.',
-        'Attenzione agli antagonisti: premi il tasto salta per superarli!'
+        'Attenzione agli antagonisti dal ×4: premi il tasto 🐸 per saltarli!'
       ]
     },
     costruisco: {
       title: 'Scoppia',
       tone: 'bg-purple-50 border-purple-200 text-purple-950',
       objective: 'Scoppia il palloncino che porta il risultato corretto prima che voli via.',
-      example: `Esempio: Per ${exNum} × 4, cerca il palloncino col numero ${exNum * 4} e toccalo.`,
+      example: `Esempio: Per ${exNum} × 4, cerca il palloncino colorato col numero ${exNum * 4} e toccalo.`,
       howTo: [
         'I palloncini salgono con numeri diversi: trova quello col risultato giusto.',
-        'Tocca solo il palloncino corretto — sbagliare significa ricominciare.',
-        'Fai attenzione: se il palloncino giusto scappa in alto, il turno è perso.'
+        '⚠️ Dal ×4: un 💣 palloncino scuro compare con lo stesso numero corretto — è una trappola! Tocca solo quello colorato.',
+        'Se il palloncino giusto scappa in alto senza essere toccato, il turno è perso.'
       ]
     },
     trucchi: {
@@ -69,7 +70,7 @@ export default function StepRulesModal({ step, world, onClose, isMandatory = fal
       howTo: [
         'Osserva i mattoni durante il flash iniziale: memorizza dove sono i numeri.',
         'Tocca il mattone che pensi contenga il risultato corretto.',
-        'Tre errori e la piramide crolla: usa il trucco mnemonico per orientarti!'
+        '⚠️ Dal ×4: un 👻 fantasma volteggia sopra la piramide — se lo tocchi crolla tutto! Tre errori sui mattoni e ricomincia.'
       ]
     },
     pratico: {
