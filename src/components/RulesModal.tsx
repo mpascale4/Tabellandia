@@ -48,6 +48,9 @@ export default function RulesModal({ world, onClose }: RulesModalProps) {
           <h2 className="text-3xl sm:text-4xl font-black text-indigo-950 font-sans mb-2">
             Come giocare
           </h2>
+          <p className="mb-2 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 motion-safe:animate-pulse">
+            Work in progress
+          </p>
           <p className="text-sm sm:text-base text-indigo-700 font-bold">
             {withTableIcon(world.id, `Tabellina del ${world.id}`)}
           </p>
