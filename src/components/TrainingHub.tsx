@@ -54,41 +54,46 @@ function getMnemonicStory(a: number, b: number): MnemonicStory {
 
   // Storie specifiche curate
   const customStories: Record<string, Omit<MnemonicStory, 'equationText'>> = {
+    '2x7': {
+      title: 'Il Cigno e la Grotta del Fulmine',
+      premise: 'Il Cigno (🦢) stava insegnando ai suoi piccoli a nuotare quando un Fulmine (⚡) colpì l\'albero vicino! Spaventati, tutti volarono via insieme.',
+      climax: 'Trovarono rifugio in una grotta dove un minatore aveva lasciato il suo Piccone (⛏️) posato su una Sedia (🪑) di legno.',
+    },
     '7x8': {
-      title: 'Il Fulmine e l\'Infinito',
-      premise: 'Un potente Fulmine (⚡) squarciò il cielo di Tabellandia e colpì il simbolo dell\'Infinito (♾️) che brillava su una collina.',
-      climax: 'Dall\'esplosione di luce apparvero un agile Serpente (🐍) che scivolava sull\'erba e una saggia Chiocciola (🐌) che portava con sé la risposta!',
+      title: 'Il Fulmine incontra l\'Infinito nella Foresta',
+      premise: 'Un Fulmine (⚡) saettò tra gli alberi della foresta e colpì il simbolo dell\'Infinito (♾️) inciso su un grande masso.',
+      climax: 'Dal masso spaccato scivolò fuori un Serpente (🐍) dorato che si avvolse lento attorno a una Chiocciola (🐌) d\'argento trovata tra le foglie.',
     },
     '2x2': {
-      title: 'I due Cigni sul Lago',
-      premise: 'Due eleganti Cigni (🦢 e 🦢) nuotavano specchiandosi nel lago cristallino di Tabellandia.',
-      climax: 'Quando i loro colli si incrociarono formarono una bellissima Sedia (🪑) di luce sull\'acqua!',
+      title: 'I due Cigni e la Sedia d\'Oro',
+      premise: 'Due Cigni (🦢 e 🦢) si avvicinarono al centro del lago, i loro lunghi colli curvi che si specchiavano nell\'acqua ferma.',
+      climax: 'Nel punto esatto dove i loro becchi si toccarono emerse lentamente dall\'acqua una Sedia (🪑) d\'oro che li aspettava!',
     },
     '3x3': {
-      title: 'Due Euro e il Palloncino',
-      premise: 'Una moneta Euro (💶) incontrò un\'altra moneta Euro (💶) al mercato magico di Tabellandia.',
-      climax: 'Festeggiando il loro incontro, lanciarono in aria un grande Palloncino (🎈) colorato che salì verso il cielo!',
+      title: 'Due Euro e la Grande Festa',
+      premise: 'Una moneta Euro (💶) rotolò lungo il sentiero del mercato e si scontrò con un\'altra moneta Euro (💶) che arrivava dalla direzione opposta.',
+      climax: 'L\'urto fece volar via dalla bancarella vicina un enorme Palloncino (🎈) rosso che salì sempre più in alto verso il cielo azzurro!',
     },
     '7x7': {
-      title: 'Due Fulmini nel Cielo',
-      premise: 'Un Fulmine (⚡) attraversò il cielo e ne incontrò un altro (⚡) proveniente dalla direzione opposta.',
-      climax: 'L\'incrocio dei due fulmini illuminò una Sedia (🪑) d\'oro e un Palloncino (🎈) che fluttuava tra le nuvole!',
+      title: 'Due Fulmini al Parco',
+      premise: 'Due Fulmini (⚡ e ⚡) si inseguirono tra le nuvole del temporale, sfrecciando da un capo all\'altro del cielo di Tabellandia.',
+      climax: 'Quando si scontrarono, l\'onda d\'urto fece volare una Sedia (🪑) dal giardino e strappò dall\'albero un Palloncino (🎈) colorato che salì verso le stelle!',
     },
     '8x8': {
-      title: 'L\'Infinito si raddoppia',
-      premise: 'Il simbolo dell\'Infinito (♾️) si specchiò nell\'acqua e vide se stesso riflesso (♾️) perfettamente.',
-      climax: 'Dal riflesso emersero una Chiocciola (🐌) con il guscio brillante e una Sedia (🪑) fatta di cristallo!',
+      title: 'L\'Infinito allo Specchio',
+      premise: 'Il simbolo dell\'Infinito (♾️) si avvicinò a uno specchio d\'acqua e si trovò faccia a faccia con il suo stesso riflesso (♾️).',
+      climax: 'Tra i due, sul bordo dello stagno, strisciava una paziente Chiocciola (🐌) che portava sul guscio una minuscola Sedia (🪑) intagliata nel legno!',
     },
     '7x9': {
-      title: 'Il Fulmine e il Palloncino',
-      premise: 'Un Fulmine (⚡) sfrecciò nel cielo e colpì un grande Palloncino (🎈) che fluttuava tra le nuvole.',
-      climax: 'Dall\'esplosione colorata uscirono una Chiocciola (🐌) dorata e un Serpente (🐍) che danzavano insieme!',
+      title: 'Il Fulmine e il Palloncino al Mercato',
+      premise: 'Un Fulmine (⚡) sfrecciò sul mercato del paese e centrò in pieno un grande Palloncino (🎈) che galleggiava tra le bancarelle.',
+      climax: 'Dal palloncino scoppiato rimbalzò fuori una Chiocciola (🐌) dal guscio dorato insieme a una moneta Euro (💶) lucente che qualcuno aveva nascosto dentro!',
     },
     '8x9': {
-      title: 'L\'Infinito e il Palloncino',
-      premise: 'Il simbolo dell\'Infinito (♾️) volò su per il cielo e incontrò un allegro Palloncino (🎈) tra le stelle.',
-      climax: 'Insieme crearono una magia: apparve un Fulmine (⚡) scintillante e un Cigno (🦢) che nuotava tra le nuvole!',
-    }
+      title: 'L\'Infinito e il Palloncino nel Temporale',
+      premise: 'Il simbolo dell\'Infinito (♾️) stava fluttuando nel cielo sereno quando incontrò un gioioso Palloncino (🎈) che saliva libero tra le nuvole.',
+      climax: 'Il vento del temporale li travolse portando con sé un Fulmine (⚡) brillante e un elegante Cigno (🦢) in volo radente sull\'acqua!',
+    },
   };
 
   const storyData = customStories[key1] || customStories[key2];
