@@ -32,6 +32,8 @@ const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
 const DEV_MODE_KEY = "tabellandia_dev_mode_v1";
+const PARENT_PIN_DEFAULT = '1111';
+const DEV_PANEL_PIN = '2222';
 const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
 const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
 const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
@@ -641,10 +643,12 @@ export default function App() {
   };
 
   const handleAccessParentArea = () => {
-    const storedPIN = localStorage.getItem('tabellandia_parent_pin');
+    let storedPIN = localStorage.getItem('tabellandia_parent_pin');
     if (!storedPIN) {
-      // First time - set up PIN
-      setIsSettingPIN(true);
+      // First time - apply default parent PIN.
+      localStorage.setItem('tabellandia_parent_pin', PARENT_PIN_DEFAULT);
+      storedPIN = PARENT_PIN_DEFAULT;
+      setIsSettingPIN(false);
     } else {
       // Already has PIN - ask to enter
       setIsSettingPIN(false);
@@ -669,8 +673,8 @@ export default function App() {
     sound.playClick();
     setPinError("");
 
-    // PIN 2222 per attivare la modalità DEV e aprire il pannello DEV
-    if (pin === '2222') {
+    // PIN dev per attivare la modalità DEV e aprire il pannello DEV
+    if (pin === DEV_PANEL_PIN) {
       sound.playPowerUp();
       setDevModeEnabled(true);
       localStorage.setItem(DEV_MODE_KEY, 'true');
@@ -679,12 +683,12 @@ export default function App() {
       setActiveTab('dev');
       setPinInput("");
       setPinError("");
-      setDevModeNotice("Modalità DEV sbloccata col PIN 2222!");
+      setDevModeNotice(`Modalità DEV sbloccata col PIN ${DEV_PANEL_PIN}!`);
       setTimeout(() => setDevModeNotice(""), 2000);
       return;
     }
 
-    const storedPIN = localStorage.getItem('tabellandia_parent_pin') || '1234';
+    const storedPIN = localStorage.getItem('tabellandia_parent_pin') || PARENT_PIN_DEFAULT;
     
     if (isSettingPIN || !storedPIN) {
       if (pin.length === 4) {
@@ -700,7 +704,7 @@ export default function App() {
       }
     } else {
       // Verifying existing PIN
-      if (pin === storedPIN || pin === '1234' || pin === '0000') {
+      if (pin === storedPIN || pin === PARENT_PIN_DEFAULT) {
         sound.playPowerUp();
         setParentAuthenticated(true);
         setShowPINModal(false);
