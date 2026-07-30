@@ -1,145 +1,85 @@
-# Bozza storie tabelline 7, 8, 9
+﻿# Le 81 Avventure di Ciro e Lina
 
-Questa è una bozza di lavoro da correggere liberamente.
-Schema usato: **Premessa (A×B)** + **Finale (risultato)** + **Testo completo**.
+## Personaggi e cifre
 
-## Tabellina del 7 (⚡)
+| Cifra | Personaggio              |
+| --- |--------------------------|
+| 1 | ⛏️ Piccone               |
+| 2 | 🦢 Cigno (Ciro)          |
+| 3 | 💶 Moneta rara           |
+| 4 | 🪑 Sedia Magica          |
+| 5 | 🐍 Serpente (Bobo e Teo) |
+| 6 | 🐌 Chiocciola (Lina)     |
+| 7 | ⚡ Fulmine                |
+| 8 | ♾️ Infinito              |
+| 9 | 🎈 Palloncino            |
 
-### 7×1=7 (⚡)
-- Premessa: Fulmine × Piccone
-- Finale: Fulmine
-- Testo completo: Un Fulmine (⚡) colpì il vecchio Piccone (⛏️) appeso in un campo. Dal lampo saltò fuori un altro Fulmine (⚡) ancora più luminoso.
+## Sintesi della storia
 
-### 7×2=14 (⛏️ + 🪑)
-- Premessa: Fulmine × Cigno
-- Finale: Piccone + Sedia
-- Testo completo: Un Cigno (🦢) guardava il cielo quando un Fulmine (⚡) cadde vicino alla sua riva. Correndo verso una grotta trovò un Piccone (⛏️) e una Sedia (🪑) di legno.
+C'erano una volta **Ciro il Cigno** e **Lina la Chiocciola**, due amici curiosi e coraggiosi.
+Un giorno trovarono una vecchia mappa con su scritto La Terra dei Picconi. Sulla mappa c'era un simbolo speciale: **l'Infinito**.
 
-### 7×3=21 (🦢 + ⛏️)
-- Premessa: Fulmine × Euro
-- Finale: Cigno + Piccone
-- Testo completo: Una moneta Euro (💶) rotolava sul sentiero quando fu illuminata da un Fulmine (⚡). Dietro un cespuglio apparvero un Cigno (🦢) e un Piccone (⛏️) arrugginito.
+"E' la strada per la **Moneta Rara**!" disse Ciro tutto emozionato.
+Cosi i due amici partirono in viaggio.
 
-### 7×4=28 (🦢 + ♾️)
-- Premessa: Fulmine × Sedia
-- Finale: Cigno + Infinito
-- Testo completo: Una Sedia (🪑) sul balcone tremò quando un Fulmine (⚡) colpì il tetto vicino. Dalla pioggia uscirono un Cigno (🦢) e un simbolo dell'Infinito (♾️) disegnato nel fango.
+Lungo il cammino incontrarono tanti oggetti strani: una sedia magica, un palloncino che volava altissimo e persino un fulmine che illuminava il cielo.
+Ogni volta che risolvevano un piccolo enigma, trovavano un nuovo indizio.
 
-### 7×5=35 (💶 + 🐍)
-- Premessa: Fulmine × Serpente
-- Finale: Euro + Serpente
-- Testo completo: Un Serpente (🐍) strisciava tranquillo quando un Fulmine (⚡) cadde poco lontano da lui. Curioso andò a vedere e trovò una moneta Euro (💶) e un altro Serpente (🐍) bruciacchiato.
+Ma non erano soli: anche **Bobo** e **Teo**, due serpenti furbetti, cercavano la moneta.
+Alla fine capirono che collaborare era meglio che litigare.
 
-### 7×6=42 (🪑 + 🦢)
-- Premessa: Fulmine × Chiocciola
-- Finale: Sedia + Cigno
-- Testo completo: Una Chiocciola (🐌) attraversava il vialetto mentre un Fulmine (⚡) spezzava il ramo sopra di lei. Sotto il ramo c'erano una Sedia (🪑) da giardino e un Cigno (🦢) impaurito.
+Da quel giorno impararono una cosa importante:
+**quando si collabora, anche le avventure piu difficili diventano bellissime.**
 
-### 7×7=49 (🪑 + 🎈)
-- Premessa: Fulmine × Fulmine
-- Finale: Sedia + Palloncino
-- Testo completo: Due Fulmini (⚡ e ⚡) si scontrarono nel cielo con un gran boato. Nel parco volarono via una Sedia (🪑) e un Palloncino (🎈) rosso.
+## Tabellina del 2
 
-### 7×8=56 (🐍 + 🐌)
-- Premessa: Fulmine × Infinito
-- Finale: Serpente + Chiocciola
-- Testo completo: Un Fulmine (⚡) colpì un simbolo dell'Infinito (♾️) su una roccia, distruggendola completamente. Dietro la roccia c'erano un Serpente (🐍) e una Chiocciola (🐌) che si stavano baciando.
+### 2×1 = 2
+- Premessa: 🦢 Cigno (Ciro) × ⛏️ Piccone
+- Finale: 🦢 Cigno (Ciro)
+- Testo completo: Il Cigno Ciro (🦢) seguiva la mappa ormai da giorni, finché finalmente vide la Terra del Piccone (⛏️). Il Cigno Ciro (🦢) potè finalmente fermarsi e riposarsi. Il primo indizio era stato trovato, ma era solo all'inizio e dovette ripartire subito.
 
-### 7×9=63 (🐌 + 💶)
-- Premessa: Fulmine × Palloncino
-- Finale: Chiocciola + Euro
-- Testo completo: Un Palloncino (🎈) volava alto quando venne sfiorato da un Fulmine (⚡). Cadendo in una fontana fece emergere una Chiocciola (🐌) e una moneta Euro (💶).
+### 2×2 = 4
+- Premessa: 🦢 Cigno (Ciro) × 🦢 Cigno
+- Finale: 🪑 Sedia Magica
+- Testo completo A: Il Cigno Ciro (🦢) planò sul lago di sale e vide un altro Cigno (🦢) nell'acqua lucida. Era chiaramente il suo riflesso... Era un lago magico dove si narra fosse immersa una Sedia Magica (🪑).
 
-## Tabellina dell'8 (♾️)
+### 2×3 = 6
+- Premessa: 🦢 Cigno (Ciro) × 💶 Moneta rara
+- Finale: 🐌 Chiocciola (Lina)
+- Testo completo A: Il sogno del Cigno Ciro (🦢) era trovare la Moneta rara (💶). Era un sogno che condivideva con la sua grande amica, la Chiocciola Lina (🐌).
 
-### 8×1=8 (♾️)
-- Premessa: Infinito × Piccone
-- Finale: Infinito
-- Testo completo: Un Piccone (⛏️) colpì per sbaglio un cartello con il simbolo dell'Infinito (♾️). Dal cartello si accese un altro Infinito (♾️) al neon.
+### 2×4 = 8
+- Premessa: 🦢 Cigno (Ciro) × 🪑 Sedia Magica
+- Finale: ♾️ Infinito
+- Testo completo A: Il Cigno Ciro (🦢) si avvicinò all'acqua e subito emerse la Sedia Magica (🪑). Era una sedia molto antica con un marchio a fuoco: il simbolo Infinito (♾️).
+- Testo completo B: Il Cigno Ciro (🦢) tornò alla terrazza deserta e trovò la Sedia Magica (🪑) che lo aspettava. Appena si sedette, nel cielo si disegnò lentamente il simbolo ♾️ Infinito.
 
-### 8×2=16 (⛏️ + 🐌)
-- Premessa: Infinito × Cigno
-- Finale: Piccone + Chiocciola
-- Testo completo: Un Cigno (🦢) passò davanti al simbolo dell'Infinito (♾️) disegnato sul molo. Tra le assi trovò un Piccone (⛏️) e una Chiocciola (🐌) con guscio lucido.
+### 2×5 = 10
+- Premessa: 🦢 Cigno (Ciro) × 🐍 Serpente (Bobo e Teo)
+- Finale: ⛏️ Piccone
+- Testo completo A: Il Cigno Ciro (🦢) si fermò vicino a una roccia quando vide strisciare il Serpente Bobo (🐍). Bobo non era lì per fare dispetti: aveva trovato qualcosa di importante e lo lasciò accanto alla roccia. Era il vecchio Piccone (⛏️), il primo indizio della mappa.
+- Testo completo B: Il Cigno Ciro (🦢) sentì un sibilo e si voltò: era il Serpente Teo (🐍), che per una volta sembrava voler aiutare. Indicò con la coda una crepa nel muro, e dentro c'era nascosto il Piccone (⛏️).
 
-### 8×3=24 (🦢 + 🪑)
-- Premessa: Infinito × Euro
-- Finale: Cigno + Sedia
-- Testo completo: Una moneta Euro (💶) girava sul tavolo accanto al simbolo dell'Infinito (♾️). Quando cadde a terra comparvero un Cigno (🦢) e una piccola Sedia (🪑).
+### 2×6 = 12
+- Premessa: 🦢 Cigno (Ciro) × 🐌 Chiocciola (Lina)
+- Finale: ⛏️ Piccone + 🦢 Cigno (Ciro)
+- Testo completo A: Il Cigno Ciro (🦢) aspettava Lina da un po', quando la Chiocciola (🐌) arrivò lenta ma sicura con due oggetti. Aveva trovato il Piccone (⛏️) e portava con sé un disegno del Cigno Ciro (🦢): erano i due simboli dell'indizio successivo.
+- Testo completo B: Il Cigno Ciro (🦢) vide arrivare la Chiocciola Lina (🐌) con uno strano sorriso. "Guarda cosa ho trovato!" disse, e mostrò il Piccone (⛏️) e uno specchio che rifletteva il volto del Cigno Ciro (🦢). Erano insieme la chiave del prossimo passo.
 
-### 8×4=32 (💶 + 🦢)
-- Premessa: Infinito × Sedia
-- Finale: Euro + Cigno
-- Testo completo: Una Sedia (🪑) oscillava nel vento sotto una bandiera con l'Infinito (♾️). Dietro il muro spuntarono una moneta Euro (💶) e un Cigno (🦢).
+### 2×7 = 14
+- Premessa: 🦢 Cigno (Ciro) × ⚡ Fulmine
+- Finale: ⛏️ Piccone + 🪑 Sedia Magica
+- Testo completo A: Il Cigno Ciro (🦢) stava attraversando una nuvola bassa quando un Fulmine (⚡) illuminò il cielo davanti a lui. Nel bagliore vide due sagome: il Piccone (⛏️) e la Sedia Magica (🪑) uno accanto all'altra, come se lo stessero aspettando.
+- Testo completo B: Il Cigno Ciro (🦢) fu sorpreso da un Fulmine (⚡) che colpì la roccia davanti a lui. Quando il fumo si diradò, trovò il Piccone (⛏️) conficcato nella pietra e la Sedia Magica (🪑) capovolta poco più in là.
 
-### 8×5=40 (🪑 + 🥚)
-- Premessa: Infinito × Serpente
-- Finale: Sedia + Uovo
-- Testo completo: Un Serpente (🐍) si arrotolò intorno al simbolo dell'Infinito (♾️) dipinto sul pavimento. Scivolando scoprì una Sedia (🪑) e un Uovo (🥚) nascosti sotto un telo.
+### 2×8 = 16
+- Premessa: 🦢 Cigno (Ciro) × ♾️ Infinito
+- Finale: ⛏️ Piccone + 🐌 Chiocciola (Lina)
+- Testo completo A: Il Cigno Ciro (🦢) si fermò davanti a una porta di pietra con inciso il simbolo ♾️ Infinito. Quando la aprì, trovò il Piccone (⛏️) appoggiato al muro e la Chiocciola Lina (🐌) che lo guardava con un sorriso.
+- Testo completo B: Il Cigno Ciro (🦢) seguì il tracciato del simbolo ♾️ Infinito fino a una grotta silenziosa. Dentro c'erano la Chiocciola Lina (🐌) e il Piccone (⛏️): li aspettava da lì per continuare insieme.
 
-### 8×6=48 (🪑 + ♾️)
-- Premessa: Infinito × Chiocciola
-- Finale: Sedia + Infinito
-- Testo completo: Una Chiocciola (🐌) salì su un cartello con l'Infinito (♾️) e lo fece tremare. Dietro il cartello c'erano una Sedia (🪑) pieghevole e un altro Infinito (♾️) inciso.
-
-### 8×7=56 (🐍 + 🐌)
-- Premessa: Infinito × Fulmine
-- Finale: Serpente + Chiocciola
-- Testo completo: Un Fulmine (⚡) colpì il simbolo dell'Infinito (♾️) in mezzo al prato. Nel buco rimasto uscirono un Serpente (🐍) e una Chiocciola (🐌).
-
-### 8×8=64 (🐌 + 🪑)
-- Premessa: Infinito × Infinito
-- Finale: Chiocciola + Sedia
-- Testo completo: Due simboli dell'Infinito (♾️ e ♾️) si riflettevano nello stagno come in uno specchio. Sul bordo comparvero una Chiocciola (🐌) e una Sedia (🪑) in miniatura.
-
-### 8×9=72 (⚡ + 🦢)
-- Premessa: Infinito × Palloncino
-- Finale: Fulmine + Cigno
-- Testo completo: Un Palloncino (🎈) passò davanti al simbolo dell'Infinito (♾️) nel cielo nuvoloso. Il vento portò un Fulmine (⚡) e un Cigno (🦢) che planò sull'acqua.
-
-## Tabellina del 9 (🎈)
-
-### 9×1=9 (🎈)
-- Premessa: Palloncino × Piccone
-- Finale: Palloncino
-- Testo completo: Un Piccone (⛏️) bucò un sacco pieno di aria colorata. Da lì uscì un grande Palloncino (🎈) che volò in alto.
-
-### 9×2=18 (⛏️ + ♾️)
-- Premessa: Palloncino × Cigno
-- Finale: Piccone + Infinito
-- Testo completo: Un Cigno (🦢) inseguì un Palloncino (🎈) fin sotto il ponte. Lì trovò un Piccone (⛏️) e il simbolo dell'Infinito (♾️) inciso sulla pietra.
-
-### 9×3=27 (🦢 + ⚡)
-- Premessa: Palloncino × Euro
-- Finale: Cigno + Fulmine
-- Testo completo: Una moneta Euro (💶) era legata a un Palloncino (🎈) che salì durante il vento. Scoppiando liberò un Cigno (🦢) e un piccolo Fulmine (⚡) luminoso.
-
-### 9×4=36 (💶 + 🐌)
-- Premessa: Palloncino × Sedia
-- Finale: Euro + Chiocciola
-- Testo completo: Una Sedia (🪑) volò via agganciata a un Palloncino (🎈) durante la festa. Quando atterrò in giardino comparvero una moneta Euro (💶) e una Chiocciola (🐌).
-
-### 9×5=45 (🪑 + 🐍)
-- Premessa: Palloncino × Serpente
-- Finale: Sedia + Serpente
-- Testo completo: Un Serpente (🐍) fissava un Palloncino (🎈) impigliato in un ramo basso. Tirando il ramo trovò una Sedia (🪑) pieghevole e un altro Serpente (🐍).
-
-### 9×6=54 (🐍 + 🪑)
-- Premessa: Palloncino × Chiocciola
-- Finale: Serpente + Sedia
-- Testo completo: Una Chiocciola (🐌) si arrampicò sul filo di un Palloncino (🎈) e lo fece scendere piano. Sotto c'erano un Serpente (🐍) e una Sedia (🪑) da campeggio.
-
-### 9×7=63 (🐌 + 💶)
-- Premessa: Palloncino × Fulmine
-- Finale: Chiocciola + Euro
-- Testo completo: Un Fulmine (⚡) colpì il filo di un Palloncino (🎈) che cadde nel cortile. Dal cestino uscirono una Chiocciola (🐌) e una moneta Euro (💶).
-
-### 9×8=72 (⚡ + 🦢)
-- Premessa: Palloncino × Infinito
-- Finale: Fulmine + Cigno
-- Testo completo: Un Palloncino (🎈) girò intorno a un simbolo dell'Infinito (♾️) dipinto su una torre. Quando si fermò apparvero un Fulmine (⚡) e un Cigno (🦢) in volo.
-
-### 9×9=81 (♾️ + ⛏️)
-- Premessa: Palloncino × Palloncino
-- Finale: Infinito + Piccone
-- Testo completo: Due Palloncini (🎈 e 🎈) si urtarono sopra una cava abbandonata. Dalla polvere emersero il simbolo dell'Infinito (♾️) e un vecchio Piccone (⛏️).
+### 2×9 = 18
+- Premessa: 🦢 Cigno (Ciro) × 🎈 Palloncino
+- Finale: ⛏️ Piccone + ♾️ Infinito
+- Testo completo A: Il Cigno Ciro (🦢) inseguì un Palloncino (🎈) rosso che saliva in alto nel vento del deserto. Quando lo raggiunse e lo aprì, dentro c'erano il Piccone (⛏️) in miniatura e una pergamena con il simbolo ♾️ Infinito.
+- Testo completo B: Il Cigno Ciro (🦢) vide un Palloncino (🎈) dorato fermo tra due rocce, come se aspettasse qualcuno. Lo liberò con delicatezza e trovò incisi sul nodo il Piccone (⛏️) e il simbolo ♾️ Infinito: l'indizio più importante fino ad allora.
