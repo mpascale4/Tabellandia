@@ -6,50 +6,24 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, WorldConfig } from '../types';
 import { WORLDS_DATA } from '../data';
+import { DIGITS_INFO } from '../data/digitsData';
 import { sound } from './SoundManager';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 
-// ─── Emoji mnemoniche per cifra (sistema fonetico-semantico italiano) ─────────
-// Tecnica: ancoraggio fonetico sulla parola italiana del numero (Major System IT)
-// 1 🕯️ Candela → forma verticale = 1
-// 2 🐂 Bue      → b-UE, rima con DUE
-// 3 👑 Re       → t-RE
-// 4 🐈 Gatto    → quatto → gatto (iconico per bambini)
-// 5 ✋ Mano     → 5 dita = mano
-// 6 🐌 Chiocciola → spirale visiva del 6
-// 7 🧙 Nano     → SETTE nani (Biancaneve)
-// 8 🛶 Canotto  → can-OTTO
-// 9 🚢 Nave     → n-OVE → nave
+// ─── Emoji mnemoniche per cifra — derivate da DIGITS_INFO (unica sorgente) ────
+const DIGIT_EMOJI: Record<number, string> = Object.fromEntries(
+  DIGITS_INFO.filter(d => d.digit >= 1).map(d => [d.digit, d.emoji])
+);
 
-const DIGIT_EMOJI: Record<number, string> = {
-  1: '🕯️',
-  2: '🐂',
-  3: '👑',
-  4: '🐈',
-  5: '✋',
-  6: '🐌',
-  7: '🧙',
-  8: '🛶',
-  9: '🚢',
-};
+const RESULT_DIGIT_EMOJI: Record<number, string> = Object.fromEntries(
+  DIGITS_INFO.map(d => [d.digit, d.emoji])
+);
 
-const RESULT_DIGIT_EMOJI: Record<number, string> = {
-  0: '⭕',
-  ...DIGIT_EMOJI,
-};
-
-const TRAINING_WORLD_ICON: Record<number, string> = {
-  2: '🐂',
-  3: '👑',
-  4: '🐈',
-  5: '✋',
-  6: '🐌',
-  7: '🧙',
-  8: '🛶',
-  9: '🚢',
-};
+const TRAINING_WORLD_ICON: Record<number, string> = Object.fromEntries(
+  DIGITS_INFO.filter(d => d.digit >= 2).map(d => [d.digit, d.emoji])
+);
 
 function withTableIcon(worldId: number, label: string): string {
   const icon = TRAINING_WORLD_ICON[worldId] ?? '🔢';
