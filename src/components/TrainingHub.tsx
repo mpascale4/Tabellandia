@@ -11,29 +11,29 @@ import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 
-// ─── Emoji mnemoniche per cifra (sistema fonetico-semantico italiano) ─────────
-// Tecnica: ancoraggio fonetico sulla parola italiana del numero (Major System IT)
-// 1 🕯️ Candela → forma verticale = 1
-// 2 🐂 Bue      → b-UE, rima con DUE
-// 3 👑 Re       → t-RE
-// 4 🐈 Gatto    → quatto → gatto (iconico per bambini)
-// 5 ✋ Mano     → 5 dita = mano
-// 6 🐌 Chiocciola → spirale visiva del 6
-// 7 🧙 Nano     → SETTE nani (Biancaneve)
-// 8 🛶 Canotto  → can-OTTO
-// 9 🚢 Nave     → n-OVE → nave
+// ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
+// 0 🥚 Uovo      → ovale chiuso
+// 1 ⛏️ Piccone   → linea verticale + tratto in cima
+// 2 🦢 Cigno     → collo curvo che scende
+// 3 💶 Euro      → doppia curva aperta + stanghette
+// 4 🪑 Sedia     → schienale + seduta orizzontale
+// 5 🐍 Serpente  → corpo piegato ad angolo
+// 6 🐌 Chiocciola→ spirale chiusa in basso
+// 7 ⚡ Fulmine   → zig-zag con angolo acuto
+// 8 ♾️ Infinito  → due cerchi sovrapposti
+// 9 🎈 Palloncino→ cerchio in alto + filo in basso
 
 const DIGIT_INFO: Record<number, { name: string; emoji: string; artName: string }> = {
-  0: { name: 'Anello', emoji: '⭕', artName: "l'Anello" },
-  1: { name: 'Candela', emoji: '🕯️', artName: 'la Candela' },
-  2: { name: 'Bue', emoji: '🐂', artName: 'il Bue' },
-  3: { name: 'Re', emoji: '👑', artName: 'il Re' },
-  4: { name: 'Gatto', emoji: '🐈', artName: 'il Gatto' },
-  5: { name: 'Mano', emoji: '✋', artName: 'la Mano' },
-  6: { name: 'Chiocciola', emoji: '🐌', artName: 'la Chiocciola' },
-  7: { name: 'Nano', emoji: '🧙', artName: 'il Nano' },
-  8: { name: 'Canotto', emoji: '🛶', artName: 'il Canotto' },
-  9: { name: 'Nave', emoji: '🚢', artName: 'la Nave' },
+  0: { name: 'Uovo',        emoji: '🥚',  artName: "l'Uovo" },
+  1: { name: 'Piccone',     emoji: '⛏️',  artName: 'il Piccone' },
+  2: { name: 'Cigno',       emoji: '🦢',  artName: 'il Cigno' },
+  3: { name: 'Euro',        emoji: '💶',  artName: "l'Euro" },
+  4: { name: 'Sedia',       emoji: '🪑',  artName: 'la Sedia' },
+  5: { name: 'Serpente',    emoji: '🐍',  artName: 'il Serpente' },
+  6: { name: 'Chiocciola',  emoji: '🐌',  artName: 'la Chiocciola' },
+  7: { name: 'Fulmine',     emoji: '⚡',  artName: 'il Fulmine' },
+  8: { name: 'Infinito',    emoji: '♾️',  artName: "l'Infinito" },
+  9: { name: 'Palloncino',  emoji: '🎈',  artName: 'il Palloncino' },
 };
 
 const DIGIT_EMOJI: Record<number, string> = Object.fromEntries(
@@ -55,39 +55,39 @@ function getMnemonicStory(a: number, b: number): MnemonicStory {
   // Storie specifiche curate
   const customStories: Record<string, Omit<MnemonicStory, 'equationText'>> = {
     '7x8': {
-      title: 'Il Nano nel Canotto',
-      premise: 'C\'era una volta un allegro Nano (🧙) che amava l\'avventura. Un giorno salì a bordo del suo fidato Canotto (🛶) per esplorare il fiume magico di Tabellandia.',
-      climax: 'Mentre navigava felice tra le onde, allungò la sua Mano (✋) nell\'acqua fresca e trovò una meravigliosa Chiocciola (🐌) dorata che gli portò tanta fortuna!',
+      title: 'Il Fulmine e l\'Infinito',
+      premise: 'Un potente Fulmine (⚡) squarciò il cielo di Tabellandia e colpì il simbolo dell\'Infinito (♾️) che brillava su una collina.',
+      climax: 'Dall\'esplosione di luce apparvero un agile Serpente (🐍) che scivolava sull\'erba e una saggia Chiocciola (🐌) che portava con sé la risposta!',
     },
     '2x2': {
-      title: 'I due Bui e il Gatto',
-      premise: 'Due maestosi Bui (🐂 e 🐂) stavano pascolando sereni nei verdi prati di Tabellandia.',
-      climax: 'Mentre giocavano insieme rincorrendosi, spuntò dall\'erba un agile Gatto (🐈) che iniziò a fare le fusa con loro!',
+      title: 'I due Cigni sul Lago',
+      premise: 'Due eleganti Cigni (🦢 e 🦢) nuotavano specchiandosi nel lago cristallino di Tabellandia.',
+      climax: 'Quando i loro colli si incrociarono formarono una bellissima Sedia (🪑) di luce sull\'acqua!',
     },
     '3x3': {
-      title: 'I due Re in Crociera',
-      premise: 'Un saggio Re (👑) andò a far visita a un suo caro amico Re (👑) nel porto del regno.',
-      climax: 'Per festeggiare il loro incontro, salirono a bordo di una gigante e bellissima Nave (🚢) da crociera!',
+      title: 'Due Euro e il Palloncino',
+      premise: 'Una moneta Euro (💶) incontrò un\'altra moneta Euro (💶) al mercato magico di Tabellandia.',
+      climax: 'Festeggiando il loro incontro, lanciarono in aria un grande Palloncino (🎈) colorato che salì verso il cielo!',
     },
     '7x7': {
-      title: 'I Nani e la Nave',
-      premise: 'Un curioso Nano (🧙) incontrò un altro simpatico Nano (🧙) lungo il sentiero incantato.',
-      climax: 'Assieme videro un agile Gatto (🐈) guardare meravigliato una grande Nave (🚢) che salpava!',
+      title: 'Due Fulmini nel Cielo',
+      premise: 'Un Fulmine (⚡) attraversò il cielo e ne incontrò un altro (⚡) proveniente dalla direzione opposta.',
+      climax: 'L\'incrocio dei due fulmini illuminò una Sedia (🪑) d\'oro e un Palloncino (🎈) che fluttuava tra le nuvole!',
     },
     '8x8': {
-      title: 'I Canotti sulla Cascata',
-      premise: 'Un bel Canotto (🛶) galleggiava accanto a un altro coloratissimo Canotto (🛶) sul lago.',
-      climax: 'Sulle onde comparvero una lentissima Chiocciola (🐌) e un dolcissimo Gatto (🐈) a fare da capitani!',
+      title: 'L\'Infinito si raddoppia',
+      premise: 'Il simbolo dell\'Infinito (♾️) si specchiò nell\'acqua e vide se stesso riflesso (♾️) perfettamente.',
+      climax: 'Dal riflesso emersero una Chiocciola (🐌) con il guscio brillante e una Sedia (🪑) fatta di cristallo!',
     },
     '7x9': {
-      title: 'Il Nano sulla Nave',
-      premise: 'Il saggio Nano (🧙) salì sul ponte di una maestosa Nave (🚢) per esplorare mari sconosciuti.',
-      climax: 'In mezzo all\'oceano incontrò una Chiocciola (🐌) marina che gli mostrò la corona d\'oro di un Re (👑)!',
+      title: 'Il Fulmine e il Palloncino',
+      premise: 'Un Fulmine (⚡) sfrecciò nel cielo e colpì un grande Palloncino (🎈) che fluttuava tra le nuvole.',
+      climax: 'Dall\'esplosione colorata uscirono una Chiocciola (🐌) dorata e un Serpente (🐍) che danzavano insieme!',
     },
     '8x9': {
-      title: 'Il Canotto e la Nave',
-      premise: 'Un veloce Canotto (🛶) affiancò una grandissima Nave (🚢) nel mare aperto.',
-      climax: 'Dal ponte scese un allegro Nano (🧙) in groppa a un forte Bue (🐂) dorato!',
+      title: 'L\'Infinito e il Palloncino',
+      premise: 'Il simbolo dell\'Infinito (♾️) volò su per il cielo e incontrò un allegro Palloncino (🎈) tra le stelle.',
+      climax: 'Insieme crearono una magia: apparve un Fulmine (⚡) scintillante e un Cigno (🦢) che nuotava tra le nuvole!',
     }
   };
 
@@ -140,16 +140,9 @@ function getMnemonicResult(ans: number): string {
   return `${tensEmoji} ${unitsEmoji}`;
 }
 
-const TRAINING_WORLD_ICON: Record<number, string> = {
-  2: '🐂',
-  3: '👑',
-  4: '🐈',
-  5: '✋',
-  6: '🐌',
-  7: '🧙',
-  8: '🛶',
-  9: '🚢',
-};
+const TRAINING_WORLD_ICON: Record<number, string> = Object.fromEntries(
+  Object.entries(DIGIT_INFO).filter(([k]) => Number(k) >= 2).map(([k, v]) => [Number(k), v.emoji])
+);
 
 function withTableIcon(worldId: number, label: string): string {
   const icon = TRAINING_WORLD_ICON[worldId] ?? '🔢';
