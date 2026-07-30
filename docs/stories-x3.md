@@ -5,7 +5,7 @@
 **Premessa:** 💶 Moneta rara × ⛏️ Piccone  
 **Finale:** 💶 Moneta rara
 
-Sulla roccia, Ciro notò qualcosa di nuovo: il contorno di una Moneta rara (💶) incisa proprio nel Piccone (⛏️). Non era un sogno. Quella stessa Moneta rara (💶) era lì, scolpita nella pietra, ad aspettarlo.
+C'era anche un altro simbolo. Il contorno della Moneta rara (💶) era incisa proprio sulla roccia del Piccone (⛏️). Non era un sogno. Quella stessa Moneta rara (💶) era lì, scolpita nella pietra.
 
 ---
 
@@ -68,7 +68,7 @@ Nel buio della notte il segno della Moneta rara (💶) brillò sul suolo. Un Ful
 **Premessa:** 💶 Moneta rara × ♾️ Infinito  
 **Finale:** 🦢 Cigno (Ciro) + 🪑 Sedia Magica
 
-Il segno della Moneta rara (💶) e quello dell'Infinito (♾️) si intrecciavano senza fine. Sognò di essere un Cigno (🦢) posato su una Sedia Magica (🪑) al centro di un lago di luce.
+Il segno della Moneta rara (💶) e quello dell'Infinito (♾️) si intrecciavano senza fine. Il Cigno Ciro (🦢) sognò di essere posato sulla Sedia Magica (🪑) al centro del lago di sale.
 
 ---
 
