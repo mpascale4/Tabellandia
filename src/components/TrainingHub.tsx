@@ -10,6 +10,7 @@ import { sound } from './SoundManager';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
+import storiesMarkdown from '../../docs/stories-7-8-9.md?raw';
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
 // 0 🥚 Uovo      → ovale chiuso
@@ -47,81 +48,97 @@ interface MnemonicStory {
   equationText: string;
 }
 
+type StoryDraft = {
+  title: string;
+  premise: string;
+  climax: string;
+};
+
+function splitStoryText(text: string): { premise: string; climax: string } {
+  const cleaned = text.trim();
+  if (!cleaned) return { premise: '', climax: '' };
+  const sentences = (cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [])
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (sentences.length <= 1) {
+    return { premise: cleaned, climax: cleaned };
+  }
+  return {
+    premise: sentences[0],
+    climax: sentences.slice(1).join(' '),
+  };
+}
+
+function parseStoriesFromMarkdown(markdown: string): Record<string, StoryDraft> {
+  const lines = markdown.split(/\r?\n/);
+  const stories: Record<string, StoryDraft> = {};
+
+  let currentKey: string | null = null;
+  let currentTitle = '';
+  let currentPremise = '';
+  let currentFinale = '';
+  let currentFullText = '';
+
+  const flush = () => {
+    if (!currentKey) return;
+
+    const fullText = currentFullText.trim();
+    const split = splitStoryText(fullText);
+    const premise = split.premise || currentPremise.trim();
+    const climax = split.climax || currentFinale.trim() || split.premise || currentPremise.trim();
+
+    stories[currentKey] = {
+      title: currentTitle || `La storia di ${currentKey.replace('x', ' × ')}`,
+      premise,
+      climax,
+    };
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    const headingMatch = line.match(/^###\s+(\d+)\s*[×x]\s*(\d+)\s*=\s*\d+/i);
+    if (headingMatch) {
+      flush();
+      const a = Number(headingMatch[1]);
+      const b = Number(headingMatch[2]);
+      currentKey = `${a}x${b}`;
+      currentTitle = `La storia di ${a} × ${b}`;
+      currentPremise = '';
+      currentFinale = '';
+      currentFullText = '';
+      continue;
+    }
+
+    if (!currentKey) continue;
+
+    if (line.startsWith('- Premessa:')) {
+      currentPremise = line.replace('- Premessa:', '').trim();
+      continue;
+    }
+
+    if (line.startsWith('- Finale:')) {
+      currentFinale = line.replace('- Finale:', '').trim();
+      continue;
+    }
+
+    if (line.startsWith('- Testo completo:')) {
+      currentFullText = line.replace('- Testo completo:', '').trim();
+      continue;
+    }
+  }
+
+  flush();
+  return stories;
+}
+
+const MARKDOWN_CUSTOM_STORIES = parseStoriesFromMarkdown(storiesMarkdown);
+
 function getMnemonicStory(a: number, b: number): MnemonicStory {
   const ans = a * b;
   const key1 = `${a}x${b}`;
   const key2 = `${b}x${a}`;
-
-  // Storie specifiche curate
-  const customStories: Record<string, Omit<MnemonicStory, 'equationText'>> = {
-    '7x1': {
-      title: 'Il doppio lampo',
-      premise: 'Un Fulmine (⚡) colpì un vecchio Piccone (⛏️) appeso in un campo, e rimbalzò creando un altro Fulmine (⚡) ancora più luminoso.',
-      climax: 'Nel cielo rimasero solo scie di luce: sembrava ci fosse ancora un Fulmine (⚡) acceso davanti agli occhi.',
-    },
-    '2x7': {
-      title: 'Il cigno curioso e la sedia misteriosa',
-      premise: 'Un Cigno (🦢) nuotava tranquillo quando un Fulmine (⚡) cadde vicino alla sua riva.',
-      climax: 'Nuotò velocissimo per vedere e trovò un Piccone (⛏️) su una Sedia (🪑): ahia, mi sa che qualcuno è stato incenerito.',
-    },
-    '3x7': {
-      title: 'La moneta colpita dal lampo',
-      premise: 'Una Moneta (💶) era appoggiata sulla riva di un fiume, quando un Fulmine (⚡) la colpì in pieno.',
-      climax: 'Subito accorse un Cigno (🦢) lì vicino, e aveva un Piccone (⛏️) in mano.',
-    },
-    '4x7': {
-      title: 'La sedia fulminata',
-      premise: 'Una Sedia (🪑) in riva a un fiume fu colpita improvvisamente da un Fulmine (⚡).',
-      climax: 'Accorse il solito Cigno (🦢) curioso che questa volta aveva un Infinito (♾️) tatuato sul petto.',
-    },
-    '5x7': {
-      title: 'La moneta rubata',
-      premise: 'Un Serpente (🐍) strisciava tranquillo quando un Fulmine (⚡) cadde poco lontano da lui.',
-      climax: 'Curioso andò a vedere e trovò la Moneta (💶) e un altro Serpente (🐍) bruciacchiato: ben gli sta, aveva rubato la moneta.',
-    },
-    '6x7': {
-      title: 'La chiocciola colpita',
-      premise: 'Una Chiocciola (🐌) attraversava il vialetto mentre un Fulmine (⚡) la colpì in pieno.',
-      climax: 'Al bordo del vialetto c\'era una Sedia (🪑) e, indovina un po\', sopra era seduto il solito Cigno (🦢) impertinente.',
-    },
-    '2x2': {
-      title: 'I due Cigni e la Sedia d\'Oro',
-      premise: 'Due Cigni (🦢 e 🦢) si avvicinarono al centro del lago, i loro lunghi colli curvi che si specchiavano nell\'acqua ferma.',
-      climax: 'Nel punto esatto dove i loro becchi si toccarono emerse lentamente dall\'acqua una Sedia (🪑) d\'oro che li aspettava!',
-    },
-    '3x3': {
-      title: 'Due Euro e la Grande Festa',
-      premise: 'Una moneta Euro (💶) rotolò lungo il sentiero del mercato e si scontrò con un\'altra moneta Euro (💶) che arrivava dalla direzione opposta.',
-      climax: 'L\'urto fece volar via dalla bancarella vicina un enorme Palloncino (🎈) rosso che salì sempre più in alto verso il cielo azzurro!',
-    },
-    '7x7': {
-      title: 'Lo scontro nel cielo',
-      premise: 'Due Fulmini (⚡ e ⚡) si scontrarono nel cielo con un grande boato.',
-      climax: 'Tanto che la Sedia (🪑) in giardino tremò e il Palloncino (🎈) si staccò e volò via.',
-    },
-    '7x8': {
-      title: 'La roccia distrutta',
-      premise: 'Un Fulmine (⚡) colpì un simbolo dell\'Infinito (♾️) su una roccia, distruggendola completamente.',
-      climax: 'Dietro la roccia c\'erano un Serpente (🐍) e una Chiocciola (🐌) che si stavano baciando.',
-    },
-    '8x8': {
-      title: 'L\'Infinito allo Specchio',
-      premise: 'Il simbolo dell\'Infinito (♾️) si avvicinò a uno specchio d\'acqua e si trovò faccia a faccia con il suo stesso riflesso (♾️).',
-      climax: 'Tra i due, sul bordo dello stagno, strisciava una paziente Chiocciola (🐌) che portava sul guscio una minuscola Sedia (🪑) intagliata nel legno!',
-    },
-    '7x9': {
-      title: 'Il palloncino misterioso',
-      premise: 'Un Palloncino (🎈) volava alto quando venne colpito da un Fulmine (⚡).',
-      climax: 'Non puoi credere cosa c\'era dentro: una Chiocciola (🐌) con la Moneta (💶) rubata.',
-    },
-    '8x9': {
-      title: 'L\'Infinito e il Palloncino nel Temporale',
-      premise: 'Il simbolo dell\'Infinito (♾️) stava fluttuando nel cielo sereno quando incontrò un gioioso Palloncino (🎈) che saliva libero tra le nuvole.',
-      climax: 'Il vento del temporale li travolse portando con sé un Fulmine (⚡) brillante e un elegante Cigno (🦢) in volo radente sull\'acqua!',
-    },
-  };
-
-  const storyData = customStories[key1] || customStories[key2];
+  const storyData = MARKDOWN_CUSTOM_STORIES[key1] || MARKDOWN_CUSTOM_STORIES[key2];
 
   const itemA = DIGIT_INFO[a] ?? { name: `${a}`, emoji: `${a}`, artName: `${a}` };
   const itemB = DIGIT_INFO[b] ?? { name: `${b}`, emoji: `${b}`, artName: `${b}` };
