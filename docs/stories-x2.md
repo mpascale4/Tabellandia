@@ -38,7 +38,7 @@ Curioso di saperne di più, il Cigno Orion (🦢) si avvicinò all'acqua. E all'
 
 ## 2×5 = 10
 
-**Premessa:** 🦢 Cigno (Orion) × 🐍 Serpente (Bobo e Teo)  
+**Premessa:** 🦢 Cigno (Orion) × 🐍 Serpente (Bobo)  
 **Finale:** ⛏️ Piccone
 
 Mentre era distratto, il Cigno Orion (🦢) sentì un leggero fruscìo provenire dalle rocce. Il terreno sembrò muoversi e da una fessura sbucò il Serpente Bobo (🐍): che sibilò "Se cerchi la roccia del Piccone (⛏️) devi volare a sud".
@@ -50,7 +50,7 @@ Mentre era distratto, il Cigno Orion (🦢) sentì un leggero fruscìo provenire
 **Premessa:** 🦢 Cigno (Orion) × 🐌 Chiocciola (Lina)  
 **Finale:** ⛏️ Piccone + 🦢 Cigno (Orion)
 
-Tornarono alla mente del Cigno Orion (🦢) le parole della Chiocciola Lina (🐌): «Solo chi striscia sa dove si trovi la roccia del Piccone (⛏️). Ma solo li troverai l'indizio più importante». Il Cigno Orion (🦢) si rimise in viaggio verso sud.
+Tornarono alla mente del Cigno Orion (🦢) le parole della Chiocciola Lina (🐌): «Solo chi striscia sa dove si trovi la roccia del Piccone (⛏️). Ma solo lì troverai l'indizio più importante». Tenendo a mente la roccia del Piccone (⛏️), il Cigno Orion (🦢) si rimise in viaggio verso sud.
 
 ---
 
@@ -59,7 +59,7 @@ Tornarono alla mente del Cigno Orion (🦢) le parole della Chiocciola Lina (�
 **Premessa:** 🦢 Cigno (Orion) × ⚡ Fulmine  
 **Finale:** ⛏️ Piccone + 🪑 Sedia Magica
 
-Mentre il Cigno Orion (🦢) sorvolava i posti incantati della Terra Magica, all'improvviso un Fulmine (⚡) illuminò il cielo davanti a lui. Nel bagliore vide finalmente la roccia del Piccone (⛏️). Aveva lo stesso simbolo della Sedia Magica (🪑).
+Mentre il Cigno Orion (🦢) sorvolava i posti incantati della Terra Magica, all'improvviso un Fulmine (⚡) illuminò il cielo davanti a lui. La roccia del Piccone (⛏️) aveva lo stesso simbolo della Sedia Magica (🪑).
 
 ---
 

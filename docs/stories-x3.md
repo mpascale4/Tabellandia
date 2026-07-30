@@ -23,7 +23,7 @@ Intorno alla Moneta rara (💶) c'erano due ali dispiegate, proprio come quelle 
 **Premessa:** 💶 Moneta rara × 💶 Moneta rara  
 **Finale:** 🎈 Palloncino
 
-Due immagini della stessa Moneta rara (💶) brillavano l'una accanto all'altra sulla roccia. Sembravano rispecchiarsi, identiche. Nel buio tra i due simboli, un Palloncino (🎈) rosso era disegnato in lontananza. Era proprio uguale a quello che lo aveva guidato lì.
+Due immagini della stessa Moneta rara (💶) brillavano l'una accanto all'altra sulla roccia. Sembravano rispecchiarsi, identiche. Nel buio tra i due simboli, un Palloncino (🎈) rosso era disegnato in lontananza. Era proprio uguale al Palloncino (🎈) che lo aveva guidato lì.
 
 ---
 
@@ -38,10 +38,10 @@ Sotto il disegno della Moneta rara (💶) c'era un'altra incisione: una Sedia Ma
 
 ## 3×5 = 15
 
-**Premessa:** 💶 Moneta rara × 🐍 Serpente (Bobo e Teo)  
-**Finale:** ⛏️ Piccone + 🐍 Serpente (Bobo e Teo)
+**Premessa:** 💶 Moneta rara × 🐍 Serpente (Bobo)  
+**Finale:** ⛏️ Piccone + 🐍 Serpente (Bobo)
 
-La Moneta rara (💶) sembrava guidarlo. Bobo il Serpente (🐍) scivolò fuori dalle rocce e sibilò sottovoce: «Il Piccone (⛏️) custodisce il segreto.» Poi il Serpente (🐍) scomparve tra le pietre.
+La Moneta rara (💶) sembrava guidarlo. Bobo il Serpente (🐍) era già avvolto alla base della roccia, come se l'aspettasse. Sibilò sottovoce: «Guarda bene il Piccone (⛏️).» Poi il Serpente (🐍) scomparve.
 
 ---
 
@@ -50,7 +50,7 @@ La Moneta rara (💶) sembrava guidarlo. Bobo il Serpente (🐍) scivolò fuori 
 **Premessa:** 💶 Moneta rara × 🐌 Chiocciola (Lina)  
 **Finale:** ⛏️ Piccone + ♾️ Infinito
 
-Ripensando alla Moneta rara (💶), Orion ricordò un consiglio della Chiocciola Lina (🐌): «Dove il Piccone (⛏️) incontra l'Infinito (♾️), troverai la tua risposta.»
+Ripensando alla Moneta rara (💶), tornò in mente un consiglio della Chiocciola Lina (🐌): «Dove il Piccone (⛏️) incontra l'Infinito (♾️), troverai la tua risposta.»
 
 ---
 

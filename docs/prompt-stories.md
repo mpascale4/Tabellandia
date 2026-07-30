@@ -68,6 +68,27 @@ Mai invertire quest'ordine.
 
 ---
 
+# Nessun personaggio extra
+
+Questa regola è assoluta e non ammette eccezioni.
+
+Se un personaggio **non è fattore né cifra del risultato** di una moltiplicazione, non deve comparire in quella storia.
+
+Non deve:
+- essere nominato (per nome o soprannome);
+- essere descritto fisicamente;
+- essere simboleggiato o evocato esplicitamente.
+
+I pronomi grammaticali neutri ("lui", "lo", "-lo") sono tollerati quando necessari per la continuità narrativa.
+
+Esempio:
+
+3×6 = 18 → ammessi: {💶, 🐌, ⛏️, ♾️}
+
+Il Cigno Orion (🦢) ha il numero 2, che non è né fattore né cifra di 18. Quindi in 3×6 **Orion non può essere nominato né descritto**.
+
+---
+
 # Continuità narrativa
 
 Le storie NON sono indipendenti.
