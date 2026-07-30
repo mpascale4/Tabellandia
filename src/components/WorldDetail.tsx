@@ -3092,11 +3092,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           <h5 className={`text-sm font-black font-sans ${isSfidaLocked ? 'text-slate-700' : isSfidaDone ? 'text-emerald-950' : 'text-white'}`}>
                             6. Sfida Finale (Cronometro)
                           </h5>
-                          {isSfidaDone && (
-                            <span className="text-[10px] font-black text-emerald-900 bg-emerald-200 px-2.5 py-0.5 rounded-full font-sans">
-                              🏆 REGNO SUPERATO!
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
