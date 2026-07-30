@@ -292,35 +292,48 @@ function getStars(profile: UserProfile, worldId: number): number {
 
 // ─── Card singola tabellina ───────────────────────────────────────────────────
 
-function WorldCard({ world, stars, onSelect, compactLayout }: {
-  world: WorldConfig; stars: number; onSelect: (id: number) => void; compactLayout?: boolean;
+function WorldCard({ world, stars, onSelect, onStory, compactLayout }: {
+  world: WorldConfig; stars: number; onSelect: (id: number) => void; onStory: (id: number) => void; compactLayout?: boolean;
 }) {
   const isTrained = stars > 0;
   const worldIcon = TRAINING_WORLD_ICON[world.id] ?? '🦁';
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(world.id)}
-      className={`training-home-card relative w-full aspect-square rounded-2xl border-2 sm:border-3 border-indigo-300/80 bg-gradient-to-b from-indigo-50 to-indigo-100/90 shadow-sm
-                 hover:shadow-md hover:border-indigo-400 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer
-                 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
-                 flex flex-col items-center justify-center p-2 sm:p-3 gap-1 overflow-hidden min-w-0`}
-      aria-label={`Allena tabellina del ${world.id}: ${world.name}${isTrained ? ', già allenata' : ''}`}
-    >
-      {isTrained && (
-        <span
-          className="absolute top-1 right-1 inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] sm:text-xs font-black shadow-md z-10"
-          aria-hidden="true"
-        >
-          ✓
-        </span>
-      )}
-      <span className={`training-card-icon ${compactLayout ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'} leading-none drop-shadow-xs shrink-0`} aria-hidden="true">{worldIcon}</span>
-      <div className="flex flex-col items-center leading-tight min-w-0 w-full px-1">
-        <span className={`training-card-mul ${compactLayout ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} font-black font-mono text-indigo-900`}>×{world.id}</span>
-        <span className="text-[10px] sm:text-xs font-bold text-indigo-700/90 tracking-tight truncate w-full text-center">{world.name}</span>
-      </div>
-    </button>
+    <div className="relative w-full aspect-square">
+      <button
+        type="button"
+        onClick={() => onSelect(world.id)}
+        className={`training-home-card w-full h-full rounded-2xl border-2 sm:border-3 border-indigo-300/80 bg-gradient-to-b from-indigo-50 to-indigo-100/90 shadow-sm
+                   hover:shadow-md hover:border-indigo-400 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer
+                   focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
+                   flex flex-col items-center justify-center p-2 sm:p-3 gap-1 overflow-hidden min-w-0`}
+        aria-label={`Allena tabellina del ${world.id}: ${world.name}${isTrained ? ', già allenata' : ''}`}
+      >
+        {isTrained && (
+          <span
+            className="absolute top-1 right-1 inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] sm:text-xs font-black shadow-md z-10"
+            aria-hidden="true"
+          >
+            ✓
+          </span>
+        )}
+        <span className={`training-card-icon ${compactLayout ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'} leading-none drop-shadow-xs shrink-0`} aria-hidden="true">{worldIcon}</span>
+        <div className="flex flex-col items-center leading-tight min-w-0 w-full px-1">
+          <span className={`training-card-mul ${compactLayout ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} font-black font-mono text-indigo-900`}>×{world.id}</span>
+          <span className="text-[10px] sm:text-xs font-bold text-indigo-700/90 tracking-tight truncate w-full text-center">{world.name}</span>
+        </div>
+      </button>
+
+      {/* Bottone storia — sovrapposto in alto a sinistra */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onStory(world.id); }}
+        className="absolute top-1 left-1 z-10 inline-flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-amber-100 border border-amber-300 text-base shadow-sm hover:bg-amber-200 hover:scale-110 active:scale-95 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-amber-500"
+        aria-label={`Leggi le storie della tabellina del ${world.id}`}
+        title="Leggi le storie"
+      >
+        <span aria-hidden="true" className="leading-none text-sm">📖</span>
+      </button>
+    </div>
   );
 }
 
@@ -605,16 +618,137 @@ function TrainingSession({
   );
 }
 
+// ─── Lettore di storie sequenziale ───────────────────────────────────────────
+
+function StoryReader({ worldId, onBack }: { worldId: number; onBack: () => void }) {
+  const [index, setIndex] = useState(0); // 0-8
+  const TOTAL = 9;
+  const multiplier = index + 1;
+  const story = getMnemonicStory(multiplier, worldId);
+  const fullText = [story.premise, story.climax].filter(Boolean).join(' ');
+  const worldIcon = TRAINING_WORLD_ICON[worldId] ?? '🔢';
+
+  const prev = () => setIndex(i => Math.max(0, i - 1));
+  const next = () => setIndex(i => Math.min(TOTAL - 1, i + 1));
+
+  return (
+    <div className="flex w-full flex-col gap-4">
+
+      {/* Header */}
+      <SurfaceCard tone="soft" padding="sm" className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-2xl" aria-hidden="true">{worldIcon}</span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-sky-700/70 uppercase tracking-widest">Storie della tabellina</p>
+            <p className="text-base font-black text-sky-900 leading-tight">×{worldId}</p>
+          </div>
+        </div>
+        <span
+          className="text-xs font-bold text-slate-500 bg-slate-100 rounded-full px-2.5 py-0.5 tabular-nums shrink-0"
+          aria-live="polite"
+          aria-label={`Storia ${multiplier} di ${TOTAL}`}
+        >
+          {multiplier} / {TOTAL}
+        </span>
+      </SurfaceCard>
+
+      {/* Card storia */}
+      <SurfaceCard tone="soft" padding="lg" className="w-full flex flex-col gap-3">
+
+        {/* Titolo operazione */}
+        <div className="flex items-center gap-3 border-b border-amber-200 pb-3">
+          <span className="text-3xl sm:text-4xl" aria-hidden="true">📖</span>
+          <div>
+            <p className="text-[10px] font-bold text-amber-700/80 uppercase tracking-widest">
+              {multiplier} × {worldId} = {multiplier * worldId}
+            </p>
+            <h2 className="text-base sm:text-lg font-black text-amber-950 leading-tight">
+              {story.title}
+            </h2>
+          </div>
+        </div>
+
+        {/* Equazione visiva */}
+        <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 rounded-2xl border border-sky-200/90 bg-sky-50 px-4 py-2.5">
+          <span className="text-3xl sm:text-4xl drop-shadow-xs" aria-label={`Mnemotecnico ${multiplier}`}>
+            {DIGIT_EMOJI[multiplier] ?? multiplier}
+          </span>
+          <span className="text-xl font-black text-sky-600 select-none">×</span>
+          <span className="text-3xl sm:text-4xl drop-shadow-xs" aria-label={`Mnemotecnico ${worldId}`}>
+            {DIGIT_EMOJI[worldId] ?? worldId}
+          </span>
+          <span className="text-xl font-black text-sky-600 select-none">=</span>
+          <span className="text-3xl sm:text-4xl drop-shadow-xs" aria-label={`Risultato ${multiplier * worldId}`}>
+            {getMnemonicResult(multiplier * worldId)}
+          </span>
+        </div>
+
+        {/* Testo narrativo */}
+        <div
+          className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-slate-800 text-sm sm:text-base leading-relaxed font-medium"
+          aria-live="polite"
+        >
+          {fullText || <span className="text-slate-400 italic">Nessuna storia disponibile.</span>}
+        </div>
+
+        {/* Formula magica */}
+        <div className="rounded-2xl bg-amber-200/80 border border-amber-400/60 px-3 py-2 text-center">
+          <p className="text-[10px] font-bold text-amber-900 uppercase tracking-widest mb-0.5">Formula Magica</p>
+          <p className="text-base sm:text-lg font-black font-mono text-amber-950">{story.equationText}</p>
+        </div>
+      </SurfaceCard>
+
+      {/* Navigazione */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={prev}
+          disabled={index === 0}
+          className="flex-1 rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-sm transition-all cursor-pointer hover:bg-slate-300 active:scale-95
+                     disabled:opacity-40 disabled:cursor-not-allowed
+                     focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+          aria-label="Storia precedente"
+        >
+          ← Precedente
+        </button>
+        <button
+          type="button"
+          onClick={next}
+          disabled={index === TOTAL - 1}
+          className="flex-1 rounded-2xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition-all cursor-pointer hover:bg-indigo-700 active:scale-95
+                     disabled:opacity-40 disabled:cursor-not-allowed
+                     focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+          aria-label="Storia successiva"
+        >
+          Successiva →
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full rounded-2xl bg-slate-100 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-200 cursor-pointer
+                   focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+        aria-label="Torna alla lista delle tabelline"
+      >
+        Indietro
+      </button>
+    </div>
+  );
+}
+
 // ─── Home: lista tabelline ────────────────────────────────────────────────────
 
 function TrainingHome({
   profile,
   compactLayout,
   onSelect,
+  onStory,
 }: {
   profile: UserProfile;
   compactLayout?: boolean;
   onSelect: (id: number) => void;
+  onStory: (id: number) => void;
 }) {
   return (
     <div className={`training-home w-full h-full ${compactLayout ? 'training-home--compact space-y-3' : 'space-y-5'}`}>
@@ -622,7 +756,7 @@ function TrainingHome({
         <SectionHeader
           eyebrow="Allenamento libero"
           title="Quale tabellina vuoi allenare?"
-          description="Tutte le tabelline sono disponibili. Scegli quella che vuoi esercitare!"
+          description="Scegli una tabellina per allenarti o premi 📖 per leggere le storie!"
         />
       </SurfaceCard>
 
@@ -637,6 +771,7 @@ function TrainingHome({
               world={world}
               stars={getStars(profile, world.id)}
               onSelect={onSelect}
+              onStory={onStory}
               compactLayout={compactLayout}
             />
           </div>
@@ -650,6 +785,7 @@ function TrainingHome({
 
 export default function TrainingHub({ profile, updateProfile, compactLayout }: TrainingHubProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [storyId, setStoryId] = useState<number | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -657,11 +793,20 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
     scrollables.forEach(el => {
       el.scrollTop = 0;
     });
-  }, [selectedId]);
+  }, [selectedId, storyId]);
 
   const selectedWorld = selectedId !== null
     ? WORLDS_DATA.find(w => w.id === selectedId) ?? null
     : null;
+
+  if (storyId !== null) {
+    return (
+      <StoryReader
+        worldId={storyId}
+        onBack={() => setStoryId(null)}
+      />
+    );
+  }
 
   if (selectedWorld) {
     return (
@@ -678,6 +823,7 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
       profile={profile}
       compactLayout={compactLayout}
       onSelect={setSelectedId}
+      onStory={setStoryId}
     />
   );
 }
