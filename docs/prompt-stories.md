@@ -82,6 +82,42 @@ Non bisogna ricominciare ogni volta da zero.
 
 ---
 
+# Coerenza assoluta
+
+Questa è una regola inviolabile.
+
+Tutto ciò che viene stabilito in una storia deve rimanere coerente in tutte le storie successive.
+
+## Posizioni e luoghi
+
+- Se un personaggio si trova in un posto, nella storia successiva deve ancora trovarsi lì (o ci deve essere una ragione narrativa per cui si è spostato).
+- Se un oggetto è inciso su una roccia, quella roccia esiste e ha quella posizione per sempre.
+- Non si può spostare, spostare o ricollocare qualcosa senza che la storia lo giustifichi.
+
+## Personaggi
+
+- Se un personaggio ha una caratteristica (Bobo sibila, Lina dà consigli, Orion vola), quella caratteristica non cambia mai.
+- Se un personaggio ha già incontrato Orion, non può "apparire per la prima volta" di nuovo.
+- Se un personaggio è andato via, non può tornare senza una ragione narrativa.
+
+## Oggetti e simboli
+
+- Se un simbolo è stato trovato su una superficie, quella superficie e quella posizione sono fisse.
+- Se un oggetto aveva una forma o un colore, li mantiene per sempre.
+- Non si possono aggiungere dettagli nuovi che contraddicono quelli già stabiliti.
+
+## Regola pratica
+
+Prima di scrivere ogni nuova storia, rileggere le precedenti e verificare:
+- Dove si trova Orion?
+- Cosa ha già trovato o visto?
+- Quali personaggi ha già incontrato e come si sono comportati?
+- Quali luoghi, oggetti e simboli sono già stati descritti?
+
+Nessun dettaglio può contraddire ciò che è già stato scritto.
+
+---
+
 # Stile
 
 Lo stile deve essere:
