@@ -16,6 +16,12 @@ Quando generi o modifichi codice:
 
 ## Flusso Git obbligatorio (Git Flow)
 
+**Prima di qualsiasi operazione git (push, pull, fetch):**
+0. Assicurarsi che l'account GitHub attivo sia `mpascale4`:
+   ```powershell
+   gh auth switch --user mpascale4
+   ```
+
 **Prima di qualsiasi modifica al codice:**
 1. Aprire una nuova feature con Git Flow:
    ```bash
@@ -25,12 +31,14 @@ Quando generi o modifichi codice:
 **Al termine di tutte le modifiche:**
 2. Chiudere la feature e fare la push:
    ```bash
+   gh auth switch --user mpascale4
    git flow feature finish <nome-feature>
    git push origin develop
    git push origin --tags
    ```
 
 > ⚠️ Non eseguire mai commit direttamente su `main` o `develop` senza passare per una feature branch di Git Flow.
+> ⚠️ Se il push restituisce errore 403, eseguire `gh auth switch --user mpascale4` e riprovare.
 
 ---
 
@@ -39,6 +47,7 @@ Quando generi o modifichi codice:
 Quando l'utente scrive `/pull` o `#pull`, esegui immediatamente i seguenti comandi nell'ordine indicato, senza chiedere conferma:
 
 ```powershell
+gh auth switch --user mpascale4
 git pull origin develop
 git pull origin main
 ```
