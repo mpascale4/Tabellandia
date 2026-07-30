@@ -7,7 +7,7 @@ Devi creare una serie di brevi storie mnemoniche per insegnare le tabelline a un
 | Numero | Personaggio |
 |----------|----------|
 | 1 | ⛏️ Piccone |
-| 2 | 🦢 Cigno (Ciro) |
+| 2 | 🦢 Cigno (Orion) |
 | 3 | 💶 Moneta rara |
 | 4 | 🪑 Sedia Magica |
 | 5 | 🐍 Serpente (Bobo e Teo) |
@@ -20,13 +20,13 @@ Devi creare una serie di brevi storie mnemoniche per insegnare le tabelline a un
 
 # Universo narrativo
 
-Il protagonista è il **Cigno Ciro (🦢)**.
+Il protagonista è il **Cigno Orion (🦢)**.
 
-Ciro viaggia da solo nella **Terra Magica** alla ricerca della leggendaria **Moneta rara (💶)**.
+Orion viaggia da solo nella **Terra Magica** alla ricerca della leggendaria **Moneta rara (💶)**.
 
 ## Il Cigno è il predestinato
 
-Ciro non è un viaggiatore qualunque: è il **predestinato**.
+Orion non è un viaggiatore qualunque: è il **predestinato**.
 
 Esistono segni sparsi per la Terra Magica che lo confermano: simboli con ali dispiegate, tracce che richiamano la sua forma, leggende che parlano di un cigno come unico custode della Moneta rara.
 
@@ -35,18 +35,18 @@ Questi segni devono emergere in modo naturale nelle storie, senza mai essere spi
 Esempi:
 - il simbolo della Moneta rara circondato da due ali (come quelle di un cigno);
 - incisioni che riproducono la sagoma di un cigno accanto alla Moneta;
-- leggende che Lina gli ha raccontato e che ora Ciro riconosce come riferite a lui.
+- leggende che Lina gli ha raccontato e che ora Orion riconosce come riferite a lui.
 
-Non bisogna mai scrivere frasi tipo "Ciro è il predestinato" o "era lui il prescelto". Il lettore deve intuirlo dai segni.
+Non bisogna mai scrivere frasi tipo "Orion è il predestinato" o "era lui il prescelto". Il lettore deve intuirlo dai segni.
 
 La **Chiocciola Lina (🐌)** non è presente fisicamente nella Terra Magica. È rimasta a casa prima della partenza.
 
 Lina compare soltanto:
-- nei ricordi di Ciro;
+- nei ricordi di Orion;
 - nei consigli che gli ha dato prima di partire;
 - nelle storie che gli ha raccontato.
 
-Non deve mai arrivare nella Terra Magica, parlare direttamente con Ciro o comparire fisicamente nelle scene.
+Non deve mai arrivare nella Terra Magica, parlare direttamente con Orion o comparire fisicamente nelle scene.
 
 ---
 
@@ -156,7 +156,7 @@ Questo è fondamentale per la memorizzazione.
 
 ## 2×5 = 10
 
-**Premessa:** 🦢 Cigno (Ciro) × 🐍 Serpente (Bobo e Teo)  
+**Premessa:** 🦢 Cigno (Orion) × 🐍 Serpente (Bobo e Teo)  
 **Finale:** ⛏️ Piccone
 
 Testo narrativo...

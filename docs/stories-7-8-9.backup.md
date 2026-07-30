@@ -13,17 +13,17 @@ Schema usato: **Premessa (A×B)** + **Finale (risultato)** + **Testo completo**.
 ### 7×2=14 (⛏️ + 🪑)
 - Premessa: Fulmine × Cigno
 - Finale: Piccone + Sedia
-- Testo completo: Il Cigno (🦢) Ciro nuotava tranquillo nel suo stagno, quando un Fulmine (⚡) cadde vicino alla riva. Nuotò velocissimo per vedere e trovò un Piccone (⛏️) su una Sedia (🪑). Pensò: ahia mi sa che qualcuno è stato incenerito. <faccina adeguata>
+- Testo completo: Il Cigno (🦢) Orion nuotava tranquillo nel suo stagno, quando un Fulmine (⚡) cadde vicino alla riva. Nuotò velocissimo per vedere e trovò un Piccone (⛏️) su una Sedia (🪑). Pensò: ahia mi sa che qualcuno è stato incenerito. <faccina adeguata>
 
 ### 7×3=21 (🦢 + ⛏️)
 - Premessa: Fulmine × Euro
 - Finale: Cigno + Piccone
-- Testo completo: Una Moneta (💶) era appoggiata sulla riva dello stagno, quando un Fulmine (⚡) la colpì in pieno. Il Cigno (🦢) Ciro accorse subito a vedere. Ma perché portava con se un Piccone (⛏️)?. <faccina adeguata>
+- Testo completo: Una Moneta (💶) era appoggiata sulla riva dello stagno, quando un Fulmine (⚡) la colpì in pieno. Il Cigno (🦢) Orion accorse subito a vedere. Ma perché portava con se un Piccone (⛏️)?. <faccina adeguata>
 
 ### 7×4=28 (🦢 + ♾️)
 - Premessa: Fulmine × Sedia
 - Finale: Cigno + Infinito
-- Testo completo: La Sedia (🪑) rimasta in riva allo stagno fu colpita improvvisamente da un Fulmine (⚡). Il solito Cigno (🦢) Ciro, curioso come non mai, accorse subito con una novità. Si era tatuato un Infinito (♾️) sul petto. <faccina adeguata>
+- Testo completo: La Sedia (🪑) rimasta in riva allo stagno fu colpita improvvisamente da un Fulmine (⚡). Il solito Cigno (🦢) Orion, curioso come non mai, accorse subito con una novità. Si era tatuato un Infinito (♾️) sul petto. <faccina adeguata>
 
 ### 7×5=35 (💶 + 🐍)
 - Premessa: Fulmine × Serpente
@@ -33,7 +33,7 @@ Schema usato: **Premessa (A×B)** + **Finale (risultato)** + **Testo completo**.
 ### 7×6=42 (🪑 + 🦢)
 - Premessa: Fulmine × Chiocciola
 - Finale: Sedia + Cigno
-- Testo completo: La Chiocciola (🐌) Lina attraversava il solito vialetto mentre un Fulmine (⚡) la colpì in pieno. Chi c'era secondo voi ad assistere alla scena? Su una Sedia (🪑) a bordo vialetto, c'era il Cigno (🦢) Ciro che rideva a crepapelle. <faccina adeguata>
+- Testo completo: La Chiocciola (🐌) Lina attraversava il solito vialetto mentre un Fulmine (⚡) la colpì in pieno. Chi c'era secondo voi ad assistere alla scena? Su una Sedia (🪑) a bordo vialetto, c'era il Cigno (🦢) Orion che rideva a crepapelle. <faccina adeguata>
 
 ### 7×7=49 (🪑 + 🎈)
 - Premessa: Fulmine × Fulmine
@@ -60,17 +60,17 @@ Schema usato: **Premessa (A×B)** + **Finale (risultato)** + **Testo completo**.
 ### 8×2=16 (⛏️ + 🐌)
 - Premessa: Infinito × Cigno
 - Finale: Piccone + Chiocciola
-- Testo completo: Il Cigno (🦢) Ciro sfoggiava il suo tatuaggio dell'Infinito (♾️). Aveva l'aria arrabbiata e un Piccone (⛏️) nell'ala. Stava cercando la Chiocciola (🐌) Lina. Gli aveva rubato qualcosa? <faccina adeguata>
+- Testo completo: Il Cigno (🦢) Orion sfoggiava il suo tatuaggio dell'Infinito (♾️). Aveva l'aria arrabbiata e un Piccone (⛏️) nell'ala. Stava cercando la Chiocciola (🐌) Lina. Gli aveva rubato qualcosa? <faccina adeguata>
 
 ### 8×3=24 (🦢 + 🪑)
 - Premessa: Infinito × Euro
 - Finale: Cigno + Sedia
-- Testo completo: Si dice che la Moneta (💶) della storia, abbia il simbolo dell'Infinito (♾️) e sia molto rara per cui è nascosta da qualche parte. Il Cigno (🦢) Ciro la sta ancora cercando in basso e in alto salendo sulla Sedia (🪑). <faccina adeguata>
+- Testo completo: Si dice che la Moneta (💶) della storia, abbia il simbolo dell'Infinito (♾️) e sia molto rara per cui è nascosta da qualche parte. Il Cigno (🦢) Orion la sta ancora cercando in basso e in alto salendo sulla Sedia (🪑). <faccina adeguata>
 
 ### 8×4=32 (💶 + 🦢)
 - Premessa: Infinito × Sedia
 - Finale: Euro + Cigno
-- Testo completo: Si dice che anche la Sedia (🪑) abbia il simbolo dell'Infinito (♾️). Marchiato a fuoco. E' una leggenda che collega la Moneta (💶) e il tatuaggio del Cigno (🦢) Ciro. <faccina adeguata>
+- Testo completo: Si dice che anche la Sedia (🪑) abbia il simbolo dell'Infinito (♾️). Marchiato a fuoco. E' una leggenda che collega la Moneta (💶) e il tatuaggio del Cigno (🦢) Orion. <faccina adeguata>
 
 ### 8×5=40 (🪑 + 🥚)
 - Premessa: Infinito × Serpente
@@ -95,7 +95,7 @@ Schema usato: **Premessa (A×B)** + **Finale (risultato)** + **Testo completo**.
 ### 8×9=72 (⚡ + 🦢)
 - Premessa: Infinito × Palloncino
 - Finale: Fulmine + Cigno
-- Testo completo: Il Palloncino (🎈) passò davanti ad una nuvola che sembrava Infinito (♾️). Subito un Fulmine (⚡) lo colpì e rimbalzò. Il Cigno (🦢) Ciro questa volta fu salvo.
+- Testo completo: Il Palloncino (🎈) passò davanti ad una nuvola che sembrava Infinito (♾️). Subito un Fulmine (⚡) lo colpì e rimbalzò. Il Cigno (🦢) Orion questa volta fu salvo.
 
 ## Tabellina del 9 (🎈)
 
@@ -107,12 +107,12 @@ Schema usato: **Premessa (A×B)** + **Finale (risultato)** + **Testo completo**.
 ### 9×2=18 (⛏️ + ♾️)
 - Premessa: Palloncino × Cigno
 - Finale: Piccone + Infinito
-- Testo completo: Il Cigno (🦢) Ciro inseguiva il Palloncino (🎈) quando trovò il Piccone (⛏️) che cercava di spaccare la roccia dell'Infinito (♾️). <faccina>
+- Testo completo: Il Cigno (🦢) Orion inseguiva il Palloncino (🎈) quando trovò il Piccone (⛏️) che cercava di spaccare la roccia dell'Infinito (♾️). <faccina>
 
 ### 9×3=27 (🦢 + ⚡)
 - Premessa: Palloncino × Euro
 - Finale: Cigno + Fulmine
-- Testo completo: La Moneta (💶) rara era nascosta nel Palloncino (🎈) e volava in alto. Il Cigno (🦢) Ciro voleva prenderla ma fu colpito subito da un Fulmine (⚡). <faccina>
+- Testo completo: La Moneta (💶) rara era nascosta nel Palloncino (🎈) e volava in alto. Il Cigno (🦢) Orion voleva prenderla ma fu colpito subito da un Fulmine (⚡). <faccina>
 
 ### 9×4=36 (💶 + 🐌)
 - Premessa: Palloncino × Sedia

@@ -1,24 +1,24 @@
-﻿# Le 81 Avventure di Ciro e Lina
+# Le 81 Avventure di Orion e Lina
 
 ## Personaggi e cifre
 
 | Cifra | Personaggio              |
 | --- |--------------------------|
-| 0 | 🥚 Uovo                  |
-| 1 | ⛏️ Piccone               |
-| 2 | 🦢 Cigno (Ciro)          |
-| 3 | 💶 Moneta rara           |
-| 4 | 🪑 Sedia Magica          |
-| 5 | 🐍 Serpente (Bobo e Teo) |
-| 6 | 🐌 Chiocciola (Lina)     |
-| 7 | ⚡ Fulmine                |
-| 8 | ♾️ Infinito              |
-| 9 | 🎈 Palloncino            |
+| 0 | ?? Uovo                  |
+| 1 | ?? Piccone               |
+| 2 | ?? Cigno (Orion)          |
+| 3 | ?? Moneta rara           |
+| 4 | ?? Sedia Magica          |
+| 5 | ?? Serpente (Bobo e Teo) |
+| 6 | ?? Chiocciola (Lina)     |
+| 7 | ? Fulmine                |
+| 8 | ?? Infinito              |
+| 9 | ?? Palloncino            |
 
 ## Sintesi della storia
 
-Ciro il Cigno viaggia da solo nella Terra Magica alla ricerca della leggendaria Moneta rara.
-La Chiocciola Lina è rimasta a casa, ma le sue parole guidano Ciro lungo tutto il percorso.
+Orion il Cigno viaggia da solo nella Terra Magica alla ricerca della leggendaria Moneta rara.
+La Chiocciola Lina � rimasta a casa, ma le sue parole guidano Orion lungo tutto il percorso.
 
 ## Storie per tabellina
 
