@@ -352,7 +352,7 @@ function TrainingSession({
           {multiplier} × {worldId} = ?
         </p>
 
-        {/* Equazione visiva con mnemotecnica (es. 🐂 × 🐂 = 🐱) */}
+        {/* Equazione visiva con mnemotecnica (es. 🦢 × 🦢 = 🪑) */}
         <div className="w-full max-w-sm rounded-2xl border border-sky-200/90 bg-sky-50 px-4 py-2.5 text-center text-sky-900 shadow-xs flex items-center justify-center gap-2.5 sm:gap-3.5 mt-0.5">
           <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Mnemotecnico ${multiplier}`}>
             {DIGIT_EMOJI[multiplier] ?? multiplier}
