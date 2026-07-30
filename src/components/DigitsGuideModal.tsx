@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Volume2, Sparkles, BookOpen } from 'lucide-react';
-import { DIGITS_INFO, DigitInfo } from '../data/digitsData';
+import { DIGITS_INFO, DigitInfo, DigitAlternative } from '../data/digitsData';
 import { useVoice } from '../contexts/VoiceContext';
 import { sound } from './SoundManager';
 import SurfaceCard from './layout/SurfaceCard';
@@ -23,7 +23,17 @@ export default function DigitsGuideModal({
 }: DigitsGuideModalProps) {
   const { speak } = useVoice();
   const [selectedDigit, setSelectedDigit] = useState<DigitInfo | null>(DIGITS_INFO[1]);
+  const [selectedAltIndex, setSelectedAltIndex] = useState<number>(0); // 0 = primary
   const [showFullOverview, setShowFullOverview] = useState(false);
+
+  // Current display: primary (index 0) or an alternative (index 1+)
+  const allOptions = selectedDigit
+    ? [
+        { emoji: selectedDigit.emoji, imageLabel: selectedDigit.imageLabel, reason: selectedDigit.reason },
+        ...selectedDigit.alternatives,
+      ]
+    : [];
+  const activeOption = allOptions[selectedAltIndex] ?? allOptions[0];
 
   useEffect(() => {
     if (isOpen) {
@@ -36,7 +46,18 @@ export default function DigitsGuideModal({
   const handleSelectDigit = (info: DigitInfo) => {
     sound.playClick();
     setSelectedDigit(info);
+    setSelectedAltIndex(0);
     speak(`${info.digit}. ${info.imageLabel}. ${info.reason}`);
+  };
+
+  const handleSelectAlt = (index: number) => {
+    if (!selectedDigit) return;
+    sound.playClick();
+    setSelectedAltIndex(index);
+    const opt = index === 0
+      ? { imageLabel: selectedDigit.imageLabel, reason: selectedDigit.reason }
+      : selectedDigit.alternatives[index - 1];
+    speak(`${selectedDigit.digit}. ${opt.imageLabel}. ${opt.reason}`);
   };
 
   return (
@@ -115,31 +136,55 @@ export default function DigitsGuideModal({
             </div>
 
             {/* Selected digit spotlight card */}
-            {selectedDigit && (
+            {selectedDigit && activeOption && (
               <SurfaceCard padding="md" className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/80 shadow-md rounded-2xl">
                 <div className="flex flex-col sm:flex-row items-center gap-3.5">
                   <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white border-2 border-indigo-300 shadow-md flex flex-col items-center justify-center shrink-0 relative overflow-hidden">
                     <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest absolute top-1.5">Cifra {selectedDigit.digit}</span>
-                    <span className="text-3xl mt-2.5">{selectedDigit.emoji}</span>
+                    <span className="text-3xl mt-2.5">{activeOption.emoji}</span>
                   </div>
 
                   <div className="flex-1 text-center sm:text-left space-y-2">
                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                       <span className="text-xl sm:text-2xl font-black text-slate-800">
-                        {selectedDigit.digit} = {selectedDigit.emoji} {selectedDigit.imageLabel}
+                        {selectedDigit.digit} = {activeOption.emoji} {activeOption.imageLabel}
                       </span>
                       <button
-                        onClick={() => speak(`${selectedDigit.digit}. ${selectedDigit.imageLabel}. ${selectedDigit.reason}`)}
+                        onClick={() => speak(`${selectedDigit.digit}. ${activeOption.imageLabel}. ${activeOption.reason}`)}
                         className="px-2.5 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 transition-colors cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold"
+                        aria-label={`Ascolta la spiegazione per ${activeOption.imageLabel}`}
                       >
                         <Volume2 className="w-3.5 h-3.5" />
                         Ascolta
                       </button>
                     </div>
 
+                    {/* Alternatives switcher */}
+                    {allOptions.length > 1 && (
+                      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Immagini alternative per questa cifra">
+                        {allOptions.map((opt, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleSelectAlt(idx)}
+                            aria-pressed={selectedAltIndex === idx}
+                            aria-label={`Mostra associazione: ${opt.imageLabel}`}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold transition-all cursor-pointer ${
+                              selectedAltIndex === idx
+                                ? 'border-indigo-500 bg-indigo-600 text-white shadow-sm'
+                                : 'border-slate-300 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'
+                            }`}
+                          >
+                            <span>{opt.emoji}</span>
+                            <span>{opt.imageLabel}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-indigo-100 text-slate-700 text-xs sm:text-sm leading-relaxed">
                       <span className="font-bold text-indigo-900 block mb-1">💡 Motivo:</span>
-                      {selectedDigit.reason}
+                      {activeOption.reason}
                     </div>
                   </div>
                 </div>
