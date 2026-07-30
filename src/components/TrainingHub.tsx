@@ -54,15 +54,35 @@ function getMnemonicStory(a: number, b: number): MnemonicStory {
 
   // Storie specifiche curate
   const customStories: Record<string, Omit<MnemonicStory, 'equationText'>> = {
-    '2x7': {
-      title: 'Il Cigno e la Grotta del Fulmine',
-      premise: 'Il Cigno (🦢) stava insegnando ai suoi piccoli a nuotare quando un Fulmine (⚡) colpì l\'albero vicino! Spaventati, tutti volarono via insieme.',
-      climax: 'Trovarono rifugio in una grotta dove un minatore aveva lasciato il suo Piccone (⛏️) posato su una Sedia (🪑) di legno.',
+    '7x1': {
+      title: 'Il doppio lampo',
+      premise: 'Un Fulmine (⚡) colpì un vecchio Piccone (⛏️) appeso in un campo, e rimbalzò creando un altro Fulmine (⚡) ancora più luminoso.',
+      climax: 'Nel cielo rimasero solo scie di luce: sembrava ci fosse ancora un Fulmine (⚡) acceso davanti agli occhi.',
     },
-    '7x8': {
-      title: 'Il Fulmine incontra l\'Infinito nella Foresta',
-      premise: 'Un Fulmine (⚡) saettò tra gli alberi della foresta e colpì il simbolo dell\'Infinito (♾️) inciso su un grande masso.',
-      climax: 'Dal masso spaccato scivolò fuori un Serpente (🐍) dorato che si avvolse lento attorno a una Chiocciola (🐌) d\'argento trovata tra le foglie.',
+    '2x7': {
+      title: 'Il cigno curioso e la sedia misteriosa',
+      premise: 'Un Cigno (🦢) nuotava tranquillo quando un Fulmine (⚡) cadde vicino alla sua riva.',
+      climax: 'Nuotò velocissimo per vedere e trovò un Piccone (⛏️) su una Sedia (🪑): ahia, mi sa che qualcuno è stato incenerito.',
+    },
+    '3x7': {
+      title: 'La moneta colpita dal lampo',
+      premise: 'Una Moneta (💶) era appoggiata sulla riva di un fiume, quando un Fulmine (⚡) la colpì in pieno.',
+      climax: 'Subito accorse un Cigno (🦢) lì vicino, e aveva un Piccone (⛏️) in mano.',
+    },
+    '4x7': {
+      title: 'La sedia fulminata',
+      premise: 'Una Sedia (🪑) in riva a un fiume fu colpita improvvisamente da un Fulmine (⚡).',
+      climax: 'Accorse il solito Cigno (🦢) curioso che questa volta aveva un Infinito (♾️) tatuato sul petto.',
+    },
+    '5x7': {
+      title: 'La moneta rubata',
+      premise: 'Un Serpente (🐍) strisciava tranquillo quando un Fulmine (⚡) cadde poco lontano da lui.',
+      climax: 'Curioso andò a vedere e trovò la Moneta (💶) e un altro Serpente (🐍) bruciacchiato: ben gli sta, aveva rubato la moneta.',
+    },
+    '6x7': {
+      title: 'La chiocciola colpita',
+      premise: 'Una Chiocciola (🐌) attraversava il vialetto mentre un Fulmine (⚡) la colpì in pieno.',
+      climax: 'Al bordo del vialetto c\'era una Sedia (🪑) e, indovina un po\', sopra era seduto il solito Cigno (🦢) impertinente.',
     },
     '2x2': {
       title: 'I due Cigni e la Sedia d\'Oro',
@@ -75,9 +95,14 @@ function getMnemonicStory(a: number, b: number): MnemonicStory {
       climax: 'L\'urto fece volar via dalla bancarella vicina un enorme Palloncino (🎈) rosso che salì sempre più in alto verso il cielo azzurro!',
     },
     '7x7': {
-      title: 'Due Fulmini al Parco',
-      premise: 'Due Fulmini (⚡ e ⚡) si inseguirono tra le nuvole del temporale, sfrecciando da un capo all\'altro del cielo di Tabellandia.',
-      climax: 'Quando si scontrarono, l\'onda d\'urto fece volare una Sedia (🪑) dal giardino e strappò dall\'albero un Palloncino (🎈) colorato che salì verso le stelle!',
+      title: 'Lo scontro nel cielo',
+      premise: 'Due Fulmini (⚡ e ⚡) si scontrarono nel cielo con un grande boato.',
+      climax: 'Tanto che la Sedia (🪑) in giardino tremò e il Palloncino (🎈) si staccò e volò via.',
+    },
+    '7x8': {
+      title: 'La roccia distrutta',
+      premise: 'Un Fulmine (⚡) colpì un simbolo dell\'Infinito (♾️) su una roccia, distruggendola completamente.',
+      climax: 'Dietro la roccia c\'erano un Serpente (🐍) e una Chiocciola (🐌) che si stavano baciando.',
     },
     '8x8': {
       title: 'L\'Infinito allo Specchio',
@@ -85,9 +110,9 @@ function getMnemonicStory(a: number, b: number): MnemonicStory {
       climax: 'Tra i due, sul bordo dello stagno, strisciava una paziente Chiocciola (🐌) che portava sul guscio una minuscola Sedia (🪑) intagliata nel legno!',
     },
     '7x9': {
-      title: 'Il Fulmine e il Palloncino al Mercato',
-      premise: 'Un Fulmine (⚡) sfrecciò sul mercato del paese e centrò in pieno un grande Palloncino (🎈) che galleggiava tra le bancarelle.',
-      climax: 'Dal palloncino scoppiato rimbalzò fuori una Chiocciola (🐌) dal guscio dorato insieme a una moneta Euro (💶) lucente che qualcuno aveva nascosto dentro!',
+      title: 'Il palloncino misterioso',
+      premise: 'Un Palloncino (🎈) volava alto quando venne colpito da un Fulmine (⚡).',
+      climax: 'Non puoi credere cosa c\'era dentro: una Chiocciola (🐌) con la Moneta (💶) rubata.',
     },
     '8x9': {
       title: 'L\'Infinito e il Palloncino nel Temporale',
