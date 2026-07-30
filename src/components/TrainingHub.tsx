@@ -10,7 +10,16 @@ import { sound } from './SoundManager';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
-import storiesMarkdown from '../../docs/stories-7-8-9.md?raw';
+// Carica automaticamente tutti i file storie per tabellina (stories-x2.md, stories-x3.md, …)
+const storyModules = import.meta.glob<string>('../../docs/stories-x*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+const storiesMarkdown = Object.keys(storyModules)
+  .sort()
+  .map(k => storyModules[k])
+  .join('\n\n');
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
 // 0 🥚 Uovo      → ovale chiuso
@@ -97,7 +106,8 @@ function parseStoriesFromMarkdown(markdown: string): Record<string, StoryDraft> 
   for (const rawLine of lines) {
     const line = rawLine.trim();
 
-    const headingMatch = line.match(/^###\s+(\d+)\s*[×x]\s*(\d+)\s*=\s*\d+/i);
+    // Formato narrativo: ## 2×1 = 2  oppure  formato bozza: ### 7×1=7
+    const headingMatch = line.match(/^#{2,3}\s+(\d+)\s*[×x]\s*(\d+)\s*=\s*\d+/i);
     if (headingMatch) {
       flush();
       const a = Number(headingMatch[1]);
@@ -112,19 +122,46 @@ function parseStoriesFromMarkdown(markdown: string): Record<string, StoryDraft> 
 
     if (!currentKey) continue;
 
+    // Formato narrativo bold: **Premessa:** ...
+    if (/^\*\*Premessa:\*\*/i.test(line)) {
+      currentPremise = line.replace(/^\*\*Premessa:\*\*\s*/i, '').trim();
+      continue;
+    }
+
+    // Formato narrativo bold: **Finale:** ...
+    if (/^\*\*Finale:\*\*/i.test(line)) {
+      currentFinale = line.replace(/^\*\*Finale:\*\*\s*/i, '').trim();
+      continue;
+    }
+
+    // Formato bozza bullet: - Premessa: ...
     if (line.startsWith('- Premessa:')) {
       currentPremise = line.replace('- Premessa:', '').trim();
       continue;
     }
 
+    // Formato bozza bullet: - Finale: ...
     if (line.startsWith('- Finale:')) {
       currentFinale = line.replace('- Finale:', '').trim();
       continue;
     }
 
+    // Formato bozza bullet: - Testo completo: ...
     if (line.startsWith('- Testo completo:')) {
       currentFullText = line.replace('- Testo completo:', '').trim();
       continue;
+    }
+
+    // Testo narrativo libero (non heading, non bullet, non separatore, non vuoto)
+    if (
+      line.length > 0 &&
+      !line.startsWith('#') &&
+      !line.startsWith('-') &&
+      !line.startsWith('*') &&
+      line !== '---' &&
+      line !== '|'
+    ) {
+      currentFullText += (currentFullText ? ' ' : '') + line;
     }
   }
 
