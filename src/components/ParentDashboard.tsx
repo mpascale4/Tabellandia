@@ -150,6 +150,18 @@ export default function ParentDashboard({
     });
   };
 
+  const handleResetCurrencyOnly = () => {
+    if (!selectedProfile?.id) return;
+    if (window.confirm('Vuoi azzerare soltanto Monete e Gocce di questo profilo?')) {
+      sound.playClick();
+      updateProfileById(selectedProfile.id, p => ({
+        ...p,
+        coins: 0,
+        lightDrops: 0
+      }));
+    }
+  };
+
   const handleResetData = () => {
     if (!selectedProfile?.id) return;
     if (window.confirm('Sei sicuro di voler cancellare tutti i progressi di Tabellandia? Questa operazione è irreversibile.')) {
@@ -588,7 +600,7 @@ export default function ParentDashboard({
               icon={<Database className="w-5 h-5 text-indigo-500" aria-hidden="true" />}
             />
 
-            <ActionGrid columns={2}>
+            <ActionGrid columns={3}>
               <button
                 onClick={handleSeedMockData}
                 disabled={!selectedProfile?.id}
@@ -596,7 +608,17 @@ export default function ParentDashboard({
                 id="parent-seed-btn"
               >
                 <Play className="w-3.5 h-3.5 fill-indigo-700" />
-                Genera Statistiche di Esempio
+                Genera Statistiche
+              </button>
+
+              <button
+                onClick={handleResetCurrencyOnly}
+                disabled={!selectedProfile?.id}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-amber-200 text-amber-800 hover:bg-amber-50 font-bold text-xs cursor-pointer transition-colors"
+                id="parent-reset-currency-btn"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                Azzera Monete & Gocce
               </button>
 
               <button

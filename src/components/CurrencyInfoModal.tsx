@@ -14,6 +14,8 @@ interface CurrencyInfoModalProps {
   onClose: () => void;
   lightDrops?: number;
   coins?: number;
+  devMode?: boolean;
+  onResetDevCurrency?: () => void;
 }
 
 export default function CurrencyInfoModal({
@@ -21,7 +23,9 @@ export default function CurrencyInfoModal({
   isOpen,
   onClose,
   lightDrops = 0,
-  coins = 0
+  coins = 0,
+  devMode = false,
+  onResetDevCurrency
 }: CurrencyInfoModalProps) {
   const { speak } = useVoice();
 
@@ -229,6 +233,20 @@ export default function CurrencyInfoModal({
               </p>
             </div>
           </div>
+
+          {/* DEV Reset Button */}
+          {devMode && onResetDevCurrency && (
+            <button
+              type="button"
+              onClick={() => {
+                onResetDevCurrency();
+                onClose();
+              }}
+              className="w-full mt-3 py-2.5 rounded-xl font-black text-xs bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300 cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+            >
+              <span>⚡ [DEV] Azzera Monete e Gocce (0)</span>
+            </button>
+          )}
 
           {/* Action Button */}
           <button

@@ -6,24 +6,150 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, WorldConfig } from '../types';
 import { WORLDS_DATA } from '../data';
-import { DIGITS_INFO } from '../data/digitsData';
 import { sound } from './SoundManager';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 
-// ─── Emoji mnemoniche per cifra — derivate da DIGITS_INFO (unica sorgente) ────
+// ─── Emoji mnemoniche per cifra (sistema fonetico-semantico italiano) ─────────
+// Tecnica: ancoraggio fonetico sulla parola italiana del numero (Major System IT)
+// 1 🕯️ Candela → forma verticale = 1
+// 2 🐂 Bue      → b-UE, rima con DUE
+// 3 👑 Re       → t-RE
+// 4 🐈 Gatto    → quatto → gatto (iconico per bambini)
+// 5 ✋ Mano     → 5 dita = mano
+// 6 🐌 Chiocciola → spirale visiva del 6
+// 7 🧙 Nano     → SETTE nani (Biancaneve)
+// 8 🛶 Canotto  → can-OTTO
+// 9 🚢 Nave     → n-OVE → nave
+
+const DIGIT_INFO: Record<number, { name: string; emoji: string; artName: string }> = {
+  0: { name: 'Anello', emoji: '⭕', artName: "l'Anello" },
+  1: { name: 'Candela', emoji: '🕯️', artName: 'la Candela' },
+  2: { name: 'Bue', emoji: '🐂', artName: 'il Bue' },
+  3: { name: 'Re', emoji: '👑', artName: 'il Re' },
+  4: { name: 'Gatto', emoji: '🐈', artName: 'il Gatto' },
+  5: { name: 'Mano', emoji: '✋', artName: 'la Mano' },
+  6: { name: 'Chiocciola', emoji: '🐌', artName: 'la Chiocciola' },
+  7: { name: 'Nano', emoji: '🧙', artName: 'il Nano' },
+  8: { name: 'Canotto', emoji: '🛶', artName: 'il Canotto' },
+  9: { name: 'Nave', emoji: '🚢', artName: 'la Nave' },
+};
+
 const DIGIT_EMOJI: Record<number, string> = Object.fromEntries(
-  DIGITS_INFO.filter(d => d.digit >= 1).map(d => [d.digit, d.emoji])
+  Object.entries(DIGIT_INFO).map(([k, v]) => [Number(k), v.emoji])
 );
 
-const RESULT_DIGIT_EMOJI: Record<number, string> = Object.fromEntries(
-  DIGITS_INFO.map(d => [d.digit, d.emoji])
-);
+interface MnemonicStory {
+  title: string;
+  premise: string;
+  climax: string;
+  equationText: string;
+}
 
-const TRAINING_WORLD_ICON: Record<number, string> = Object.fromEntries(
-  DIGITS_INFO.filter(d => d.digit >= 2).map(d => [d.digit, d.emoji])
-);
+function getMnemonicStory(a: number, b: number): MnemonicStory {
+  const ans = a * b;
+  const key1 = `${a}x${b}`;
+  const key2 = `${b}x${a}`;
+
+  // Storie specifiche curate
+  const customStories: Record<string, Omit<MnemonicStory, 'equationText'>> = {
+    '7x8': {
+      title: 'Il Nano nel Canotto',
+      premise: 'C\'era una volta un allegro Nano (🧙) che amava l\'avventura. Un giorno salì a bordo del suo fidato Canotto (🛶) per esplorare il fiume magico di Tabellandia.',
+      climax: 'Mentre navigava felice tra le onde, allungò la sua Mano (✋) nell\'acqua fresca e trovò una meravigliosa Chiocciola (🐌) dorata che gli portò tanta fortuna!',
+    },
+    '2x2': {
+      title: 'I due Bui e il Gatto',
+      premise: 'Due maestosi Bui (🐂 e 🐂) stavano pascolando sereni nei verdi prati di Tabellandia.',
+      climax: 'Mentre giocavano insieme rincorrendosi, spuntò dall\'erba un agile Gatto (🐈) che iniziò a fare le fusa con loro!',
+    },
+    '3x3': {
+      title: 'I due Re in Crociera',
+      premise: 'Un saggio Re (👑) andò a far visita a un suo caro amico Re (👑) nel porto del regno.',
+      climax: 'Per festeggiare il loro incontro, salirono a bordo di una gigante e bellissima Nave (🚢) da crociera!',
+    },
+    '7x7': {
+      title: 'I Nani e la Nave',
+      premise: 'Un curioso Nano (🧙) incontrò un altro simpatico Nano (🧙) lungo il sentiero incantato.',
+      climax: 'Assieme videro un agile Gatto (🐈) guardare meravigliato una grande Nave (🚢) che salpava!',
+    },
+    '8x8': {
+      title: 'I Canotti sulla Cascata',
+      premise: 'Un bel Canotto (🛶) galleggiava accanto a un altro coloratissimo Canotto (🛶) sul lago.',
+      climax: 'Sulle onde comparvero una lentissima Chiocciola (🐌) e un dolcissimo Gatto (🐈) a fare da capitani!',
+    },
+    '7x9': {
+      title: 'Il Nano sulla Nave',
+      premise: 'Il saggio Nano (🧙) salì sul ponte di una maestosa Nave (🚢) per esplorare mari sconosciuti.',
+      climax: 'In mezzo all\'oceano incontrò una Chiocciola (🐌) marina che gli mostrò la corona d\'oro di un Re (👑)!',
+    },
+    '8x9': {
+      title: 'Il Canotto e la Nave',
+      premise: 'Un veloce Canotto (🛶) affiancò una grandissima Nave (🚢) nel mare aperto.',
+      climax: 'Dal ponte scese un allegro Nano (🧙) in groppa a un forte Bue (🐂) dorato!',
+    }
+  };
+
+  const storyData = customStories[key1] || customStories[key2];
+
+  const itemA = DIGIT_INFO[a] ?? { name: `${a}`, emoji: `${a}`, artName: `${a}` };
+  const itemB = DIGIT_INFO[b] ?? { name: `${b}`, emoji: `${b}`, artName: `${b}` };
+
+  let premise = '';
+  let climax = '';
+  let title = `La storia di ${a} × ${b}`;
+
+  if (storyData) {
+    title = storyData.title;
+    premise = storyData.premise;
+    climax = storyData.climax;
+  } else {
+    if (ans < 10) {
+      const resItem = DIGIT_INFO[ans] ?? { name: `${ans}`, emoji: `${ans}`, artName: `${ans}` };
+      premise = `${itemA.artName} (${itemA.emoji}) e ${itemB.artName} (${itemB.emoji}) si incontrarono nei prati di Tabellandia per una nuova sfida.`;
+      climax = `Lavorando insieme in perfetta armonia, fecero apparire ${resItem.artName} (${resItem.emoji})!`;
+    } else {
+      const tens = Math.floor(ans / 10);
+      const units = ans % 10;
+      const resTens = DIGIT_INFO[tens] ?? { name: `${tens}`, emoji: `${tens}`, artName: `${tens}` };
+      const resUnits = DIGIT_INFO[units] ?? { name: `${units}`, emoji: `${units}`, artName: `${units}` };
+      premise = `${itemA.artName} (${itemA.emoji}) e ${itemB.artName} (${itemB.emoji}) partirono insieme per una grande avventura.`;
+      climax = `Alla fine del percorso trovarono ad attenderli ${resTens.artName} (${resTens.emoji}) e ${resUnits.artName} (${resUnits.emoji})!`;
+    }
+  }
+
+  const equationText = `${a} (${itemA.emoji}) × ${b} (${itemB.emoji}) = ${ans} (${getMnemonicResult(ans)})`;
+
+  return { title, premise, climax, equationText };
+}
+
+const RESULT_DIGIT_EMOJI: Record<number, string> = {
+  0: '⭕',
+  ...DIGIT_EMOJI,
+};
+
+function getMnemonicResult(ans: number): string {
+  if (ans < 10) {
+    return RESULT_DIGIT_EMOJI[ans] ?? `${ans}`;
+  }
+  const tens = Math.floor(ans / 10);
+  const units = ans % 10;
+  const tensEmoji = RESULT_DIGIT_EMOJI[tens] ?? `${tens}`;
+  const unitsEmoji = RESULT_DIGIT_EMOJI[units] ?? `${units}`;
+  return `${tensEmoji} ${unitsEmoji}`;
+}
+
+const TRAINING_WORLD_ICON: Record<number, string> = {
+  2: '🐂',
+  3: '👑',
+  4: '🐈',
+  5: '✋',
+  6: '🐌',
+  7: '🧙',
+  8: '🛶',
+  9: '🚢',
+};
 
 function withTableIcon(worldId: number, label: string): string {
   const icon = TRAINING_WORLD_ICON[worldId] ?? '🔢';
@@ -42,22 +168,6 @@ const MOTIVATIONAL_WRONG = [
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function buildResultMnemonic(answer: number): string {
-  if (answer < 10) {
-    return RESULT_DIGIT_EMOJI[answer] ?? `${answer}`;
-  }
-
-  const tens = Math.floor(answer / 10);
-  const units = answer % 10;
-  return `${RESULT_DIGIT_EMOJI[tens] ?? `${tens}`} ${RESULT_DIGIT_EMOJI[units] ?? `${units}`}`;
-}
-
-function buildMnemonicPair(a: number, b: number, answer: number): string {
-  const leftEmoji = DIGIT_EMOJI[a] ?? `${a}`;
-  const rightEmoji = DIGIT_EMOJI[b] ?? `${b}`;
-  return `${leftEmoji} × ${rightEmoji} = ${buildResultMnemonic(answer)}`;
 }
 
 // ─── Tipi interni ─────────────────────────────────────────────────────────────
@@ -114,57 +224,26 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
     <button
       type="button"
       onClick={() => onSelect(world.id)}
-      className={`training-home-card relative w-full aspect-square rounded-2xl border-2 border-indigo-300 bg-indigo-100/70 shadow-sm
-                 hover:shadow-md active:scale-[0.98] transition-all cursor-pointer
+      className={`training-home-card relative w-full aspect-square rounded-2xl border-2 sm:border-3 border-indigo-300/80 bg-gradient-to-b from-indigo-50 to-indigo-100/90 shadow-sm
+                 hover:shadow-md hover:border-indigo-400 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer
                  focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
-                 flex flex-col items-center justify-center ${compactLayout ? 'py-1 gap-0.5' : 'py-2 gap-1'}`}
+                 flex flex-col items-center justify-center p-2 sm:p-3 gap-1 overflow-hidden min-w-0`}
       aria-label={`Allena tabellina del ${world.id}: ${world.name}${isTrained ? ', già allenata' : ''}`}
     >
       {isTrained && (
         <span
-          className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
+          className="absolute top-1 right-1 inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] sm:text-xs font-black shadow-md z-10"
           aria-hidden="true"
         >
           ✓
         </span>
       )}
-      <span className={`training-card-icon ${compactLayout ? 'text-2xl' : 'text-[2rem]'} leading-none`} aria-hidden="true">{worldIcon}</span>
-      <span className={`training-card-mul ${compactLayout ? 'text-lg' : 'text-xl'} font-black font-mono text-indigo-800 leading-none`}>×{world.id}</span>
+      <span className={`training-card-icon ${compactLayout ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'} leading-none drop-shadow-xs shrink-0`} aria-hidden="true">{worldIcon}</span>
+      <div className="flex flex-col items-center leading-tight min-w-0 w-full px-1">
+        <span className={`training-card-mul ${compactLayout ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} font-black font-mono text-indigo-900`}>×{world.id}</span>
+        <span className="text-[10px] sm:text-xs font-bold text-indigo-700/90 tracking-tight truncate w-full text-center">{world.name}</span>
+      </div>
     </button>
-  );
-}
-
-// ─── Griglia visiva emoji A × B ───────────────────────────────────────────────
-
-function EmojiGrid({ rows, cols, emoji }: { rows: number; cols: number; emoji: string }) {
-  // Limita la visualizzazione per non saturare lo schermo
-  const MAX_CELLS = 36;
-  const total = rows * cols;
-  const overflow = total > MAX_CELLS;
-  const displayRows = overflow ? Math.min(rows, Math.ceil(MAX_CELLS / cols)) : rows;
-
-  return (
-    <div
-      aria-label={`Visualizzazione: ${rows} righe da ${cols} ${emoji}`}
-      className="flex flex-col items-center gap-1"
-    >
-      {Array.from({ length: displayRows }, (_, r) => (
-        <div key={r} className="flex gap-1 flex-wrap justify-center">
-          {Array.from({ length: cols }, (_, c) => (
-            <span
-              key={c}
-              aria-hidden="true"
-              className={`text-xl leading-none select-none ${c === 5 && cols > 5 ? 'ml-4 sm:ml-5' : ''}`}
-            >
-              {emoji}
-            </span>
-          ))}
-        </div>
-      ))}
-      {overflow && (
-        <span className="text-xs text-sky-700/60 font-sans">…e altri</span>
-      )}
-    </div>
   );
 }
 
@@ -184,8 +263,8 @@ function TrainingSession({
   // Deck nello state con init lazy: evita primo render vuoto ed e piu leggibile.
   const [deck, setDeck] = useState<Question[]>(() => buildQuestionDeck(world.id));
   const [deckIndex, setDeckIndex] = useState(0);
-  const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const [showStoryModal, setShowStoryModal] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Inizializza il mazzo al montaggio o cambio mondo
@@ -193,8 +272,8 @@ function TrainingSession({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setDeck(buildQuestionDeck(world.id));
     setDeckIndex(0);
-    setScore(0);
     setFeedback(null);
+    setShowStoryModal(false);
   }, [world.id]);
 
   const currentQuestion: Question | undefined = deck[deckIndex];
@@ -207,7 +286,6 @@ function TrainingSession({
 
     if (isCorrect) {
       sound.playSuccess();
-      setScore(s => s + 1);
       updateProfile(p => ({ ...p, coins: p.coins + 1 }));
       setFeedback({
         correct: true,
@@ -221,14 +299,14 @@ function TrainingSession({
         message: pickRandom(MOTIVATIONAL_WRONG),
         optionIndex: optIndex,
       });
-      // Resta sulla stessa domanda finche non viene data la risposta corretta.
+      // Resta sulla stessa domanda finche non viene data la risposta corretta (clear feedback breve dopo 350ms).
       timeoutRef.current = setTimeout(() => {
         setFeedback(null);
-      }, 1400);
+      }, 350);
       return;
     }
 
-    // Avanza alla prossima domanda dopo 1.4s
+    // Avanza immediatamente alla prossima domanda dopo 150ms per la massima fluidità (come Pratico e Sfida)
     timeoutRef.current = setTimeout(() => {
       setFeedback(null);
       const nextIndex = deckIndex + 1;
@@ -239,7 +317,7 @@ function TrainingSession({
       } else {
         setDeckIndex(nextIndex);
       }
-    }, 1400);
+    }, 150);
   }, [feedback, currentQuestion, updateProfile, world.id, deckIndex, deck.length]);
 
   // Cleanup timeout on unmount
@@ -259,55 +337,130 @@ function TrainingSession({
   }
 
   const { multiplier, worldId, answer, options } = currentQuestion;
-  const mnemonicPair = buildMnemonicPair(multiplier, worldId, answer);
-
-  // Griglia visiva: multiplier righe da worldId colonne (o inverso se più compatto)
-  const [gridRows, gridCols] = multiplier <= worldId
-    ? [multiplier, worldId]
-    : [worldId, multiplier];
+  const story = getMnemonicStory(multiplier, worldId);
 
   return (
-    <div className="flex w-full flex-col gap-4">
-
-      {/* Score sessione */}
-      <div className="flex items-center justify-end">
-        <div className="flex items-center gap-1.5 bg-white/40 backdrop-blur-sm border border-white/50
-                        rounded-xl px-3 py-1.5 text-xs font-black text-sky-950">
-          <span aria-hidden="true">🪙</span>
-          <span>{score} <span className="font-medium text-sky-700/70">in questa sessione</span></span>
-        </div>
-      </div>
+    <div className="flex w-full flex-col gap-4 relative">
 
       {/* Domanda */}
       <SurfaceCard
         aria-labelledby="question-label"
         tone="soft"
         padding="lg"
-        className="w-full flex flex-col items-center gap-3"
+        className="w-full flex flex-col items-center gap-2.5"
       >
         {/* Titolo tabellina */}
         <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest font-sans">
           {withTableIcon(worldId, `Tabellina del ${worldId}`)}
         </p>
 
-        {/* Emoji della domanda */}
-        {/* Equazione visiva mnemonica */}
-        <div className="w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sky-900 shadow-sm">
-          <p className="text-sm sm:text-base font-black font-sans leading-tight">
-            {mnemonicPair}
-          </p>
-        </div>
-
         {/* Equazione numerica */}
-        <p id="question-label" className="text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.22em] text-center">
+        <p id="question-label" className="text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.22em] text-center my-0.5">
           {multiplier} × {worldId} = ?
         </p>
 
-        {/* Griglia visiva */}
-        <div className="mt-1 p-2.5 bg-white/50 rounded-2xl border border-white/40">
-          <EmojiGrid rows={gridRows} cols={gridCols} emoji={world.itemsToCount} />
+        {/* Equazione visiva con mnemotecnica (es. 🐂 × 🐂 = 🐱) */}
+        <div className="w-full max-w-sm rounded-2xl border border-sky-200/90 bg-sky-50 px-4 py-2.5 text-center text-sky-900 shadow-xs flex items-center justify-center gap-2.5 sm:gap-3.5 mt-0.5">
+          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Mnemotecnico ${multiplier}`}>
+            {DIGIT_EMOJI[multiplier] ?? multiplier}
+          </span>
+          <span className="text-2xl sm:text-3xl font-black font-sans text-sky-600 select-none">×</span>
+          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Mnemotecnico ${worldId}`}>
+            {DIGIT_EMOJI[worldId] ?? worldId}
+          </span>
+          <span className="text-2xl sm:text-3xl font-black font-sans text-sky-600 select-none">=</span>
+          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Risultato mnemotecnico ${answer}`}>
+            {getMnemonicResult(answer)}
+          </span>
         </div>
+
+        {/* Bottone per aprire la storia mnemotecnica */}
+        <button
+          type="button"
+          onClick={() => setShowStoryModal(true)}
+          className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-100 to-amber-200/90 hover:from-amber-200 hover:to-amber-300 text-amber-900 border border-amber-300/80 px-3.5 py-1.5 text-xs sm:text-sm font-bold shadow-xs hover:shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+          aria-label={`Leggi la storia mnemotecnica di ${multiplier} × ${worldId}`}
+        >
+          <span className="text-base sm:text-lg">📖</span>
+          <span>Scopri la storia mnemotecnica</span>
+        </button>
       </SurfaceCard>
+
+      {/* Modal Popup Storia */}
+      {showStoryModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in"
+          onClick={() => setShowStoryModal(false)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl border-3 border-amber-300 bg-gradient-to-b from-amber-50 via-amber-50 to-orange-50 p-5 sm:p-6 shadow-2xl text-slate-800 flex flex-col gap-3.5 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Bottone di chiusura */}
+            <button
+              type="button"
+              onClick={() => setShowStoryModal(false)}
+              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-amber-200/80 hover:bg-amber-300 text-amber-950 font-black text-sm transition-colors cursor-pointer"
+              aria-label="Chiudi storia"
+            >
+              ✕
+            </button>
+
+            {/* Intestazione */}
+            <div className="flex items-center gap-3 border-b border-amber-200/80 pb-3 pr-8">
+              <span className="text-3xl sm:text-4xl shrink-0">📖</span>
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-amber-950 leading-tight">
+                  {story.title}
+                </h3>
+                <p className="text-xs font-bold text-amber-800/80 mt-0.5">
+                  Mnemotecnica di {multiplier} × {worldId}
+                </p>
+              </div>
+            </div>
+
+            {/* Contenuto storia */}
+            <div className="flex flex-col gap-2.5 text-sm sm:text-base text-slate-800 leading-relaxed font-medium">
+              {/* Premessa con fattori */}
+              <div className="rounded-2xl bg-white/90 p-3.5 border border-amber-200 shadow-2xs">
+                <p className="font-extrabold text-amber-900 text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <span>1. La Premessa</span>
+                  <span className="text-xs font-mono font-normal text-amber-700">({DIGIT_EMOJI[multiplier] ?? multiplier} × {DIGIT_EMOJI[worldId] ?? worldId})</span>
+                </p>
+                <p className="text-slate-800 text-sm leading-relaxed">{story.premise}</p>
+              </div>
+
+              {/* Climax e Finale con risultato */}
+              <div className="rounded-2xl bg-amber-100/90 p-3.5 border border-amber-300/80 shadow-2xs">
+                <p className="font-extrabold text-amber-900 text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <span>2. Il Finale</span>
+                  <span className="text-xs font-mono font-normal text-amber-700">({getMnemonicResult(answer)})</span>
+                </p>
+                <p className="text-amber-950 text-sm leading-relaxed font-medium">{story.climax}</p>
+              </div>
+
+              {/* Equazione finale */}
+              <div className="rounded-2xl bg-amber-200/90 p-2.5 text-center border border-amber-400/60 shadow-xs mt-0.5">
+                <p className="text-[10px] sm:text-xs font-bold text-amber-950 uppercase tracking-widest mb-0.5">
+                  Formula Magica:
+                </p>
+                <p className="text-lg sm:text-xl font-black font-mono text-amber-950">
+                  {story.equationText}
+                </p>
+              </div>
+            </div>
+
+            {/* Bottone Ok */}
+            <button
+              type="button"
+              onClick={() => setShowStoryModal(false)}
+              className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black py-2.5 text-sm shadow-md transition-all cursor-pointer active:scale-95 mt-1"
+            >
+              Ho capito! ✨
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Opzioni */}
       <ActionGrid
@@ -399,7 +552,7 @@ function TrainingHome({
       <div
         role="list"
         aria-label="Lista tabelline disponibili"
-        className={`training-home-grid w-full grid grid-cols-[repeat(auto-fit,minmax(clamp(4.4rem,18vw,6.2rem),1fr))] ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
+        className={`training-home-grid w-full grid grid-cols-2 sm:grid-cols-4 ${compactLayout ? 'gap-2' : 'gap-3 sm:gap-4'}`}
       >
         {WORLDS_DATA.map(world => (
           <div key={world.id} role="listitem">

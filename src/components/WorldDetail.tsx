@@ -2295,7 +2295,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     <div
       role="list"
       aria-label={`Lista moltiplicazioni ${stepKey}`}
-      className={`w-full h-full grid auto-rows-fr grid-cols-[repeat(auto-fit,minmax(clamp(4.4rem,18vw,6.2rem),1fr))] ${compactLayout ? 'gap-1.5' : 'gap-2.5'}`}
+      className={`w-full h-full grid auto-rows-fr grid-cols-5 ${compactLayout ? 'gap-1.5' : 'gap-2 sm:gap-2.5'}`}
     >
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
@@ -2916,7 +2916,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     Monumenti del Regno ({rebuiltCount}/{world.monuments.length})
                   </h4>
                 </div>
-                <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(5.4rem,1fr))] gap-2 pb-1">
+                <div role="list" className="grid grid-cols-3 gap-1.5 pb-1">
                   {world.monuments.map(monument => {
                     const isErected = devMode || worldProg.rebuiltMonuments.includes(monument.id);
                     const canAfford = profile.lightDrops >= monument.cost;

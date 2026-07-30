@@ -11,6 +11,7 @@ import { getTableIcon, withTableIcon } from './utils/tableLabels';
 import { sound } from './components/SoundManager';
 import FireworksOverlay from './components/FireworksOverlay';
 import ParentDashboard from './components/ParentDashboard';
+import DevDashboard from './components/DevDashboard';
 import WorldDetail from './components/WorldDetail';
 import TrainingHub from './components/TrainingHub';
 import FontSizeControl from './components/FontSizeControl';
@@ -95,9 +96,10 @@ const PROFILE_AVATAR_SECTIONS = [
   { id: 'girl', label: 'Bambine' },
 ] as const;
 const APP_SIDEBAR_TABS = [
-  { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600' },
-  { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600' },
-  { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600' },
+  { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600', label: 'Mappa' },
+  { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600', label: 'Allenamento' },
+  { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600', label: 'Genitori' },
+  { id: 'dev', emoji: '⚡', color: 'bg-purple-500 border-purple-700', label: 'DEV' },
 ] as const;
 
 const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devModeEnabled: boolean) => {
@@ -175,7 +177,7 @@ const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string):
 export default function App() {
   const [profiles, setProfiles] = useState<ProfileRecord[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'parents'>('adventure');
+  const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'parents' | 'dev'>('adventure');
   const [selectedWorldId, setSelectedWorldId] = useState<number | null>(null);
   const [showLanding, setShowLanding] = useState<boolean>(true);
   const [showProfilePicker, setShowProfilePicker] = useState<boolean>(false);
@@ -218,8 +220,6 @@ export default function App() {
   const [isHeaderPinned, setIsHeaderPinned] = useState<boolean>(() => localStorage.getItem(HEADER_PINNED_KEY) === 'true');
   const isHeaderPinnedRef = useRef<boolean>(isHeaderPinned);
   const headerRef = useRef<HTMLElement | null>(null);
-  const devTapCountRef = useRef<number>(0);
-  const devTapResetTimerRef = useRef<NodeJS.Timeout | null>(null);
   const worldCardRefs = useRef<Record<number, HTMLButtonElement | null>>({});
 
   // Setup Wizard State
@@ -352,14 +352,6 @@ export default function App() {
       sound.stopBackgroundMusic();
     }
   }, [activeProfileId, musicEnabled]);
-
-  useEffect(() => {
-    return () => {
-      if (devTapResetTimerRef.current) {
-        clearTimeout(devTapResetTimerRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     localStorage.setItem(PROFILE_PANEL_VISIBLE_KEY, String(isProfilePanelVisible));
@@ -561,33 +553,21 @@ export default function App() {
     });
   };
 
-  const handleDevModeGestureTap = () => {
-    devTapCountRef.current += 1;
-    if (devTapResetTimerRef.current) {
-      clearTimeout(devTapResetTimerRef.current);
-      devTapResetTimerRef.current = null;
-    }
-
-    if (devTapCountRef.current >= 7) {
-      const nextMode = !devModeEnabled;
-      toggleDevMode();
-      sound.playPowerUp();
-      setDevModeNotice(nextMode ? "Modalità DEV attivata" : "Modalità DEV disattivata");
-      setTimeout(() => setDevModeNotice(""), 1400);
-      devTapCountRef.current = 0;
-      return;
-    }
-
-    devTapResetTimerRef.current = setTimeout(() => {
-      devTapCountRef.current = 0;
-      devTapResetTimerRef.current = null;
-    }, 1200);
-  };
-
   const handleExitDevMode = () => {
     sound.playClick();
     disableDevMode();
     setDevModeNotice("Modalità DEV disattivata");
+    window.setTimeout(() => setDevModeNotice(""), 1400);
+  };
+
+  const handleResetDevCurrency = () => {
+    sound.playClick();
+    handleUpdateProfile(p => ({
+      ...p,
+      coins: 0,
+      lightDrops: 0
+    }));
+    setDevModeNotice("Gocce e monete azzerate!");
     window.setTimeout(() => setDevModeNotice(""), 1400);
   };
 
@@ -673,10 +653,37 @@ export default function App() {
     setPinInput("");
   };
 
+  const handleAccessDevArea = () => {
+    if (devModeEnabled) {
+      setActiveTab('dev');
+    } else {
+      setIsSettingPIN(false);
+      setShowPINModal(true);
+      setPinInput("");
+      setPinError("");
+    }
+  };
+
   const handlePINSubmit = (pinValue?: string) => {
     const pin = pinValue || pinInput;
     sound.playClick();
     setPinError("");
+
+    // PIN 2222 per attivare la modalità DEV e aprire il pannello DEV
+    if (pin === '2222') {
+      sound.playPowerUp();
+      setDevModeEnabled(true);
+      localStorage.setItem(DEV_MODE_KEY, 'true');
+      setShowPINModal(false);
+      setShowProfilePicker(false);
+      setActiveTab('dev');
+      setPinInput("");
+      setPinError("");
+      setDevModeNotice("Modalità DEV sbloccata col PIN 2222!");
+      setTimeout(() => setDevModeNotice(""), 2000);
+      return;
+    }
+
     const storedPIN = localStorage.getItem('tabellandia_parent_pin') || '1234';
     
     if (isSettingPIN || !storedPIN) {
@@ -704,7 +711,7 @@ export default function App() {
         setPinError("");
       } else {
         sound.playError();
-        setPinError("PIN errato! (Prova 1234)");
+        setPinError("PIN errato! Riprova.");
         setTimeout(() => {
           setPinInput("");
           setPinError("");
@@ -819,10 +826,10 @@ export default function App() {
             onClick={e => e.stopPropagation()}
           >
             <div className="text-center mb-4">
-              <div className="text-4xl mb-2">🔐</div>
-              <h2 className="text-xl font-black text-indigo-950">Area Genitori</h2>
+              <div className="text-4xl mb-2">🔐⚡</div>
+              <h2 className="text-xl font-black text-indigo-950">Area di Controllo</h2>
               <p className="text-xs text-slate-500 mt-1">
-                {showChangePINForm ? "Imposta un nuovo PIN" : isSettingPIN ? "Crea un PIN a 4 cifre" : "Inserisci il PIN"}
+                {showChangePINForm ? "Imposta un nuovo PIN" : isSettingPIN ? "Crea un PIN a 4 cifre" : "Inserisci il PIN di 4 cifre per accedere"}
               </p>
             </div>
 
@@ -1383,17 +1390,11 @@ export default function App() {
                     {profile.avatar?.emoji || '👦'}
                   </div>
                  </button>
-                 <button
-                   type="button"
-                   onClick={handleDevModeGestureTap}
-                   className={`mt-0.5 font-black text-sky-950 uppercase tracking-wider leading-none cursor-pointer ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
-                   aria-label="Attiva o disattiva la modalità sviluppatore"
+                 <span
+                   className={`mt-0.5 font-black text-sky-950 uppercase tracking-wider leading-none ${isPhoneMode ? 'text-[7px]' : 'text-[10px]'}`}
                  >
                    {profile.name}
-                 </button>
-                 {devModeEnabled && (
-                   <span className={`mt-0.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black tracking-wider ${isPhoneMode ? 'text-[6px]' : 'text-[8px]'}`}>DEV</span>
-                 )}
+                 </span>
                 </div>
 
                 {/* Monete & Gocce (Sovrapposte una sotto l'altra) */}
@@ -1431,17 +1432,6 @@ export default function App() {
 
             {/* Controls */}
             <div className={`ml-auto flex items-center gap-${isPhoneMode ? '1' : '2'} bg-white/65 rounded-full border border-white/80 ${isPhoneMode ? 'px-2 py-1' : 'px-3 py-1.5'} min-w-max`}>
-             {devModeEnabled && (
-               <button
-                 type="button"
-                 onClick={(e) => { e.stopPropagation(); handleExitDevMode(); }}
-                 className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 font-black ${isPhoneMode ? 'px-2 h-6 text-[9px]' : 'px-3 h-8 text-[11px]'} bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800`}
-                 id="dev-exit-btn"
-                 aria-label="Disattiva modalità sviluppatore"
-               >
-                 Esci DEV
-               </button>
-             )}
              <button
                onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
                 className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'w-6 h-6' : 'w-8 h-8'} ${musicEnabled ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white/70 border-slate-200 text-slate-400'}`}
@@ -1609,6 +1599,8 @@ export default function App() {
                       sound.playClick();
                       if (tab.id === 'parents') {
                         handleAccessParentArea();
+                      } else if (tab.id === 'dev') {
+                        handleAccessDevArea();
                       } else {
                         setActiveTab(tab.id as any);
                       }
@@ -1796,7 +1788,7 @@ export default function App() {
                                 </div>
                               </div>
 
-                              <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(3.5rem,1fr))] gap-1.5 sm:mt-4 sm:gap-2">
+                              <div className="mt-3 grid grid-cols-3 gap-1.5 sm:mt-4 sm:gap-2">
                                 {world.monuments.map(monument => {
                                   const isBuilt = devModeEnabled || worldProg.rebuiltMonuments.includes(monument.id);
                                   const canAfford = profile ? profile.lightDrops >= monument.cost : false;
@@ -1885,6 +1877,20 @@ export default function App() {
                       onClose={handleExitParentArea}
                     />
                   )}
+
+                  {/* TAB 5: DEV AREA */}
+                  {activeTab === 'dev' && (
+                    <DevDashboard
+                      activeProfiles={activeProfiles}
+                      currentProfile={profile}
+                      updateProfileById={handleUpdateProfileById}
+                      onSelectProfile={(id) => setActiveProfileId(id)}
+                      devModeEnabled={devModeEnabled}
+                      onDisableDevMode={handleExitDevMode}
+                      compactLayout={isPhoneMode}
+                      onClose={() => setActiveTab('adventure')}
+                    />
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1960,13 +1966,9 @@ export default function App() {
         </div>
 
         {/* Global Bottom Navigation bar for mobile screens */}
-        {selectedWorldId === null && isPhoneMode && !isParentModeActive && (
-          <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-2 flex justify-around items-center z-10 shadow-xl shrink-0">
-           {[
-             { id: 'adventure', name: 'Mappa Avventura', emoji: '🗺️', label: 'Mappa' },
-             { id: 'training', name: 'Allenamento', emoji: '🎒', label: 'Allenamento' },
-             { id: 'parents', name: 'Area Genitori', emoji: '🔐', label: 'Genitori' }
-           ].map(tab => {
+        {selectedWorldId === null && isPhoneMode && !isParentModeActive && activeTab !== 'dev' && (
+          <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-1.5 flex justify-around items-center z-10 shadow-xl shrink-0">
+           {APP_SIDEBAR_TABS.map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
@@ -1975,19 +1977,21 @@ export default function App() {
                     sound.playClick();
                     if (tab.id === 'parents') {
                       handleAccessParentArea();
+                    } else if (tab.id === 'dev') {
+                      handleAccessDevArea();
                     } else {
                       setActiveTab(tab.id as any);
                     }
                   }}
-                  className={`flex flex-col items-center py-2 px-4 rounded-2xl transition-all cursor-pointer ${
+                  className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all cursor-pointer ${
                     isActive 
                       ? 'bg-yellow-400 border-b-4 border-yellow-600 text-slate-900 shadow-md scale-105 font-black' 
                       : 'text-slate-700 bg-white/20 hover:bg-white/40'
                   }`}
                   id={`nav-tab-${tab.id}`}
                 >
-                  <span className="text-xl filter drop-shadow-sm select-none">{tab.emoji}</span>
-                  <span className="text-[10px] font-bold mt-0.5 tracking-tight">{tab.label}</span>
+                  <span className="text-lg filter drop-shadow-sm select-none">{tab.emoji}</span>
+                  <span className="text-[9px] font-black mt-0.5 tracking-tight">{tab.label}</span>
                 </button>
               );
             })}
@@ -2005,6 +2009,21 @@ export default function App() {
             >
               <span>🚪</span>
               Esci
+            </button>
+          </nav>
+        )}
+
+        {/* Dev mode mobile footer */}
+        {selectedWorldId === null && isPhoneMode && activeTab === 'dev' && (
+          <nav className="bg-slate-900 border-t border-purple-500/40 p-2 flex justify-center items-center z-10 shadow-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('adventure')}
+              className="w-full max-w-xs py-2.5 px-4 rounded-2xl bg-purple-900/60 border border-purple-400/40 text-purple-200 font-black text-sm hover:bg-purple-800 transition-colors cursor-pointer flex items-center justify-center gap-2"
+              id="nav-dev-exit-btn"
+            >
+              <span>🎮</span>
+              Torna al gioco
             </button>
           </nav>
         )}
@@ -2244,6 +2263,8 @@ export default function App() {
         onClose={() => setCurrencyModalType(null)}
         lightDrops={profile?.lightDrops || 0}
         coins={profile?.coins || 0}
+        devMode={devModeEnabled}
+        onResetDevCurrency={handleResetDevCurrency}
       />
     </div>
   );
