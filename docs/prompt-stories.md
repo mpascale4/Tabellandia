@@ -24,6 +24,21 @@ Il protagonista è il **Cigno Ciro (🦢)**.
 
 Ciro viaggia da solo nella **Terra Magica** alla ricerca della leggendaria **Moneta rara (💶)**.
 
+## Il Cigno è il predestinato
+
+Ciro non è un viaggiatore qualunque: è il **predestinato**.
+
+Esistono segni sparsi per la Terra Magica che lo confermano: simboli con ali dispiegate, tracce che richiamano la sua forma, leggende che parlano di un cigno come unico custode della Moneta rara.
+
+Questi segni devono emergere in modo naturale nelle storie, senza mai essere spiegati esplicitamente.
+
+Esempi:
+- il simbolo della Moneta rara circondato da due ali (come quelle di un cigno);
+- incisioni che riproducono la sagoma di un cigno accanto alla Moneta;
+- leggende che Lina gli ha raccontato e che ora Ciro riconosce come riferite a lui.
+
+Non bisogna mai scrivere frasi tipo "Ciro è il predestinato" o "era lui il prescelto". Il lettore deve intuirlo dai segni.
+
 La **Chiocciola Lina (🐌)** non è presente fisicamente nella Terra Magica. È rimasta a casa prima della partenza.
 
 Lina compare soltanto:
