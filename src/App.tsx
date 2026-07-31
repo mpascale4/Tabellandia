@@ -41,6 +41,15 @@ const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
 const HEADER_REVEAL_TOUCH_ZONE_PX = 12;
 const PROFILE_RESTORE_WINDOW_DAYS = 30;
 const PROFILE_RESTORE_WINDOW_MS = PROFILE_RESTORE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+const DIGIT_LABEL_MAP = DIGITS_INFO.reduce<Record<number, string>>((acc, info) => {
+  acc[info.digit] = info.imageLabel;
+  return acc;
+}, {});
+
+const getMnemonicLabelForNumber = (value: number) => {
+  const digits = Math.abs(value).toString().split('').map(Number);
+  return digits.map((digit) => `${digit} ${DIGIT_LABEL_MAP[digit] || digit.toString()}`).join(' + ');
+};
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -256,6 +265,7 @@ export default function App() {
   const activeProfiles = getActiveProfiles(profiles);
   const deletedProfiles = getDeletedProfiles(profiles);
   const profile = activeProfileId ? activeProfiles.find(p => p.id === activeProfileId) || null : null;
+  const storyEntries = storyWorldId !== null ? getStoryEntriesForTable(storyWorldId) : [];
   const isParentModeActive = parentAuthenticated && activeTab === 'parents';
   const activeAdventureWorldId = (() => {
     if (!profile || selectedWorldId !== null) return null;
@@ -2301,9 +2311,9 @@ export default function App() {
             </div>
 
             <div role="list" className="mt-4 grid grid-cols-1 gap-2.5 max-h-[60vh] overflow-y-auto pr-1">
-              {(getStoryEntriesForTable(storyWorldId).length > 0
-                ? getStoryEntriesForTable(storyWorldId)
-                : [{ tableLabel: `Tabellina del ${storyWorldId}`, sentence: 'Frase non disponibile' }]).map((entry) => (
+              {(storyEntries.length > 0
+                ? storyEntries
+                : [{ table: storyWorldId, multiplier: 1, result: storyWorldId, tableLabel: `${storyWorldId}×1 = ${storyWorldId}`, sentence: 'Frase non disponibile' }]).map((entry) => (
                 <div
                   key={`${storyWorldId}-${entry.tableLabel}`}
                   role="listitem"
@@ -2311,6 +2321,11 @@ export default function App() {
                 >
                   <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-indigo-700">
                     {entry.tableLabel}
+                  </p>
+                  <p className="mt-1 rounded-xl border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black text-amber-900">
+                    <span aria-label={`Formula mnemonica ${entry.table} per ${entry.multiplier} uguale ${entry.result}`}>
+                      {entry.table} {DIGIT_LABEL_MAP[entry.table] || entry.table} x {entry.multiplier} {DIGIT_LABEL_MAP[entry.multiplier] || entry.multiplier} = {getMnemonicLabelForNumber(entry.result)}
+                    </span>
                   </p>
                   <p className="mt-1 text-xs sm:text-sm leading-relaxed text-slate-800">
                     {entry.sentence}
