@@ -209,7 +209,38 @@ Ogni frase deve collegarsi alla precedente in modo naturale. La storia deve semb
 
 ---
 
-# Regole sulla Moneta rara
+# Momenti cardine
+
+Nelle tabelline pari (×4, ×6, ×8) deve accadere sempre un **evento narrativo significativo** che fa avanzare la storia.
+
+## ×4 — Forza inaspettata
+La Sedia Magica (🪑) non è solo un oggetto passivo: apre un **passaggio verso un luogo nascosto**. Orion non se lo aspetta. La scoperta deve sembrare una rivelazione.
+
+## ×6 — Prova di fede
+Orion si trova bloccato o in difficoltà. Deve fidarsi ciecamente di un consiglio che la **Chiocciola Lina** gli aveva dato prima di partire — senza capirlo fino in fondo. Solo seguendolo riesce ad andare avanti.
+
+Lina non compare fisicamente: solo la sua voce nei ricordi di Orion.
+
+## ×8 — Indizio cruciale
+Viene rivelata la **posizione esatta della Moneta rara**. Non ancora trovata — ma ora Orion sa dove cercare. Questo indizio deve sembrare il culminante di tutti i segni precedenti.
+
+---
+
+# Grande finale (×9)
+
+L'ultima storia di ogni tabellina ha un **peso narrativo maggiore** rispetto alle precedenti.
+
+La ×9 dell'ultima tabellina è il **grande finale assoluto**:
+
+- Orion raggiunge la Moneta rara.
+- La trova davvero — non solo il suo simbolo.
+- In quel momento capisce di essere il **predestinato**: i segni sparsi lungo tutto il cammino convergono in un'unica verità.
+
+Anche qui il lettore deve intuire la predestinazione dai segni, non da una frase esplicita.
+
+---
+
+
 
 La Moneta rara (💶) è il grande tesoro della storia.
 
