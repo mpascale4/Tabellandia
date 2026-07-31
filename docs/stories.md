@@ -31,6 +31,13 @@ Nel momento cruciale, capì. L'Infinito non era solo un simbolo — era il cuore
 
 Quando sollevò la roccia, quando vide le ali incise accanto al Piccone e all'Infinito, allora Orion comprese. Non era venuto a trovare la Moneta rara. Era venuto a riscoprire chi era sempre stato — il Cigno predestinato, scelto da qualcuno che lo aveva insegnato alla Terra Magica stessa, attraverso i simboli, attraverso i segni, attraverso la roccia eterna. Tutte le 81 avventure erano state la stessa storia — il viaggio del riconoscimento di una profezia incisa nel cuore del mondo.
 
+## La ricerca di Orion
+
+Il Cigno Orion non sa ancora dove lo porteranno questi segni. Sa solo che la Terra Magica è piena di segnali — la Moneta rara, il Piccone, la Sedia Magica, l'Infinito. Sa solo che la Chiocciola Lina ha detto che troverebbe il suo cammino se imparava a leggere le storie scritte nella roccia.
+
+Ma cosa scoprirà veramente? E quando avrà sollevato l'ultima pietra, quando avrà visto l'ultimo segno inciso nel cuore della Terra Magica... saprà finalmente chi è? O avrà solo più domande?
+
+Le 81 avventure lo aspettano. E il mistero...
 
 ## Storie per tabellina
 
@@ -42,4 +49,5 @@ Quando sollevò la roccia, quando vide le ali incise accanto al Piccone e all'In
 - [Tabellina del 7](./stories-x7.md)
 - [Tabellina del 8](./stories-x8.md)
 - [Tabellina del 9](./stories-x9.md)
+
 
