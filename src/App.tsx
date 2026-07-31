@@ -51,6 +51,35 @@ const getMnemonicLabelForNumber = (value: number) => {
   return digits.map((digit) => `${digit} ${DIGIT_LABEL_MAP[digit] || digit.toString()}`).join(' + ');
 };
 
+type StoryHighlightKind = 'character' | 'key';
+
+const STORY_HIGHLIGHT_TERMS: Array<{ term: string; kind: StoryHighlightKind }> = [
+  { term: 'Cigno Orion', kind: 'character' },
+  { term: 'Orion', kind: 'character' },
+  { term: 'Chiocciola Lina', kind: 'character' },
+  { term: 'Lina', kind: 'character' },
+  { term: 'Serpente Bobo', kind: 'character' },
+  { term: 'Bobo', kind: 'character' },
+  { term: 'Terra Magica', kind: 'key' },
+  { term: 'Moneta rara', kind: 'key' },
+  { term: 'Piccone', kind: 'key' },
+  { term: 'Sedia Magica', kind: 'key' },
+  { term: 'Infinito', kind: 'key' },
+  { term: 'Fulmine', kind: 'key' },
+  { term: 'Palloncino', kind: 'key' },
+];
+
+const normalizeHighlightTerm = (value: string) => value.trim().toLowerCase();
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const STORY_HIGHLIGHT_LOOKUP = STORY_HIGHLIGHT_TERMS.reduce<Record<string, StoryHighlightKind>>((acc, entry) => {
+  acc[normalizeHighlightTerm(entry.term)] = entry.kind;
+  return acc;
+}, {});
+const STORY_HIGHLIGHT_REGEX = new RegExp(
+  `(${STORY_HIGHLIGHT_TERMS.map(entry => entry.term).sort((a, b) => b.length - a.length).map(escapeRegex).join('|')})`,
+  'gi'
+);
+
 type ProfileRecord = UserProfile & {
   id: string;
   birthYear: number | null;
@@ -266,6 +295,38 @@ export default function App() {
   const deletedProfiles = getDeletedProfiles(profiles);
   const profile = activeProfileId ? activeProfiles.find(p => p.id === activeProfileId) || null : null;
   const storyEntries = storyWorldId !== null ? getStoryEntriesForTable(storyWorldId) : [];
+  const playRandomHighlightEffect = () => {
+    const effects: Array<() => void> = [
+      () => sound.playClick(),
+      () => sound.playSuccess(),
+      () => sound.playPowerUp(),
+      () => sound.playLevelUp(),
+    ];
+    effects[Math.floor(Math.random() * effects.length)]();
+  };
+  const renderStorySentenceWithHighlights = (sentence: string) => {
+    const parts = sentence.split(STORY_HIGHLIGHT_REGEX).filter(Boolean);
+    return parts.map((part, index) => {
+      const kind = STORY_HIGHLIGHT_LOOKUP[normalizeHighlightTerm(part)];
+      if (!kind) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+      return (
+        <button
+          key={`${part}-${index}`}
+          type="button"
+          onClick={playRandomHighlightEffect}
+          className={`mx-0.5 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] sm:text-xs font-black leading-none transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-1 cursor-pointer ${
+            kind === 'character'
+              ? 'border-lime-500 bg-lime-500 text-white focus-visible:outline-lime-600'
+              : 'border-amber-400 bg-amber-300 text-amber-950 focus-visible:outline-amber-500'
+          }`}
+          aria-label={`${kind === 'character' ? 'Personaggio' : 'Parola chiave'}: ${part}`}
+          title={`${kind === 'character' ? 'Personaggio' : 'Parola chiave'}: ${part}`}
+        >
+          {part}
+        </button>
+      );
+    });
+  };
   const isParentModeActive = parentAuthenticated && activeTab === 'parents';
   const activeAdventureWorldId = (() => {
     if (!profile || selectedWorldId !== null) return null;
@@ -2319,16 +2380,13 @@ export default function App() {
                   role="listitem"
                   className="rounded-2xl border border-indigo-100 bg-indigo-50/60 px-3 py-2.5 shadow-2xs"
                 >
-                  <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-indigo-700">
-                    {entry.tableLabel}
-                  </p>
-                  <p className="mt-1 rounded-xl border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black text-amber-900">
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black text-amber-900">
                     <span aria-label={`Formula mnemonica ${entry.table} per ${entry.multiplier} uguale ${entry.result}`}>
                       {entry.table} {DIGIT_LABEL_MAP[entry.table] || entry.table} x {entry.multiplier} {DIGIT_LABEL_MAP[entry.multiplier] || entry.multiplier} = {getMnemonicLabelForNumber(entry.result)}
                     </span>
                   </p>
                   <p className="mt-1 text-xs sm:text-sm leading-relaxed text-slate-800">
-                    {entry.sentence}
+                    {renderStorySentenceWithHighlights(entry.sentence)}
                   </p>
                 </div>
               ))}
