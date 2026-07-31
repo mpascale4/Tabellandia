@@ -5,7 +5,7 @@
 **Premessa:** 🎈 Palloncino × ⛏️ Piccone  
 **Finale:** 🎈 Palloncino
 
-Il Palloncino (🎈) rosso era tornato — fermo nell'aria davanti alla roccia del Piccone (⛏️), come se aspettasse solo lui. Orion non lo seguì subito. Lo guardò. Il Palloncino (🎈) non aveva fretta.
+Il Palloncino (🎈) rosso era tornato — fermo nell'aria davanti alla roccia del Piccone (⛏️), come se aspettasse solo lui. Non lo si seguì subito. Lo si guardò. Il Palloncino (🎈) non aveva fretta.
 
 ---
 
@@ -30,9 +30,9 @@ Il Palloncino (🎈) si fermò sopra il simbolo della Moneta rara (💶), inciso
 ## 9×4 = 36
 
 **Premessa:** 🎈 Palloncino × 🪑 Sedia Magica  
-**Finale:** 🦢 Cigno (Orion) + 🐌 Chiocciola (Lina)
+**Finale:** 💶 Moneta rara + 🐌 Chiocciola (Lina)
 
-Il Palloncino (🎈) si posò sullo schienale della Sedia Magica (🪑) e rimase fermo. Il Cigno Orion (🦢) si avvicinò lentamente. In quell'istante sentì la voce della Chiocciola Lina (🐌): «Stai per trovare quello che cerchi da sempre».
+Il Palloncino (🎈) si posò sullo schienale della Sedia Magica (🪑) e rimase fermo. Si avvicinò lentamente. In quell'istante brillò il profilo della Moneta rara (💶) sulla pietra, e la voce della Chiocciola Lina (🐌): «Stai per trovare quello che cerchi da sempre».
 
 ---
 
@@ -48,27 +48,27 @@ Il Palloncino (🎈) scivolò verso il basso — e Bobo il Serpente (🐍) lo se
 ## 9×6 = 54
 
 **Premessa:** 🎈 Palloncino × 🐌 Chiocciola (Lina)  
-**Finale:** 🪑 Sedia Magica + 🐌 Chiocciola (Lina)
+**Finale:** 🐍 Serpente (Bobo) + 🪑 Sedia Magica
 
-Il Palloncino (🎈) si gonfiò ancora di più, come se trattenesse qualcosa. La voce della Chiocciola Lina (🐌) tornò una volta sola: «Muovi la Sedia». Orion spinse la Sedia Magica (🪑) di lato. Il pavimento era diverso sotto. E quella voce — la Chiocciola Lina (🐌) — sembrava sorridere.
+Il Palloncino (🎈) si gonfiò ancora di più, come se trattenesse qualcosa. La voce della Chiocciola Lina (🐌) tornò una volta sola: «Muovi la Sedia». Si spinse la Sedia Magica (🪑) di lato. Il pavimento era diverso sotto. E in quella ombra, Bobo il Serpente (🐍) strisciò silenzioso intorno alla Sedia (🪑).
 
 ---
 
 ## 9×7 = 63
 
 **Premessa:** 🎈 Palloncino × ⚡ Fulmine  
-**Finale:** 🐌 Chiocciola (Lina) + 🦢 Cigno (Orion)
+**Finale:** 🐌 Chiocciola (Lina) + 💶 Moneta rara
 
-Il Palloncino (🎈) salì — e un Fulmine (⚡) lo sfiorò senza toccarlo. Nell'aria rimase una traccia luminosa. E in quella traccia, Orion vide per un momento due figure: la Chiocciola Lina (🐌) che sorrideva, e un Cigno (🦢) bianco con le ali aperte.
+Il Palloncino (🎈) salì — e un Fulmine (⚡) lo sfiorò senza toccarlo. Nell'aria rimase una traccia luminosa. E in quella traccia, si videro per un momento due figure: la Chiocciola Lina (🐌) che sorrideva, e il simbolo della Moneta rara (💶) che brillava.
 
 ---
 
 ## 9×8 = 72
 
 **Premessa:** 🎈 Palloncino × ♾️ Infinito  
-**Finale:** 🐌 Chiocciola (Lina) + 🦢 Cigno (Orion)
+**Finale:** ⚡ Fulmine + 🦢 Cigno (Orion)
 
-Il Palloncino (🎈) esplose in silenzio — e al suo posto rimase solo il simbolo dell'Infinito (♾️), sospeso nell'aria per un istante. La Chiocciola Lina (🐌) aveva detto: «Quando il Palloncino si ferma, sei arrivato davvero». Il Cigno Orion (🦢) aprì le ali — e per la prima volta non aveva paura.
+Il Palloncino (🎈) esplose in silenzio — e al suo posto rimase solo il simbolo dell'Infinito (♾️), sospeso nell'aria per un istante. Un Fulmine (⚡) squarciò il cielo — come una firma finale. Nel lampo, la sagoma di un Cigno (🦢) bianco si disegnò nitida contro le nuvole.
 
 ---
 
@@ -79,4 +79,6 @@ Il Palloncino (🎈) esplose in silenzio — e al suo posto rimase solo il simbo
 
 *(Grande finale)*
 
-Due Palloncini (🎈) rossi — identici — fluttuavano immobili sopra la Sedia Magica. Orion non ci pensò. Spostò la Sedia. Sotto di essa, nel pavimento di roccia, c'era una fessura luminosa. Ci infilò un'ala. La pietra cedette. E lì, avvolta nella luce, c'era la Moneta rara — quella vera, non il suo simbolo. Le ali dispiegate intorno a lei erano le sue: un Cigno. Era sempre stato lui. L'Infinito (♾️) brillò sul bordo della moneta, e il Piccone (⛏️) era inciso nel centro — la firma di quella roccia antica, la firma di chi aveva preparato tutto per lui.
+Due Palloncini (🎈) rossi — identici — fluttuavano immobili sopra la roccia del Piccone (⛏️). Nel silenzio, si mosse la mano. Sfiorò la pietra sotto il Palloncino — la roccia era diversa qui, liscia, incisa. Una fessura sottile, percettibile solo al tatto. La pietra cedette sotto la spinta. E lì, nel buio che si aprì, brillava qualcosa — l'Infinito (♾️) inciso nel centro, e intorno a esso, come ali dispiegate, due linee che convergevano. Il Piccone (⛏️) era la firma della roccia, la firma di chi aveva preparato tutto fin da sempre — il segno di una mano antica che aveva scritto una profezia nella pietra.
+
+Tutte le storie erano state lì. Tutto era stato predetto.

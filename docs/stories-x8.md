@@ -30,9 +30,9 @@ L'Infinito (♾️) era intrecciato al simbolo della Moneta rara (💶) come se 
 ## 8×4 = 32
 
 **Premessa:** ♾️ Infinito × 🪑 Sedia Magica  
-**Finale:** 🦢 Cigno (Orion) + 🦢 Cigno (Orion)
+**Finale:** 💶 Moneta rara + 🦢 Cigno (Orion)
 
-L'Infinito (♾️) pulsava sotto la Sedia Magica (🪑) con un ritmo lento, regolare. Il Cigno Orion (🦢) si avvicinò e vide il suo riflesso nella pietra lucida: un altro Cigno (🦢), identico a lui, che lo fissava dal basso con gli stessi occhi.
+L'Infinito (♾️) pulsava sotto la Sedia Magica (🪑) con un ritmo lento, regolare. Si avvicinò e vide il suo riflesso nella pietra lucida: la Moneta rara (💶) incisa nel fondo, e sopra di essa, come ali dispiegate, la sagoma di un Cigno (🦢).
 
 ---
 
@@ -41,7 +41,7 @@ L'Infinito (♾️) pulsava sotto la Sedia Magica (🪑) con un ritmo lento, reg
 **Premessa:** ♾️ Infinito × 🐍 Serpente (Bobo)  
 **Finale:** 🪑 Sedia Magica + 🥚 Uovo
 
-L'Infinito (♾️) disegnato sul pavimento era così grande da sembrare una strada. Bobo il Serpente (🐍) la percorse tutta, lento, senza mai uscire dal tracciato. Al centro della curva, la Sedia Magica (🪑) attendeva — e sotto di essa, l'Uovo (🥚) era più grande di prima.
+L'Infinito (♾️) disegnato sul pavimento era così grande da sembrare una strada. Bobo il Serpente (🐍) la percorse tutta, lento, senza mai uscire dal tracciato. Al centro della curva, la Sedia Magica (🪑) sembrava aspettare — e sotto di essa, l'Uovo (🥚) era più grande di prima.
 
 ---
 
@@ -52,7 +52,7 @@ L'Infinito (♾️) disegnato sul pavimento era così grande da sembrare una str
 
 *(Momento cardine ×8: indizio cruciale)*
 
-L'Infinito (♾️) era il cuore di tutto — lo capì in quell'istante. E la voce della Chiocciola Lina (🐌) tornò come un sibilo: «Dove l'Infinito tocca la Sedia, lì sotto troverai la Moneta». La Sedia Magica (🪑) era sopra l'Infinito (♾️) da sempre. Era lì. La Moneta rara era lì sotto.
+L'Infinito (♾️) era il cuore di tutto — lo capì in quell'istante. E la voce della Chiocciola Lina (🐌) tornò come un sibilo: «Dove l'Infinito tocca la Sedia, lì sotto troverai quello che cerchi». La Sedia Magica (🪑) era sopra l'Infinito (♾️) da sempre. Era lì. Era tutto lì sotto.
 
 ---
 
@@ -61,7 +61,7 @@ L'Infinito (♾️) era il cuore di tutto — lo capì in quell'istante. E la vo
 **Premessa:** ♾️ Infinito × ⚡ Fulmine  
 **Finale:** 🐍 Serpente (Bobo) + 🐌 Chiocciola (Lina)
 
-L'Infinito (♾️) brillò un'ultima volta — poi un Fulmine (⚡) lo spense. Nel buio che seguì, Bobo il Serpente (🐍) era ancora lì, immobile. E nella mente di Orion, la voce della Chiocciola Lina (🐌) disse: «Ora sai dove guardare».
+L'Infinito (♾️) brillò un'ultima volta — poi un Fulmine (⚡) lo spense. Nel buio che seguì, Bobo il Serpente (🐍) era ancora lì, immobile. E nella pietra, la voce della Chiocciola Lina (🐌) sussurrò: «Ora sai dove guardare».
 
 ---
 
@@ -70,13 +70,13 @@ L'Infinito (♾️) brillò un'ultima volta — poi un Fulmine (⚡) lo spense. 
 **Premessa:** ♾️ Infinito × ♾️ Infinito  
 **Finale:** 🐌 Chiocciola (Lina) + 🪑 Sedia Magica
 
-Due simboli dell'Infinito (♾️), sovrapposti, formavano qualcosa di nuovo — come una chiave. La Chiocciola Lina (🐌) lo aveva disegnato su un foglio prima della partenza, senza spiegare perché. Orion capì solo ora. La Sedia Magica (🪑) aveva quella stessa forma incisa sotto il sedile.
+Due simboli dell'Infinito (♾️), sovrapposti, formavano qualcosa di nuovo — come una chiave. La Chiocciola Lina (🐌) lo aveva disegnato su un foglio prima della partenza, senza spiegare perché. Solo ora lo si comprese. La Sedia Magica (🪑) aveva quella stessa forma incisa sotto il sedile.
 
 ---
 
 ## 8×9 = 72
 
 **Premessa:** ♾️ Infinito × 🎈 Palloncino  
-**Finale:** 🐌 Chiocciola (Lina) + 🦢 Cigno (Orion)
+**Finale:** ⚡ Fulmine + 🦢 Cigno (Orion)
 
-L'Infinito (♾️) si spense lentamente, come una candela. Un Palloncino (🎈) rosso salì silenzioso verso il cielo aperto — libero, leggero. E nella sua scia, come scritta nell'aria, la voce della Chiocciola Lina (🐌) disse: «Sei arrivato». Il Cigno Orion (🦢) alzò la testa.
+L'Infinito (♾️) si spense lentamente, come una candela. Un Palloncino (🎈) rosso salì silenzioso verso il cielo aperto — libero, leggero. E nel suo passaggio, un Fulmine (⚡) lontano squarciò le nuvole. Nel lampo, la sagoma di un Cigno (🦢) bianco si disegnò nitida nel cielo.

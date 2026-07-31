@@ -32,7 +32,7 @@ Sul bracciolo della Sedia Magica (🪑) era inciso il profilo di una Moneta rara
 **Premessa:** 🪑 Sedia Magica × 🪑 Sedia Magica  
 **Finale:** ⛏️ Piccone + 🐌 Chiocciola (Lina)
 
-Due Sedie Magiche (🪑) — quella reale e il suo riflesso nell'acqua immobile del lago. Le ali dispiegate si specchiavano nell'acqua. Era una delle cose che la Chiocciola Lina (🐌) gli aveva detto: «Quando vedi doppio, stai per trovare il Piccone (⛏️) vero».
+Due Sedie Magiche (🪑) — quella reale e il suo riflesso nell'acqua immobile del lago. Le ali dispiegate si specchiavano nell'acqua. Era una delle cose che la Chiocciola Lina (🐌) gli aveva detto: «Quando vedi doppio, stai per trovare il Piccone (⛏️) vero». E la Chiocciola Lina (🐌) non sbagliava mai.
 
 ---
 
@@ -41,7 +41,7 @@ Due Sedie Magiche (🪑) — quella reale e il suo riflesso nell'acqua immobile 
 **Premessa:** 🪑 Sedia Magica × 🐍 Serpente (Bobo)  
 **Finale:** 🦢 Cigno (Orion) + 🥚 Uovo
 
-La Sedia Magica (🪑) scivolò da sola verso la riva del lago. Bobo il Serpente (🐍) era lì, avvolto intorno a qualcosa di bianco. Al centro, protetto tra le sue spire, un Uovo (🥚) brillava, e il profilo del Cigno Orion (🦢) si rifletteva sulla sua superficie liscia.
+La Sedia Magica (🪑) scivolò da sola verso la riva del lago. Bobo il Serpente (🐍) era lì, avvolto intorno a qualcosa di bianco. Al centro, protetto tra le sue spire, brillava il profilo del Cigno Orion (🦢), e sotto di lui, perfetto e intatto, l'Uovo (🥚).
 
 ---
 
@@ -68,7 +68,7 @@ Nel luogo nascosto, la Sedia Magica (🪑) si fermò di botto. Un Fulmine (⚡) 
 **Premessa:** 🪑 Sedia Magica × ♾️ Infinito  
 **Finale:** 💶 Moneta rara + 🦢 Cigno (Orion)
 
-La Sedia Magica (🪑) era al centro della sala sotterranea. L'Infinito (♾️) brillava sul pavimento come una luna. Nel riflesso lucido della pietra, il Cigno Orion (🦢) vide qualcosa che non aveva mai visto prima: il profilo di una Moneta rara (💶) inciso proprio sotto di lui.
+La Sedia Magica (🪑) era al centro della sala sotterranea. L'Infinito (♾️) brillava sul pavimento come una luna. Nel riflesso lucido della pietra, vide qualcosa che non aveva mai visto prima: il profilo di una Moneta rara (💶) inciso nella pietra, e sopra di essa, come ali dispiegate, la sagoma di un Cigno (🦢).
 
 ---
 

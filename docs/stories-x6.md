@@ -23,7 +23,7 @@ La voce della Chiocciola Lina (🐌) era ovunque: «Non volare — stavolta devi
 **Premessa:** 🐌 Chiocciola (Lina) × 💶 Moneta rara  
 **Finale:** ⛏️ Piccone + ♾️ Infinito
 
-Il ricordo della Chiocciola Lina (🐌) portò con sé le parole che aveva detto davanti alla Moneta rara (💶): «Quella moneta non si trova — ti trova lei». Avanzando nel buio, Orion sfiorò la roccia con un'ala. Sentì due incisioni sotto le piume: il Piccone (⛏️) e, accanto, il simbolo dell'Infinito (♾️).
+Il ricordo della Chiocciola Lina (🐌) portò con sé le parole che aveva detto davanti alla Moneta rara (💶): «Quella moneta non si trova — ti trova lei». Avanzando nel buio, si sfiorò la roccia con un'ala. Si sentirono due incisioni sotto le piume: il Piccone (⛏️) e, accanto, il simbolo dell'Infinito (♾️).
 
 ---
 
@@ -41,18 +41,18 @@ Il passaggio si strinse fino a bloccare ogni via. Nessuna luce, nessun suono. So
 ## 6×5 = 30
 
 **Premessa:** 🐌 Chiocciola (Lina) × 🐍 Serpente (Bobo)  
-**Finale:** 🦢 Cigno (Orion) + 🥚 Uovo
+**Finale:** 💶 Moneta rara + 🥚 Uovo
 
-Oltre il muro, la voce della Chiocciola Lina (🐌) si fece più distante. Ma Bobo il Serpente (🐍) era lì — avvolto intorno a qualcosa. Il Cigno Orion (🦢) si avvicinò: tra le spire del Serpente (🐍) riposava un Uovo (🥚) bianco, caldo, che pulsava piano.
+Oltre il muro, la voce della Chiocciola Lina (🐌) si fece più distante. Bobo il Serpente (🐍) era lì — avvolto intorno a qualcosa. Si avvicinò: tra le spire del Serpente (🐍) riposava la Moneta rara (💶), e sotto di essa, protetto e caldo, l'Uovo (🥚) pulsava piano.
 
 ---
 
 ## 6×6 = 36
 
 **Premessa:** 🐌 Chiocciola (Lina) × 🐌 Chiocciola (Lina)  
-**Finale:** 🦢 Cigno (Orion) + 🐌 Chiocciola (Lina)
+**Finale:** 💶 Moneta rara + 🐌 Chiocciola (Lina)
 
-Due voci identiche — entrambe della Chiocciola Lina (🐌) — si sovrapposero nell'aria. Una diceva «vai avanti», l'altra «torna indietro». Il Cigno Orion (🦢) rimase immobile tra le due. Poi scelse: andò avanti, portando con sé il ricordo della Chiocciola Lina (🐌).
+Due voci identiche — entrambe della Chiocciola Lina (🐌) — si sovrapposero nell'aria. Una diceva «vai avanti», l'altra «torna indietro». Si rimase immobile tra le due. Poi la Moneta rara (💶) brillò davanti, incisa sulla roccia — e il ricordo della Chiocciola Lina (🐌) tornò nitido, guida sicura.
 
 ---
 
@@ -77,6 +77,6 @@ L'ultimo eco della Chiocciola Lina (🐌) echeggiò nella sala. L'Infinito (♾�
 ## 6×9 = 54
 
 **Premessa:** 🐌 Chiocciola (Lina) × 🎈 Palloncino  
-**Finale:** 🪑 Sedia Magica + 🐌 Chiocciola (Lina)
+**Finale:** 🐍 Serpente (Bobo) + 🪑 Sedia Magica
 
-L'ultima parola della Chiocciola Lina (🐌) si spense — e in quell'istante un Palloncino (🎈) rosso apparve dal nulla, luminoso nel buio. Fluttuò lento fino alla Sedia Magica (🪑) e si posò sullo schienale, immobile. Era come se la Chiocciola Lina (🐌) avesse mandato un saluto da lontano.
+L'ultima parola della Chiocciola Lina (🐌) si spense — e in quell'istante un Palloncino (🎈) rosso apparve dal nulla, luminoso nel buio. Fluttuò lento fino al centro della sala. Lì, Bobo il Serpente (🐍) strisciava in cerchio, sempre più vicino. E al centro, immobile, la Sedia Magica (🪑) attendeva.

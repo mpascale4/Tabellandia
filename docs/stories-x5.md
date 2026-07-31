@@ -23,7 +23,7 @@ Bobo il Serpente (🐍) tornò, questa volta davanti al Cigno Orion (🦢). Sibi
 **Premessa:** 🐍 Serpente (Bobo) × 💶 Moneta rara  
 **Finale:** ⛏️ Piccone + 🐍 Serpente (Bobo)
 
-Bobo il Serpente (🐍) si avvicinò a una nicchia nella roccia. Al suo interno era incastonato il profilo di una Moneta rara (💶), antico e consunto. Il Serpente (🐍) posò la testa vicino al Piccone (⛏️) scolpito accanto — come a dire: questo è il posto giusto.
+Bobo il Serpente (🐍) si avvicinò a una nicchia nella roccia. Al suo interno era incastonato il profilo di una Moneta rara (💶), antico e consunto. Accanto, il Piccone (⛏️) era scolpito nella pietra — e il Serpente (🐍) posò la testa proprio accanto a loro, come a dire: questo è il posto giusto.
 
 ---
 
@@ -48,18 +48,18 @@ Due serpenti identici — eppure era lo stesso Bobo (🐍), riflesso nell'acqua 
 ## 5×6 = 30
 
 **Premessa:** 🐍 Serpente (Bobo) × 🐌 Chiocciola (Lina)  
-**Finale:** 🦢 Cigno (Orion) + 🥚 Uovo
+**Finale:** 💶 Moneta rara + 🥚 Uovo
 
-Bobo il Serpente (🐍) rimase fermo davanti a un bivio. Il ricordo della Chiocciola Lina (🐌) arrivò nitido: «Quando non sai dove andare, scegli quella che puzza di terra». Il Cigno Orion (🦢) annuì e imboccò il sentiero di destra. In fondo, un Uovo (🥚) luminoso lo aspettava.
+Bobo il Serpente (🐍) rimase fermo davanti a un bivio. Il ricordo della Chiocciola Lina (🐌) arrivò nitido: «Quando non sai dove andare, scegli quella che puzza di terra». Si imboccò il sentiero di destra. In fondo brillava la Moneta rara (💶), e sotto di essa, accarezzato dalla luce, riposava l'Uovo (🥚).
 
 ---
 
 ## 5×7 = 35
 
 **Premessa:** 🐍 Serpente (Bobo) × ⚡ Fulmine  
-**Finale:** 🦢 Cigno (Orion) + 🐍 Serpente (Bobo)
+**Finale:** 💶 Moneta rara + 🐍 Serpente (Bobo)
 
-Bobo il Serpente (🐍) si irrigidì. Un Fulmine (⚡) colpì la roccia sopra di loro — e un pezzo di soffitto crollò. Il Cigno Orion (🦢) saltò di lato. Il Serpente (🐍) era ancora lì, illeso, che lo fissava con gli occhi calmi.
+Bobo il Serpente (🐍) si irrigidì. Un Fulmine (⚡) colpì la roccia sopra di loro — e un pezzo di soffitto crollò. Lo schiacciò contro il pavimento, ma quando la polvere si dissolse, il Serpente era ancora lì, illeso. E sulla roccia dietro di lui, brillava la Moneta rara (💶), con il Serpente (🐍) strisciante accanto.
 
 ---
 

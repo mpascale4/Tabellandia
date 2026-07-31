@@ -5,7 +5,7 @@
 **Premessa:** ⚡ Fulmine × ⛏️ Piccone  
 **Finale:** ⚡ Fulmine
 
-Uscendo dalla sala sotterranea, Orion incontrò il cielo aperto — e un Fulmine (⚡) squarciò la notte proprio sopra la roccia del Piccone (⛏️). La terra tremò. Il Fulmine (⚡) scomparve, lasciando un odore di pietra bruciata nell'aria.
+Uscendo dalla sala sotterranea, si incontrò il cielo aperto — e un Fulmine (⚡) squarciò la notte proprio sopra la roccia del Piccone (⛏️). La terra tremò. Il Fulmine (⚡) scomparve, lasciando un odore di pietra bruciata nell'aria.
 
 ---
 
@@ -39,9 +39,9 @@ Il Fulmine (⚡) colpì la Sedia Magica (🪑) dritta sullo schienale. Non la br
 ## 7×5 = 35
 
 **Premessa:** ⚡ Fulmine × 🐍 Serpente (Bobo)  
-**Finale:** 🦢 Cigno (Orion) + 🐍 Serpente (Bobo)
+**Finale:** 💶 Moneta rara + 🐍 Serpente (Bobo)
 
-Il Fulmine (⚡) squarciò il terreno davanti a Bobo il Serpente (🐍). Il Serpente non si mosse — rimase fermo come una radice. Il Cigno Orion (🦢) lo raggiunse di corsa, e il Serpente (🐍) sibilò calmo: «Non aver paura dei lampi. Sono segnali, non pericoli».
+Il Fulmine (⚡) squarciò il terreno davanti a Bobo il Serpente (🐍). Il Serpente non si mosse — rimase fermo come una radice. Accanto a lui, incisa nella roccia, la Moneta rara (💶) brillava. Il Serpente (🐍) sibilò calmo: «Sono segnali, non pericoli».
 
 ---
 
@@ -75,6 +75,6 @@ Il Fulmine (⚡) tracciò nel cielo il simbolo dell'Infinito (♾️), nitido e 
 ## 7×9 = 63
 
 **Premessa:** ⚡ Fulmine × 🎈 Palloncino  
-**Finale:** 🐌 Chiocciola (Lina) + 🦢 Cigno (Orion)
+**Finale:** 🐌 Chiocciola (Lina) + 💶 Moneta rara
 
-L'ultimo Fulmine (⚡) della notte sfiorò un Palloncino (🎈) rosso senza bruciarlo. Il Palloncino rimase intatto, luminoso nel buio. In quel silenzio, Orion sentì la voce della Chiocciola Lina (🐌) più chiara di sempre — e il profilo di un Cigno (🦢) bianco si disegnò lentamente tra le nuvole.
+L'ultimo Fulmine (⚡) della notte sfiorò un Palloncino (🎈) rosso senza bruciarlo. Il Palloncino rimase intatto, luminoso nel buio. In quel silenzio, la voce della Chiocciola Lina (🐌) risuonò — e il simbolo della Moneta rara (💶) brillò nella pietra, inciso per sempre.
