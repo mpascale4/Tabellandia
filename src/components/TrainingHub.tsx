@@ -10,16 +10,7 @@ import { sound } from './SoundManager';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
-// Carica automaticamente tutti i file storie per tabellina (stories-x2.md, stories-x3.md, …)
-const storyModules = import.meta.glob<string>('../../docs/stories-x*.md', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-});
-const storiesMarkdown = Object.keys(storyModules)
-  .sort()
-  .map(k => storyModules[k])
-  .join('\n\n');
+import { getStoryDraftForEquation } from '../utils/storyMarkdown';
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
 // 0 🥚 Uovo      → ovale chiuso
@@ -57,125 +48,9 @@ interface MnemonicStory {
   equationText: string;
 }
 
-type StoryDraft = {
-  title: string;
-  premise: string;
-  climax: string;
-};
-
-function splitStoryText(text: string): { premise: string; climax: string } {
-  const cleaned = text.trim();
-  if (!cleaned) return { premise: '', climax: '' };
-  const sentences = (cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [])
-    .map(s => s.trim())
-    .filter(Boolean);
-  if (sentences.length <= 1) {
-    return { premise: cleaned, climax: cleaned };
-  }
-  return {
-    premise: sentences[0],
-    climax: sentences.slice(1).join(' '),
-  };
-}
-
-function parseStoriesFromMarkdown(markdown: string): Record<string, StoryDraft> {
-  const lines = markdown.split(/\r?\n/);
-  const stories: Record<string, StoryDraft> = {};
-
-  let currentKey: string | null = null;
-  let currentTitle = '';
-  let currentPremise = '';
-  let currentFinale = '';
-  let currentFullText = '';
-
-  const flush = () => {
-    if (!currentKey) return;
-
-    const fullText = currentFullText.trim();
-    const split = splitStoryText(fullText);
-    const premise = split.premise || currentPremise.trim();
-    const climax = split.climax || currentFinale.trim() || split.premise || currentPremise.trim();
-
-    stories[currentKey] = {
-      title: currentTitle || `La storia di ${currentKey.replace('x', ' × ')}`,
-      premise,
-      climax,
-    };
-  };
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-
-    // Formato narrativo: ## 2×1 = 2  oppure  formato bozza: ### 7×1=7
-    const headingMatch = line.match(/^#{2,3}\s+(\d+)\s*[×x]\s*(\d+)\s*=\s*\d+/i);
-    if (headingMatch) {
-      flush();
-      const a = Number(headingMatch[1]);
-      const b = Number(headingMatch[2]);
-      currentKey = `${a}x${b}`;
-      currentTitle = `La storia di ${a} × ${b}`;
-      currentPremise = '';
-      currentFinale = '';
-      currentFullText = '';
-      continue;
-    }
-
-    if (!currentKey) continue;
-
-    // Formato narrativo bold: **Premessa:** ...
-    if (/^\*\*Premessa:\*\*/i.test(line)) {
-      currentPremise = line.replace(/^\*\*Premessa:\*\*\s*/i, '').trim();
-      continue;
-    }
-
-    // Formato narrativo bold: **Finale:** ...
-    if (/^\*\*Finale:\*\*/i.test(line)) {
-      currentFinale = line.replace(/^\*\*Finale:\*\*\s*/i, '').trim();
-      continue;
-    }
-
-    // Formato bozza bullet: - Premessa: ...
-    if (line.startsWith('- Premessa:')) {
-      currentPremise = line.replace('- Premessa:', '').trim();
-      continue;
-    }
-
-    // Formato bozza bullet: - Finale: ...
-    if (line.startsWith('- Finale:')) {
-      currentFinale = line.replace('- Finale:', '').trim();
-      continue;
-    }
-
-    // Formato bozza bullet: - Testo completo: ...
-    if (line.startsWith('- Testo completo:')) {
-      currentFullText = line.replace('- Testo completo:', '').trim();
-      continue;
-    }
-
-    // Testo narrativo libero (non heading, non bullet, non separatore, non vuoto)
-    if (
-      line.length > 0 &&
-      !line.startsWith('#') &&
-      !line.startsWith('-') &&
-      !line.startsWith('*') &&
-      line !== '---' &&
-      line !== '|'
-    ) {
-      currentFullText += (currentFullText ? ' ' : '') + line;
-    }
-  }
-
-  flush();
-  return stories;
-}
-
-const MARKDOWN_CUSTOM_STORIES = parseStoriesFromMarkdown(storiesMarkdown);
-
 function getMnemonicStory(a: number, b: number): MnemonicStory {
   const ans = a * b;
-  const key1 = `${a}x${b}`;
-  const key2 = `${b}x${a}`;
-  const storyData = MARKDOWN_CUSTOM_STORIES[key1] || MARKDOWN_CUSTOM_STORIES[key2];
+  const storyData = getStoryDraftForEquation(a, b);
 
   const itemA = DIGIT_INFO[a] ?? { name: `${a}`, emoji: `${a}`, artName: `${a}` };
   const itemB = DIGIT_INFO[b] ?? { name: `${b}`, emoji: `${b}`, artName: `${b}` };

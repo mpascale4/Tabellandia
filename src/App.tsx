@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
 import { getTableIcon, withTableIcon } from './utils/tableLabels';
+import { getStoryEntriesForTable } from './utils/storyMarkdown';
 import { sound } from './components/SoundManager';
 import FireworksOverlay from './components/FireworksOverlay';
 import ParentDashboard from './components/ParentDashboard';
@@ -250,6 +251,7 @@ export default function App() {
     canAfford: boolean;
     isErected: boolean;
   } | null>(null);
+  const [storyWorldId, setStoryWorldId] = useState<number | null>(null);
 
   const activeProfiles = getActiveProfiles(profiles);
   const deletedProfiles = getDeletedProfiles(profiles);
@@ -1717,7 +1719,7 @@ export default function App() {
                         <SectionHeader
                           eyebrow="Modalità Avventura"
                           title="Mappa di Tabellandia"
-                          description="Segui Orion tra i segni della Terra Magica: completa ogni terra per diradare la nebbia e sbloccare la successiva."
+                          description="Segui gli indizi di Orion tra i regni della Terra Magica e scopri, passo dopo passo, la rotta verso il mistero."
                         />
                         <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-sky-900/80 sm:text-[11px]">
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 sm:px-3 sm:py-1">✅ Completato</span>
@@ -1739,8 +1741,8 @@ export default function App() {
                           const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'Entra';
 
                           return (
+                            <div key={world.id} className="relative">
                             <button
-                              key={world.id}
                               type="button"
                               ref={(el) => {
                                 worldCardRefs.current[world.id] = el;
@@ -1856,6 +1858,20 @@ export default function App() {
                                 </div>
                               </div>
                             </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                sound.playClick();
+                                setStoryWorldId(world.id);
+                              }}
+                              className="absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-300 bg-amber-100 text-base text-amber-900 shadow-sm transition-all hover:bg-amber-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 cursor-pointer"
+                              aria-label={`Apri la storia della tabellina del ${world.id}`}
+                              title={`Leggi storia tabellina del ${world.id}`}
+                            >
+                              <span aria-hidden="true">📖</span>
+                            </button>
+                            </div>
                           );
                         })}
                       </ResponsiveGrid>
@@ -2256,6 +2272,52 @@ export default function App() {
                 </div>
               </>
             )}
+          </motion.div>
+        </div>
+      )}
+
+      {storyWorldId !== null && (
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setStoryWorldId(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.92, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl border border-indigo-100 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setStoryWorldId(null)}
+              className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+              aria-label="Chiudi pannello storia"
+            >
+              ✕
+            </button>
+            <div className="pr-8">
+              <h3 className="text-base sm:text-lg font-black text-indigo-950">📖 Tabellina del {storyWorldId}</h3>
+              <p className="mt-1 text-xs text-slate-600">Indizi narrativi del regno: tabellina e frase, in sequenza.</p>
+            </div>
+
+            <div role="list" className="mt-4 grid grid-cols-1 gap-2.5 max-h-[60vh] overflow-y-auto pr-1">
+              {(getStoryEntriesForTable(storyWorldId).length > 0
+                ? getStoryEntriesForTable(storyWorldId)
+                : [{ tableLabel: `Tabellina del ${storyWorldId}`, sentence: 'Frase non disponibile' }]).map((entry) => (
+                <div
+                  key={`${storyWorldId}-${entry.tableLabel}`}
+                  role="listitem"
+                  className="rounded-2xl border border-indigo-100 bg-indigo-50/60 px-3 py-2.5 shadow-2xs"
+                >
+                  <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-indigo-700">
+                    {entry.tableLabel}
+                  </p>
+                  <p className="mt-1 text-xs sm:text-sm leading-relaxed text-slate-800">
+                    {entry.sentence}
+                  </p>
+                </div>
+              ))}
+            </div>
           </motion.div>
         </div>
       )}
