@@ -66,6 +66,22 @@ Esempio:
 
 Mai invertire quest'ordine.
 
+**Questo ordine deve riflettersi nell'ordine di apparizione nel testo narrativo.**
+
+La prima parola o immagine del primo fattore deve comparire nella storia **prima** di qualsiasi parola o immagine del secondo fattore. I personaggi del risultato devono comparire **solo alla fine**.
+
+Esempio sbagliato per 3×1 = 3 (💶 × ⛏️ → 💶):
+
+> "Sulla roccia del Piccone (⛏️) era inciso il simbolo della Moneta rara (💶)..."
+
+⛏️ appare prima di 💶 → **violazione**.
+
+Esempio corretto:
+
+> "La Moneta rara (💶) era lì, scolpita sulla roccia del Piccone (⛏️)..."
+
+💶 appare prima di ⛏️ → **ordine rispettato**.
+
 ---
 
 # Nessun personaggio extra
@@ -158,13 +174,27 @@ Evitare spiegazioni.
 
 Evitare frasi didattiche.
 
+Evitare frasi piatte e descrittive tipo:
+
+- "C'era un simbolo..."
+- "Era lì da sempre..."
+- "Si trovava sulla roccia..."
+
 Evitare frasi artificiali tipo:
 
 - "Poco dopo comparve..."
 - "Allora vide..."
 - "In quel momento accadde..."
 
-Preferire:
+Preferire verbi attivi e immagini sensoriali:
+
+- "Pulsava sulla pietra come se respirasse..."
+- "Brillava da solo nel buio come una fiamma..."
+- "Si intrecciavano come due fili d'oro..."
+- "Si disegnò nitida nel lampo..."
+- "Sparì nel buio..."
+
+Preferire aperture atmosferiche:
 
 - "Mentre volava..."
 - "All'improvviso..."
@@ -172,6 +202,10 @@ Preferire:
 - "Vicino alla roccia..."
 - "Sul lago..."
 - "Nel bagliore..."
+- "Nel buio..."
+- "All'alba..."
+
+Ogni frase deve collegarsi alla precedente in modo naturale. La storia deve sembrare un flusso, non un elenco di eventi.
 
 ---
 
