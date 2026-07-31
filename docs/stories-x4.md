@@ -5,7 +5,7 @@
 **Premessa:** 🪑 Sedia Magica × ⛏️ Piccone  
 **Finale:** 🪑 Sedia Magica
 
-La Sedia Magica (🪑) era ancora in mezzo al lago di sale, emersa e immobile. In lontananza, oltre l'acqua, si stagliava la roccia del Piccone (⛏️). La Sedia Magica (🪑) aspettava.
+La Sedia Magica (🪑) era ancora in mezzo al lago di sale, emersa e immobile. In lontananza, oltre l'acqua, si stagliava la roccia del Piccone (⛏️). La Sedia Magica (🪑) sembrava aspettare.
 
 ---
 

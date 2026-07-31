@@ -107,7 +107,28 @@ Il Cigno Orion (🦢) ha il numero 2, che non è né fattore né cifra di 18. Qu
 
 ---
 
-# Continuità narrativa
+# Oggetti vs personaggi
+
+I **personaggi** (Cigno, Serpente, Chiocciola...) possono compiere azioni attive: volano, sibilano, sorridono, aspettano.
+
+Gli **oggetti** (Sedia Magica, Piccone, Uovo, Infinito, Moneta rara...) **non possono compiere azioni attive**. Non pensano, non aspettano, non decidono.
+
+Gli oggetti possono avere solo:
+- descrizioni passive: "era ferma", "era incisa", "era emersa"
+- apparenze percettive: "sembrava aspettare", "pareva vibrare", "sembrava respirare"
+- reazioni fisiche subite: "tremò", "si illuminò", "brillò"
+
+Esempi:
+
+❌ `"La Sedia Magica aspettava."` — azione attiva, come se fosse viva  
+✅ `"La Sedia Magica sembrava aspettare."` — percezione, non azione
+
+❌ `"Il Piccone sapeva dove portarlo."` — intenzione attiva  
+✅ `"Il Piccone sembrava indicare la strada."` — apparenza percettiva
+
+---
+
+
 
 Le storie NON sono indipendenti.
 
