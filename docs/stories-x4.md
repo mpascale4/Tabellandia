@@ -5,7 +5,7 @@
 **Premessa:** 🪑 Sedia Magica × ⛏️ Piccone  
 **Finale:** 🪑 Sedia Magica
 
-La Sedia Magica (🪑) era ferma sulla riva del lago, silenziosa come sempre. Accanto, la roccia del Piccone (⛏️) la vegliava nell'ombra. Orion si avvicinò e si sedette — e qualcosa nell'aria cambiò.
+La Sedia Magica (🪑) era comparsa vicino alla roccia del Piccone (⛏️), come se avesse viaggiato da sola dal lago. Orion la fissò — sembrava aspettarlo da sempre. Si sedette, e qualcosa nell'aria cambiò.
 
 ---
 
