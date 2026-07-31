@@ -1,11 +1,11 @@
-# Tabellina del 8
+﻿# Tabellina del 8
 
 ## 8×1 = 8
 
 **Premessa:** ♾️ Infinito × ⛏️ Piccone  
 **Finale:** ♾️ Infinito
 
-Il simbolo dell'Infinito (♾️) era inciso sulla roccia del Piccone (⛏️) come una cicatrice antica. Non lo aveva mai visto così nitido. L'Infinito (♾️) brillava da solo, senza aver bisogno di niente.
+Il simbolo dell'Infinito (♾️) era inciso sulla roccia 🪨 del Piccone (⛏️) come una cicatrice antica. Non lo aveva mai visto così nitido. L'Infinito (♾️) brillava da solo, senza aver bisogno di niente.
 
 ---
 
@@ -14,7 +14,7 @@ Il simbolo dell'Infinito (♾️) era inciso sulla roccia del Piccone (⛏️) c
 **Premessa:** ♾️ Infinito × 🦢 Cigno (Orion)  
 **Finale:** ⛏️ Piccone + 🐌 Chiocciola (Lina)
 
-L'Infinito (♾️) si aprì davanti al Cigno Orion (🦢) come un portale nella roccia. Oltre la soglia, incisi insieme, il Piccone (⛏️) e il profilo della Chiocciola Lina (🐌) — i due volti di chi aveva tracciato quella strada per lui.
+L'Infinito (♾️) si aprì davanti al Cigno Orion (🦢) come un portale nella roccia 🪨. Oltre la soglia, incisi insieme, il Piccone (⛏️) e il profilo della Chiocciola Lina (🐌) — i due volti di chi aveva tracciato quella strada per lui.
 
 ---
 
@@ -32,7 +32,7 @@ L'Infinito (♾️) era intrecciato al simbolo della Moneta rara (💶) come se 
 **Premessa:** ♾️ Infinito × 🪑 Sedia Magica  
 **Finale:** 💶 Moneta rara + 🦢 Cigno (Orion)
 
-L'Infinito (♾️) pulsava sotto la Sedia Magica (🪑) con un ritmo lento, regolare. Si avvicinò e vide il suo riflesso nella pietra lucida: la Moneta rara (💶) incisa nel fondo, e sopra di essa, come ali dispiegate, la sagoma di un Cigno (🦢).
+L'Infinito (♾️) pulsava sotto la Sedia Magica (🪑) con un ritmo lento, regolare. Si avvicinò e vide il suo riflesso nella pietra 🪨 lucida: la Moneta rara (💶) incisa nel fondo, e sopra di essa, come ali dispiegate, la sagoma di un Cigno (🦢).
 
 ---
 
@@ -61,7 +61,7 @@ L'Infinito (♾️) era il cuore di tutto — lo capì in quell'istante. E la vo
 **Premessa:** ♾️ Infinito × ⚡ Fulmine  
 **Finale:** 🐍 Serpente (Bobo) + 🐌 Chiocciola (Lina)
 
-L'Infinito (♾️) brillò un'ultima volta — poi un Fulmine (⚡) lo spense. Nel buio che seguì, Bobo il Serpente (🐍) era ancora lì, immobile. E nella pietra, la voce della Chiocciola Lina (🐌) sussurrò: «Ora sai dove guardare».
+L'Infinito (♾️) brillò un'ultima volta — poi un Fulmine (⚡) lo spense. Nel buio 🌑 che seguì, Bobo il Serpente (🐍) era ancora lì, immobile. E nella pietra 🪨, la voce della Chiocciola Lina (🐌) sussurrò: «Ora sai dove guardare».
 
 ---
 
@@ -79,4 +79,4 @@ Due simboli dell'Infinito (♾️), sovrapposti, formavano qualcosa di nuovo —
 **Premessa:** ♾️ Infinito × 🎈 Palloncino  
 **Finale:** ⚡ Fulmine + 🦢 Cigno (Orion)
 
-L'Infinito (♾️) si spense lentamente, come una candela. Un Palloncino (🎈) rosso salì silenzioso verso il cielo aperto — libero, leggero. E nel suo passaggio, un Fulmine (⚡) lontano squarciò le nuvole. Nel lampo, la sagoma di un Cigno (🦢) bianco si disegnò nitida nel cielo.
+L'Infinito (♾️) si spense lentamente, come una candela. Un Palloncino (🎈) rosso salì silenzioso verso il cielo ☁ aperto — libero, leggero. E nel suo passaggio, un Fulmine (⚡) lontano squarciò le nuvole ☁. Nel lampo, la sagoma di un Cigno (🦢) bianco si disegnò nitida nel cielo ☁.
