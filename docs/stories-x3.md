@@ -5,7 +5,7 @@
 **Premessa:** 💶 Moneta rara × ⛏️ Piccone  
 **Finale:** 💶 Moneta rara
 
-C'era anche un altro simbolo. Il contorno della Moneta rara (💶) era incisa proprio sulla roccia del Piccone (⛏️). Non era un sogno. Quella stessa Moneta rara (💶) era lì, scolpita nella pietra.
+Sulla roccia del Piccone (⛏️) c'era qualcosa che non aveva ancora notato. Scolpita in profondità nella pietra, brillava l'immagine della Moneta rara (💶).
 
 ---
 
@@ -14,7 +14,7 @@ C'era anche un altro simbolo. Il contorno della Moneta rara (💶) era incisa pr
 **Premessa:** 💶 Moneta rara × 🦢 Cigno (Orion)  
 **Finale:** 🐌 Chiocciola (Lina)
 
-Intorno alla Moneta rara (💶) c'erano due ali dispiegate, proprio come quelle di un Cigno (🦢). All'improvviso ricordò le parole della Chiocciola Lina (🐌): «Troverai te stesso dove meno te lo aspetti.»
+Intorno alla Moneta rara (💶) erano incise due ali dispiegate — le ali di un Cigno (🦢). Gli tornarono subito in mente le parole della Chiocciola Lina (🐌): «Troverai te stesso dove meno te lo aspetti.»
 
 ---
 
@@ -23,7 +23,7 @@ Intorno alla Moneta rara (💶) c'erano due ali dispiegate, proprio come quelle 
 **Premessa:** 💶 Moneta rara × 💶 Moneta rara  
 **Finale:** 🎈 Palloncino
 
-Due immagini della stessa Moneta rara (💶) brillavano l'una accanto all'altra sulla roccia. Sembravano rispecchiarsi, identiche. Nel buio tra i due simboli, un Palloncino (🎈) rosso era disegnato in lontananza. Era proprio uguale al Palloncino (🎈) che lo aveva guidato lì.
+Due immagini della stessa Moneta rara (💶) brillavano affiancate sulla roccia, come specchi. Nel solco tra i due simboli era scolpito un Palloncino (🎈) rosso — identico a quello che lo aveva guidato fin lì.
 
 ---
 
@@ -32,7 +32,7 @@ Due immagini della stessa Moneta rara (💶) brillavano l'una accanto all'altra 
 **Premessa:** 💶 Moneta rara × 🪑 Sedia Magica  
 **Finale:** ⛏️ Piccone + 🦢 Cigno (Orion)
 
-Sotto il disegno della Moneta rara (💶) c'era un'altra incisione: una Sedia Magica (🪑) al centro di un cerchio. E sopra il cerchio, due simboli: un Piccone (⛏️) e un Cigno (🦢).
+Sotto la Moneta rara (💶) brillava una seconda incisione — una Sedia Magica (🪑) al centro di un cerchio antico. Sul bordo superiore erano scolpiti un Piccone (⛏️) e un Cigno (🦢), uno accanto all'altro.
 
 ---
 
@@ -41,7 +41,7 @@ Sotto il disegno della Moneta rara (💶) c'era un'altra incisione: una Sedia Ma
 **Premessa:** 💶 Moneta rara × 🐍 Serpente (Bobo)  
 **Finale:** ⛏️ Piccone + 🐍 Serpente (Bobo)
 
-La Moneta rara (💶) sembrava guidarlo. Bobo il Serpente (🐍) era già avvolto alla base della roccia, come se l'aspettasse. Sibilò sottovoce: «Guarda bene il Piccone (⛏️).» Poi il Serpente (🐍) scomparve.
+Il segno della Moneta rara (💶) pulsava sulla pietra come se respirasse. Bobo il Serpente (🐍) era già avvolto alla base della roccia, immobile. Sibilò sottovoce: «Guarda bene il Piccone (⛏️).» Poi il Serpente (🐍) scomparve nel buio.
 
 ---
 
@@ -50,7 +50,7 @@ La Moneta rara (💶) sembrava guidarlo. Bobo il Serpente (🐍) era già avvolt
 **Premessa:** 💶 Moneta rara × 🐌 Chiocciola (Lina)  
 **Finale:** ⛏️ Piccone + ♾️ Infinito
 
-Ripensando alla Moneta rara (💶), tornò in mente un consiglio della Chiocciola Lina (🐌): «Dove il Piccone (⛏️) incontra l'Infinito (♾️), troverai la tua risposta.»
+Fissando ancora la Moneta rara (💶), gli tornò in mente la voce della Chiocciola Lina (🐌): «Dove il Piccone (⛏️) incontra l'Infinito (♾️), troverai la tua risposta.»
 
 ---
 
@@ -59,7 +59,7 @@ Ripensando alla Moneta rara (💶), tornò in mente un consiglio della Chiocciol
 **Premessa:** 💶 Moneta rara × ⚡ Fulmine  
 **Finale:** 🦢 Cigno (Orion) + ⛏️ Piccone
 
-Nel buio della notte il segno della Moneta rara (💶) brillò sul suolo. Un Fulmine (⚡) squarciò il cielo e illuminò tutto. Nel bagliore, Orion vide il suo stesso profilo di Cigno (🦢) proiettato sul Piccone (⛏️).
+Nel buio della notte, il segno della Moneta rara (💶) sembrava brillare da solo sulla pietra. Un Fulmine (⚡) squarciò il cielo. Nel bagliore, il profilo di un Cigno (🦢) si proiettò netto sul Piccone (⛏️).
 
 ---
 
@@ -68,7 +68,7 @@ Nel buio della notte il segno della Moneta rara (💶) brillò sul suolo. Un Ful
 **Premessa:** 💶 Moneta rara × ♾️ Infinito  
 **Finale:** 🦢 Cigno (Orion) + 🪑 Sedia Magica
 
-Il segno della Moneta rara (💶) e quello dell'Infinito (♾️) si intrecciavano senza fine. Il Cigno Orion (🦢) sognò di essere posato sulla Sedia Magica (🪑) al centro del lago di sale.
+Il segno della Moneta rara (💶) e quello dell'Infinito (♾️) si intrecciavano sulla roccia come due fili d'oro. Il Cigno Orion (🦢) chiuse gli occhi e sognò di posarsi in silenzio sulla Sedia Magica (🪑) al centro del lago di sale.
 
 ---
 
@@ -77,4 +77,4 @@ Il segno della Moneta rara (💶) e quello dell'Infinito (♾️) si intrecciava
 **Premessa:** 💶 Moneta rara × 🎈 Palloncino  
 **Finale:** 🦢 Cigno (Orion) + ⚡ Fulmine
 
-Stava ancora fissando il simbolo della Moneta rara (💶) quando un Palloncino (🎈) rosso passò silenzioso sopra di lui. Lo seguì con lo sguardo fino a quando scomparve tra il profilo di un Cigno (🦢) bianco e un Fulmine (⚡) lontano.
+All'alba, il simbolo della Moneta rara (💶) era ancora lì, immobile nella pietra. Un Palloncino (🎈) rosso passò silenzioso nel cielo. Lo seguì con lo sguardo fino a quando scomparve tra il profilo di un Cigno (🦢) bianco e un Fulmine (⚡) lontano.
