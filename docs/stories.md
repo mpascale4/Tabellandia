@@ -33,7 +33,7 @@ Quando sollevò la roccia, quando vide le ali incise accanto al Piccone e all'In
 
 ## La ricerca di Orion
 
-Il Cigno Orion non sa ancora dove lo porteranno questi segni. Sa solo che la Terra Magica è piena di segnali — la Moneta rara, il Piccone, la Sedia Magica, l'Infinito. Sa solo che la Chiocciola Lina ha detto che troverebbe il suo cammino se imparava a leggere le storie scritte nella roccia.
+Il Cigno Orion non sa ancora dove lo porteranno questi segni. Sa solo che la Terra Magica è piena di segnali — la Moneta rara, il Piccone, la Sedia Magica, l'Infinito. Sa solo che la Chiocciola Lina gli aveva insegnato, molto tempo prima, a riconoscere questi segni: se imparava a leggerli bene, essi stessi sarebbero diventati il suo cammino.
 
 Ma cosa scoprirà veramente? E quando avrà sollevato l'ultima pietra, quando avrà visto l'ultimo segno inciso nel cuore della Terra Magica... saprà finalmente chi è? O avrà solo più domande?
 
