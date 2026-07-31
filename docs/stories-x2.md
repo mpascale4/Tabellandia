@@ -5,7 +5,7 @@
 **Premessa:** 🦢 Cigno (Orion) × ⛏️ Piccone  
 **Finale:** 🦢 Cigno (Orion)
 
-Erano ormai giorni che il Cigno Orion (🦢) sorvolava la Terra Magica seguendo una vecchia mappa. Quando vide finalmente la terra del Piccone (⛏️), capì di essere sulla strada giusta. Si fermò a riposare per un momento e poi il Cigno Orion (🦢) riprese il viaggio.
+Da giorni il Cigno Orion (🦢) volava sulla Terra Magica, guidato solo da una vecchia mappa sgualcita. Quando scorse in basso la terra del Piccone (⛏️), il cuore gli balzò in petto: era la strada giusta. Si posò un istante su una roccia, poi il Cigno Orion (🦢) tornò in volo.
 
 ---
 
@@ -14,7 +14,7 @@ Erano ormai giorni che il Cigno Orion (🦢) sorvolava la Terra Magica seguendo 
 **Premessa:** 🦢 Cigno (Orion) × 🦢 Cigno  
 **Finale:** 🪑 Sedia Magica
 
-Il volo del Cigno Orion (🦢) continuò tra montagne lucenti e laghi color argento. Planando sopra un lago di sale vide un altro Cigno (🦢) nell'acqua immobile e si spaventò. Ma era soltanto il suo riflesso... Sotto quella superficie magica si diceva fosse nascosta una Sedia Magica (🪑).
+Il Cigno Orion (🦢) scivolò tra montagne lucenti e valli di cristallo, sempre più in basso verso il lago. Planando sull'acqua ferma vide la propria immagine riflessa: un altro Cigno (🦢) che lo fissava dal basso. Ma era solo il suo riflesso... Dicevano che in quelle acque fosse nascosta una Sedia Magica (🪑).
 
 ---
 
@@ -23,7 +23,7 @@ Il volo del Cigno Orion (🦢) continuò tra montagne lucenti e laghi color arge
 **Premessa:** 🦢 Cigno (Orion) × 💶 Moneta rara  
 **Finale:** 🐌 Chiocciola (Lina)
 
-Vicino alla riva del lago, Orion notò inciso nella pietra il simbolo di una rara Moneta (💶). Non l'aveva mai vista davvero, ma riconobbe subito quel segno misterioso. Gli tornarono in mente le tante storie che la Chiocciola Lina (🐌) gli aveva raccontato prima della partenza.
+Scendendo verso la riva del lago, il Cigno Orion (🦢) vide qualcosa di strano su una roccia: il simbolo di una Moneta rara (💶), inciso nella pietra. Non l'aveva mai vista davvero, eppure lo riconobbe subito. Era lo stesso segno di cui la Chiocciola Lina (🐌) gli aveva sempre parlato.
 
 ---
 
@@ -32,7 +32,7 @@ Vicino alla riva del lago, Orion notò inciso nella pietra il simbolo di una rar
 **Premessa:** 🦢 Cigno (Orion) × 🪑 Sedia Magica  
 **Finale:** ♾️ Infinito
 
-Curioso di saperne di più, il Cigno Orion (🦢) si avvicinò all'acqua. E all'improvviso emerse una Sedia Magica (🪑), coperta di alghe luccicanti. Sullo schienale era impresso un antico marchio: il simbolo dell'Infinito (♾️).
+Il Cigno Orion (🦢) si avvicinò all'acqua e guardò giù. Dal fondo emerse lentamente una Sedia Magica (🪑), ricoperta di alghe argentate. Sullo schienale brillava un marchio antico: il segno dell'Infinito (♾️).
 
 ---
 
@@ -41,7 +41,7 @@ Curioso di saperne di più, il Cigno Orion (🦢) si avvicinò all'acqua. E all'
 **Premessa:** 🦢 Cigno (Orion) × 🐍 Serpente (Bobo)  
 **Finale:** ⛏️ Piccone
 
-Mentre era distratto, il Cigno Orion (🦢) sentì un leggero fruscìo provenire dalle rocce. Il terreno sembrò muoversi e da una fessura sbucò il Serpente Bobo (🐍): che sibilò "Se cerchi la roccia del Piccone (⛏️) devi volare a sud".
+Il Cigno Orion (🦢) stava ancora osservando la riva quando sentì un fruscìo tra le rocce. Da una fessura scivolò fuori il Serpente Bobo (🐍) e sibilò sottovoce: «Vola a sud, se cerchi la roccia del Piccone (⛏️)».
 
 ---
 
@@ -50,7 +50,7 @@ Mentre era distratto, il Cigno Orion (🦢) sentì un leggero fruscìo provenire
 **Premessa:** 🦢 Cigno (Orion) × 🐌 Chiocciola (Lina)  
 **Finale:** ⛏️ Piccone + 🦢 Cigno (Orion)
 
-Tornarono alla mente del Cigno Orion (🦢) le parole della Chiocciola Lina (🐌): «Solo chi striscia sa dove si trovi la roccia del Piccone (⛏️). Ma solo lì troverai l'indizio più importante». Tenendo a mente la roccia del Piccone (⛏️), il Cigno Orion (🦢) si rimise in viaggio verso sud.
+Il Cigno Orion (🦢) ricordò le parole della Chiocciola Lina (🐌): «Solo chi striscia conosce la strada del Piccone (⛏️). E solo lì troverai l'indizio più importante». Con quelle parole nel cuore, la roccia del Piccone (⛏️) era la meta — e il Cigno Orion (🦢) aprì le ali verso sud.
 
 ---
 
@@ -59,7 +59,7 @@ Tornarono alla mente del Cigno Orion (🦢) le parole della Chiocciola Lina (�
 **Premessa:** 🦢 Cigno (Orion) × ⚡ Fulmine  
 **Finale:** ⛏️ Piccone + 🪑 Sedia Magica
 
-Mentre il Cigno Orion (🦢) sorvolava i posti incantati della Terra Magica, all'improvviso un Fulmine (⚡) illuminò il cielo davanti a lui. La roccia del Piccone (⛏️) aveva lo stesso simbolo della Sedia Magica (🪑).
+Mentre il Cigno Orion (🦢) volava verso sud, un Fulmine (⚡) squarciò il cielo. Nel bagliore apparve la roccia del Piccone (⛏️), con lo stesso simbolo della Sedia Magica (🪑) scolpito sopra.
 
 ---
 
@@ -68,7 +68,7 @@ Mentre il Cigno Orion (🦢) sorvolava i posti incantati della Terra Magica, all
 **Premessa:** 🦢 Cigno (Orion) × ♾️ Infinito  
 **Finale:** ⛏️ Piccone + 🐌 Chiocciola (Lina)
 
-Mentre ripensava agli indizi trovati, il Cigno Orion (🦢) capì che tutto girava intorno al simbolo dell'Infinito (♾️). Capì allora che doveva raggiungere la roccia del Piccone (⛏️), proprio come gli aveva detto la Chiocciola Lina (🐌).
+Il Cigno Orion (🦢) ripensava a ogni indizio trovato: tutti portavano al simbolo dell'Infinito (♾️). La meta era chiara — la roccia del Piccone (⛏️) — proprio come aveva sempre suggerito la Chiocciola Lina (🐌).
 
 ---
 
@@ -77,4 +77,4 @@ Mentre ripensava agli indizi trovati, il Cigno Orion (🦢) capì che tutto gira
 **Premessa:** 🦢 Cigno (Orion) × 🎈 Palloncino  
 **Finale:** ⛏️ Piccone + ♾️ Infinito
 
-E mentre il Cigno Orion (🦢) sorvolava la valle silenziosa, un Palloncino (🎈) rosso comparve tra le nuvole. Decise di seguirlo e finalmente raggiunse la roccia del Piccone (⛏️) su cui era inciso l'Infinito (♾️).
+Il Cigno Orion (🦢) sorvolava la valle silenziosa quando un Palloncino (🎈) rosso emerse tra le nuvole. Lo seguì fino in fondo e si posò sulla roccia del Piccone (⛏️), dove brillava l'Infinito (♾️) inciso nella pietra.
