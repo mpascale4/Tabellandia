@@ -95,7 +95,9 @@ Non deve:
 - essere descritto fisicamente;
 - essere simboleggiato o evocato esplicitamente.
 
-I pronomi grammaticali neutri ("lui", "lo", "-lo") sono tollerati quando necessari per la continuità narrativa.
+**I nomi propri contano come comparsa.** Scrivere "Orion tornò" introduce il Cigno (🦢=2) nella storia, anche senza descriverlo. Se 2 non è né fattore né cifra del risultato, il nome "Orion" non può apparire.
+
+I soli pronomi neutri generici ("lui", "lo", "-lo") sono tollerati quando strettamente necessari per la continuità sintattica — non per identificare un personaggio specifico non previsto dall'operazione.
 
 Esempio:
 
