@@ -233,6 +233,25 @@ function withTableIcon(worldId: number, label: string): string {
   return label.trimEnd().endsWith(icon) ? label : `${label} ${icon}`;
 }
 
+const RANDOM_WORLD: WorldConfig = {
+  id: 0,
+  name: 'Allenamento Casuale',
+  locationName: 'Regno Misto di Tabellandia',
+  color: 'from-purple-500 to-indigo-600',
+  accentColor: 'border-purple-400 text-purple-600 bg-purple-50',
+  symbol: '🎲',
+  mascotName: 'Tutti i Mnemocuccioli',
+  mascotRole: 'Gli spiriti di Tabellandia',
+  creatureName: 'Dado Magico',
+  creatureDescription: 'Un dado incantato che mescola tutte le tabelline!',
+  filastrocca: 'Gira il dado, salta il numero, impara tutto e sarai il più sicuro!',
+  trickTitle: 'Meteora di Risposte',
+  trickDescription: 'Concentrati su ogni singola moltiplicazione!',
+  trickVisualExplanation: 'Ogni domanda usa la mnemotecnica visiva per aiutarti.',
+  itemsToCount: '🎲',
+  monuments: [],
+};
+
 const MOTIVATIONAL_CORRECT = [
   'Fantastico! 🎉', 'Bravo/a! 🌟', 'Perfetto! ✨', 'Esatto! 🏆',
   'Ottimo lavoro! 💪', 'Sei fortissimo/a! 🚀', 'Continua così! 🌈',
@@ -275,7 +294,26 @@ function generateOptions(correct: number): number[] {
   return Array.from(set).sort(() => Math.random() - 0.5);
 }
 
+function buildRandomQuestionDeck(count = 12): Question[] {
+  const deck: Question[] = [];
+  const usedKeys = new Set<string>();
+  while (deck.length < count) {
+    const m = Math.floor(Math.random() * 9) + 1; // 1..9
+    const w = Math.floor(Math.random() * 8) + 2; // 2..9
+    const key = `${m}x${w}`;
+    if (!usedKeys.has(key)) {
+      usedKeys.add(key);
+      const answer = m * w;
+      deck.push({ multiplier: m, worldId: w, answer, options: generateOptions(answer) });
+    }
+  }
+  return deck;
+}
+
 function buildQuestionDeck(worldId: number): Question[] {
+  if (worldId === 0) {
+    return buildRandomQuestionDeck(12);
+  }
   const deck: Question[] = [];
   for (let m = 1; m <= 9; m++) {
     const answer = m * worldId;
@@ -441,7 +479,9 @@ function TrainingSession({
       >
         {/* Titolo tabellina */}
         <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest font-sans">
-          {withTableIcon(worldId, `Tabellina del ${worldId}`)}
+          {world.id === 0
+            ? `🎲 Allenamento Casuale • Tabellina del ${worldId}`
+            : withTableIcon(worldId, `Tabellina del ${worldId}`)}
         </p>
 
         {/* Equazione numerica */}
@@ -756,9 +796,40 @@ function TrainingHome({
         <SectionHeader
           eyebrow="Allenamento libero"
           title="Quale tabellina vuoi allenare?"
-          description="Scegli una tabellina per allenarti o premi 📖 per leggere le storie!"
+          description="Scegli una tabellina, gioca in modalità casuale o premi 📖 per le storie!"
         />
       </SurfaceCard>
+
+      {/* Banner Allenamento Casuale */}
+      <button
+        type="button"
+        onClick={() => onSelect(0)}
+        className="w-full rounded-2xl border-2 sm:border-3 border-purple-300/90 bg-gradient-to-r from-purple-100 via-indigo-100 to-pink-100 p-3.5 sm:p-4 shadow-sm hover:shadow-md hover:border-purple-400 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between gap-3 text-left focus-visible:outline-4 focus-visible:outline-sky-500"
+        aria-label="Avvia Allenamento Casuale con domande scelte a caso da tutte le tabelline"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-2xl sm:text-3xl text-white shadow-md shrink-0">
+            🎲
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-base sm:text-lg font-black text-purple-950">
+                Allenamento Casuale
+              </span>
+              <span className="rounded-full bg-purple-200/90 px-2 py-0.5 text-[10px] sm:text-xs font-extrabold text-purple-900 border border-purple-300">
+                Tutte le tabelline
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-medium text-purple-900/80 leading-snug truncate">
+              Metti alla prova la tua memoria con domande scelte a caso da ogni tabellina!
+            </p>
+          </div>
+        </div>
+        <div className="hidden sm:flex items-center gap-1.5 text-xs font-black text-purple-950 bg-white/90 rounded-xl px-3 py-2 border border-purple-200 shadow-2xs shrink-0">
+          <span>Inizia</span>
+          <span>🎲</span>
+        </div>
+      </button>
 
       <div
         role="list"
@@ -796,7 +867,7 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
   }, [selectedId, storyId]);
 
   const selectedWorld = selectedId !== null
-    ? WORLDS_DATA.find(w => w.id === selectedId) ?? null
+    ? (selectedId === 0 ? RANDOM_WORLD : WORLDS_DATA.find(w => w.id === selectedId) ?? null)
     : null;
 
   if (storyId !== null) {
