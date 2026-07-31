@@ -50,7 +50,7 @@ La Sedia Magica (🪑) scivolò da sola verso la riva 🏖 del lago 🌊. Bobo i
 **Premessa:** 🪑 Sedia Magica × 🐌 Chiocciola (Lina)  
 **Finale:** 🦢 Cigno (Orion) + 🪑 Sedia Magica
 
-La Sedia Magica (🪑) vibrò forte non appena toccò la riva 🏖 — e il fondale di roccia 🪨 sotto i piedi cedette. Nel buio 🌑 che si aprì, risuonò la voce della Chiocciola Lina (🐌): «Siediti ancora. Non resistere». Il Cigno Orion (🦢) si lasciò andare, e la Sedia Magica (🪑) lo portò giù, in un luogo che nessuno aveva mai visto.
+La Sedia Magica (🪑) vibrò forte non appena toccò la riva 🏖 — e il fondale di roccia 🪨 sotto i piedi cedette. Nel buio 🌑 che si aprì, risuonò la voce 🗣 della Chiocciola Lina (🐌): «Siediti ancora. Non resistere». Il Cigno Orion (🦢) si lasciò andare, e la Sedia Magica (🪑) lo portò giù, in un luogo che nessuno aveva mai visto.
 
 ---
 
@@ -77,4 +77,4 @@ La Sedia Magica (🪑) era al centro della sala sotterranea. L'Infinito (♾️)
 **Premessa:** 🪑 Sedia Magica × 🎈 Palloncino  
 **Finale:** 💶 Moneta rara + 🐌 Chiocciola (Lina)
 
-La Sedia Magica (🪑) rimase ferma nel buio 🌑 sotterraneo. Un Palloncino (🎈) rosso fluttuava lento, come se tracciasse una strada. Scomparve oltre la roccia 🪨 — lasciando dietro di sé il profilo di una Moneta rara (💶) disegnato nell'aria e il sussurro lontano della Chiocciola Lina (🐌).
+La Sedia Magica (🪑) rimase ferma nel buio 🌑 sotterraneo. Un Palloncino (🎈) rosso fluttuava lento, come se tracciasse una strada 🛤. Scomparve oltre la roccia 🪨 — lasciando dietro di sé il profilo di una Moneta rara (💶) disegnato nell'aria e il sussurro 🗣 lontano della Chiocciola Lina (🐌).

@@ -77,4 +77,4 @@ Il Fulmine (⚡) tracciò nel cielo ☁ il simbolo dell'Infinito (♾️), nitid
 **Premessa:** ⚡ Fulmine × 🎈 Palloncino  
 **Finale:** 🐌 Chiocciola (Lina) + 💶 Moneta rara
 
-L'ultimo Fulmine (⚡) della notte sfiorò un Palloncino (🎈) rosso senza bruciarlo. Il Palloncino rimase intatto, luminoso nel buio 🌑. In quel silenzio, la voce della Chiocciola Lina (🐌) risuonò — e il simbolo della Moneta rara (💶) brillò nella pietra 🪨, inciso per sempre.
+L'ultimo Fulmine (⚡) della notte sfiorò un Palloncino (🎈) rosso senza bruciarlo. Il Palloncino rimase intatto, luminoso nel buio 🌑. In quel silenzio, la voce 🗣 della Chiocciola Lina (🐌) risuonò — e il simbolo della Moneta rara (💶) brillò nella pietra 🪨, inciso per sempre.

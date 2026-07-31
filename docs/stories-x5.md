@@ -41,7 +41,7 @@ Bobo il Serpente (🐍) scivolò silenzioso fino alla Sedia Magica (🪑), ancor
 **Premessa:** 🐍 Serpente (Bobo) × 🐍 Serpente (Bobo)  
 **Finale:** 🦢 Cigno (Orion) + 🐍 Serpente (Bobo)
 
-Due serpenti identici — eppure era lo stesso Bobo (🐍), riflesso nell'acqua 💧 nera sul pavimento. Il Cigno Orion (🦢) li osservò entrambi, immobile. Il Serpente (🐍) reale alzò la testa e sibilò: «Devi scegliere la strada che non conosci».
+Due serpenti identici — eppure era lo stesso Bobo (🐍), riflesso nell'acqua 💧 nera sul pavimento. Il Cigno Orion (🦢) li osservò entrambi, immobile. Il Serpente (🐍) reale alzò la testa e sibilò: «Devi scegliere la strada 🛤 che non conosci».
 
 ---
 

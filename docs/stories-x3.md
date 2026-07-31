@@ -14,7 +14,7 @@ La Moneta rara (💶) era lì, scolpita sulla roccia 🪨 del Piccone (⛏️). 
 **Premessa:** 💶 Moneta rara × 🦢 Cigno (Orion)  
 **Finale:** 🐌 Chiocciola (Lina)
 
-Attorno alla Moneta rara (💶) erano scolpite due ali dispiegate, ampie come quelle di un Cigno (🦢). Nel silenzio, risentì la voce della Chiocciola Lina (🐌): «Troverai te stesso dove meno te lo aspetti.»
+Attorno alla Moneta rara (💶) erano scolpite due ali dispiegate, ampie come quelle di un Cigno (🦢). Nel silenzio, risentì la voce 🗣 della Chiocciola Lina (🐌): «Troverai te stesso dove meno te lo aspetti.»
 
 ---
 
@@ -50,7 +50,7 @@ Il segno della Moneta rara (💶) pulsava sulla pietra 🪨 come se respirasse. 
 **Premessa:** 💶 Moneta rara × 🐌 Chiocciola (Lina)  
 **Finale:** ⛏️ Piccone + ♾️ Infinito
 
-Davanti alla Moneta rara (💶) si fermò a lungo. Fu allora che risentì la voce della Chiocciola Lina (🐌) come un sussurro: «Dove il Piccone (⛏️) tocca l'Infinito (♾️), lì troverai la tua risposta.»
+Davanti alla Moneta rara (💶) si fermò a lungo. Fu allora che risentì la voce 🗣 della Chiocciola Lina (🐌) come un sussurro 🗣: «Dove il Piccone (⛏️) tocca l'Infinito (♾️), lì troverai la tua risposta.»
 
 ---
 
@@ -68,7 +68,7 @@ Nel buio 🌑, il segno della Moneta rara (💶) brillava da solo sulla pietra �
 **Premessa:** 💶 Moneta rara × ♾️ Infinito  
 **Finale:** 🦢 Cigno (Orion) + 🪑 Sedia Magica
 
-La Moneta rara (💶) e l'Infinito (♾️) si intrecciavano sulla roccia 🪨 come se fossero sempre stati uno solo. Il Cigno Orion (🦢) chiuse gli occhi e scivolò nel sogno: era posato sulla Sedia Magica (🪑), al centro del lago di sale 🌊.
+La Moneta rara (💶) e l'Infinito (♾️) si intrecciavano sulla roccia 🪨 come se fossero sempre stati uno solo. Il Cigno Orion (🦢) chiuse gli occhi e scivolò nel sogno 💭: era posato sulla Sedia Magica (🪑), al centro del lago di sale 🌊.
 
 ---
 

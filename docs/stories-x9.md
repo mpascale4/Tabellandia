@@ -32,7 +32,7 @@ Il Palloncino (🎈) si fermò sopra il simbolo della Moneta rara (💶), inciso
 **Premessa:** 🎈 Palloncino × 🪑 Sedia Magica  
 **Finale:** 💶 Moneta rara + 🐌 Chiocciola (Lina)
 
-Il Palloncino (🎈) si posò sullo schienale della Sedia Magica (🪑) e rimase fermo. Si avvicinò lentamente. In quell'istante brillò il profilo della Moneta rara (💶) sulla pietra 🪨, e la voce della Chiocciola Lina (🐌): «Stai per trovare quello che cerchi da sempre».
+Il Palloncino (🎈) si posò sullo schienale della Sedia Magica (🪑) e rimase fermo. Si avvicinò lentamente. In quell'istante brillò il profilo della Moneta rara (💶) sulla pietra 🪨, e la voce 🗣 della Chiocciola Lina (🐌): «Stai per trovare quello che cerchi da sempre».
 
 ---
 
@@ -50,7 +50,7 @@ Il Palloncino (🎈) scivolò verso il basso — e Bobo il Serpente (🐍) lo se
 **Premessa:** 🎈 Palloncino × 🐌 Chiocciola (Lina)  
 **Finale:** 🐍 Serpente (Bobo) + 🪑 Sedia Magica
 
-Il Palloncino (🎈) si gonfiò ancora di più, come se trattenesse qualcosa. La voce della Chiocciola Lina (🐌) tornò una volta sola: «Muovi la Sedia». Si spinse la Sedia Magica (🪑) di lato. Il pavimento era diverso sotto. E in quella ombra 🌘, Bobo il Serpente (🐍) strisciò silenzioso intorno alla Sedia (🪑).
+Il Palloncino (🎈) si gonfiò ancora di più, come se trattenesse qualcosa. La voce 🗣 della Chiocciola Lina (🐌) tornò una volta sola: «Muovi la Sedia». Si spinse la Sedia Magica (🪑) di lato. Il pavimento era diverso sotto. E in quella ombra 🌘, Bobo il Serpente (🐍) strisciò silenzioso intorno alla Sedia (🪑).
 
 ---
 

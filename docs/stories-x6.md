@@ -5,7 +5,7 @@
 **Premessa:** 🐌 Chiocciola (Lina) × ⛏️ Piccone  
 **Finale:** 🐌 Chiocciola (Lina)
 
-Nel corridoio sotterraneo, una voce lenta e calma riecheggiò tra le pareti. Era la voce della Chiocciola Lina (🐌) — non lei, solo il suono dei suoi vecchi consigli, incisi nella roccia 🪨 accanto al Piccone (⛏️). La Chiocciola Lina (🐌) non c'era, ma la sua presenza riempiva ogni pietra 🪨.
+Nel corridoio sotterraneo, una voce 🗣 lenta e calma riecheggiò tra le pareti. Era la voce 🗣 della Chiocciola Lina (🐌) — non lei, solo il suono dei suoi vecchi consigli, incisi nella roccia 🪨 accanto al Piccone (⛏️). La Chiocciola Lina (🐌) non c'era, ma la sua presenza riempiva ogni pietra 🪨.
 
 ---
 
@@ -14,7 +14,7 @@ Nel corridoio sotterraneo, una voce lenta e calma riecheggiò tra le pareti. Era
 **Premessa:** 🐌 Chiocciola (Lina) × 🦢 Cigno (Orion)  
 **Finale:** ⛏️ Piccone + 🦢 Cigno (Orion)
 
-La voce della Chiocciola Lina (🐌) era ovunque: «Non volare — stavolta devi strisciare». Il Cigno Orion (🦢) abbassò le ali e avanzò sul ventre, lento, lungo la roccia 🪨. Al fondo del passaggio, il simbolo del Piccone (⛏️) brillò — e il profilo di un Cigno (🦢) vi era inciso sopra.
+La voce 🗣 della Chiocciola Lina (🐌) era ovunque: «Non volare — stavolta devi strisciare». Il Cigno Orion (🦢) abbassò le ali e avanzò sul ventre, lento, lungo la roccia 🪨. Al fondo del passaggio, il simbolo del Piccone (⛏️) brillò — e il profilo di un Cigno (🦢) vi era inciso sopra.
 
 ---
 
@@ -34,7 +34,7 @@ Il ricordo della Chiocciola Lina (🐌) portò con sé le parole che aveva detto
 
 *(Momento cardine ×6: prova di fede)*
 
-Il passaggio si strinse fino a bloccare ogni via. Nessuna luce, nessun suono. Solo la voce della Chiocciola Lina (🐌) che tornava: «Quando sei bloccato, siediti e aspetta». Orion non capiva — ma si sedette sulla Sedia Magica (🪑). Il muro di roccia 🪨 si aprì da solo, e il Cigno Orion (🦢) uscì dall'altra parte, con la Sedia Magica (🪑) ancora sotto di lui.
+Il passaggio si strinse fino a bloccare ogni via. Nessuna luce, nessun suono. Solo la voce 🗣 della Chiocciola Lina (🐌) che tornava: «Quando sei bloccato, siediti e aspetta». Orion non capiva — ma si sedette sulla Sedia Magica (🪑). Il muro di roccia 🪨 si aprì da solo, e il Cigno Orion (🦢) uscì dall'altra parte, con la Sedia Magica (🪑) ancora sotto di lui.
 
 ---
 
@@ -43,7 +43,7 @@ Il passaggio si strinse fino a bloccare ogni via. Nessuna luce, nessun suono. So
 **Premessa:** 🐌 Chiocciola (Lina) × 🐍 Serpente (Bobo)  
 **Finale:** 💶 Moneta rara + 🥚 Uovo
 
-Oltre il muro, la voce della Chiocciola Lina (🐌) si fece più distante. Bobo il Serpente (🐍) era lì — avvolto intorno a qualcosa. Si avvicinò: tra le spire del Serpente (🐍) riposava la Moneta rara (💶), e sotto di essa, protetto e caldo, l'Uovo (🥚) pulsava piano.
+Oltre il muro, la voce 🗣 della Chiocciola Lina (🐌) si fece più distante. Bobo il Serpente (🐍) era lì — avvolto intorno a qualcosa. Si avvicinò: tra le spire del Serpente (🐍) riposava la Moneta rara (💶), e sotto di essa, protetto e caldo, l'Uovo (🥚) pulsava piano.
 
 ---
 
@@ -61,7 +61,7 @@ Due voci identiche — entrambe della Chiocciola Lina (🐌) — si sovrapposero
 **Premessa:** 🐌 Chiocciola (Lina) × ⚡ Fulmine  
 **Finale:** 🪑 Sedia Magica + 🦢 Cigno (Orion)
 
-La voce della Chiocciola Lina (🐌) stava svanendo quando un Fulmine (⚡) illuminò la volta del sotterraneo. Nel bagliore, Orion vide la Sedia Magica (🪑) al centro di una sala enorme — e la sagoma di un Cigno (🦢) disegnata sul soffitto di pietra 🪨, proprio sopra di lei.
+La voce 🗣 della Chiocciola Lina (🐌) stava svanendo quando un Fulmine (⚡) illuminò la volta del sotterraneo. Nel bagliore, Orion vide la Sedia Magica (🪑) al centro di una sala enorme — e la sagoma di un Cigno (🦢) disegnata sul soffitto di pietra 🪨, proprio sopra di lei.
 
 ---
 

@@ -51,34 +51,18 @@ const getMnemonicLabelForNumber = (value: number) => {
   return digits.map((digit) => `${digit} ${DIGIT_LABEL_MAP[digit] || digit.toString()}`).join(' + ');
 };
 
-type StoryHighlightKind = 'character' | 'key';
-
-const STORY_HIGHLIGHT_TERMS: Array<{ term: string; kind: StoryHighlightKind }> = [
-  { term: 'Cigno Orion', kind: 'character' },
-  { term: 'Orion', kind: 'character' },
-  { term: 'Chiocciola Lina', kind: 'character' },
-  { term: 'Lina', kind: 'character' },
-  { term: 'Serpente Bobo', kind: 'character' },
-  { term: 'Bobo', kind: 'character' },
-  { term: 'Terra Magica', kind: 'key' },
-  { term: 'Moneta rara', kind: 'key' },
-  { term: 'Piccone', kind: 'key' },
-  { term: 'Sedia Magica', kind: 'key' },
-  { term: 'Infinito', kind: 'key' },
-  { term: 'Fulmine', kind: 'key' },
-  { term: 'Palloncino', kind: 'key' },
-];
-
 const normalizeHighlightTerm = (value: string) => value.trim().toLowerCase();
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const STORY_HIGHLIGHT_LOOKUP = STORY_HIGHLIGHT_TERMS.reduce<Record<string, StoryHighlightKind>>((acc, entry) => {
-  acc[normalizeHighlightTerm(entry.term)] = entry.kind;
-  return acc;
-}, {});
-const STORY_HIGHLIGHT_REGEX = new RegExp(
-  `(${STORY_HIGHLIGHT_TERMS.map(entry => entry.term).sort((a, b) => b.length - a.length).map(escapeRegex).join('|')})`,
-  'gi'
-);
+
+const getOperationHighlightTerms = (entry: { table: number; multiplier: number; result: number }) => {
+  const resultDigits = Math.abs(entry.result).toString().split('').map(Number);
+  const terms = [
+    DIGIT_LABEL_MAP[entry.table],
+    DIGIT_LABEL_MAP[entry.multiplier],
+    ...resultDigits.map((digit) => DIGIT_LABEL_MAP[digit]),
+  ].filter(Boolean) as string[];
+  return Array.from(new Set(terms)).sort((a, b) => b.length - a.length);
+};
 
 type ProfileRecord = UserProfile & {
   id: string;
@@ -304,23 +288,28 @@ export default function App() {
     ];
     effects[Math.floor(Math.random() * effects.length)]();
   };
-  const renderStorySentenceWithHighlights = (sentence: string) => {
-    const parts = sentence.split(STORY_HIGHLIGHT_REGEX).filter(Boolean);
+  const renderStorySentenceWithHighlights = (
+    sentence: string,
+    entry: { table: number; multiplier: number; result: number }
+  ) => {
+    const highlightTerms = getOperationHighlightTerms(entry);
+    if (highlightTerms.length === 0) return sentence;
+
+    const highlightRegex = new RegExp(`(${highlightTerms.map(escapeRegex).join('|')})`, 'gi');
+    const parts = sentence.split(highlightRegex).filter(Boolean);
+
     return parts.map((part, index) => {
-      const kind = STORY_HIGHLIGHT_LOOKUP[normalizeHighlightTerm(part)];
-      if (!kind) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+      const isHighlighted = highlightTerms.some((term) => normalizeHighlightTerm(term) === normalizeHighlightTerm(part));
+      if (!isHighlighted) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+
       return (
         <button
           key={`${part}-${index}`}
           type="button"
           onClick={playRandomHighlightEffect}
-          className={`mx-0.5 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] sm:text-xs font-black leading-none transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-1 cursor-pointer ${
-            kind === 'character'
-              ? 'border-lime-500 bg-lime-500 text-white focus-visible:outline-lime-600'
-              : 'border-amber-400 bg-amber-300 text-amber-950 focus-visible:outline-amber-500'
-          }`}
-          aria-label={`${kind === 'character' ? 'Personaggio' : 'Parola chiave'}: ${part}`}
-          title={`${kind === 'character' ? 'Personaggio' : 'Parola chiave'}: ${part}`}
+          className="mx-0.5 inline-flex items-center rounded-full border border-lime-500 bg-lime-500 px-2 py-0.5 text-[11px] sm:text-xs font-black leading-none text-white transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-lime-600 cursor-pointer"
+          aria-label={`Soggetto operazione: ${part}`}
+          title={`Soggetto operazione: ${part}`}
         >
           {part}
         </button>
@@ -2386,7 +2375,7 @@ export default function App() {
                     </span>
                   </p>
                   <p className="mt-1 text-xs sm:text-sm leading-relaxed text-slate-800">
-                    {renderStorySentenceWithHighlights(entry.sentence)}
+                    {renderStorySentenceWithHighlights(entry.sentence, entry)}
                   </p>
                 </div>
               ))}
