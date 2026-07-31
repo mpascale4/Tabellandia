@@ -128,7 +128,7 @@ Esempi:
 
 ---
 
-
+# Continuità narrativa
 
 Le storie NON sono indipendenti.
 
@@ -176,9 +176,63 @@ Prima di scrivere ogni nuova storia, rileggere le precedenti e verificare:
 
 Nessun dettaglio può contraddire ciò che è già stato scritto.
 
+## Coerenza di origine e luogo
+
+Ogni oggetto e personaggio resta nel luogo in cui è comparso per la prima volta, finché la narrazione non giustifica esplicitamente lo spostamento.
+
+- La Sedia Magica (🪑) emerge dal lago di sale → rimane nel lago finché non viene spostata da un evento narrativo.
+- La roccia del Piccone (⛏️) è a sud → è sempre a sud, non cambia posizione.
+- Un simbolo inciso su una roccia → rimane su quella roccia per sempre.
+
+Non è sufficiente che lo spostamento sia comodo per la storia: deve esserci una ragione narrativa esplicita.
+
 ---
 
-# Stile
+# Consecutio implicita
+
+Quando un personaggio **non può comparire** in storia N (per la regola "nessun extra") ma deve essere presente in N+1, la **transizione è implicita**: non va narrata, il lettore la inferisce.
+
+Esempio: se in 4×1 Orion non può comparire, ma in 4×2 è già sulla Sedia, si apre direttamente con lui seduto — senza spiegare come ci è arrivato.
+
+Non si deve forzare una storia extra per "spiegare" il passaggio. La narrativa fluisce naturalmente tra un'operazione e l'altra.
+
+---
+
+# Aggettivi coerenti
+
+Non usare aggettivi che siano semanticamente incompatibili con il tipo di entità.
+
+- Una **sedia** non è silenziosa, stanca, felice — non ha stati d'animo né produce suoni.
+- Una **voce** non è silenziosa — se parla, non è silenziosa.
+- Un **simbolo inciso** non è nervoso, triste, impaziente.
+
+Gli oggetti possono avere attributi fisici (dura, antica, luminosa, incisa) e apparenze percettive ("sembrava vibrare"). Non attributi psicologici o sensoriali incompatibili con la loro natura.
+
+❌ `"La Sedia silenziosa"` — una sedia non produce suoni, quindi non può essere silenziosa  
+❌ `"La voce silenziosa di Lina"` — una voce che si sente non è silenziosa  
+✅ `"La Sedia immobile"` — attributo fisico corretto  
+✅ `"Il sussurro lontano di Lina"` — attributo compatibile con una voce
+
+---
+
+# Verifica del finale
+
+Prima di scrivere ogni storia, calcolare le **cifre reali del risultato** e mapparle ai personaggi corrispondenti.
+
+| Risultato | Cifre | Personaggi del finale |
+|-----------|-------|-----------------------|
+| 32 | 3, 2 | 💶 Moneta rara + 🦢 Cigno |
+| 36 | 3, 6 | 💶 Moneta rara + 🐌 Chiocciola |
+| 16 | 1, 6 | ⛏️ Piccone + 🐌 Chiocciola |
+
+Il finale della storia deve corrispondere **esattamente** a queste cifre, nell'ordine decine → unità.
+
+❌ Scrivere 🦢+🦢 per il risultato 32 → violazione  
+✅ Scrivere 💶+🦢 per il risultato 32 → corretto
+
+---
+
+
 
 Lo stile deve essere:
 
@@ -263,7 +317,7 @@ Anche qui il lettore deve intuire la predestinazione dai segni, non da una frase
 
 ---
 
-
+# Regole sulla Moneta rara
 
 La Moneta rara (💶) è il grande tesoro della storia.
 
