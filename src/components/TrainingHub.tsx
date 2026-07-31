@@ -205,8 +205,8 @@ function getStars(profile: UserProfile, worldId: number): number {
 
 // ─── Card singola tabellina ───────────────────────────────────────────────────
 
-function WorldCard({ world, stars, onSelect, onStory, compactLayout }: {
-  world: WorldConfig; stars: number; onSelect: (id: number) => void; onStory: (id: number) => void; compactLayout?: boolean;
+function WorldCard({ world, stars, onSelect, compactLayout }: {
+  world: WorldConfig; stars: number; onSelect: (id: number) => void; compactLayout?: boolean;
 }) {
   const isTrained = stars > 0;
   const worldIcon = TRAINING_WORLD_ICON[world.id] ?? '🦁';
@@ -218,7 +218,7 @@ function WorldCard({ world, stars, onSelect, onStory, compactLayout }: {
         className={`training-home-card w-full h-full rounded-2xl border-2 sm:border-3 border-indigo-300/80 bg-gradient-to-b from-indigo-50 to-indigo-100/90 shadow-sm
                    hover:shadow-md hover:border-indigo-400 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer
                    focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
-                   flex flex-col items-center justify-center p-2 sm:p-3 gap-1 overflow-hidden min-w-0`}
+                   flex flex-col items-center justify-center p-2 sm:p-3 gap-1 min-w-0`}
         aria-label={`Allena tabellina del ${world.id}: ${world.name}${isTrained ? ', già allenata' : ''}`}
       >
         {isTrained && (
@@ -232,19 +232,8 @@ function WorldCard({ world, stars, onSelect, onStory, compactLayout }: {
         <span className={`training-card-icon ${compactLayout ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'} leading-none drop-shadow-xs shrink-0`} aria-hidden="true">{worldIcon}</span>
         <div className="flex flex-col items-center leading-tight min-w-0 w-full px-1">
           <span className={`training-card-mul ${compactLayout ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} font-black font-mono text-indigo-900`}>×{world.id}</span>
-          <span className="text-[10px] sm:text-xs font-bold text-indigo-700/90 tracking-tight truncate w-full text-center">{world.name}</span>
+          <span className="w-full text-center text-[10px] sm:text-xs font-bold text-indigo-700/90 tracking-tight leading-tight whitespace-normal break-words">{world.name}</span>
         </div>
-      </button>
-
-      {/* Bottone storia — sovrapposto in alto a sinistra */}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onStory(world.id); }}
-        className="absolute top-1 left-1 z-10 inline-flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-amber-100 border border-amber-300 text-base shadow-sm hover:bg-amber-200 hover:scale-110 active:scale-95 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-amber-500"
-        aria-label={`Leggi le storie della tabellina del ${world.id}`}
-        title="Leggi le storie"
-      >
-        <span aria-hidden="true" className="leading-none text-sm">📖</span>
       </button>
     </div>
   );
@@ -267,7 +256,6 @@ function TrainingSession({
   const [deck, setDeck] = useState<Question[]>(() => buildQuestionDeck(world.id));
   const [deckIndex, setDeckIndex] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
-  const [showStoryModal, setShowStoryModal] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Inizializza il mazzo al montaggio o cambio mondo
@@ -276,7 +264,6 @@ function TrainingSession({
     setDeck(buildQuestionDeck(world.id));
     setDeckIndex(0);
     setFeedback(null);
-    setShowStoryModal(false);
   }, [world.id]);
 
   const currentQuestion: Question | undefined = deck[deckIndex];
@@ -340,7 +327,6 @@ function TrainingSession({
   }
 
   const { multiplier, worldId, answer, options } = currentQuestion;
-  const story = getMnemonicStory(multiplier, worldId);
 
   return (
     <div className="flex w-full flex-col gap-4 relative">
@@ -379,93 +365,7 @@ function TrainingSession({
           </span>
         </div>
 
-        {/* Bottone per aprire la storia mnemotecnica */}
-        <button
-          type="button"
-          onClick={() => setShowStoryModal(true)}
-          className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-100 to-amber-200/90 hover:from-amber-200 hover:to-amber-300 text-amber-900 border border-amber-300/80 px-3.5 py-1.5 text-xs sm:text-sm font-bold shadow-xs hover:shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-          aria-label={`Leggi la storia mnemotecnica di ${multiplier} × ${worldId}`}
-        >
-          <span className="text-base sm:text-lg">📖</span>
-          <span>Scopri la storia mnemotecnica</span>
-        </button>
       </SurfaceCard>
-
-      {/* Modal Popup Storia */}
-      {showStoryModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in"
-          onClick={() => setShowStoryModal(false)}
-        >
-          <div
-            className="relative w-full max-w-md rounded-3xl border-3 border-amber-300 bg-gradient-to-b from-amber-50 via-amber-50 to-orange-50 p-5 sm:p-6 shadow-2xl text-slate-800 flex flex-col gap-3.5 animate-scale-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Bottone di chiusura */}
-            <button
-              type="button"
-              onClick={() => setShowStoryModal(false)}
-              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-amber-200/80 hover:bg-amber-300 text-amber-950 font-black text-sm transition-colors cursor-pointer"
-              aria-label="Chiudi storia"
-            >
-              ✕
-            </button>
-
-            {/* Intestazione */}
-            <div className="flex items-center gap-3 border-b border-amber-200/80 pb-3 pr-8">
-              <span className="text-3xl sm:text-4xl shrink-0">📖</span>
-              <div>
-                <h3 className="text-lg sm:text-xl font-black text-amber-950 leading-tight">
-                  {story.title}
-                </h3>
-                <p className="text-xs font-bold text-amber-800/80 mt-0.5">
-                  Mnemotecnica di {multiplier} × {worldId}
-                </p>
-              </div>
-            </div>
-
-            {/* Contenuto storia */}
-            <div className="flex flex-col gap-2.5 text-sm sm:text-base text-slate-800 leading-relaxed font-medium">
-              {/* Premessa con fattori */}
-              <div className="rounded-2xl bg-white/90 p-3.5 border border-amber-200 shadow-2xs">
-                <p className="font-extrabold text-amber-900 text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>1. La Premessa</span>
-                  <span className="text-xs font-mono font-normal text-amber-700">({DIGIT_EMOJI[multiplier] ?? multiplier} × {DIGIT_EMOJI[worldId] ?? worldId})</span>
-                </p>
-                <p className="text-slate-800 text-sm leading-relaxed">{story.premise}</p>
-              </div>
-
-              {/* Climax e Finale con risultato */}
-              <div className="rounded-2xl bg-amber-100/90 p-3.5 border border-amber-300/80 shadow-2xs">
-                <p className="font-extrabold text-amber-900 text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>2. Il Finale</span>
-                  <span className="text-xs font-mono font-normal text-amber-700">({getMnemonicResult(answer)})</span>
-                </p>
-                <p className="text-amber-950 text-sm leading-relaxed font-medium">{story.climax}</p>
-              </div>
-
-              {/* Equazione finale */}
-              <div className="rounded-2xl bg-amber-200/90 p-2.5 text-center border border-amber-400/60 shadow-xs mt-0.5">
-                <p className="text-[10px] sm:text-xs font-bold text-amber-950 uppercase tracking-widest mb-0.5">
-                  Formula Magica:
-                </p>
-                <p className="text-lg sm:text-xl font-black font-mono text-amber-950">
-                  {story.equationText}
-                </p>
-              </div>
-            </div>
-
-            {/* Bottone Ok */}
-            <button
-              type="button"
-              onClick={() => setShowStoryModal(false)}
-              className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black py-2.5 text-sm shadow-md transition-all cursor-pointer active:scale-95 mt-1"
-            >
-              Ho capito! ✨
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Opzioni */}
       <ActionGrid
@@ -533,137 +433,16 @@ function TrainingSession({
   );
 }
 
-// ─── Lettore di storie sequenziale ───────────────────────────────────────────
-
-function StoryReader({ worldId, onBack }: { worldId: number; onBack: () => void }) {
-  const [index, setIndex] = useState(0); // 0-8
-  const TOTAL = 9;
-  const multiplier = index + 1;
-  const story = getMnemonicStory(multiplier, worldId);
-  const fullText = [story.premise, story.climax].filter(Boolean).join(' ');
-  const worldIcon = TRAINING_WORLD_ICON[worldId] ?? '🔢';
-
-  const prev = () => setIndex(i => Math.max(0, i - 1));
-  const next = () => setIndex(i => Math.min(TOTAL - 1, i + 1));
-
-  return (
-    <div className="flex w-full flex-col gap-4">
-
-      {/* Header */}
-      <SurfaceCard tone="soft" padding="sm" className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-2xl" aria-hidden="true">{worldIcon}</span>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-sky-700/70 uppercase tracking-widest">Storie della tabellina</p>
-            <p className="text-base font-black text-sky-900 leading-tight">×{worldId}</p>
-          </div>
-        </div>
-        <span
-          className="text-xs font-bold text-slate-500 bg-slate-100 rounded-full px-2.5 py-0.5 tabular-nums shrink-0"
-          aria-live="polite"
-          aria-label={`Storia ${multiplier} di ${TOTAL}`}
-        >
-          {multiplier} / {TOTAL}
-        </span>
-      </SurfaceCard>
-
-      {/* Card storia */}
-      <SurfaceCard tone="soft" padding="lg" className="w-full flex flex-col gap-3">
-
-        {/* Titolo operazione */}
-        <div className="flex items-center gap-3 border-b border-amber-200 pb-3">
-          <span className="text-3xl sm:text-4xl" aria-hidden="true">📖</span>
-          <div>
-            <p className="text-[10px] font-bold text-amber-700/80 uppercase tracking-widest">
-              {multiplier} × {worldId} = {multiplier * worldId}
-            </p>
-            <h2 className="text-base sm:text-lg font-black text-amber-950 leading-tight">
-              {story.title}
-            </h2>
-          </div>
-        </div>
-
-        {/* Equazione visiva */}
-        <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 rounded-2xl border border-sky-200/90 bg-sky-50 px-4 py-2.5">
-          <span className="text-3xl sm:text-4xl drop-shadow-xs" aria-label={`Mnemotecnico ${multiplier}`}>
-            {DIGIT_EMOJI[multiplier] ?? multiplier}
-          </span>
-          <span className="text-xl font-black text-sky-600 select-none">×</span>
-          <span className="text-3xl sm:text-4xl drop-shadow-xs" aria-label={`Mnemotecnico ${worldId}`}>
-            {DIGIT_EMOJI[worldId] ?? worldId}
-          </span>
-          <span className="text-xl font-black text-sky-600 select-none">=</span>
-          <span className="text-3xl sm:text-4xl drop-shadow-xs" aria-label={`Risultato ${multiplier * worldId}`}>
-            {getMnemonicResult(multiplier * worldId)}
-          </span>
-        </div>
-
-        {/* Testo narrativo */}
-        <div
-          className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-slate-800 text-sm sm:text-base leading-relaxed font-medium"
-          aria-live="polite"
-        >
-          {fullText || <span className="text-slate-400 italic">Nessuna storia disponibile.</span>}
-        </div>
-
-        {/* Formula magica */}
-        <div className="rounded-2xl bg-amber-200/80 border border-amber-400/60 px-3 py-2 text-center">
-          <p className="text-[10px] font-bold text-amber-900 uppercase tracking-widest mb-0.5">Formula Magica</p>
-          <p className="text-base sm:text-lg font-black font-mono text-amber-950">{story.equationText}</p>
-        </div>
-      </SurfaceCard>
-
-      {/* Navigazione */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={prev}
-          disabled={index === 0}
-          className="flex-1 rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-sm transition-all cursor-pointer hover:bg-slate-300 active:scale-95
-                     disabled:opacity-40 disabled:cursor-not-allowed
-                     focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-          aria-label="Storia precedente"
-        >
-          ← Precedente
-        </button>
-        <button
-          type="button"
-          onClick={next}
-          disabled={index === TOTAL - 1}
-          className="flex-1 rounded-2xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-sm transition-all cursor-pointer hover:bg-indigo-700 active:scale-95
-                     disabled:opacity-40 disabled:cursor-not-allowed
-                     focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-          aria-label="Storia successiva"
-        >
-          Successiva →
-        </button>
-      </div>
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="w-full rounded-2xl bg-slate-100 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-200 cursor-pointer
-                   focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-        aria-label="Torna alla lista delle tabelline"
-      >
-        Indietro
-      </button>
-    </div>
-  );
-}
-
 // ─── Home: lista tabelline ────────────────────────────────────────────────────
 
 function TrainingHome({
   profile,
   compactLayout,
   onSelect,
-  onStory,
 }: {
   profile: UserProfile;
   compactLayout?: boolean;
   onSelect: (id: number) => void;
-  onStory: (id: number) => void;
 }) {
   return (
     <div className={`training-home w-full h-full ${compactLayout ? 'training-home--compact space-y-3' : 'space-y-5'}`}>
@@ -671,7 +450,7 @@ function TrainingHome({
         <SectionHeader
           eyebrow="Allenamento libero"
           title="Quale tabellina vuoi allenare?"
-          description="Scegli una tabellina, gioca in modalità casuale o premi 📖 per le storie!"
+          description="Scegli una tabellina da allenare o affidati al caso 🎲"
         />
       </SurfaceCard>
 
@@ -687,22 +466,13 @@ function TrainingHome({
             🎲
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-base sm:text-lg font-black text-purple-950">
-                Allenamento Casuale
-              </span>
-              <span className="rounded-full bg-purple-200/90 px-2 py-0.5 text-[10px] sm:text-xs font-extrabold text-purple-900 border border-purple-300">
-                Tutte le tabelline
-              </span>
-            </div>
+            <span className="text-base sm:text-lg font-black text-purple-950">
+              Allenamento Casuale
+            </span>
             <p className="text-xs sm:text-sm font-medium text-purple-900/80 leading-snug truncate">
               Metti alla prova la tua memoria con domande scelte a caso da ogni tabellina!
             </p>
           </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-1.5 text-xs font-black text-purple-950 bg-white/90 rounded-xl px-3 py-2 border border-purple-200 shadow-2xs shrink-0">
-          <span>Inizia</span>
-          <span>🎲</span>
         </div>
       </button>
 
@@ -717,7 +487,6 @@ function TrainingHome({
               world={world}
               stars={getStars(profile, world.id)}
               onSelect={onSelect}
-              onStory={onStory}
               compactLayout={compactLayout}
             />
           </div>
@@ -731,7 +500,6 @@ function TrainingHome({
 
 export default function TrainingHub({ profile, updateProfile, compactLayout }: TrainingHubProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [storyId, setStoryId] = useState<number | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -739,20 +507,11 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
     scrollables.forEach(el => {
       el.scrollTop = 0;
     });
-  }, [selectedId, storyId]);
+  }, [selectedId]);
 
   const selectedWorld = selectedId !== null
     ? (selectedId === 0 ? RANDOM_WORLD : WORLDS_DATA.find(w => w.id === selectedId) ?? null)
     : null;
-
-  if (storyId !== null) {
-    return (
-      <StoryReader
-        worldId={storyId}
-        onBack={() => setStoryId(null)}
-      />
-    );
-  }
 
   if (selectedWorld) {
     return (
@@ -769,7 +528,6 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
       profile={profile}
       compactLayout={compactLayout}
       onSelect={setSelectedId}
-      onStory={setStoryId}
     />
   );
 }
