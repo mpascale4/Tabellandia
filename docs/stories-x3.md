@@ -5,7 +5,7 @@
 **Premessa:** 💶 Moneta rara × ⛏️ Piccone  
 **Finale:** 💶 Moneta rara
 
-Sulla roccia del Piccone (⛏️) c'era qualcosa che non aveva ancora notato. Scolpita in profondità nella pietra, brillava l'immagine della Moneta rara (💶).
+Il simbolo della Moneta rara (💶) era inciso sulla roccia del Piccone (⛏️). Quella stessa Moneta rara (💶) che aveva cercato da sempre — era lì, scolpita nella pietra.
 
 ---
 
