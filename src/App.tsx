@@ -41,27 +41,89 @@ const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
 const HEADER_REVEAL_TOUCH_ZONE_PX = 12;
 const PROFILE_RESTORE_WINDOW_DAYS = 30;
 const PROFILE_RESTORE_WINDOW_MS = PROFILE_RESTORE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-const DIGIT_LABEL_MAP = DIGITS_INFO.reduce<Record<number, string>>((acc, info) => {
-  acc[info.digit] = info.imageLabel;
+const DIGIT_META_MAP = DIGITS_INFO.reduce<Record<number, { label: string; emoji: string }>>((acc, info) => {
+  acc[info.digit] = { label: info.imageLabel, emoji: info.emoji };
   return acc;
 }, {});
+const DIGIT_LABEL_MAP = Object.fromEntries(
+  Object.entries(DIGIT_META_MAP).map(([digit, meta]) => [Number(digit), meta.label])
+) as Record<number, string>;
 
 const getMnemonicLabelForNumber = (value: number) => {
   const digits = Math.abs(value).toString().split('').map(Number);
   return digits.map((digit) => `${digit} ${DIGIT_LABEL_MAP[digit] || digit.toString()}`).join(' + ');
 };
 
-const normalizeHighlightTerm = (value: string) => value.trim().toLowerCase();
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const STORY_SUBJECT_WITH_EMOJI_PATTERN = "([A-Za-zÀ-ÿ'’]+(?:\\s+[A-Za-zÀ-ÿ'’]+){0,4})\\s*\\(([^)]+)\\)";
+const SUBJECT_LINKING_WORDS = new Set([
+  'il', 'lo', 'la', 'l', 'un', 'uno', 'una',
+  'altro', 'altra', 'altri', 'altre',
+]);
+const NON_EMOJI_PARENTHESIS_TOKENS = new Set(['orion', 'lina', 'bobo']);
+const STORY_HIGHLIGHT_BASE_CLASS = "mx-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] sm:text-xs font-black leading-none text-white transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-1 cursor-pointer";
+const STORY_HIGHLIGHT_COLOR_BY_KEY: Record<string, string> = {
+  cigno: 'border border-blue-700 bg-blue-600 focus-visible:outline-blue-700',
+  piccone: 'border border-slate-700 bg-slate-600 focus-visible:outline-slate-700',
+  moneta: 'border border-amber-700 bg-amber-600 focus-visible:outline-amber-700',
+  sedia: 'border border-violet-700 bg-violet-600 focus-visible:outline-violet-700',
+  serpente: 'border border-emerald-700 bg-emerald-600 focus-visible:outline-emerald-700',
+  chiocciola: 'border border-rose-700 bg-rose-600 focus-visible:outline-rose-700',
+  fulmine: 'border border-indigo-700 bg-indigo-600 focus-visible:outline-indigo-700',
+  infinito: 'border border-fuchsia-700 bg-fuchsia-600 focus-visible:outline-fuchsia-700',
+  palloncino: 'border border-red-700 bg-red-600 focus-visible:outline-red-700',
+  uovo: 'border border-cyan-700 bg-cyan-600 focus-visible:outline-cyan-700',
+};
+const STORY_HIGHLIGHT_FALLBACK_CLASS = 'border border-lime-500 bg-lime-500 focus-visible:outline-lime-600';
 
-const getOperationHighlightTerms = (entry: { table: number; multiplier: number; result: number }) => {
-  const resultDigits = Math.abs(entry.result).toString().split('').map(Number);
-  const terms = [
-    DIGIT_LABEL_MAP[entry.table],
-    DIGIT_LABEL_MAP[entry.multiplier],
-    ...resultDigits.map((digit) => DIGIT_LABEL_MAP[digit]),
-  ].filter(Boolean) as string[];
-  return Array.from(new Set(terms)).sort((a, b) => b.length - a.length);
+const getDigitsFromNumber = (value: number) => Math.abs(value).toString().split('').map(Number);
+
+const containsEmoji = (value: string) => /\p{Extended_Pictographic}/u.test(value);
+const startsWithUppercase = (word: string) => /^[A-ZÀ-Ý]/.test(word);
+const cleanApostrophes = (word: string) => word.replace(/[’']/g, '').toLowerCase();
+
+const normalizeStorySubject = (rawSubject: string) => {
+  const words = rawSubject.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return rawSubject.trim();
+
+  let start = words.length - 1;
+  const includePreviousWord = (index: number) => {
+    if (index < 0) return false;
+    const candidate = words[index];
+    return startsWithUppercase(candidate) || SUBJECT_LINKING_WORDS.has(cleanApostrophes(candidate));
+  };
+
+  if (includePreviousWord(start - 1)) start -= 1;
+  if (includePreviousWord(start - 1) && startsWithUppercase(words[start])) start -= 1;
+  if (
+    start > 0 &&
+    SUBJECT_LINKING_WORDS.has(cleanApostrophes(words[start - 1])) &&
+    startsWithUppercase(words[start])
+  ) {
+    start -= 1;
+  }
+
+  return words.slice(start).join(' ');
+};
+
+const getStoryHighlightKey = (subject: string) => {
+  const normalized = cleanApostrophes(subject);
+  if (normalized.includes('cigno')) return 'cigno';
+  if (normalized.includes('piccone')) return 'piccone';
+  if (normalized.includes('moneta')) return 'moneta';
+  if (normalized.includes('sedia')) return 'sedia';
+  if (normalized.includes('serpente')) return 'serpente';
+  if (normalized.includes('chiocciola')) return 'chiocciola';
+  if (normalized.includes('fulmine')) return 'fulmine';
+  if (normalized.includes('infinito')) return 'infinito';
+  if (normalized.includes('palloncino')) return 'palloncino';
+  if (normalized.includes('uovo')) return 'uovo';
+  return null;
+};
+
+const getStoryHighlightClass = (subject: string) => {
+  const key = getStoryHighlightKey(subject);
+  const toneClass = key ? STORY_HIGHLIGHT_COLOR_BY_KEY[key] : STORY_HIGHLIGHT_FALLBACK_CLASS;
+  return `${STORY_HIGHLIGHT_BASE_CLASS} ${toneClass}`;
 };
 
 type ProfileRecord = UserProfile & {
@@ -279,6 +341,38 @@ export default function App() {
   const deletedProfiles = getDeletedProfiles(profiles);
   const profile = activeProfileId ? activeProfiles.find(p => p.id === activeProfileId) || null : null;
   const storyEntries = storyWorldId !== null ? getStoryEntriesForTable(storyWorldId) : [];
+  const renderMnemonicToken = (digit: number, key: string) => {
+    const meta = DIGIT_META_MAP[digit];
+    if (!meta) return <span key={key}>{digit}</span>;
+
+    return (
+      <span key={key} className="inline-flex items-center gap-0.5">
+        <span>{digit}</span>
+        <span aria-hidden="true" className="text-sm leading-none">{meta.emoji}</span>
+        <span className="sr-only">{meta.label}</span>
+      </span>
+    );
+  };
+  const renderMnemonicNumber = (value: number, keyPrefix: string, withPlusBetweenDigits = false) => {
+    const digits = getDigitsFromNumber(value);
+    return digits.map((digit, index) => (
+      <React.Fragment key={`${keyPrefix}-${index}`}>
+        {renderMnemonicToken(digit, `${keyPrefix}-digit-${index}`)}
+        {withPlusBetweenDigits && index < digits.length - 1 ? (
+          <span aria-hidden="true" className="mx-1 text-amber-800">+</span>
+        ) : null}
+      </React.Fragment>
+    ));
+  };
+  const renderMnemonicEquation = (entry: { table: number; multiplier: number; result: number }) => (
+    <>
+      {renderMnemonicNumber(entry.table, `table-${entry.table}`)}
+      <span aria-hidden="true" className="mx-1">x</span>
+      {renderMnemonicNumber(entry.multiplier, `multiplier-${entry.multiplier}`)}
+      <span aria-hidden="true" className="mx-1">=</span>
+      {renderMnemonicNumber(entry.result, `result-${entry.result}`, true)}
+    </>
+  );
   const playRandomHighlightEffect = () => {
     const effects: Array<() => void> = [
       () => sound.playClick(),
@@ -288,33 +382,67 @@ export default function App() {
     ];
     effects[Math.floor(Math.random() * effects.length)]();
   };
-  const renderStorySentenceWithHighlights = (
-    sentence: string,
-    entry: { table: number; multiplier: number; result: number }
-  ) => {
-    const highlightTerms = getOperationHighlightTerms(entry);
-    if (highlightTerms.length === 0) return sentence;
+  const renderStorySentenceWithHighlights = (sentence: string) => {
+    const subjectWithEmojiRegex = new RegExp(STORY_SUBJECT_WITH_EMOJI_PATTERN, 'gu');
+    const matches = Array.from(sentence.matchAll(subjectWithEmojiRegex));
+    if (matches.length === 0) return sentence;
 
-    const highlightRegex = new RegExp(`(${highlightTerms.map(escapeRegex).join('|')})`, 'gi');
-    const parts = sentence.split(highlightRegex).filter(Boolean);
+    const fragments: React.ReactNode[] = [];
+    let cursor = 0;
 
-    return parts.map((part, index) => {
-      const isHighlighted = highlightTerms.some((term) => normalizeHighlightTerm(term) === normalizeHighlightTerm(part));
-      if (!isHighlighted) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+    matches.forEach((match, index) => {
+      const fullStart = match.index ?? -1;
+      if (fullStart < cursor) return;
 
-      return (
+      const fullMatch = match[0] ?? '';
+      const fullEnd = fullStart + fullMatch.length;
+      const rawSubject = (match[1] ?? '').trim();
+      const inside = (match[2] ?? '').trim();
+      const normalizedInside = inside.toLowerCase();
+
+      if (!containsEmoji(inside) || NON_EMOJI_PARENTHESIS_TOKENS.has(normalizedInside)) {
+        fragments.push(<React.Fragment key={`plain-prefix-${index}`}>{sentence.slice(cursor, fullStart)}</React.Fragment>);
+        fragments.push(<React.Fragment key={`plain-match-${index}`}>{fullMatch}</React.Fragment>);
+        cursor = fullEnd;
+        return;
+      }
+
+      const normalizedSubject = normalizeStorySubject(rawSubject);
+      const rawSubjectOffset = fullMatch.indexOf(rawSubject);
+      const subjectOffsetInRaw = rawSubject.lastIndexOf(normalizedSubject);
+      const subjectStartInFull = Math.max(0, rawSubjectOffset + (subjectOffsetInRaw >= 0 ? subjectOffsetInRaw : 0));
+      const subjectStart = fullStart + subjectStartInFull;
+      const subjectEnd = subjectStart + normalizedSubject.length;
+
+      fragments.push(<React.Fragment key={`before-match-${index}`}>{sentence.slice(cursor, subjectStart)}</React.Fragment>);
+
+      if (normalizedSubject === 'cigno') {
+        fragments.push(<React.Fragment key={`plain-cigno-${index}`}>{normalizedSubject}</React.Fragment>);
+        cursor = fullEnd;
+        return;
+      }
+
+      fragments.push(
         <button
-          key={`${part}-${index}`}
+          key={`highlight-${index}`}
           type="button"
           onClick={playRandomHighlightEffect}
-          className="mx-0.5 inline-flex items-center rounded-full border border-lime-500 bg-lime-500 px-2 py-0.5 text-[11px] sm:text-xs font-black leading-none text-white transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-lime-600 cursor-pointer"
-          aria-label={`Soggetto operazione: ${part}`}
-          title={`Soggetto operazione: ${part}`}
+          className={getStoryHighlightClass(normalizedSubject)}
+          aria-label={`Soggetto storia: ${normalizedSubject}`}
+          title={`Soggetto storia: ${normalizedSubject}`}
         >
-          {part}
+          {normalizedSubject}
         </button>
       );
+      fragments.push(<React.Fragment key={`after-highlight-${index}`}>{sentence.slice(subjectEnd, fullEnd)}</React.Fragment>);
+      cursor = fullEnd;
     });
+
+    if (cursor < sentence.length) {
+      fragments.push(<React.Fragment key="tail">{sentence.slice(cursor)}</React.Fragment>);
+    }
+
+    return fragments;
   };
   const isParentModeActive = parentAuthenticated && activeTab === 'parents';
   const activeAdventureWorldId = (() => {
@@ -2370,12 +2498,12 @@ export default function App() {
                   className="rounded-2xl border border-indigo-100 bg-indigo-50/60 px-3 py-2.5 shadow-2xs"
                 >
                   <p className="rounded-xl border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black text-amber-900">
-                    <span aria-label={`Formula mnemonica ${entry.table} per ${entry.multiplier} uguale ${entry.result}`}>
-                      {entry.table} {DIGIT_LABEL_MAP[entry.table] || entry.table} x {entry.multiplier} {DIGIT_LABEL_MAP[entry.multiplier] || entry.multiplier} = {getMnemonicLabelForNumber(entry.result)}
+                    <span aria-label={`Formula mnemonica ${entry.table} ${DIGIT_LABEL_MAP[entry.table] || entry.table} per ${entry.multiplier} ${DIGIT_LABEL_MAP[entry.multiplier] || entry.multiplier} uguale ${getMnemonicLabelForNumber(entry.result)}`}>
+                      {renderMnemonicEquation(entry)}
                     </span>
                   </p>
                   <p className="mt-1 text-xs sm:text-sm leading-relaxed text-slate-800">
-                    {renderStorySentenceWithHighlights(entry.sentence, entry)}
+                    {renderStorySentenceWithHighlights(entry.sentence)}
                   </p>
                 </div>
               ))}

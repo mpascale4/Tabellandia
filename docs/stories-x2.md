@@ -14,7 +14,7 @@ Da giorni il Cigno Orion (🦢) volava sulla Terra Magica ✨, guidato solo da u
 **Premessa:** 🦢 Cigno (Orion) × 🦢 Cigno  
 **Finale:** 🪑 Sedia Magica
 
-Il Cigno Orion (🦢) scivolò tra montagne lucenti ⛰ e valli di cristallo 💎, sempre più in basso verso il lago 🌊. Planando sull'acqua 💧 ferma vide la propria immagine riflessa: un altro cigno (🦢) che lo fissava dal basso. Ma era solo il suo riflesso... Dicevano che in quelle acque fosse nascosta una Sedia Magica (🪑).
+Il Cigno Orion (🦢) scivolò tra montagne lucenti ⛰ e valli di cristallo 💎, sempre più in basso verso il lago 🌊. Planando sull'acqua 💧 ferma vide la propria immagine riflessa: un altro Cigno (🦢) che lo fissava dal basso. Ma era solo il suo riflesso... Dicevano che in quelle acque fosse nascosta una Sedia Magica (🪑).
 
 ---
 
