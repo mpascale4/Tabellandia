@@ -1717,7 +1717,7 @@ export default function App() {
                         <SectionHeader
                           eyebrow="Modalità Avventura"
                           title="Mappa di Tabellandia"
-                          description="Sconfiggi la tempesta di nebbia superando le terre una ad una. Sblocca il livello successivo completando gli esercizi del precedente."
+                          description="Segui Orion tra i segni della Terra Magica: completa ogni terra per diradare la nebbia e sbloccare la successiva."
                         />
                         <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-sky-900/80 sm:text-[11px]">
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 sm:px-3 sm:py-1">✅ Completato</span>
