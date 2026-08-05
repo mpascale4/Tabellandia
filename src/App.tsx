@@ -1741,20 +1741,17 @@ export default function App() {
                           <div className="space-y-2 md:max-w-2xl">
                             <SectionHeader
                               title="Mappa di Tabellandia"
-                              icon={<Map className="h-5 w-5 text-sky-600" aria-hidden="true" />}
+                              icon={
+                                <span className="flex items-center gap-1 text-sky-600" aria-hidden="true">
+                                  <Map className="h-5 w-5" />
+                                  <span className="text-base leading-none">🧮</span>
+                                </span>
+                              }
                               className="mb-0"
                             />
                             <p className="text-sm sm:text-base font-medium leading-relaxed text-slate-500">
                               Riuscirà il Cigno Orion 🦢 a trovare la Moneta rara 💶? Oppure troverà qualcos'altro?
                             </p>
-                          </div>
-
-                          <div className="mx-auto flex w-full max-w-[13rem] items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/80 px-4 py-3 shadow-sm md:mx-0 md:w-auto">
-                            <span className="text-4xl" aria-hidden="true">🧮</span>
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-700">Tabelline</p>
-                              <p className="text-sm font-bold text-slate-700">Avventura in corso</p>
-                            </div>
                           </div>
                         </div>
                       </SurfaceCard>

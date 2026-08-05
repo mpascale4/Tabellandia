@@ -30,8 +30,8 @@ export const WORLDS_DATA: WorldConfig[] = [
   },
   {
     id: 3,
-    name: "La Caverna della Moneta",
-    locationName: "Grotta dell'Euro",
+    name: "La Via dell'Euro",
+    locationName: "Via dell'Euro",
     color: "from-yellow-500 to-amber-500",
     accentColor: "border-yellow-400 text-yellow-600 bg-yellow-50",
     symbol: "💶",
@@ -52,7 +52,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   },
   {
     id: 4,
-    name: "Il Lago di Sale",
+    name: "Il Segreto della Sedia",
     locationName: "Le Acque della Sedia Magica",
     color: "from-violet-500 to-purple-600",
     accentColor: "border-violet-400 text-violet-600 bg-violet-50",
@@ -74,8 +74,8 @@ export const WORLDS_DATA: WorldConfig[] = [
   },
   {
     id: 5,
-    name: "Le Caverne di Bobo",
-    locationName: "Grotte del Serpente Guida",
+    name: "La Grotta del Serpente",
+    locationName: "Grotta del Serpente Guida",
     color: "from-green-500 to-emerald-600",
     accentColor: "border-green-400 text-green-600 bg-green-50",
     symbol: "🐍",
@@ -96,7 +96,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   },
   {
     id: 6,
-    name: "Il Santuario di Lina",
+    name: "Il Santuario della Chiocciola",
     locationName: "Corridoi della Saggezza Incisa",
     color: "from-pink-500 to-rose-600",
     accentColor: "border-pink-400 text-pink-600 bg-pink-50",
@@ -118,7 +118,7 @@ export const WORLDS_DATA: WorldConfig[] = [
   },
   {
     id: 7,
-    name: "Le Pianure del Fulmine",
+    name: "La Terra dei Fulmini",
     locationName: "Campi della Rivelazione",
     color: "from-purple-600 to-indigo-700",
     accentColor: "border-purple-400 text-purple-700 bg-purple-50",
