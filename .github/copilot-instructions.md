@@ -53,6 +53,14 @@ git pull origin <branch-corrente>
 
 ---
 
+## Flusso iniziale dell'app
+
+- La prima vista dell'app deve essere sempre la **selezione del profilo**.
+- Non introdurre schermate di benvenuto, intro o bypass iniziali prima del profile picker.
+- Se il flusso di apertura cambia, il picker profilo resta comunque la prima schermata visibile.
+
+---
+
 ## Accessibility Standards
 
 Le quick rules sopra sono vincolanti. In caso di dubbio, applica sempre:

@@ -486,7 +486,7 @@ export default function App() {
     const store = loadStore();
     setProfiles(store.profiles);
     setActiveProfileId(store.activeProfileId);
-    setShowProfilePicker(store.activeProfileId === null);
+    setShowProfilePicker(true);
     setWizardStep(0);
     setIsLoaded(true);
   }, []);
