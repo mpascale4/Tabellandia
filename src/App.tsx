@@ -16,7 +16,6 @@ import WorldDetail from './components/WorldDetail';
 import TrainingHub from './components/TrainingHub';
 import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
-import RewardsTutorial from './components/RewardsTutorial';
 import DigitsGuideModal from './components/DigitsGuideModal';
 import DigitsMatchingGameModal from './components/DigitsMatchingGameModal';
 import CurrencyInfoModal from './components/CurrencyInfoModal';
@@ -258,7 +257,6 @@ export default function App() {
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'parents'>('adventure');
   const [selectedWorldId, setSelectedWorldId] = useState<number | null>(null);
-  const [showLanding, setShowLanding] = useState<boolean>(true);
   const [showProfilePicker, setShowProfilePicker] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
@@ -283,10 +281,6 @@ export default function App() {
   });
   const [deviceMode, setDeviceMode] = useState<'phone' | 'tablet'>('phone');
   const isPhoneMode = deviceMode === 'phone';
-  const [showRewardsTutorial, setShowRewardsTutorial] = useState<boolean>(() => {
-    const seen = localStorage.getItem('tabellandia_rewards_tutorial_seen');
-    return !seen; // Show if never seen before
-  });
   const [showDigitsGuideModal, setShowDigitsGuideModal] = useState<boolean>(false);
   const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
   const [manualOnboardingGameOpen, setManualOnboardingGameOpen] = useState<boolean>(false);
@@ -492,8 +486,7 @@ export default function App() {
     const store = loadStore();
     setProfiles(store.profiles);
     setActiveProfileId(store.activeProfileId);
-    setShowLanding(true);
-    setShowProfilePicker(store.activeProfileId === null && store.profiles.length > 0);
+    setShowProfilePicker(store.activeProfileId === null);
     setWizardStep(0);
     setIsLoaded(true);
   }, []);
@@ -1079,89 +1072,6 @@ export default function App() {
           <p className="text-sm font-bold font-sans">Caricamento di Tabellandia...</p>
         </div>
         <FontSizeControl />
-      </div>
-    );
-  }
-
-  if (showLanding) {
-    return (
-      <div className="w-full h-screen bg-gradient-to-b from-purple-100 to-indigo-100 flex items-center justify-center p-4 overflow-hidden relative" id="landing-screen">
-        {/* Decorative clouds */}
-        <div className="absolute top-8 left-1/4 w-32 h-12 bg-white/60 rounded-full blur-xl"></div>
-        <div className="absolute top-24 right-1/3 w-40 h-14 bg-white/50 rounded-full blur-2xl"></div>
-        
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center max-w-lg w-full space-y-8 relative z-10"
-        >
-          {/* Castle Logo */}
-          <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 3, repeat: Infinity }}
-            className="text-7xl filter drop-shadow-lg"
-          >
-            🏰
-          </motion.div>
-
-          {/* Title */}
-          <div className="text-center space-y-2">
-            <h1 className="text-5xl md:text-6xl font-black text-indigo-950 tracking-wider font-sans">
-              Tabellandia
-            </h1>
-            <p className="text-sm md:text-base font-bold text-indigo-600 tracking-widest uppercase">
-              Un Regno di Numeri e Magia
-            </p>
-          </div>
-
-          {/* Welcome Message */}
-          <p className="text-center text-sm md:text-base text-indigo-900/80 leading-relaxed max-w-md font-medium">
-            Benvenuto! Sei pronto ad intraprendere un viaggio straordinario dove le tabelline diventano alleate fedeli, magie e creature leggendarie?
-          </p>
-
-          {/* Start Button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              sound.playPowerUp();
-              setShowLanding(false);
-              setShowProfilePicker(true);
-            }}
-            className="w-full max-w-xs py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-lg shadow-2xl cursor-pointer transition-all"
-            id="landing-start-btn"
-          >
-            Inizia l'Avventura!
-          </motion.button>
-
-          {/* Info Button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowRewardsTutorial(true)}
-            className="w-full max-w-xs py-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black text-base shadow-lg cursor-pointer transition-all flex items-center justify-center gap-2"
-            id="landing-info-btn"
-          >
-            <Coins className="w-5 h-5" />
-            Come Guadagnare Premi
-          </motion.button>
-
-          {/* Decorative stars */}
-          <div className="flex gap-3 mt-4">
-            <span className="text-2xl animate-bounce" style={{ animationDelay: '0s' }}>✨</span>
-            <span className="text-2xl animate-bounce" style={{ animationDelay: '0.3s' }}>⭐</span>
-            <span className="text-2xl animate-bounce" style={{ animationDelay: '0.6s' }}>✨</span>
-          </div>
-        </motion.div>
-
-        {/* Rewards Tutorial Modal */}
-        <RewardsTutorial
-          isOpen={showRewardsTutorial}
-          onClose={() => {
-            setShowRewardsTutorial(false);
-            localStorage.setItem('tabellandia_rewards_tutorial_seen', 'true');
-          }}
-        />
       </div>
     );
   }
