@@ -25,7 +25,7 @@ import ActionGrid from './components/layout/ActionGrid';
 import ResponsiveGrid from './components/layout/ResponsiveGrid';
 import SectionHeader from './components/layout/SectionHeader';
 import SurfaceCard from './components/layout/SurfaceCard';
-import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Coins, Droplets } from 'lucide-react';
+import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Coins, Droplets, Map } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
@@ -1736,16 +1736,26 @@ export default function App() {
                         );
                       })()}
 
-                      <SurfaceCard tone="soft" padding={isPhoneMode ? 'sm' : 'md'} className={`text-center ${isPhoneMode ? '' : 'md:text-left'}`}>
-                        <SectionHeader
-                          eyebrow="Modalità Avventura"
-                          title="Mappa di Tabellandia"
-                          description="Segui gli indizi di Orion tra i regni della Terra Magica e scopri, passo dopo passo, la rotta verso il mistero."
-                        />
-                        <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-sky-900/80 sm:text-[11px]">
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 sm:px-3 sm:py-1">✅ Completato</span>
-                          <span className="rounded-full border border-amber-400 bg-amber-300 px-2 py-0.5 text-amber-950 shadow-sm motion-safe:animate-pulse sm:px-3 sm:py-1">🚀 Entra</span>
-                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700 sm:px-3 sm:py-1">🔒 Bloccato</span>
+                      <SurfaceCard tone="soft" padding={isPhoneMode ? 'sm' : 'md'} className="text-left">
+                        <div className="mx-auto flex max-w-3xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className="space-y-2 md:max-w-2xl">
+                            <SectionHeader
+                              title="Mappa di Tabellandia"
+                              icon={<Map className="h-5 w-5 text-sky-600" aria-hidden="true" />}
+                              className="mb-0"
+                            />
+                            <p className="text-sm sm:text-base font-medium leading-relaxed text-slate-500">
+                              Riuscirà il Cigno Orion 🦢 a trovare la Moneta rara 💶? Oppure troverà qualcos'altro?
+                            </p>
+                          </div>
+
+                          <div className="mx-auto flex w-full max-w-[13rem] items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/80 px-4 py-3 shadow-sm md:mx-0 md:w-auto">
+                            <span className="text-4xl" aria-hidden="true">🧮</span>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-700">Tabelline</p>
+                              <p className="text-sm font-bold text-slate-700">Avventura in corso</p>
+                            </div>
+                          </div>
                         </div>
                       </SurfaceCard>
 
@@ -1809,7 +1819,6 @@ export default function App() {
                                   }`}>
                                    {!isUnlocked ? '🔒 Bloccato' : isCompleted ? '✅ Completato' : '🚀 Entra'}
                                   </span>
-                                  {isUnlocked && <span className="text-xl sm:text-2xl" aria-hidden="true">{world.symbol}</span>}
                                 </div>
                               </div>
 
