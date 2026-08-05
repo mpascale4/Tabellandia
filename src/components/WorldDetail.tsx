@@ -1071,8 +1071,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       costruiscoEscapeTimeoutsRef.current[bombId] = window.setTimeout(() => {
         delete costruiscoEscapeTimeoutsRef.current[bombId];
         setCostruiscoActiveBalloons(prev => prev.filter(b => b.id !== bombId));
+        if (!bomb.isCorrect || costruiscoFailedRef.current || costruiscoGameCompletedRef.current) {
+          return;
+        }
+        sound.playError();
+        speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoTooHigh);
+        setCostruiscoFailReason('correct-escaped');
+        setCostruiscoWrongTappedValue(null);
+        setCostruiscoFailed(true);
+        setCostruiscoGameCompleted(false);
+        clearCostruiscoFlightTimeout();
       }, escapeMs);
-      queueCostruiscoBombSpawn(factor, bombsLeft - 1);
+
+      // Continue scheduling bomb balloons until the requested quota is exhausted.
+      if (bombsLeft > 1) {
+        queueCostruiscoBombSpawn(factor, bombsLeft - 1);
+      }
     }, delayMs);
   };
 
@@ -2035,6 +2049,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const canGoToSfidaFromCoins = profile.coins >= SFIDA_UNLOCK_COST && areSfidaPrerequisitesDone;
   const canGoToPratico = nextStepToPlay === 'pratico';
   const praticoLockedMessage = 'Completa prima tutti i passi precedenti per entrare in Pratico (Avventura).';
+  const sfidaDropsGuidanceMessage = 'Completa prima tutti i passi, fai pratica e vinci la Sfida per guadagnare gocce.';
   const sfidaLockedMessage = 'Completa prima tutti i passi precedenti per sbloccare la Sfida.';
 
   const stepDoneMap: Record<string, boolean> = {
@@ -2145,6 +2160,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       explainPraticoRewardAndPossibilities();
     }
   }, [showPraticoCongrats, praticoCongratsTarget, targetPraticoStreak, canGoToSfidaFromCoins, hasErectableBlockedMonuments]);
+
+  useEffect(() => {
+    if (!monumentModal || monumentModal.isErected || monumentModal.canAfford) return;
+    void speak('Per avere le gocce, completa prima tutti i passi, fai pratica e vinci la Sfida.');
+  }, [monumentModal, speak]);
+
+  useEffect(() => {
+    if (!pathLockModalMessage) return;
+    void speak('Completa prima tutti i passi precedenti!');
+  }, [pathLockModalMessage, speak]);
 
   type StepFactorGridTheme = {
     done: string;
@@ -2259,7 +2284,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   }) => (
     <div className="max-w-4xl mx-auto w-full h-full min-h-0">
       <SurfaceCard padding="lg" className={`h-full min-h-0 shadow-lg border-2 ${theme.panel} flex flex-col`}>
-        <div className="flex items-center justify-center gap-2 mb-4">
+        <div className="flex items-center justify-center gap-2">
           <span className={`text-xs font-bold px-3 py-1 rounded-full font-sans ${theme.badge}`}>
             {badge}
           </span>
@@ -2327,7 +2352,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       }
 
       const nextXP = p.xp + 15;
-      const nextCoins = p.coins + 5;
+      const nextCoins = p.coins;
       let nextLevel = p.level;
       if (nextXP >= nextLevel * 100) nextLevel += 1;
 
@@ -2469,18 +2494,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       } else {
         cancelSaltoExercise();
       }
+      return;
     } else if (costruiscoSelectedFactor !== null) {
       if (costruiscoFlowStage === 'game') {
         setCostruiscoFlowStage('objective');
       } else {
         cancelCostruiscoExercise();
       }
+      return;
     } else if (trucchiSelectedFactor !== null) {
       if (trucchiFlowStage === 'game') {
         setTrucchiFlowStage('objective');
       } else {
         cancelTrucchiExercise();
       }
+      return;
     } else if (isInPlayableStepView) {
       if (activeStep === 'sfida') {
         if (timerRef.current) {
@@ -2642,9 +2670,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     <p className="text-xs text-slate-500 font-sans">Sblocca i giochi fino a Pratico, usa le monete per entrare nella Sfida e ottieni le gocce per scoprire gli indizi.</p>
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shadow-2xs">
-                  i
-                </div>
               </div>
               <div role="list" className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2.5">
                 <button
@@ -2667,7 +2692,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   role="listitem"
                   className={`rounded-2xl border px-3 py-2 text-center shadow-sm transition-all ${
                     hasErectableBlockedMonuments
-                      ? 'border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
+                      ? 'border-amber-500 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-100 ring-2 ring-amber-300 animate-monument-glow'
                       : 'border-sky-200 bg-sky-50'
                   }`}
                 >
@@ -2877,8 +2902,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'comprendo' && comprendoSelectedFactor === null && (
           renderStepSelectionScreen({
               stepKey: 'comprendo',
-              badge: 'Passo 1: Raccogli',
-              title: 'Scegli una moltiplicazione',
+              badge: 'Passo 1',
+              title: '1. Raccogli 🍎',
+              description: 'Raccogli le mele nei cesti.',
               completed: effectiveComprendoCompleted,
               onSelect: (factor) => {
                 sound.playClick();
@@ -2955,7 +2981,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                        >
                          <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                           <p className="mt-2 text-xs font-bold text-slate-700">Prosegui con il bottone Continua nel footer.</p>
+                           
                          </div>
                        </motion.div>
                      )}
@@ -3037,9 +3063,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'salto' && saltoSelectedFactor === null && (
           renderStepSelectionScreen({
             stepKey: 'salto',
-            badge: 'Passo 2: Salta',
-            title: '🐸 Fai saltare la rana sui sassi!',
-            description: 'Completa tutte e 10 le combinazioni per consolidare il ritmo del conteggio.',
+            badge: 'Passo 2',
+            title: '2. Salta 🐸',
+            description: 'Salta di sasso in sasso sul ruscello.',
             completed: effectiveSaltoCompleted,
             onSelect: (factor) => {
               sound.playClick();
@@ -3076,7 +3102,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'salto' && saltoSelectedFactor !== null && (
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
-              <div className="max-w-xl mx-auto w-full space-y-6">
+              <div className="max-w-xl mx-auto w-full space-y-5">
                 {saltoFlowStage === 'objective' && saltoSelectedFactor !== 1 && (
                   <div className="bg-white rounded-3xl p-5 border border-purple-100 shadow-xl space-y-4">
                     <div className="text-center">
@@ -3425,7 +3451,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       >
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                          <p className="mt-2 text-xs font-bold text-slate-700">Prosegui con il bottone Continua nel footer.</p>
+                          
                         </div>
                       </motion.div>
                     )}
@@ -3506,8 +3532,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'costruisco' && costruiscoSelectedFactor === null && (
           renderStepSelectionScreen({
               stepKey: 'costruisco',
-              badge: 'Passo 3: Scoppia',
-              title: '🎈 Scegli una moltiplicazione da scoppiare',
+              badge: 'Passo 3',
+              title: '3. Scoppia 🎈',
+              description: 'Scoppia il palloncino giusto.',
               completed: effectiveCostruiscoCompleted,
               onSelect: (factor) => {
                 sound.playClick();
@@ -3697,7 +3724,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                        >
                          <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                           <p className="mt-2 text-xs font-bold text-slate-700">Prosegui con il bottone Continua nel footer.</p>
+                           
                          </div>
                        </motion.div>
                      )}
@@ -3779,9 +3806,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'trucchi' && trucchiSelectedFactor === null && (
           renderStepSelectionScreen({
             stepKey: 'trucchi',
-            badge: 'Passo 4: Trova',
-            title: '🧱 Scegli un mattone da trovare',
-            description: 'Completa tutte e 10 le combinazioni per memorizzare più rapidamente.',
+            badge: 'Passo 4',
+            title: '4. Trova 🧱',
+            description: 'Trova il mattone corretto.',
             completed: effectiveTrucchiCompleted,
             onSelect: (factor) => {
               sound.playClick();
@@ -4068,7 +4095,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       >
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                          <p className="mt-2 text-xs font-bold text-slate-700">Prosegui con il bottone Continua nel footer.</p>
+                          
                         </div>
                       </motion.div>
                     )}
@@ -4210,8 +4237,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       setQuizPressedFeedback({ opt, correct: isCorrectOpt });
                     }}
                     onPointerUp={() => {
-                      setQuizPressedFeedback(null);
                       if (quizInteractionLocked) return;
+                      setQuizPressedFeedback({ opt, correct: isCorrectOpt });
                       handleQuizAnswer(opt);
                     }}
                     onPointerLeave={() => setQuizPressedFeedback(null)}
@@ -4576,7 +4603,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <h3
               id="sfida-result-title"
               className={`mb-1 text-sm font-black uppercase tracking-wide ${
-                sfidaResult.passedSfida ? 'text-emerald-800' : 'text-rose-700'
+                sfidaResult.passedSfida
+                  ? 'text-emerald-800' : 'text-rose-700'
               }`}
             >
               {sfidaResult.passedSfida
@@ -4841,7 +4869,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 <div className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full mb-3">
                   🔍 Pronto da aprire
                 </div>
-                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                <p className="text-xs text-slate-600 mb-3 leading-relaxed">
                   Questo indizio completa il sentiero narrativo del regno. Toccalo per segnarlo come trovato.
                 </p>
                 <div className="flex gap-2.5">
@@ -4854,18 +4882,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </button>
                   <button
                     type="button"
+                    aria-disabled={!canGoToSfidaFromCoins}
                     onClick={() => {
-                      handleRebuildMonument(monumentModal.monument.id, monumentModal.monument.cost);
-                      if (shouldReturnToMonumentsListAfterModal) {
+                      if (!canGoToSfidaFromCoins) {
+                        sound.playError();
                         setMonumentModal(null);
-                        setShowMonumentUnlockList(true);
+                        setPathLockModalMessage(`🔒 Sfida Bloccata!\n\n${sfidaDropsGuidanceMessage}`);
                         return;
                       }
                       setMonumentModal(null);
+                      initializeSfida();
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
+                    className={`flex-1 py-2.5 rounded-xl text-white font-black text-xs shadow-md transition-colors ${
+                      canGoToSfidaFromCoins
+                        ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
+                        : 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                    }`}
                   >
-                      🔍 Sì, Segna Come Trovato
+                    ⚡ Vai alla Sfida
                   </button>
                 </div>
               </>
@@ -4883,7 +4917,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 <p className="text-xs text-slate-600 mb-3 leading-relaxed">
                   Per aprire <b>{monumentModal.monument.name}</b> ti mancano <b>{monumentModal.monument.cost - profile.lightDrops} Gocce di Luce</b>.
                   <br /><br />
-                  {praticoLockedMessage}
+                  {sfidaDropsGuidanceMessage}
                 </p>
                 <div className="flex gap-2.5">
                   <button
@@ -4895,24 +4929,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </button>
                   <button
                     type="button"
-                    aria-disabled={!canGoToPratico}
+                    aria-disabled={!canGoToSfidaFromCoins}
                     onClick={() => {
-                      if (!canGoToPratico) {
+                      if (!canGoToSfidaFromCoins) {
                         sound.playError();
                         setMonumentModal(null);
-                        setPathLockModalMessage(`🔒 Pratico Bloccato!\n\n${praticoLockedMessage}`);
+                        setPathLockModalMessage(`🔒 Sfida Bloccata!\n\n${sfidaDropsGuidanceMessage}`);
                         return;
                       }
                       setMonumentModal(null);
-                      startQuizMode();
+                      initializeSfida();
                     }}
                     className={`flex-1 py-2.5 rounded-xl text-white font-black text-xs shadow-md transition-colors ${
-                      canGoToPratico
+                      canGoToSfidaFromCoins
                         ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
                         : 'bg-slate-300 text-slate-600 cursor-not-allowed'
                     }`}
                   >
-                    🛡️ Vai al Pratico
+                    ⚡ Vai alla Sfida
                   </button>
                 </div>
               </>

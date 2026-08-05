@@ -23,6 +23,13 @@ interface BasketParticle {
   vy: number;
 }
 
+interface BeeParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
 interface ArenaRipple {
   id: number;
   x: number;
@@ -45,10 +52,16 @@ const BOOST_MIN_MULTIPLIER = 1;
 const BOOST_FACTOR_MAX_STEP = 10;
 const BOOST_FACTOR_ACCELERATION_MAX = 0.7;
 const BEE_START_FACTOR = 4;
+const BEE_SIZE = 42;
+const BEE_ATTRACT_DURATION_MS = 850;
+const BEE_IDLE_INNER_PADDING_RATIO = 0.18;
+const BEE_IDLE_CENTER_PULL = 64;
+const BEE_IDLE_EDGE_AVOIDANCE = 110;
+const BEE_IDLE_EDGE_MARGIN = 30;
 const COMPRENDO_AUDIO_MESSAGES = {
   turbo: 'Riempi la cesta con le mele.',
   basketFull: 'Questa cesta e gia piena.',
-  bee: 'Oh no! Hai toccato il calabrone: turno perso!',
+  bee: 'Oh no! Hai toccato il calabrone.',
 } as const;
 const createEmptyCounts = (count: number) => Array.from({ length: count }, () => 0);
 const FINAL_BASKET_MAX_SIZE = 68;
@@ -100,6 +113,34 @@ const createReducedMotionLayout = (count: number, arena: ArenaSize): BasketParti
   });
 };
 
+const createBeeParticles = (count: number, arena: ArenaSize, factor: number, reducedMotion: boolean): BeeParticle[] => {
+  const maxX = Math.max(0, arena.width - BEE_SIZE);
+  const maxY = Math.max(0, arena.height - BEE_SIZE);
+  const innerPaddingX = maxX * BEE_IDLE_INNER_PADDING_RATIO;
+  const innerPaddingY = maxY * BEE_IDLE_INNER_PADDING_RATIO;
+  const idleMinX = Math.max(0, innerPaddingX);
+  const idleMaxX = Math.max(idleMinX, maxX - innerPaddingX);
+  const idleMinY = Math.max(0, innerPaddingY);
+  const idleMaxY = Math.max(idleMinY, maxY - innerPaddingY);
+  const speedBase = 96 + (factor * 12);
+
+  return Array.from({ length: count }, (_, index) => {
+    const x = Math.floor(idleMinX + (Math.random() * Math.max(1, idleMaxX - idleMinX)));
+    const y = Math.floor(idleMinY + (Math.random() * Math.max(1, idleMaxY - idleMinY)));
+    if (reducedMotion) {
+      return { x, y, vx: 0, vy: 0 };
+    }
+
+    const drift = speedBase + (index * 18);
+    return {
+      x,
+      y,
+      vx: (Math.random() > 0.5 ? 1 : -1) * drift,
+      vy: (Math.random() > 0.5 ? 1 : -1) * (drift * 0.85),
+    };
+  });
+};
+
 export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onCompletionChange }: ComprendoBasketGameProps) {
   const displayA = propA;
   const displayB = propB;
@@ -109,14 +150,18 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const particlesRef = useRef<BasketParticle[]>([]);
   const frameRef = useRef<number | null>(null);
+  const beeFrameRef = useRef<number | null>(null);
   const boostTimeoutRef = useRef<number | null>(null);
   const cooldownTimeoutRef = useRef<number | null>(null);
+  const beeAttractTimeoutRef = useRef<number | null>(null);
   const pulseTimeoutRef = useRef<number | null>(null);
   const rippleIdRef = useRef<number>(0);
   const rippleTimeoutsRef = useRef<number[]>([]);
   const appleBurstIdRef = useRef<number>(0);
   const appleBurstTimeoutsRef = useRef<number[]>([]);
   const isOutsidePromptSpeakingRef = useRef<boolean>(false);
+  const beeParticlesRef = useRef<BeeParticle[]>([]);
+  const beeAttractTargetRef = useRef<{ x: number; y: number } | null>(null);
   const [arenaSize, setArenaSize] = useState<ArenaSize>({ width: 0, height: 0 });
   const [basketCounts, setBasketCounts] = useState<number[]>(() => createEmptyCounts(a));
   const [positions, setPositions] = useState<BasketParticle[]>([]);
@@ -127,6 +172,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const [arenaRipples, setArenaRipples] = useState<ArenaRipple[]>([]);
   const [arenaPulseActive, setArenaPulseActive] = useState<boolean>(false);
   const [appleBursts, setAppleBursts] = useState<AppleBurst[]>([]);
+  const [beePositions, setBeePositions] = useState<BeeParticle[]>([]);
   const [beeHit, setBeeHit] = useState<boolean>(false);
   const [beeDefeat, setBeeDefeat] = useState<boolean>(false);
   const clampedFactor = Math.max(1, Math.min(BOOST_FACTOR_MAX_STEP, displayB));
@@ -198,8 +244,14 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       if (pulseTimeoutRef.current !== null) {
         window.clearTimeout(pulseTimeoutRef.current);
       }
+      if (beeAttractTimeoutRef.current !== null) {
+        window.clearTimeout(beeAttractTimeoutRef.current);
+      }
       rippleTimeoutsRef.current.forEach(timeoutId => window.clearTimeout(timeoutId));
       appleBurstTimeoutsRef.current.forEach(timeoutId => window.clearTimeout(timeoutId));
+      if (beeFrameRef.current !== null) {
+        window.cancelAnimationFrame(beeFrameRef.current);
+      }
     };
   }, []);
 
@@ -275,6 +327,19 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   }, [a, arenaSize, prefersReducedMotion]);
 
   useEffect(() => {
+    const beeCount = displayB >= BEE_START_FACTOR ? getBeeCount(displayB) : 0;
+    if (arenaSize.width <= 0 || arenaSize.height <= 0 || beeCount === 0 || isCompleted || isFailed) {
+      beeParticlesRef.current = [];
+      setBeePositions([]);
+      return;
+    }
+
+    const nextBees = createBeeParticles(beeCount, arenaSize, displayB, prefersReducedMotion);
+    beeParticlesRef.current = nextBees;
+    setBeePositions(nextBees);
+  }, [arenaSize, displayB, isCompleted, isFailed, prefersReducedMotion]);
+
+  useEffect(() => {
     onCompletionChange?.(isCompleted);
   }, [isCompleted, onCompletionChange]);
 
@@ -339,6 +404,123 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
     };
   }, [a, arenaSize, basketCounts, b, isCompleted, isFailed, positions.length, prefersReducedMotion, speedMultiplier]);
 
+  useEffect(() => {
+    if (
+      prefersReducedMotion
+      || isCompleted
+      || isFailed
+      || displayB < BEE_START_FACTOR
+      || arenaSize.width <= 0
+      || arenaSize.height <= 0
+      || beePositions.length === 0
+    ) {
+      return;
+    }
+
+    const maxBeeSpeed = 120 + (displayB * 12);
+    const jitterStrength = 14 + (displayB * 1.1);
+    const attractStrength = 320 + (displayB * 34);
+    const agility = 0.72 + (displayB * 0.06);
+    let previousTime = performance.now();
+
+    const animateBees = (time: number) => {
+      const deltaSeconds = Math.min(0.04, (time - previousTime) / 1000);
+      previousTime = time;
+      const maxX = Math.max(0, arenaSize.width - BEE_SIZE);
+      const maxY = Math.max(0, arenaSize.height - BEE_SIZE);
+      const centerX = maxX / 2;
+      const centerY = maxY / 2;
+      const innerPaddingX = maxX * BEE_IDLE_INNER_PADDING_RATIO;
+      const innerPaddingY = maxY * BEE_IDLE_INNER_PADDING_RATIO;
+      const idleMinX = Math.max(0, innerPaddingX);
+      const idleMaxX = Math.max(idleMinX, maxX - innerPaddingX);
+      const idleMinY = Math.max(0, innerPaddingY);
+      const idleMaxY = Math.max(idleMinY, maxY - innerPaddingY);
+      const attractTarget = beeAttractTargetRef.current;
+
+      const nextBeeParticles = beeParticlesRef.current.map((bee) => {
+        let ax = (Math.random() - 0.5) * jitterStrength * agility;
+        let ay = (Math.random() - 0.5) * jitterStrength * agility;
+
+        if (attractTarget) {
+          const dx = attractTarget.x - bee.x;
+          const dy = attractTarget.y - bee.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 1) {
+            const attraction = (attractStrength / Math.max(36, dist)) * agility;
+            ax += (dx / dist) * attraction;
+            ay += (dy / dist) * attraction;
+          }
+        } else {
+          const centerDx = centerX - bee.x;
+          const centerDy = centerY - bee.y;
+          const centerDist = Math.hypot(centerDx, centerDy);
+          if (centerDist > 1) {
+            const centering = (BEE_IDLE_CENTER_PULL / Math.max(64, centerDist)) * agility;
+            ax += (centerDx / centerDist) * centering;
+            ay += (centerDy / centerDist) * centering;
+          }
+
+          // Keep idle movement more central and avoid outer borders unless user clicks the arena.
+          if (bee.x < idleMinX + BEE_IDLE_EDGE_MARGIN) {
+            ax += BEE_IDLE_EDGE_AVOIDANCE * agility;
+          } else if (bee.x > idleMaxX - BEE_IDLE_EDGE_MARGIN) {
+            ax -= BEE_IDLE_EDGE_AVOIDANCE * agility;
+          }
+
+          if (bee.y < idleMinY + BEE_IDLE_EDGE_MARGIN) {
+            ay += BEE_IDLE_EDGE_AVOIDANCE * agility;
+          } else if (bee.y > idleMaxY - BEE_IDLE_EDGE_MARGIN) {
+            ay -= BEE_IDLE_EDGE_AVOIDANCE * agility;
+          }
+        }
+
+        let nextVx = bee.vx + (ax * deltaSeconds);
+        let nextVy = bee.vy + (ay * deltaSeconds);
+        const speed = Math.hypot(nextVx, nextVy);
+        if (speed > maxBeeSpeed) {
+          const scale = maxBeeSpeed / speed;
+          nextVx *= scale;
+          nextVy *= scale;
+        }
+
+        let nextX = bee.x + (nextVx * deltaSeconds);
+        let nextY = bee.y + (nextVy * deltaSeconds);
+
+        if (nextX <= 0) {
+          nextX = 0;
+          nextVx = Math.abs(nextVx);
+        } else if (nextX >= maxX) {
+          nextX = maxX;
+          nextVx = -Math.abs(nextVx);
+        }
+
+        if (nextY <= 0) {
+          nextY = 0;
+          nextVy = Math.abs(nextVy);
+        } else if (nextY >= maxY) {
+          nextY = maxY;
+          nextVy = -Math.abs(nextVy);
+        }
+
+        return { x: nextX, y: nextY, vx: nextVx, vy: nextVy };
+      });
+
+      beeParticlesRef.current = nextBeeParticles;
+      setBeePositions(nextBeeParticles);
+      beeFrameRef.current = window.requestAnimationFrame(animateBees);
+    };
+
+    beeFrameRef.current = window.requestAnimationFrame(animateBees);
+
+    return () => {
+      if (beeFrameRef.current !== null) {
+        window.cancelAnimationFrame(beeFrameRef.current);
+        beeFrameRef.current = null;
+      }
+    };
+  }, [arenaSize, beePositions.length, displayB, isCompleted, isFailed, prefersReducedMotion]);
+
   const speakOutsidePrompt = () => {
     if (!voiceEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
     if (isOutsidePromptSpeakingRef.current && window.speechSynthesis.speaking) return;
@@ -382,6 +564,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
     if (isCompleted || isFailed || beeHit) return;
     setBeeHit(true);
     setBeeDefeat(true);
+    beeAttractTargetRef.current = null;
     setSpeedMultiplier(BOOST_MIN_MULTIPLIER);
     if (boostTimeoutRef.current !== null) {
       window.clearTimeout(boostTimeoutRef.current);
@@ -421,6 +604,41 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
     };
+
+    const maxBeeX = Math.max(0, arenaSize.width - BEE_SIZE);
+    const maxBeeY = Math.max(0, arenaSize.height - BEE_SIZE);
+    const clickX = Math.max(0, Math.min(maxBeeX, (event.clientX - rect.left) - (BEE_SIZE / 2)));
+    const clickY = Math.max(0, Math.min(maxBeeY, (event.clientY - rect.top) - (BEE_SIZE / 2)));
+    beeAttractTargetRef.current = { x: clickX, y: clickY };
+
+    // Apply an immediate directional push so bees visibly converge right after the click.
+    if (!prefersReducedMotion && beeParticlesRef.current.length > 0) {
+      const chaseSpeed = 150 + (displayB * 16);
+      const steeredBees = beeParticlesRef.current.map((bee) => {
+        const dx = clickX - bee.x;
+        const dy = clickY - bee.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 1) return bee;
+        const steerVx = (dx / dist) * chaseSpeed;
+        const steerVy = (dy / dist) * chaseSpeed;
+        return {
+          ...bee,
+          // Blend old and new vectors for a softer, less abrupt turn.
+          vx: (bee.vx * 0.35) + (steerVx * 0.65),
+          vy: (bee.vy * 0.35) + (steerVy * 0.65),
+        };
+      });
+      beeParticlesRef.current = steeredBees;
+      setBeePositions(steeredBees);
+    }
+
+    if (beeAttractTimeoutRef.current !== null) {
+      window.clearTimeout(beeAttractTimeoutRef.current);
+    }
+    beeAttractTimeoutRef.current = window.setTimeout(() => {
+      beeAttractTargetRef.current = null;
+      beeAttractTimeoutRef.current = null;
+    }, BEE_ATTRACT_DURATION_MS);
 
     setArenaRipples(current => [...current, nextRipple]);
 
@@ -566,28 +784,19 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
             ))}
           </AnimatePresence>
 
-          {/* 🐝 Bee obstacles — 1 at ×4, 2 at ×6, 3 at ×8 */}
+          {/* 🐝 Bee obstacles — unpredictabile in base alla difficolta */}
           {displayB >= BEE_START_FACTOR && !isCompleted && !isFailed && (
-            Array.from({ length: getBeeCount(displayB) }).map((_, i) => {
-              const speedMultipliers = [1, 0.75, 1.3];
-              const topPercents = [0.28, 0.50, 0.70];
-              const startsRight = i % 2 === 1; // alternate starting sides
-              const speedMs = getBeeSpeedMs(displayB) * speedMultipliers[i];
+            beePositions.map((bee, i) => {
               return (
-                <motion.button
+                <button
                   key={`bee-${displayB}-${i}`}
-                  initial={{ x: startsRight ? arenaSize.width - BASKET_SIZE : 0 }}
-                  animate={prefersReducedMotion
-                    ? { x: arenaSize.width * 0.6 }
-                    : { x: startsRight ? [arenaSize.width - BASKET_SIZE, 0] : [0, arenaSize.width - BASKET_SIZE] }}
-                  transition={prefersReducedMotion ? { duration: 0.1 } : { repeat: Infinity, repeatType: 'mirror', duration: speedMs / 1000, ease: 'linear' }}
                   onClick={(e) => { e.stopPropagation(); handleBeeTap(); }}
                   className={`absolute z-20 cursor-pointer select-none text-3xl transition-transform ${beeHit ? 'scale-125' : ''}`}
-                  style={{ top: `${Math.floor(arenaSize.height * topPercents[i])}px` }}
-                  aria-label="Calabrone — non toccare, perdi il turno!"
+                  style={{ top: `${Math.floor(bee.y)}px`, left: `${Math.floor(bee.x)}px` }}
+                  aria-label="Calabrone: non toccare."
                 >
                   🐝
-                </motion.button>
+                </button>
               );
             })
           )}
@@ -595,7 +804,6 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
           {isFailed ? (
             <div className="absolute inset-0 z-40 flex items-center justify-center rounded-[1.35rem] bg-black/40 p-4">
               <div className="w-full max-w-xs rounded-2xl border-2 border-rose-200 bg-white/95 px-5 py-4 text-center shadow-xl">
-                <p className="text-sm font-black text-rose-700">Hai perso il turno!</p>
                 <p className="mt-1 text-xs font-bold text-slate-700">Hai toccato il calabrone.</p>
                 <button
                   type="button"
