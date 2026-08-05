@@ -170,7 +170,7 @@ export default function ParentDashboard({
         name: 'Eroe',
         level: 1,
         xp: 0,
-        coins: 10,
+        coins: 0,
         lightDrops: 0,
         avatar: {
           emoji: '👦',

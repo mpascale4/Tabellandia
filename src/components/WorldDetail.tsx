@@ -30,7 +30,6 @@ interface WorldDetailProps {
   onBack: () => void;
   compactLayout?: boolean;
   initialExercise?: string | null;
-  devMode?: boolean;
 }
 
 // Helper function to shuffle an array randomly (Fisher-Yates)
@@ -243,7 +242,7 @@ type CostruiscoActiveBalloon = {
   isTrap?: boolean;
 };
 
-export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise, devMode = false }: WorldDetailProps) {
+export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise }: WorldDetailProps) {
   const { speak } = useVoice();
   const ALL_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'];
   const ALL_FACTORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -2004,15 +2003,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     highScore: 0,
     stars: 0
   };
-  const worldProg = devMode
-    ? { ...worldProgBase, completedSteps: [...ALL_STEP_IDS] }
-    : worldProgBase;
+  const worldProg = worldProgBase;
   const blockedMonuments = world.monuments.filter(monument => !worldProg.rebuiltMonuments.includes(monument.id));
   const canSuggestSfidaFromMonuments = blockedMonuments.length === 0 && profile.lightDrops <= 0 && profile.coins >= SFIDA_UNLOCK_COST;
   const allFactorsSet = new Set<number>(ALL_FACTORS);
 
   const getEffectiveCompletedFactors = (stepKey: 'comprendo' | 'salto' | 'costruisco' | 'trucchi', stateSet: Set<number>) => {
-    if (devMode) return allFactorsSet;
     const saved = worldProg.completedFactors?.[stepKey];
     if (saved && Array.isArray(saved)) {
       return new Set([...saved, ...stateSet]);
@@ -2026,15 +2022,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const effectiveCostruiscoCompleted = getEffectiveCompletedFactors('costruisco', costruiscoCompleted);
   const effectiveTrucchiCompleted = getEffectiveCompletedFactors('trucchi', trucchiCompleted);
 
-  const isComprendoDone = devMode || effectiveComprendoCompleted.size >= 10;
-  const isSaltoDone = devMode || effectiveSaltoCompleted.size >= 10;
-  const isCostruiscoDone = devMode || effectiveCostruiscoCompleted.size >= 10;
-  const isTrucchiDone = devMode || effectiveTrucchiCompleted.size >= 10;
-  const isPraticoDone = devMode || worldProg.completedSteps.includes('pratico');
+  const isComprendoDone = effectiveComprendoCompleted.size >= 10;
+  const isSaltoDone = effectiveSaltoCompleted.size >= 10;
+  const isCostruiscoDone = effectiveCostruiscoCompleted.size >= 10;
+  const isTrucchiDone = effectiveTrucchiCompleted.size >= 10;
+  const isPraticoDone = worldProg.completedSteps.includes('pratico');
   const praticoCyclesCompleted = worldProg.praticoCyclesCompleted
     ?? (worldProg.completedSteps.includes('pratico') ? 1 : 0);
   const targetPraticoStreak = 10 + praticoCyclesCompleted * 2;
-  const isSfidaDone = devMode || worldProg.completedSteps.includes('sfida');
+  const isSfidaDone = worldProg.completedSteps.includes('sfida');
   const areSfidaPrerequisitesDone = isComprendoDone && isSaltoDone && isCostruiscoDone && isTrucchiDone && isPraticoDone;
   const nextStepToPlay = !isComprendoDone
     ? 'comprendo'
@@ -2074,7 +2070,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Sfida path lock: all didactic steps (1-5) must be completed before accessing step 6
   const allMonumentsErected = rebuiltCount === world.monuments.length;
-  const isSfidaPathLocked = !devMode && !areSfidaPrerequisitesDone;
+  const isSfidaPathLocked = !areSfidaPrerequisitesDone;
   const shouldHighlightSfidaCta = canGoToSfidaFromCoins && !isSfidaDone && !isSfidaPathLocked && nextStepToPlay === 'sfida';
   const previousView = viewStack.length > 1 ? viewStack[viewStack.length - 2] : null;
   const isGuideStoryView = currentView === 'world-story';
@@ -2299,7 +2295,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     >
       {ALL_FACTORS.map(factor => {
         const isCompleted = completed.has(factor);
-        const isUnlocked = devMode || factor === 1 || completed.has(factor - 1);
+        const isUnlocked = factor === 1 || completed.has(factor - 1);
         const isLocked = !isUnlocked;
         const isNextFactor = !isCompleted && isUnlocked;
 
@@ -2918,7 +2914,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 </div>
                 <div role="list" className="grid grid-cols-3 gap-1.5 pb-1">
                   {world.monuments.map(monument => {
-                    const isErected = devMode || worldProg.rebuiltMonuments.includes(monument.id);
+                    const isErected = worldProg.rebuiltMonuments.includes(monument.id);
                     const canAfford = profile.lightDrops >= monument.cost;
 
                     return (
@@ -2977,7 +2973,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   const isDone = stepDoneMap[step.id] || false;
                   const prevStepId = idx > 0 ? ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico'][idx - 1] : null;
                   const prevStepDone = idx === 0 || (prevStepId ? (stepDoneMap[prevStepId] || false) : true);
-                  const isLocked = !devMode && !prevStepDone;
+                  const isLocked = !prevStepDone;
                   const factorCount = stepFactorsCountMap[step.id] || 0;
                   const isNext = step.id === nextStepToPlay;
 
@@ -4531,43 +4527,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </p>
             )}
 
-            {/* DEV toolbar – visibile solo in modalità sviluppo */}
-            {devMode && (
-              <div
-                aria-hidden="true"
-                className="w-full rounded-xl border-2 border-dashed border-orange-400 bg-orange-50 px-4 py-3 flex flex-col gap-2"
-              >
-                <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">🛠 Dev tools</span>
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      updateProfile(p => ({
-                        ...p,
-                        worldProgress: {
-                          ...p.worldProgress,
-                          [world.id]: {
-                            ...p.worldProgress[world.id],
-                            highScore: 0,
-                          },
-                        },
-                      }));
-                      setSfidaResult(null);
-                    }}
-                    className="flex-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-2 px-3 cursor-pointer transition-colors"
-                  >
-                    🔴 Azzera record
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowFireworks(true)}
-                    className="flex-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-bold py-2 px-3 cursor-pointer transition-colors"
-                  >
-                    🎆 Test fuochi
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

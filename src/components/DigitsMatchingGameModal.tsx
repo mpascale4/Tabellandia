@@ -9,14 +9,12 @@ interface DigitsMatchingGameModalProps {
   isOpen: boolean;
   onComplete: () => void;
   onSkip?: () => void;
-  devMode?: boolean;
 }
 
 export default function DigitsMatchingGameModal({
   isOpen,
   onComplete,
-  onSkip,
-  devMode = false
+  onSkip
 }: DigitsMatchingGameModalProps) {
   const { speak } = useVoice();
 
@@ -149,15 +147,6 @@ export default function DigitsMatchingGameModal({
                   className="text-[10px] sm:text-xs bg-white text-indigo-800 px-2 py-1 rounded-lg font-black border border-white/70 hover:bg-indigo-50 transition-colors cursor-pointer"
                 >
                   Salta per ora
-                </button>
-              )}
-              {devMode && (
-                <button
-                  type="button"
-                  onClick={handleSkip}
-                  className="text-[10px] bg-amber-400 text-amber-950 px-2 py-1 rounded font-black uppercase cursor-pointer"
-                >
-                  Salta DEV
                 </button>
               )}
             </div>

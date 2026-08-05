@@ -12,7 +12,6 @@ import { getStoryEntriesForTable } from './utils/storyMarkdown';
 import { sound } from './components/SoundManager';
 import FireworksOverlay from './components/FireworksOverlay';
 import ParentDashboard from './components/ParentDashboard';
-import DevDashboard from './components/DevDashboard';
 import WorldDetail from './components/WorldDetail';
 import TrainingHub from './components/TrainingHub';
 import FontSizeControl from './components/FontSizeControl';
@@ -32,9 +31,7 @@ import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Coins, Dropl
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
-const DEV_MODE_KEY = "tabellandia_dev_mode_v1";
 const PARENT_PIN_DEFAULT = '1111';
-const DEV_PANEL_PIN = '2222';
 const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
 const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
 const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
@@ -186,11 +183,10 @@ const APP_SIDEBAR_TABS = [
   { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600', label: 'Mappa' },
   { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600', label: 'Allenamento' },
   { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600', label: 'Genitori' },
-  { id: 'dev', emoji: '⚡', color: 'bg-purple-500 border-purple-700', label: 'DEV' },
 ] as const;
 
-const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devModeEnabled: boolean) => {
-  const base = profile.worldProgress[worldId] || {
+const getAdventureWorldProgress = (profile: UserProfile, worldId: number) => {
+  return profile.worldProgress[worldId] || {
     worldId,
     completedSteps: [],
     rebuiltMonuments: [],
@@ -198,10 +194,6 @@ const getAdventureWorldProgress = (profile: UserProfile, worldId: number, devMod
     highScore: 0,
     stars: 0,
   };
-
-  return devModeEnabled
-    ? { ...base, completedSteps: [...ALL_STEP_IDS] }
-    : base;
 };
 
 const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
@@ -210,7 +202,7 @@ const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   name: "Eroe",
   level: 1,
   xp: 0,
-  coins: 10, // Starting coins to explore customization
+  coins: 0,
   lightDrops: 0,
   avatar: {
     emoji: '👦'
@@ -264,7 +256,7 @@ const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string):
 export default function App() {
   const [profiles, setProfiles] = useState<ProfileRecord[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'parents' | 'dev'>('adventure');
+  const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'parents'>('adventure');
   const [selectedWorldId, setSelectedWorldId] = useState<number | null>(null);
   const [showLanding, setShowLanding] = useState<boolean>(true);
   const [showProfilePicker, setShowProfilePicker] = useState<boolean>(false);
@@ -299,7 +291,6 @@ export default function App() {
   const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
   const [manualOnboardingGameOpen, setManualOnboardingGameOpen] = useState<boolean>(false);
   const [wizardActiveDigitIndex, setWizardActiveDigitIndex] = useState<number>(0);
-  const [devModeEnabled, setDevModeEnabled] = useState<boolean>(() => localStorage.getItem(DEV_MODE_KEY) === 'true');
   const [showFireworks, setShowFireworks] = useState<boolean>(false);
   const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
   // Header overlay behavior
@@ -321,8 +312,6 @@ export default function App() {
   const [pinInput, setPinInput] = useState<string>("");
   const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
   const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
-  const [devModeNotice, setDevModeNotice] = useState<string>("");
-
   const [pinError, setPinError] = useState<string>("");
   const [showChangePINForm, setShowChangePINForm] = useState<boolean>(false);
   const [newPINInput, setNewPINInput] = useState<string>("");
@@ -448,9 +437,9 @@ export default function App() {
   const activeAdventureWorldId = (() => {
     if (!profile || selectedWorldId !== null) return null;
     const firstPlayableWorld = WORLDS_DATA.find(world => {
-      const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
+      const isUnlocked = profile.unlockedWorlds.includes(world.id);
       if (!isUnlocked) return false;
-      const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
+      const worldProg = getAdventureWorldProgress(profile, world.id);
       const isCompleted = worldProg.completedSteps.length === ALL_STEP_IDS.length && worldProg.rebuiltMonuments.length === world.monuments.length;
       return !isCompleted;
     });
@@ -732,37 +721,6 @@ export default function App() {
     setWizardStep(0);
   };
 
-  const disableDevMode = () => {
-    setDevModeEnabled(false);
-    localStorage.setItem(DEV_MODE_KEY, 'false');
-  };
-
-  const toggleDevMode = () => {
-    setDevModeEnabled(prev => {
-      const next = !prev;
-      localStorage.setItem(DEV_MODE_KEY, next ? 'true' : 'false');
-      return next;
-    });
-  };
-
-  const handleExitDevMode = () => {
-    sound.playClick();
-    disableDevMode();
-    setDevModeNotice("Modalità DEV disattivata");
-    window.setTimeout(() => setDevModeNotice(""), 1400);
-  };
-
-  const handleResetDevCurrency = () => {
-    sound.playClick();
-    handleUpdateProfile(p => ({
-      ...p,
-      coins: 0,
-      lightDrops: 0
-    }));
-    setDevModeNotice("Gocce e monete azzerate!");
-    window.setTimeout(() => setDevModeNotice(""), 1400);
-  };
-
   const handleSoftDeleteProfile = (profileId: string) => {
     const targetProfile = profiles.find(item => item.id === profileId);
     if (!targetProfile) return;
@@ -847,36 +805,10 @@ export default function App() {
     setPinInput("");
   };
 
-  const handleAccessDevArea = () => {
-    if (devModeEnabled) {
-      setActiveTab('dev');
-    } else {
-      setIsSettingPIN(false);
-      setShowPINModal(true);
-      setPinInput("");
-      setPinError("");
-    }
-  };
-
   const handlePINSubmit = (pinValue?: string) => {
     const pin = pinValue || pinInput;
     sound.playClick();
     setPinError("");
-
-    // PIN dev per attivare la modalità DEV e aprire il pannello DEV
-    if (pin === DEV_PANEL_PIN) {
-      sound.playPowerUp();
-      setDevModeEnabled(true);
-      localStorage.setItem(DEV_MODE_KEY, 'true');
-      setShowPINModal(false);
-      setShowProfilePicker(false);
-      setActiveTab('dev');
-      setPinInput("");
-      setPinError("");
-      setDevModeNotice(`Modalità DEV sbloccata col PIN ${DEV_PANEL_PIN}!`);
-      setTimeout(() => setDevModeNotice(""), 2000);
-      return;
-    }
 
     const storedPIN = localStorage.getItem('tabellandia_parent_pin') || PARENT_PIN_DEFAULT;
     
@@ -1683,12 +1615,6 @@ export default function App() {
         >
           <div className={`w-10 h-1 rounded-full transition-all duration-300 ${isHeaderVisible ? 'bg-transparent' : 'bg-white/60'}`} />
         </div>
-        {devModeNotice && (
-          <div className={`absolute left-1/2 -translate-x-1/2 z-50 bg-slate-900/85 text-white text-xs font-black px-3 py-1.5 rounded-full border border-white/20 shadow-lg pointer-events-none transition-all duration-300 ${isHeaderVisible ? 'top-16' : 'top-2'}`}>
-            {devModeNotice}
-          </div>
-        )}
-
         {pinAuthenticationModal}
 
         {/* Change PIN Modal (from Parent Dashboard) */}
@@ -1793,8 +1719,6 @@ export default function App() {
                       sound.playClick();
                       if (tab.id === 'parents') {
                         handleAccessParentArea();
-                      } else if (tab.id === 'dev') {
-                        handleAccessDevArea();
                       } else {
                         setActiveTab(tab.id as any);
                       }
@@ -1831,7 +1755,6 @@ export default function App() {
                       profile={profile}
                       updateProfile={handleUpdateProfile}
                       compactLayout={isPhoneMode}
-                      devMode={devModeEnabled}
                       onBack={() => {
                         sound.playClick();
                         setSelectedWorldId(null);
@@ -1853,9 +1776,9 @@ export default function App() {
                     <div className="space-y-6">
                       {profile && (() => {
                         const areAllWorldsCompleted = WORLDS_DATA.every(world => {
-                          const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
+                          const worldProg = getAdventureWorldProgress(profile, world.id);
                           const stepsCount = worldProg.completedSteps.length;
-                          const rebuiltCount = devModeEnabled ? world.monuments.length : worldProg.rebuiltMonuments.length;
+                          const rebuiltCount = worldProg.rebuiltMonuments.length;
                           return stepsCount === ALL_STEP_IDS.length && rebuiltCount === world.monuments.length;
                         });
 
@@ -1918,12 +1841,10 @@ export default function App() {
 
                       <ResponsiveGrid columns={1} variant="cards" className="items-stretch max-w-2xl mx-auto">
                         {WORLDS_DATA.map(world => {
-                          const isUnlocked = devModeEnabled || profile.unlockedWorlds.includes(world.id);
-                          const worldProg = getAdventureWorldProgress(profile, world.id, devModeEnabled);
+                          const isUnlocked = profile.unlockedWorlds.includes(world.id);
+                          const worldProg = getAdventureWorldProgress(profile, world.id);
                           const stepsCount = worldProg.completedSteps.length;
-                          const rebuiltCount = devModeEnabled
-                            ? world.monuments.length
-                            : worldProg.rebuiltMonuments.length;
+                          const rebuiltCount = worldProg.rebuiltMonuments.length;
                           const isCompleted = stepsCount === ALL_STEP_IDS.length && rebuiltCount === world.monuments.length;
                           const isActiveWorld = isUnlocked && !isCompleted && world.id === activeAdventureWorldId;
                           const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'Entra';
@@ -1984,7 +1905,7 @@ export default function App() {
 
                               <div className="mt-3 grid grid-cols-3 gap-1.5 sm:mt-4 sm:gap-2">
                                 {world.monuments.map(monument => {
-                                  const isBuilt = devModeEnabled || worldProg.rebuiltMonuments.includes(monument.id);
+                                  const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
                                   const canAfford = profile ? profile.lightDrops >= monument.cost : false;
                                   return (
                                     <div
@@ -2086,19 +2007,6 @@ export default function App() {
                     />
                   )}
 
-                  {/* TAB 5: DEV AREA */}
-                  {activeTab === 'dev' && (
-                    <DevDashboard
-                      activeProfiles={activeProfiles}
-                      currentProfile={profile}
-                      updateProfileById={handleUpdateProfileById}
-                      onSelectProfile={(id) => setActiveProfileId(id)}
-                      devModeEnabled={devModeEnabled}
-                      onDisableDevMode={handleExitDevMode}
-                      compactLayout={isPhoneMode}
-                      onClose={() => setActiveTab('adventure')}
-                    />
-                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -2174,7 +2082,7 @@ export default function App() {
         </div>
 
         {/* Global Bottom Navigation bar for mobile screens */}
-        {selectedWorldId === null && isPhoneMode && !isParentModeActive && activeTab !== 'dev' && (
+        {selectedWorldId === null && isPhoneMode && !isParentModeActive && (
           <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-1.5 flex justify-around items-center z-10 shadow-xl shrink-0">
            {APP_SIDEBAR_TABS.map(tab => {
               const isActive = activeTab === tab.id;
@@ -2185,8 +2093,6 @@ export default function App() {
                     sound.playClick();
                     if (tab.id === 'parents') {
                       handleAccessParentArea();
-                    } else if (tab.id === 'dev') {
-                      handleAccessDevArea();
                     } else {
                       setActiveTab(tab.id as any);
                     }
@@ -2221,20 +2127,6 @@ export default function App() {
           </nav>
         )}
 
-        {/* Dev mode mobile footer */}
-        {selectedWorldId === null && isPhoneMode && activeTab === 'dev' && (
-          <nav className="bg-slate-900 border-t border-purple-500/40 p-2 flex justify-center items-center z-10 shadow-xl shrink-0">
-            <button
-              type="button"
-              onClick={() => setActiveTab('adventure')}
-              className="w-full max-w-xs py-2.5 px-4 rounded-2xl bg-purple-900/60 border border-purple-400/40 text-purple-200 font-black text-sm hover:bg-purple-800 transition-colors cursor-pointer flex items-center justify-center gap-2"
-              id="nav-dev-exit-btn"
-            >
-              <span>🎮</span>
-              Torna al gioco
-            </button>
-          </nav>
-        )}
       </div>
 
       {/* Info panel: current work in progress */}
@@ -2312,7 +2204,6 @@ export default function App() {
           wizardStep === 0 &&
           !showProfilePicker
         )}
-        devMode={devModeEnabled}
         onComplete={() => {
           if (profile) {
             handleUpdateProfile(p => ({
@@ -2519,8 +2410,6 @@ export default function App() {
         onClose={() => setCurrencyModalType(null)}
         lightDrops={profile?.lightDrops || 0}
         coins={profile?.coins || 0}
-        devMode={devModeEnabled}
-        onResetDevCurrency={handleResetDevCurrency}
       />
     </div>
   );
