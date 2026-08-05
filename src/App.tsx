@@ -16,7 +16,6 @@ import WorldDetail from './components/WorldDetail';
 import TrainingHub from './components/TrainingHub';
 import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
-import DigitsGuideModal from './components/DigitsGuideModal';
 import DigitsMatchingGameModal from './components/DigitsMatchingGameModal';
 import CurrencyInfoModal from './components/CurrencyInfoModal';
 import { DIGITS_INFO } from './data/digitsData';
@@ -26,11 +25,13 @@ import ResponsiveGrid from './components/layout/ResponsiveGrid';
 import SectionHeader from './components/layout/SectionHeader';
 import SurfaceCard from './components/layout/SurfaceCard';
 import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Coins, Droplets, Map } from 'lucide-react';
+import { getGenderedText, getPlayerGender, PlayerGender } from './utils/playerCopy';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
 const PARENT_PIN_DEFAULT = '1111';
+const DEV_PIN_DEFAULT = '2222';
 const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
 const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
 const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
@@ -189,6 +190,8 @@ const getAdventureWorldProgress = (profile: UserProfile, worldId: number) => {
     worldId,
     completedSteps: [],
     rebuiltMonuments: [],
+    devCoins: 0,
+    devLightDrops: 0,
     creatureEvolution: 'egg',
     highScore: 0,
     stars: 0,
@@ -204,12 +207,13 @@ const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   coins: 0,
   lightDrops: 0,
   avatar: {
-    emoji: '👦'
+    emoji: '👦',
+    gender: 'kid1'
   },
   unlockedWorlds: [2], // Starts with Table of 2 unlocked
   unlockedAccessories: [],
   worldProgress: {
-    2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], creatureEvolution: 'egg', highScore: 0, stars: 0 }
+    2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], devCoins: 0, devLightDrops: 0, creatureEvolution: 'egg', highScore: 0, stars: 0 }
   },
   history: []
 };
@@ -221,14 +225,15 @@ const createProfileId = () => {
   return `profile-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 };
 
-const createProfile = (name: string, birthYear: number | null, avatarEmoji: string): ProfileRecord => {
+const createProfile = (name: string, birthYear: number | null, avatarEmoji: string, avatarGender: 'kid1' | 'kid2'): ProfileRecord => {
   return {
     ...BASE_PROFILE,
     id: createProfileId(),
     name,
     birthYear,
     avatar: {
-      emoji: avatarEmoji
+      emoji: avatarEmoji,
+      gender: avatarGender
     }
   };
 };
@@ -243,12 +248,29 @@ const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string):
     scheduledPermanentDeletionAt: profile.scheduledPermanentDeletionAt || null,
     avatar: {
       ...BASE_PROFILE.avatar,
-      ...(profile.avatar || {})
+      ...(profile.avatar || {}),
+      gender: profile.avatar?.gender
+        || (profile.avatar?.emoji
+          ? (AVATARS.find(item => item.emoji === profile.avatar?.emoji)?.category === 'girl' ? 'kid2' : 'kid1')
+          : BASE_PROFILE.avatar.gender)
     },
     unlockedWorlds: profile.unlockedWorlds ? [...profile.unlockedWorlds] : [...BASE_PROFILE.unlockedWorlds],
     unlockedAccessories: profile.unlockedAccessories ? [...profile.unlockedAccessories] : [...BASE_PROFILE.unlockedAccessories],
     history: profile.history ? [...profile.history] : [],
-    worldProgress: profile.worldProgress ? { ...profile.worldProgress } : { ...BASE_PROFILE.worldProgress }
+    worldProgress: profile.worldProgress
+      ? Object.fromEntries(
+          Object.entries(profile.worldProgress).map(([worldId, progress]) => [
+            worldId,
+            {
+              ...progress,
+              completedSteps: progress.completedSteps ? [...progress.completedSteps] : [],
+              rebuiltMonuments: progress.rebuiltMonuments ? [...progress.rebuiltMonuments] : [],
+              lockedSteps: progress.lockedSteps ? [...progress.lockedSteps] : [],
+              lockedMonuments: progress.lockedMonuments ? [...progress.lockedMonuments] : [],
+            }
+          ])
+        )
+      : { ...BASE_PROFILE.worldProgress }
   };
 };
 
@@ -281,9 +303,9 @@ export default function App() {
   });
   const [deviceMode, setDeviceMode] = useState<'phone' | 'tablet'>('phone');
   const isPhoneMode = deviceMode === 'phone';
-  const [showDigitsGuideModal, setShowDigitsGuideModal] = useState<boolean>(false);
   const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
   const [manualOnboardingGameOpen, setManualOnboardingGameOpen] = useState<boolean>(false);
+  const [suppressDigitsOnboardingGame, setSuppressDigitsOnboardingGame] = useState<boolean>(false);
   const [wizardActiveDigitIndex, setWizardActiveDigitIndex] = useState<number>(0);
   const [showFireworks, setShowFireworks] = useState<boolean>(false);
   const [isProfilePanelVisible, setIsProfilePanelVisible] = useState<boolean>(() => localStorage.getItem(PROFILE_PANEL_VISIBLE_KEY) !== 'false');
@@ -298,6 +320,7 @@ export default function App() {
   const [wizardStep, setWizardStep] = useState<number>(0); // 0: not loaded, 1: char_create, 2: ready
   const [heroNameInput, setHeroNameInput] = useState<string>("");
   const [newProfileAvatarEmoji, setNewProfileAvatarEmoji] = useState<string>('👦');
+  const [newProfileAvatarGender, setNewProfileAvatarGender] = useState<PlayerGender>('male');
   const [newProfileBirthYear, setNewProfileBirthYear] = useState<number>(CURRENT_YEAR - 8);
   const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
 
@@ -306,6 +329,8 @@ export default function App() {
   const [pinInput, setPinInput] = useState<string>("");
   const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
   const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
+  const [pinAccessTarget, setPinAccessTarget] = useState<'parent' | 'dev'>('parent');
+  const [devAreaOpen, setDevAreaOpen] = useState<boolean>(false);
   const [pinError, setPinError] = useState<string>("");
   const [showChangePINForm, setShowChangePINForm] = useState<boolean>(false);
   const [newPINInput, setNewPINInput] = useState<string>("");
@@ -653,7 +678,7 @@ export default function App() {
     e.preventDefault();
     const finalName = heroNameInput.trim() || "Fulmine";
     const nextBirthYear = Number.isFinite(newProfileBirthYear) ? newProfileBirthYear : CURRENT_YEAR - 8;
-    const nextProfile = createProfile(finalName, nextBirthYear, newProfileAvatarEmoji);
+    const nextProfile = createProfile(finalName, nextBirthYear, newProfileAvatarEmoji, newProfileAvatarGender === 'female' ? 'kid2' : 'kid1');
     setDraftProfile(nextProfile);
     sound.playLevelUp();
     setWizardStep(2);
@@ -692,6 +717,7 @@ export default function App() {
     sound.playPowerUp();
     setHeroNameInput('');
     setNewProfileAvatarEmoji('👦');
+    setNewProfileAvatarGender('male');
     setNewProfileBirthYear(CURRENT_YEAR - 8);
     setDraftProfile(null);
     setWizardStep(1);
@@ -702,6 +728,7 @@ export default function App() {
     sound.playClick();
     setHeroNameInput('');
     setNewProfileAvatarEmoji('👦');
+    setNewProfileAvatarGender('male');
     setNewProfileBirthYear(CURRENT_YEAR - 8);
     setDraftProfile(null);
     setWizardStep(0);
@@ -785,6 +812,7 @@ export default function App() {
 
   const handleAccessParentArea = () => {
     let storedPIN = localStorage.getItem('tabellandia_parent_pin');
+    setPinAccessTarget('parent');
     if (!storedPIN) {
       // First time - apply default parent PIN.
       localStorage.setItem('tabellandia_parent_pin', PARENT_PIN_DEFAULT);
@@ -798,13 +826,41 @@ export default function App() {
     setPinInput("");
   };
 
+  const handleAccessDevArea = () => {
+    setPinAccessTarget('dev');
+    setIsSettingPIN(false);
+    setShowChangePINForm(false);
+    setShowPINModal(true);
+    setPinInput("");
+    setPinError("");
+  };
+
   const handlePINSubmit = (pinValue?: string) => {
     const pin = pinValue || pinInput;
     sound.playClick();
     setPinError("");
 
     const storedPIN = localStorage.getItem('tabellandia_parent_pin') || PARENT_PIN_DEFAULT;
+    const storedDevPIN = localStorage.getItem('tabellandia_dev_pin') || DEV_PIN_DEFAULT;
     
+    if (pinAccessTarget === 'dev') {
+      if (pin === storedDevPIN || pin === DEV_PIN_DEFAULT) {
+        sound.playPowerUp();
+        setShowPINModal(false);
+        setPinInput("");
+        setPinError("");
+        setDevAreaOpen(true);
+      } else {
+        sound.playError();
+        setPinError("PIN errato! Riprova.");
+        setTimeout(() => {
+          setPinInput("");
+          setPinError("");
+        }, 1500);
+      }
+      return;
+    }
+
     if (isSettingPIN || !storedPIN) {
       if (pin.length === 4) {
         localStorage.setItem('tabellandia_parent_pin', pin);
@@ -847,13 +903,17 @@ export default function App() {
     setShowChangePINForm(false);
     setNewPINInput("");
     setConfirmPINInput("");
-    setParentAuthenticated(false);
-    setActiveTab('adventure');
+    setPinAccessTarget('parent');
+    if (pinAccessTarget === 'parent') {
+      setParentAuthenticated(false);
+      setActiveTab('adventure');
+    }
   };
 
   const handleExitParentArea = () => {
     sound.playClick();
     setParentAuthenticated(false);
+    setDevAreaOpen(false);
     setActiveTab('adventure');
     setActiveProfileId(null);
     setShowProfilePicker(true);
@@ -946,13 +1006,19 @@ export default function App() {
           >
             <div className="text-center mb-4">
               <div className="text-4xl mb-2">🔐⚡</div>
-              <h2 className="text-xl font-black text-indigo-950">Area di Controllo</h2>
+              <h2 className="text-xl font-black text-indigo-950">{pinAccessTarget === 'dev' ? 'Area Dev' : 'Area di Controllo'}</h2>
               <p className="text-xs text-slate-500 mt-1">
-                {showChangePINForm ? "Imposta un nuovo PIN" : isSettingPIN ? "Crea un PIN a 4 cifre" : "Inserisci il PIN di 4 cifre per accedere"}
+                {showChangePINForm
+                  ? "Imposta un nuovo PIN"
+                  : pinAccessTarget === 'dev'
+                    ? 'Inserisci il PIN di 4 cifre per aprire l’Area Dev'
+                    : isSettingPIN
+                      ? "Crea un PIN a 4 cifre"
+                      : "Inserisci il PIN di 4 cifre per accedere"}
               </p>
             </div>
 
-            {showChangePINForm ? (
+            {showChangePINForm && pinAccessTarget === 'parent' ? (
               <div className="space-y-4">
                 <div>
                   <label className="text-xs font-bold text-indigo-700 block mb-2">Nuovo PIN (4 cifre)</label>
@@ -1195,7 +1261,7 @@ export default function App() {
                 <input
                   type="text"
                   maxLength={15}
-                  placeholder="Scrivi il tuo nome d'eroe..."
+                  placeholder={getGenderedText(newProfileAvatarGender, "Scrivi il tuo nome d'eroe...", "Scrivi il tuo nome d'eroina...")}
                   value={heroNameInput}
                   onChange={e => setHeroNameInput(e.target.value)}
                   className="w-full py-2.5 px-3.5 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:outline-none font-bold text-center text-slate-700 bg-white text-sm sm:text-base"
@@ -1233,7 +1299,10 @@ export default function App() {
                             <button
                               key={avatar.id}
                               type="button"
-                              onClick={() => setNewProfileAvatarEmoji(avatar.emoji)}
+                              onClick={() => {
+                                setNewProfileAvatarEmoji(avatar.emoji);
+                                setNewProfileAvatarGender(avatar.category === 'girl' ? 'female' : 'male');
+                              }}
                               className={`p-1.5 sm:p-2.5 rounded-xl border-2 font-bold text-[10px] cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
                                 newProfileAvatarEmoji === avatar.emoji ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                               }`}
@@ -1263,7 +1332,7 @@ export default function App() {
                     className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer transition-colors"
                     id="wizard-create-btn"
                   >
-                    Registra Eroe
+                    {getGenderedText(newProfileAvatarGender, 'Registra Eroe', 'Registra Eroina')}
                   </button>
                 </ActionGrid>
               </form>
@@ -1275,7 +1344,7 @@ export default function App() {
               <SectionHeader
                 centered
                 eyebrow="Benvenuto a Tabellandia"
-                title={`Ecco le 10 Cifre Magiche, ${draftProfile?.name || heroNameInput || 'Eroe'}!`}
+                title={`Ecco le 10 Cifre Magiche, ${draftProfile?.name || heroNameInput || getGenderedText(newProfileAvatarGender, 'Eroe', 'Eroina')}!`}
                 description="All'inizio del gioco impariamo ogni cifra con la sua associazione visiva e il motivo per ricordarla facilmente:"
                 icon={<span className="text-4xl animate-bounce" aria-hidden="true">🔢✨</span>}
               />
@@ -1436,32 +1505,22 @@ export default function App() {
                 {/* Monete & Gocce (Sovrapposte una sotto l'altra) */}
                 <div className={`flex flex-col justify-center gap-1 shrink-0 bg-white/65 rounded-2xl border border-white/80 ${isPhoneMode ? 'px-2 py-1 min-w-[72px]' : 'px-3 py-1.5 min-w-[105px]'}`}>
                   {/* Monete */}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); sound.playClick(); setCurrencyModalType('coins'); }}
-                    className="flex items-center justify-between gap-1.5 hover:bg-amber-100/50 rounded px-1 transition-colors cursor-pointer text-left w-full group"
-                    title="Tocca per scoprire a cosa servono le Monete"
-                  >
+                  <div className="flex items-center justify-between gap-1.5 rounded px-1 text-left w-full group">
                     <div className="flex items-center gap-1 text-amber-600 group-hover:text-amber-700">
                       <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
                       <span className={`font-bold uppercase tracking-wide text-sky-950/60 group-hover:text-amber-900 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Monete</span>
                     </div>
                     <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
-                  </button>
+                  </div>
 
                   {/* Gocce */}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); sound.playClick(); setCurrencyModalType('drops'); }}
-                    className="flex items-center justify-between gap-1.5 border-t border-sky-950/10 pt-0.5 hover:bg-sky-100/50 rounded px-1 transition-colors cursor-pointer text-left w-full group"
-                    title="Tocca per scoprire a cosa servono le Gocce"
-                  >
+                  <div className="flex items-center justify-between gap-1.5 border-t border-sky-950/10 pt-0.5 rounded px-1 text-left w-full group">
                     <div className="flex items-center gap-1 text-sky-500 group-hover:text-sky-600">
                       <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
                       <span className={`font-bold uppercase tracking-wide text-sky-950/60 group-hover:text-sky-900 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Gocce</span>
                     </div>
                     <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
-                  </button>
+                  </div>
                 </div>
               </>
             )}
@@ -1489,17 +1548,6 @@ export default function App() {
                 </span>
               </button>
               <VoiceToggle isPhoneMode={isPhoneMode} />
-              {/* Cifre & Mnemoniche guide button */}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); sound.playClick(); setShowDigitsGuideModal(true); }}
-                className={`rounded-full border transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isPhoneMode ? 'px-2 h-6 text-[10px]' : 'px-2.5 h-8 text-xs'} bg-indigo-100 hover:bg-indigo-200 border-indigo-300 text-indigo-800 font-bold gap-1`}
-                title="Guida Cifre e Mnemoniche (0-9)"
-                id="digits-guide-btn"
-              >
-                <span>🔢</span>
-                {!isPhoneMode && <span>Cifre</span>}
-              </button>
               {/* Pin/Unpin — blocca header sempre visibile */}
               <button
                 type="button"
@@ -1703,9 +1751,11 @@ export default function App() {
                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,_var(--tw-gradient-stops))] from-yellow-300 via-transparent to-transparent"></div>
                             <div className="relative z-10 space-y-3">
                               <span className="text-4xl">👑✨🏆</span>
-                              <h3 className="text-xl sm:text-2xl font-black tracking-tight">Complimenti Eroe! Hai liberato tutte le terre di Tabellandia!</h3>
+                              <h3 className="text-xl sm:text-2xl font-black tracking-tight">
+                                {getGenderedText(getPlayerGender(profile), 'Complimenti Eroe!', 'Complimenti Eroina!')} Hai liberato tutte le terre di Tabellandia!
+                              </h3>
                               <p className="text-xs sm:text-sm text-emerald-100 max-w-xl mx-auto font-medium">
-                                Hai completato tutte le tabelline, ricostruito ogni monumento e sconfitto la nebbia. La tua mente è ora fortissima!
+                                Hai completato tutte le tabelline, scoperto ogni indizio e sconfitto la nebbia. La tua mente è ora fortissima!
                               </p>
                               <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
                                 <button
@@ -1750,7 +1800,7 @@ export default function App() {
                               className="mb-0"
                             />
                             <p className="text-sm sm:text-base font-medium leading-relaxed text-slate-500">
-                              Riuscirà il Cigno Orion 🦢 a trovare la Moneta rara 💶? Oppure troverà qualcos'altro?
+                              Riuscirà il Cigno Orion 🦢 a trovare la Moneta rara 💶, o il suo viaggio lo porterà verso una nuova sorpresa?
                             </p>
                           </div>
                         </div>
@@ -1878,7 +1928,7 @@ export default function App() {
                                   />
                                 </div>
                                 <div className="flex items-center justify-between gap-2 text-[10px] font-semibold text-sky-900/80 sm:text-[11px]">
-                                  <span className="min-w-0 truncate">Monumenti: {rebuiltCount}/{world.monuments.length}</span>
+                                  <span className="min-w-0 truncate">Indizi: {rebuiltCount}/{world.monuments.length}</span>
                                   {!isUnlocked && <span className="shrink-0">Completa il precedente</span>}
                                 </div>
                               </div>
@@ -1919,6 +1969,9 @@ export default function App() {
                       onPermanentDeleteProfile={handlePermanentDeleteProfile}
                       compactLayout={isPhoneMode}
                       onChangePIN={handleStartChangePIN}
+                      onRequestDevArea={handleAccessDevArea}
+                      isDevAreaOpen={devAreaOpen}
+                      onCloseDevArea={() => setDevAreaOpen(false)}
                       onClose={handleExitParentArea}
                     />
                   )}
@@ -2100,13 +2153,6 @@ export default function App() {
       </div>
       )}
 
-      {/* Digits and Mnemonics Guide Modal */}
-      <DigitsGuideModal
-        isOpen={showDigitsGuideModal}
-        onClose={() => setShowDigitsGuideModal(false)}
-        onOpenMatchingGame={() => setManualOnboardingGameOpen(true)}
-      />
-
       {showFireworks && (
         <FireworksOverlay onDone={() => setShowFireworks(false)} />
       )}
@@ -2117,6 +2163,7 @@ export default function App() {
           profile &&
           !isParentModeActive &&
           (!profile.completedOnboardingGame || manualOnboardingGameOpen) &&
+          !suppressDigitsOnboardingGame &&
           wizardStep === 0 &&
           !showProfilePicker
         )}
@@ -2128,6 +2175,7 @@ export default function App() {
             }));
           }
           setManualOnboardingGameOpen(false);
+          setSuppressDigitsOnboardingGame(false);
         }}
         onSkip={() => {
           if (profile) {
@@ -2137,6 +2185,7 @@ export default function App() {
             }));
           }
           setManualOnboardingGameOpen(false);
+          setSuppressDigitsOnboardingGame(false);
         }}
       />
 
@@ -2176,13 +2225,13 @@ export default function App() {
                   {appMonumentModal.monument.emoji}
                 </div>
                 <h3 className="text-base font-black text-indigo-950 mb-1">
-                  Erigi {appMonumentModal.monument.name}?
+                  Apri indizio: {appMonumentModal.monument.name}?
                 </h3>
                 <div className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full mb-3">
                   💧 Costo: <b>{appMonumentModal.monument.cost} Gocce</b>
                 </div>
                 <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                  Hai a disposizione <b>{profile?.lightDrops || 0} Gocce di Luce</b>. Vuoi spendere {appMonumentModal.monument.cost} Gocce per erigere questo monumento nel {appMonumentModal.world.title}?
+                  Hai a disposizione <b>{profile?.lightDrops || 0} Gocce di Luce</b>. Vuoi spendere {appMonumentModal.monument.cost} Gocce per aprire questo indizio nel {appMonumentModal.world.title}?
                 </p>
                 <div className="flex gap-2.5">
                   <button
@@ -2225,7 +2274,7 @@ export default function App() {
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
                   >
-                    🏛️ Si, Erigi Ora!
+                    🔍 Sì, Apri Ora!
                   </button>
                 </div>
               </>
@@ -2241,9 +2290,9 @@ export default function App() {
                   Costo: 💧 {appMonumentModal.monument.cost} (Ne hai {profile?.lightDrops || 0})
                 </div>
                 <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                  Per erigere <b>{appMonumentModal.monument.name}</b> ti mancano <b>{appMonumentModal.monument.cost - (profile?.lightDrops || 0)} Gocce di Luce</b>.
+                  Per aprire <b>{appMonumentModal.monument.name}</b> ti mancano <b>{appMonumentModal.monument.cost - (profile?.lightDrops || 0)} Gocce di Luce</b>.
                   <br /><br />
-                  Entra nel Regno e gioca in <b>"Pratico (Avventura)"</b> per sconfiggere la nebbia e raccogliere le gocce!
+                  Sblocca i giochi fino a <b>Pratico</b>, vinci le monete in <b>Pratico (Avventura)</b> e usa la <b>Sfida</b> per ottenere le gocce.
                 </p>
                 <div className="flex gap-2.5">
                   <button
@@ -2279,18 +2328,10 @@ export default function App() {
           <motion.div
             initial={{ scale: 0.92, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl border border-indigo-100 relative"
+            className="bg-white rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl border border-indigo-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              onClick={() => setStoryWorldId(null)}
-              className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
-              aria-label="Chiudi pannello storia"
-            >
-              ✕
-            </button>
-            <div className="pr-8">
+            <div>
               <h3 className="text-base sm:text-lg font-black text-indigo-950">📖 Tabellina del {storyWorldId}</h3>
               <p className="mt-1 text-xs text-slate-600">Indizi narrativi del regno: tabellina e frase, in sequenza.</p>
             </div>
@@ -2314,6 +2355,16 @@ export default function App() {
                   </p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setStoryWorldId(null)}
+                className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-indigo-700 cursor-pointer"
+              >
+                Chiudi
+              </button>
             </div>
           </motion.div>
         </div>

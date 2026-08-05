@@ -10,6 +10,7 @@ import { SHOP_ITEMS, WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
 import { Sparkles, Coins, ShoppingBag, Palette, Shirt, Award, Check } from 'lucide-react';
 import CurrencyInfoModal from './CurrencyInfoModal';
+import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
 
 interface AvatarCreatorProps {
   profile: UserProfile;
@@ -22,6 +23,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
   const [shopCategory, setShopCategory] = useState<'hair' | 'shirt' | 'pants' | 'hat' | 'backpack'>('hair');
   const [custCategory, setCustCategory] = useState<'base' | 'hair' | 'shirt' | 'pants' | 'hat' | 'backpack' | 'mascot'>('base');
   const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
+  const playerGender = getPlayerGender(profile);
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -169,7 +171,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
               </span>
             )}
             <div className="text-white text-[9px] font-bold tracking-wide uppercase opacity-75 font-mono">
-              {profile.level > 1 ? `LV ${profile.level}` : "HERO"}
+              {profile.level > 1 ? `LV ${profile.level}` : getGenderedText(playerGender, 'HERO', 'HEROINA')}
             </div>
           </div>
 
@@ -198,7 +200,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
       <div className={`flex flex-col items-center bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl justify-center ${compactLayout ? 'w-full' : 'md:w-1/3 min-w-[240px]'}`}>
         <h3 className="text-lg font-bold text-indigo-950 flex items-center gap-1.5 mb-1 font-sans">
           <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500" />
-          Il Mio Eroe
+          {getGenderedText(playerGender, 'Il Mio Eroe', 'La Mia Eroina')}
         </h3>
         <p className="text-xs text-slate-500 mb-4 text-center">
           Personalizza il tuo aspetto usando le monete guadagnate con la matematica!
@@ -212,30 +214,20 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
             <span className="text-xl font-black text-indigo-700 font-mono">{profile.level}</span>
           </div>
           <div className="h-8 w-px bg-indigo-100"></div>
-          <button
-            type="button"
-            onClick={() => { sound.playClick(); setCurrencyModalType('coins'); }}
-            className="text-center hover:bg-amber-100/50 p-1 rounded-xl transition-colors cursor-pointer group"
-            title="Tocca per scoprire a cosa servono le Monete"
-          >
+          <div className="text-center p-1 rounded-xl group">
             <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium font-sans group-hover:text-amber-800">Monete</span>
             <span className="text-xl font-black text-amber-600 font-mono flex items-center gap-1 justify-center">
               <Coins className="w-5 h-5 text-amber-500 fill-amber-500 animate-bounce" />
               {profile.coins}
             </span>
-          </button>
+          </div>
           <div className="h-8 w-px bg-indigo-100"></div>
-          <button
-            type="button"
-            onClick={() => { sound.playClick(); setCurrencyModalType('drops'); }}
-            className="text-center hover:bg-sky-100/50 p-1 rounded-xl transition-colors cursor-pointer group"
-            title="Tocca per scoprire a cosa servono le Gocce"
-          >
+          <div className="text-center p-1 rounded-xl group">
             <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium group-hover:text-sky-800">Gocce</span>
             <span className="text-xl font-black text-sky-600 font-mono flex items-center gap-1 justify-center">
               💧 {profile.lightDrops}
             </span>
-          </button>
+          </div>
         </div>
       </div>
 

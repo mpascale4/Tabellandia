@@ -1,87 +1,99 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Award, Coins, Droplets } from 'lucide-react';
+import { Coins, Droplets } from 'lucide-react';
 import { sound } from './SoundManager';
+import { UserProfile } from '../types';
+import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
 
 interface RewardPopupProps {
   isOpen: boolean;
   stepName: string;
   coins: number;
   drops: number;
+  profile: UserProfile;
   onClose: () => void;
 }
-
-const stepMessages: { [key: string]: { title: string; emoji: string; messages: string[] } } = {
-  comprendo: {
-    title: '🍎 Super Raccogli!',
-    emoji: '🎉',
-    messages: [
-      'Ceste piene di mele!',
-      'Hai raccolto tutto!',
-      'Gruppi perfetti!',
-      'Il frutteto è tuo!'
-    ]
-  },
-  salto: {
-    title: '🐸 Super Salta!',
-    emoji: '🐸',
-    messages: [
-      'Saltelli perfetti!',
-      'La rana è orgogliosa di te!',
-      'Sassi conquistati!',
-      'Hai raggiunto la sponda!'
-    ]
-  },
-  costruisco: {
-    title: '🎈 Scoppia da campione!',
-    emoji: '💥',
-    messages: [
-      'Palloncino giusto!',
-      'Mira perfetta!',
-      'Scoppiato al primo colpo!',
-      'I cieli di Tabellandia ti applaudono!'
-    ]
-  },
-  trucchi: {
-    title: '🧱 Bravo Trova!',
-    emoji: '🔍',
-    messages: [
-      'Mattone trovato!',
-      'La piramide è tua!',
-      'Hai scoperto il numero giusto!',
-      'Occhio di falco!'
-    ]
-  },
-  pratico: {
-    title: '🛡️ Avventura Completata!',
-    emoji: '⚔️',
-    messages: [
-      'Il regno è salvo!',
-      'Guerriero coraggioso!',
-      'La nebbia è scomparsa!',
-      'Sei un eroe leggendario!'
-    ]
-  },
-  sfida: {
-    title: '⚡ Campione Velocissimo!',
-    emoji: '👑',
-    messages: [
-      'Velocità impressionante!',
-      'Sei inarrestabile!',
-      'Nuovo record!',
-      'La velocità della luce!'
-    ]
-  }
-};
 
 export default function RewardPopup({
   isOpen,
   stepName,
   coins,
   drops,
+  profile,
   onClose
 }: RewardPopupProps) {
-  const stepData = stepMessages[stepName] || stepMessages.comprendo;
+  const playerGender = getPlayerGender(profile);
+  const stepData = (() => {
+    switch (stepName) {
+      case 'salto':
+        return {
+          title: '🐸 Super Salta!',
+          emoji: '🐸',
+          messages: [
+            'Saltelli perfetti!',
+            'La rana è orgogliosa di te!',
+            'Sassi conquistati!',
+            'Hai raggiunto la sponda!'
+          ]
+        };
+      case 'costruisco':
+        return {
+          title: getGenderedText(playerGender, '🎈 Scoppia da campione!', '🎈 Scoppia da campionessa!'),
+          emoji: '💥',
+          messages: [
+            'Palloncino giusto!',
+            'Mira perfetta!',
+            'Scoppiato al primo colpo!',
+            'I cieli di Tabellandia ti applaudono!'
+          ]
+        };
+      case 'trucchi':
+        return {
+          title: getGenderedText(playerGender, '🧱 Bravo Trova!', '🧱 Brava Trova!'),
+          emoji: '🔍',
+          messages: [
+            'Mattone trovato!',
+            'La piramide è tua!',
+            'Hai scoperto il numero giusto!',
+            'Occhio di falco!'
+          ]
+        };
+      case 'pratico':
+        return {
+          title: '🛡️ Avventura Completata!',
+          emoji: '⚔️',
+          messages: [
+            'Il regno è salvo!',
+            getGenderedText(playerGender, 'Guerriero coraggioso!', 'Guerriera coraggiosa!'),
+            'La nebbia è scomparsa!',
+            getGenderedText(playerGender, 'Sei un eroe leggendario!', "Sei un'eroina leggendaria!")
+          ]
+        };
+      case 'sfida':
+        return {
+          title: getGenderedText(playerGender, '⚡ Campione Velocissimo!', '⚡ Campionessa Velocissima!'),
+          emoji: '👑',
+          messages: [
+            'Velocità impressionante!',
+            'Sei inarrestabile!',
+            'Nuovo record!',
+            'La velocità della luce!'
+          ]
+        };
+      case 'comprendo':
+      default:
+        return {
+          title: '🍎 Super Raccogli!',
+          emoji: '🎉',
+          messages: [
+            'Ceste piene di mele!',
+            'Hai raccolto tutto!',
+            'Gruppi perfetti!',
+            'Il frutteto è tuo!'
+          ]
+        };
+    }
+  })();
   const randomMessage = stepData.messages[Math.floor(Math.random() * stepData.messages.length)];
   const handleClose = () => {
     sound.playClick();

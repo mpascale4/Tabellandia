@@ -7,21 +7,19 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
-import { Sparkles, HelpCircle, Check, AlertCircle, Award, Timer, Trophy, Compass, ShieldAlert, RotateCcw } from 'lucide-react';
+import { Sparkles, Check, AlertCircle, Award, Timer, Trophy, Compass, ShieldAlert, RotateCcw } from 'lucide-react';
 import ComprendoBasketGame from './ComprendoBasketGame';
-import StepRulesModal from './StepRulesModal';
 import RewardPopup from './RewardPopup';
 import NumericKeypad from './NumericKeypad';
-import RewardsTutorial from './RewardsTutorial';
 import CombinationCarousel from './CombinationCarousel';
 import FireworksOverlay from './FireworksOverlay';
-import CurrencyInfoModal from './CurrencyInfoModal';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 import { withTableIcon } from '../utils/tableLabels';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import { useVoice } from '../contexts/VoiceContext';
+import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
 
 interface WorldDetailProps {
   world: WorldConfig;
@@ -181,13 +179,22 @@ const OPERATION_CARD_THEMES = [
   'bg-gradient-to-r from-[#0ea5e9] to-[#22d3ee]',
   'bg-gradient-to-r from-[#c026d3] to-[#7c3aed]',
 ] as const;
-const STEP_MOTIVATION_MESSAGES = [
-  'Bravissimo! Stai andando alla grande!',
-  'Che campione! Hai completato tutte le tabelline di questo passo!',
-  'Fantastico lavoro! Continua cosi!',
-  'Sei fortissimo! Hai fatto 10 su 10!',
-  'Grandissimo! Hai conquistato questo passo!',
-] as const;
+const STEP_MOTIVATION_MESSAGES = {
+  male: [
+    'Bravissimo! Stai andando alla grande!',
+    'Che campione! Hai completato tutte le tabelline di questo passo!',
+    'Fantastico lavoro! Continua cosi!',
+    'Sei fortissimo! Hai fatto 10 su 10!',
+    'Grandissimo! Hai conquistato questo passo!',
+  ],
+  female: [
+    'Bravissima! Stai andando alla grande!',
+    'Che campionessa! Hai completato tutte le tabelline di questo passo!',
+    'Fantastico lavoro! Continua cosi!',
+    'Sei fortissima! Hai fatto 10 su 10!',
+    'Grandissima! Hai conquistato questo passo!',
+  ],
+} as const;
 const GAMEPLAY_AUDIO_MESSAGES = {
   saltoFall: 'Oh no, la ranocchia e caduta! Riproviamo.',
   saltoObstacleBlocked: 'Oh no! L antagonista ti ha fermato.',
@@ -202,8 +209,8 @@ const GAMEPLAY_AUDIO_MESSAGES = {
   trucchiCollapse: 'Oh no, la piramide e caduta! Riproviamo.',
   trucchiHammer: 'Oh no! Il martello ha distrutto il mattone giusto!',
   combinationLocked: 'Questa combinazione e ancora bloccata.',
-  stepLocked: 'Questo passo e ancora bloccato.',
-  sfidaLocked: 'La sfida finale non e ancora pronta.',
+  stepLocked: 'Completa prima tutti i passi precedenti!',
+  sfidaLocked: 'Completa prima tutti i passi precedenti per sbloccare la Sfida.',
   notEnoughLightDrops: 'Non hai ancora abbastanza gocce di luce.',
 } as const;
 
@@ -244,17 +251,13 @@ type CostruiscoActiveBalloon = {
 
 export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise }: WorldDetailProps) {
   const { speak } = useVoice();
+  const playerGender = getPlayerGender(profile);
   const ALL_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'];
   const ALL_FACTORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   const [activeStep, setActiveStep] = useState<string>(initialExercise || 'intro'); // intro, comprendo, salto, costruisco, trucchi, pratico, sfida
-  const [showIntroModal, setShowIntroModal] = useState<boolean>(false);
   const [hasSeenIntro, setHasSeenIntro] = useState<boolean>(false);
-  const [showStepRulesModal, setShowStepRulesModal] = useState<string | null>(null); // null o il nome dello step
-  const [hasSeenStepRules, setHasSeenStepRules] = useState<Set<string>>(new Set()); // Track which steps have been seen
-  const [hasReadRulesMandatory, setHasReadRulesMandatory] = useState<Set<string>>(new Set()); // Track mandatory rule reading
   const [showRewardPopup, setShowRewardPopup] = useState<{ step: string; coins: number; drops: number } | null>(null);
   const [motivationPopup, setMotivationPopup] = useState<{ stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi'; message: string } | null>(null);
-  const [currencyModalType, setCurrencyModalType] = useState<'drops' | 'coins' | null>(null);
 
   // View stack for modal-to-page conversion
   const [viewStack, setViewStack] = useState<string[]>([]); // Stack of views, e.g. ['rules-comprendo', 'intro']
@@ -372,7 +375,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     if (localStorage.getItem(localStorageKey) === 'true') {
       return;
     }
-    const message = STEP_MOTIVATION_MESSAGES[Math.floor(Math.random() * STEP_MOTIVATION_MESSAGES.length)];
+    const messages = STEP_MOTIVATION_MESSAGES[playerGender];
+    const message = messages[Math.floor(Math.random() * messages.length)];
     setMotivationPopup({ stepName, message });
     localStorage.setItem(localStorageKey, 'true');
     speak(message);
@@ -548,25 +552,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     trucchiFlowStage,
     showMonumentUnlockList,
     viewStack,
-    showIntroModal,
-    showStepRulesModal,
   ]);
 
   // Initialize and generate options
   useEffect(() => {
     resetCostruisco();
-    
-    // Check if user has seen intro for this world
+
     const introKey = `intro-seen-${world.id}`;
     const hasSeen = localStorage.getItem(introKey) === 'true';
     setHasSeenIntro(hasSeen);
-    
-    // Show intro as full-screen page on first access
-    if (!hasSeen && !initialExercise) {
-      pushView(`guide-intro-${activePlayableStep}`);
-      localStorage.setItem(introKey, 'true');
-    }
-  }, [world, initialExercise, activePlayableStep]);
+  }, [world]);
 
   // Sync completed factors from profile state whenever world or profile changes
   useEffect(() => {
@@ -605,15 +600,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setTrucchiCompleted(new Set());
     }
   }, [world.id, profile.worldProgress]);
-
-  // Show rules modal when entering a new step - DISABLED for now, user can click info button
-  useEffect(() => {
-    // Rules modal is now only opened when user clicks the info button
-    // if (activeStep !== 'intro' && !hasSeenStepRules.has(activeStep)) {
-    //   setShowStepRulesModal(activeStep);
-    //   setHasSeenStepRules(prev => new Set([...prev, activeStep]));
-    // }
-  }, [activeStep, hasSeenStepRules]);
 
   // Generate a fixed option pool for the whole Salto run.
   const generateSaltoOptions = (factor: number) => {
@@ -2047,6 +2033,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               : null;
   const hasErectableBlockedMonuments = blockedMonuments.some(monument => profile.lightDrops >= monument.cost);
   const canGoToSfidaFromCoins = profile.coins >= SFIDA_UNLOCK_COST && areSfidaPrerequisitesDone;
+  const canGoToPratico = nextStepToPlay === 'pratico';
+  const praticoLockedMessage = 'Completa prima tutti i passi precedenti per entrare in Pratico (Avventura).';
+  const sfidaLockedMessage = 'Completa prima tutti i passi precedenti per sbloccare la Sfida.';
 
   const stepDoneMap: Record<string, boolean> = {
     comprendo: isComprendoDone,
@@ -2072,70 +2061,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const allMonumentsErected = rebuiltCount === world.monuments.length;
   const isSfidaPathLocked = !areSfidaPrerequisitesDone;
   const shouldHighlightSfidaCta = canGoToSfidaFromCoins && !isSfidaDone && !isSfidaPathLocked && nextStepToPlay === 'sfida';
-  const previousView = viewStack.length > 1 ? viewStack[viewStack.length - 2] : null;
-  const isGuideStoryView = currentView === 'world-story';
-  const isGuideIntroView = currentView === 'intro' || currentView?.startsWith('guide-intro-');
-  const isGuideHelpView = currentView?.startsWith('guide-help-') || currentView?.startsWith('rules-');
-  const isGuideView = isGuideIntroView || isGuideHelpView || isGuideStoryView;
-  const guideStep = currentView === 'intro'
-    ? activePlayableStep
-    : (currentView?.startsWith('guide-intro-')
-        ? currentView.replace('guide-intro-', '')
-        : (currentView?.startsWith('guide-help-')
-            ? currentView.replace('guide-help-', '')
-            : (currentView?.startsWith('rules-') ? currentView.replace('rules-', '') : activePlayableStep)));
   const isInPlayableStepView = ALL_STEP_IDS.includes(activeStep);
-  const guideIntroCopy: Record<string, { title: string; lead: string; bullets: string[] }> = {
-    comprendo: {
-      title: 'Raccogli: partiamo dal significato',
-      lead: 'Qui scopri che la moltiplicazione nasce da gruppi uguali di mele.',
-      bullets: [
-        'Osserva i cesti e le mele che volano.',
-        'Conta e collega il risultato all operazione.'
-      ]
-    },
-    salto: {
-      title: 'Salta: conta a ritmo',
-      lead: 'In questo passo alleni il conteggio per salti con una sequenza chiara.',
-      bullets: [
-        'Segui il ritmo della tabellina.',
-        'Usa la sequenza per trovare il risultato.'
-      ]
-    },
-    costruisco: {
-      title: 'Scoppia: mira al numero giusto',
-      lead: 'Scoppia il palloncino che porta il risultato corretto prima che voli via.',
-      bullets: [
-        'Cerca il palloncino giusto tra quelli in volo.',
-        'Completa lo schema un passaggio alla volta.'
-      ]
-    },
-    trucchi: {
-      title: 'Trova: strategia veloce',
-      lead: 'Impari a trovare il mattone giusto usando scorciatoie e pattern mnemonici.',
-      bullets: [
-        'Memorizza una regola per volta.',
-        'Prima precisione, poi velocita.'
-      ]
-    },
-    pratico: {
-      title: 'Pratico: avventura di concentrazione',
-      lead: 'Metti insieme tutto quello che hai imparato in una serie continua.',
-      bullets: [
-        'Rispondi a una domanda alla volta.',
-        'Punta a 10 risposte corrette consecutive.'
-      ]
-    },
-    sfida: {
-      title: 'Sfida: cronometro acceso',
-      lead: 'Hai poco tempo per fare piu punti possibili e migliorare il record.',
-      bullets: [
-        'Rispondi veloce ma con attenzione.',
-        'Da 15 in su puoi puntare al record.'
-      ]
-    }
-  };
-  const currentGuideIntro = guideIntroCopy[guideStep] || guideIntroCopy[activePlayableStep] || guideIntroCopy.comprendo;
   const showWorldFooterBack = !(
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
     (activeStep === 'salto' && saltoSelectedFactor !== null) ||
@@ -2153,13 +2079,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const explainPraticoRewardAndPossibilities = () => {
     const sfidaPart = canGoToSfidaFromCoins
-      ? 'Con le monete puoi andare alla Sfida.'
-      : 'Con le monete potrai andare alla Sfida quando avrai monete sufficienti e prerequisiti completati.';
-    const monumentPart = hasErectableBlockedMonuments
-      ? 'Con le gocce puoi erigere monumenti adesso.'
-      : 'Con le gocce erigerai monumenti quando saranno sufficienti ai costi.';
+      ? 'Ora puoi entrare nella Sfida usando le monete vinte in Pratico.'
+      : 'Quando avrai abbastanza monete e avrai completato i passi richiesti, potrai entrare nella Sfida.';
+    const indiziPart = hasErectableBlockedMonuments
+      ? 'Le gocce che vincerai nella Sfida ti permetteranno di scoprire subito gli indizi.'
+      : 'Le gocce arrivano dalla Sfida e servono per scoprire gli indizi.';
     const targetReached = praticoCongratsTarget ?? targetPraticoStreak;
-    void speak(`Complimenti. Hai raggiunto l'obiettivo di ${targetReached} consecutive. ${sfidaPart} ${monumentPart}`);
+
+    void speak(`Complimenti. Hai raggiunto l'obiettivo di ${targetReached} consecutive. ${sfidaPart} ${indiziPart}`);
   };
 
   const handleMoneteBadgeClick = () => {
@@ -2171,8 +2098,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
 
     const reason = profile.coins < SFIDA_UNLOCK_COST
-      ? `Ti servono ancora ${SFIDA_UNLOCK_COST - profile.coins} monete per poter andare alla Sfida.`
-      : 'Completa prima tutti i prerequisiti della Sfida nei passi precedenti.';
+      ? `Ti servono ancora ${SFIDA_UNLOCK_COST - profile.coins} monete per entrare nella Sfida.`
+      : sfidaLockedMessage;
     setPathLockModalMessage(`🏁 Sfida non ancora disponibile\n\n${reason}`);
     void speak(reason);
   };
@@ -2192,49 +2119,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     sound.playClick();
     setShowSfidaFromCoinsConfirm(false);
     void speak('Va bene. Restiamo qui.');
-  };
-
-  const handleGocceBadgeClick = () => {
-    sound.playClick();
-    if (hasErectableBlockedMonuments) {
-      setShowPraticoCongrats(false);
-      setShouldReturnToPraticoCongratsAfterMonuments(true);
-      setShowMonumentUnlockList(true);
-      void speak('Ottimo. Hai gocce sufficienti per erigere monumenti.');
-      return;
-    }
-
-    let reason = 'Non ci sono monumenti da erigere in questo momento.';
-    if (blockedMonuments.length > 0) {
-      const minCost = Math.min(...blockedMonuments.map(monument => monument.cost));
-      const missing = Math.max(0, minCost - profile.lightDrops);
-      reason = missing > 0
-        ? `Ti mancano almeno ${missing} gocce per erigere il prossimo monumento.`
-        : 'I monumenti sono presenti ma non ancora erigibili adesso.';
-    }
-    setPathLockModalMessage(`🏛️ Monumenti non ancora erigibili\n\n${reason}`);
-    void speak(reason);
-  };
-
-  const handleHeaderGocceBadgeClick = () => {
-    sound.playClick();
-    if (hasErectableBlockedMonuments) {
-      setShouldReturnToPraticoCongratsAfterMonuments(false);
-      setShowMonumentUnlockList(true);
-      void speak('Ottimo. Hai gocce sufficienti per erigere monumenti.');
-      return;
-    }
-
-    let reason = 'Non ci sono monumenti da erigere in questo momento.';
-    if (blockedMonuments.length > 0) {
-      const minCost = Math.min(...blockedMonuments.map(monument => monument.cost));
-      const missing = Math.max(0, minCost - profile.lightDrops);
-      reason = missing > 0
-        ? `Ti mancano almeno ${missing} gocce per erigere il prossimo monumento.`
-        : 'I monumenti sono presenti ma non ancora erigibili adesso.';
-    }
-    setPathLockModalMessage(`🏛️ Monumenti non ancora erigibili\n\n${reason}`);
-    void speak(reason);
   };
 
   const closeMonumentFlowAndMaybeReturnToPraticoCongrats = () => {
@@ -2363,16 +2247,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     description,
     completed,
     onSelect,
-    onHelp,
     theme,
   }: {
     stepKey: 'comprendo' | 'salto' | 'costruisco' | 'trucchi';
     badge: string;
     title: string;
-    description: string;
+    description?: string;
     completed: Set<number>;
     onSelect: (factor: number) => void;
-    onHelp: () => void;
     theme: StepSelectionTheme;
   }) => (
     <div className="max-w-4xl mx-auto w-full h-full min-h-0">
@@ -2381,15 +2263,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           <span className={`text-xs font-bold px-3 py-1 rounded-full font-sans ${theme.badge}`}>
             {badge}
           </span>
-          <button
-            onClick={onHelp}
-            className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
-              !hasReadRulesMandatory.has(stepKey) ? theme.helpPrimary : theme.helpSecondary
-            }`}
-            aria-label={`Apri aiuto per ${title}`}
-          >
-            <HelpCircle className={!hasReadRulesMandatory.has(stepKey) ? 'w-5 h-5' : 'w-4 h-4'} />
-          </button>
         </div>
 
         <SectionHeader centered title={title} description={description} />
@@ -2627,22 +2500,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
   const handleSwipeBack = () => {
     sound.playClick();
-    if (isGuideHelpView) {
-      if (previousView?.startsWith('guide-intro-') || previousView === 'intro') {
-        replaceTopView(`guide-intro-${guideStep}`);
-      } else {
-        popView();
-      }
-      return;
-    }
-    if (isGuideStoryView) {
-      popView();
-      return;
-    }
-    if (isGuideIntroView) {
-      popView();
-      return;
-    }
     if (activeStep === 'comprendo' && comprendoSelectedFactor !== null) {
       if (comprendoFlowStage === 'game') {
         setComprendoFlowStage('objective');
@@ -2678,7 +2535,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     goBackFromWorldContent();
   };
   const canSwipeRightContinue =
-    (isGuideIntroView) ||
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null && (
       comprendoFlowStage === 'objective' ||
       (comprendoFlowStage === 'game' && comprendoGameCompleted)
@@ -2698,10 +2554,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const handleSwipeContinue = () => {
     if (!canSwipeRightContinue) return;
     sound.playClick();
-    if (isGuideIntroView) {
-      replaceTopView(`guide-help-${guideStep}`);
-      return;
-    }
     if (activeStep === 'comprendo' && comprendoSelectedFactor !== null) {
       if (comprendoFlowStage === 'objective') {
         setComprendoFlowStage('game');
@@ -2772,78 +2624,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Show intro/help guide pages in viewStack */}
-      {isGuideView && (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
-            <div className="max-w-2xl mx-auto w-full">
-            {(isGuideIntroView || isGuideStoryView) && (
-                <div className="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-6 text-slate-900 shadow-xl">
-                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
-                    <p className="mt-1 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 motion-safe:animate-pulse">
-                      Work in progress
-                    </p>
-                    <h2 className="mt-2 text-2xl font-black text-indigo-950">
-                      {currentGuideIntro.title}
-                    </h2>
-                    <p className="mt-2 text-sm text-indigo-900">
-                      {currentGuideIntro.lead}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Prima di iniziare
-                    </p>
-                    <div role="list" className="mt-2 grid grid-cols-1 gap-2">
-                      {currentGuideIntro.bullets.map((item) => (
-                        <div key={item} role="listitem" className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isGuideHelpView && (
-                <StepRulesModal 
-                  step={guideStep} 
-                  world={world} 
-                  onClose={() => {}} 
-                  isMandatory={false}
-                  isPage={true}
-                />
-              )}
-            </div>
-          </div>
-
-          <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
-            <div className="max-w-2xl mx-auto w-full">
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  if (isGuideIntroView) {
-                    replaceTopView(`guide-help-${guideStep}`);
-                    return;
-                  }
-                  if (isGuideStoryView) {
-                    popView();
-                    return;
-                  }
-
-                  popView();
-                  setHasReadRulesMandatory(prev => new Set([...prev, guideStep]));
-                }}
-                className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
-              >
-                {isGuideIntroView ? 'Continua' : isGuideStoryView ? 'Chiudi' : 'Ho Capito! ✓'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main content - only show if no view is pushed */}
       {!currentView && (
         <>
@@ -2859,17 +2639,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <Compass className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                   <div>
                     <h3 className="text-base font-black text-indigo-950 font-sans">Sentiero del Regno del {world.id}</h3>
-                    <p className="text-xs text-slate-500 font-sans">Completa gli step, erigi tutti i monumenti e supera la Sfida per sbloccare il prossimo Regno!</p>
+                    <p className="text-xs text-slate-500 font-sans">Sblocca i giochi fino a Pratico, usa le monete per entrare nella Sfida e ottieni le gocce per scoprire gli indizi.</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => pushView('world-story')}
-                  className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center justify-center cursor-pointer font-bold text-sm shadow-2xs transition-colors"
-                  title="Apri storia e filastrocca"
-                >
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shadow-2xs">
                   i
-                </button>
+                </div>
               </div>
               <div role="list" className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2.5">
                 <button
@@ -2888,28 +2663,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
                   </p>
                 </button>
-                <button
-                  type="button"
+                <div
                   role="listitem"
-                  onClick={handleHeaderGocceBadgeClick}
                   className={`rounded-2xl border px-3 py-2 text-center shadow-sm transition-all ${
                     hasErectableBlockedMonuments
-                      ? 'cursor-pointer border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
-                      : 'cursor-pointer border-sky-200 bg-sky-50 hover:border-sky-300 hover:bg-sky-100/70'
+                      ? 'border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
+                      : 'border-sky-200 bg-sky-50'
                   }`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">Gocce</p>
                   <p className="text-lg font-black text-sky-800">💧 {profile.lightDrops}</p>
                   <p className={`text-[11px] font-black ${hasErectableBlockedMonuments ? 'text-amber-950 animate-badge-blink' : 'text-sky-900'}`}>
-                    {hasErectableBlockedMonuments ? '✨ Sblocca Monumenti! 🏛️' : 'Erigi monumenti'}
+                    {hasErectableBlockedMonuments ? '✨ Scopri Indizi! 🧭' : 'Indizi del Regno'}
                   </p>
-                </button>
+                </div>
               </div>
 
               <div className="mt-3 rounded-2xl border border-indigo-100 bg-white/80 p-2.5">
                 <div className="mb-2 flex items-center justify-between">
                   <h4 className="text-[11px] font-black text-indigo-900 uppercase tracking-wider font-sans">
-                    Monumenti del Regno ({rebuiltCount}/{world.monuments.length})
+                    Indizi del Regno ({rebuiltCount}/{world.monuments.length})
                   </h4>
                 </div>
                 <div role="list" className="grid grid-cols-3 gap-1.5 pb-1">
@@ -2942,13 +2715,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           <span className={`text-[10px] font-black ${
                             isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900' : 'text-slate-600'
                           }`}>
-                            {isErected ? '✓' : '🔒'}
+                            {isErected ? '✓' : '🧭'}
                           </span>
                         </div>
                         <p className={`mt-0.5 text-xs font-black ${
                           isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900 animate-badge-blink' : 'text-sky-800'
                         }`}>
-                          💧 {monument.cost}
+                          {monument.name}
                         </p>
                       </button>
                     );
@@ -2973,7 +2746,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   const isDone = stepDoneMap[step.id] || false;
                   const prevStepId = idx > 0 ? ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico'][idx - 1] : null;
                   const prevStepDone = idx === 0 || (prevStepId ? (stepDoneMap[prevStepId] || false) : true);
-                  const isLocked = !prevStepDone;
+                  const isLocked = (worldProg.lockedSteps?.includes(step.id) || false) || !prevStepDone;
                   const factorCount = stepFactorsCountMap[step.id] || 0;
                   const isNext = step.id === nextStepToPlay;
 
@@ -2985,7 +2758,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         if (isLocked) {
                           sound.playError();
                           speak(GAMEPLAY_AUDIO_MESSAGES.stepLocked);
-                          setPathLockModalMessage(`🔒 Step Bloccato!\n\nCompleta prima il passo precedente per accedere a ${step.title}.`);
+                          setPathLockModalMessage(`🔒 Step Bloccato!\n\nCompleta prima tutti i passi precedenti per accedere a ${step.title}.`);
                           return;
                         }
                         sound.playClick();
@@ -3038,9 +2811,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           {step.coins > 0 && <span>🪙+{step.coins}</span>}
                           {step.drops > 0 && <span>💧+{step.drops} Gocce</span>}
                         </div>
-                        {!isLocked && !isDone && step.id !== 'pratico' && (
-                          <span className="text-[9px] font-semibold text-indigo-600">Avvia ➔</span>
-                        )}
                       </div>
                     </button>
                   );
@@ -3065,7 +2835,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       if (isSfidaLocked) {
                         sound.playError();
                         speak(GAMEPLAY_AUDIO_MESSAGES.sfidaLocked);
-                        setPathLockModalMessage(`🔒 Sfida Bloccata!\n\nCompleta prima tutti i passi didattici precedenti (1-5) sul Sentiero.`);
+                        setPathLockModalMessage(`🔒 Sfida Bloccata!\n\n${sfidaLockedMessage}`);
                         return;
                       }
                       sound.playClick();
@@ -3106,18 +2876,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {/* STEP 1: COMPRENDO - List of combinations to complete */}
         {activeStep === 'comprendo' && comprendoSelectedFactor === null && (
           renderStepSelectionScreen({
-            stepKey: 'comprendo',
-            badge: 'Passo 1: Raccogli',
-            title: 'Scegli una moltiplicazione',
-            description: 'Completa tutte e 10 le moltiplicazioni per costruire il concetto.',
-            completed: effectiveComprendoCompleted,
-            onSelect: (factor) => {
-              sound.playClick();
+              stepKey: 'comprendo',
+              badge: 'Passo 1: Raccogli',
+              title: 'Scegli una moltiplicazione',
+              completed: effectiveComprendoCompleted,
+              onSelect: (factor) => {
+                sound.playClick();
               setComprendoSelectedFactor(factor);
               setComprendoFlowStage('game');
               setShowComprendoCompletionEffect(false);
             },
-            onHelp: () => pushView('guide-help-comprendo'),
             theme: {
               panel: 'bg-indigo-50 border-indigo-200',
               badge: 'text-indigo-600 bg-indigo-100',
@@ -3290,7 +3058,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setSaltoFrogPosition(0);
               setSaltoLeap(null);
             },
-            onHelp: () => pushView('guide-help-salto'),
             theme: {
               panel: 'bg-purple-50 border-purple-200',
               badge: 'text-purple-600 bg-purple-100',
@@ -3738,13 +3505,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {/* STEP 3: COSTRUISCO (Build the Table) - LIST VIEW */}
         {activeStep === 'costruisco' && costruiscoSelectedFactor === null && (
           renderStepSelectionScreen({
-            stepKey: 'costruisco',
-            badge: 'Passo 3: Scoppia',
-            title: '🎈 Scegli una moltiplicazione da scoppiare',
-            description: 'Completa tutte e 10 le operazioni e trasforma i concetti in risultati.',
-            completed: effectiveCostruiscoCompleted,
-            onSelect: (factor) => {
-              sound.playClick();
+              stepKey: 'costruisco',
+              badge: 'Passo 3: Scoppia',
+              title: '🎈 Scegli una moltiplicazione da scoppiare',
+              completed: effectiveCostruiscoCompleted,
+              onSelect: (factor) => {
+                sound.playClick();
               setCostruiscoSelectedFactor(factor);
               setCostruiscoBalloonPool([]);
               setCostruiscoActiveBalloons([]);
@@ -3756,7 +3522,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setCostruiscoGameCompleted(false);
               setShowCostruiscoCompletionEffect(false);
             },
-            onHelp: () => pushView('guide-help-costruisco'),
             theme: {
               panel: 'bg-emerald-50 border-emerald-200',
               badge: 'text-emerald-600 bg-emerald-100',
@@ -3862,7 +3627,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                              </div>
                              <h3 className="text-base font-black text-emerald-800">Successo!</h3>
                              <p className="text-xs text-slate-600">
-                               Bravo! Risposta esatta:<br />
+                               {getGenderedText(playerGender, 'Bravo! Risposta esatta:', 'Brava! Risposta esatta:')}<br />
                                <b className="text-sm text-emerald-900 font-mono">{world.id} × {costruiscoSelectedFactor} = {world.id * (costruiscoSelectedFactor || 1)}</b>
                              </p>
                            </div>
@@ -4026,7 +3791,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setShowTrucchiCompletionEffect(false);
               setTrucchiAnswer('');
             },
-            onHelp: () => pushView('guide-help-trucchi'),
             theme: {
               panel: 'bg-amber-50 border-amber-200',
               badge: 'text-amber-600 bg-amber-100',
@@ -4409,20 +4173,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   />
                 </div>
               </div>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => pushView('guide-help-pratico')}
-                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
-                    !hasReadRulesMandatory.has('pratico')
-                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
-                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
-                  }`}
-                  title="Visualizza regole"
-                  aria-label="Visualizza regole"
-                >
-                  <HelpCircle className={!hasReadRulesMandatory.has('pratico') ? 'w-5 h-5' : 'w-4 h-4'} />
-                </button>
-              </div>
+              <div className="flex justify-end" />
             </div>
 
             {/* Quiz question card */}
@@ -4485,18 +4236,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="flex items-center justify-center gap-2">
                 <span className="text-3xl sm:text-4xl" aria-hidden="true">⚡</span>
                 <h2 className="text-2xl font-black text-indigo-950">SFIDA VELOCISSIMA</h2>
-                <button
-                  onClick={() => pushView('guide-help-sfida')}
-                  className={`rounded-full text-white flex items-center justify-center transition-all shadow-md cursor-pointer font-bold text-lg ${
-                    !hasReadRulesMandatory.has('sfida')
-                      ? 'w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700'
-                      : 'w-6 h-6 bg-indigo-300 hover:bg-indigo-400'
-                  }`}
-                  aria-label="Apri regole della sfida"
-                  title="Apri regole della sfida"
-                >
-                  <span className={!hasReadRulesMandatory.has('sfida') ? 'text-base leading-none' : 'text-sm leading-none'} aria-hidden="true">?</span>
-                </button>
               </div>
               <p className="text-sm text-slate-600">Risolvi il maggior numero di operazioni prima che il tempo finisca!</p>
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-left text-xs text-slate-700 font-sans space-y-1">
@@ -4605,6 +4344,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             stepName={showRewardPopup.step}
             coins={showRewardPopup.coins}
             drops={showRewardPopup.drops}
+            profile={profile}
             onClose={() => setShowRewardPopup(null)}
           />
         )}
@@ -4689,7 +4429,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <Award className="h-7 w-7 text-emerald-600" aria-hidden="true" />
             </div>
             <h3 id="step-motivation-title" className="mb-2 text-base font-black text-emerald-900">
-              Bravissimo!
+              {getGenderedText(playerGender, 'Bravissimo!', 'Bravissima!')}
             </h3>
             <p className="mb-2 text-sm font-bold text-slate-700">
               Hai completato 10/10 in <span className="text-emerald-700">{stepMotivationLabels[motivationPopup.stepName]}</span>.
@@ -4744,26 +4484,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
                 </p>
               </button>
-              <button
-                type="button"
+              <div
                 role="listitem"
-                onClick={handleGocceBadgeClick}
                 className={`rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-center shadow-sm transition-all ${
                   hasErectableBlockedMonuments
-                    ? 'cursor-pointer hover:border-sky-300 hover:bg-sky-100 motion-safe:animate-pulse'
-                    : 'cursor-pointer hover:border-sky-300 hover:bg-sky-100/70'
+                    ? 'motion-safe:animate-pulse'
+                    : ''
                 }`}
               >
                 <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">Gocce vinte</p>
                 <p className="text-lg font-black text-sky-800">💧 +0</p>
                 <p className="text-[11px] font-black text-sky-900">Le gocce arrivano dalla Sfida</p>
-              </button>
+              </div>
             </div>
             <p className="mb-1 text-xs text-slate-600">
               🪙 Con le monete sblocchi outfit e accessori nel Sarto del Regno.
             </p>
             <p className="mb-3 text-xs text-slate-600">
-              💧 Con le gocce erigi i monumenti del Regno.
+              💧 Con le gocce scopri gli indizi del Regno.
             </p>
             <p className="mb-5 text-xs text-slate-500">
               Prossimo obiettivo: <span className="font-mono text-emerald-700">{(praticoCongratsTarget ?? targetPraticoStreak) + 2} consecutive</span>.
@@ -4963,10 +4701,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             animate={{ scale: 1, opacity: 1 }}
             className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-indigo-100 text-center relative font-sans"
           >
-            <h3 className="text-base font-black text-indigo-950 mb-1">Monumenti da erigere</h3>
-            <p className="text-xs text-slate-600 mb-4">
-              Usa le tue gocce per sbloccare i monumenti bloccati del Regno.
-            </p>
+        <div className="mb-1 flex items-center justify-center gap-2">
+          <h3 className="text-base font-black text-indigo-950">Indizi da scoprire</h3>
+          <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-black text-sky-800">
+            💧 {profile.lightDrops}
+          </span>
+        </div>
+        <p className="text-xs text-slate-600 mb-4">
+          Tocca una card per aprire l'indizio e segnalarlo come trovato.
+        </p>
 
             {blockedMonuments.length > 0 ? (
               <>
@@ -4986,14 +4729,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="text-sm font-black text-slate-900">{monument.emoji} {monument.name}</p>
-                            <p className="text-[11px] font-bold text-amber-900">Costo: 💧 {monument.cost} Gocce</p>
+                            <p className="text-[11px] font-bold text-amber-900">{monument.description}</p>
                           </div>
                           <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
                             canAfford
                               ? 'bg-amber-300 text-amber-950 border border-amber-400 animate-badge-blink shadow-2xs'
                               : 'bg-slate-200 text-slate-700'
                           }`}>
-                            {canAfford ? '✨ Sbloccabile!' : '🔒 Bloccato'}
+                            {canAfford ? '✨ Pronto!' : '🔒 Bloccato'}
                           </span>
                         </div>
                         <div className="mt-2.5 flex justify-end">
@@ -5015,7 +4758,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
                             }`}
                           >
-                            {canAfford ? '✨ Erigi ora! 🏛️' : 'Dettagli'}
+                            {canAfford ? '🔍 Apri indizio' : 'Dettagli'}
                           </button>
                         </div>
                       </div>
@@ -5030,14 +4773,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </>
             ) : (
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-4 text-left">
-                <p className="text-xs font-bold text-indigo-900">Hai già eretto tutti i monumenti di questo Regno. Ottimo lavoro! 🏛️</p>
+                <p className="text-xs font-bold text-indigo-900">Hai già scoperto tutti gli indizi di questo Regno. Ottimo lavoro! 🧭</p>
                 {canSuggestSfidaFromMonuments ? (
                   <p className="mt-2 text-xs text-indigo-800">
                     Non hai gocce al momento, ma hai almeno <b>{SFIDA_UNLOCK_COST} monete</b>: puoi provare la <b>Sfida</b> per puntare a nuove ricompense.
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-indigo-800">
-                    Continua il Sentiero per guadagnare risorse e completare il Regno.
+                    Continua il Sentiero per completare gli indizi e chiudere il Regno.
                   </p>
                 )}
               </div>
@@ -5057,7 +4800,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         </div>
       )}
 
-      {/* Monument Unlock Confirmation / Insufficient Drops Modal */}
+      {/* Indizio Unlock Confirmation / Insufficient Drops Modal */}
       {monumentModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <motion.div
@@ -5074,7 +4817,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   {monumentModal.monument.name}
                 </h3>
                 <span className="inline-block text-[10px] font-black text-amber-900 bg-amber-200 px-3 py-1 rounded-full mb-3">
-                  🏛️ ERETTO CON SUCCESSO ✓
+                  🔍 INDIZIO TROVATO ✓
                 </span>
                 <p className="text-xs text-slate-600 mb-5 leading-relaxed">
                   {monumentModal.monument.description}
@@ -5093,13 +4836,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   {monumentModal.monument.emoji}
                 </div>
                 <h3 className="text-base font-black text-indigo-950 mb-1">
-                  Erigi {monumentModal.monument.name}?
+                  Aprire indizio: {monumentModal.monument.name}?
                 </h3>
                 <div className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full mb-3">
-                  💧 Costo: <b>{monumentModal.monument.cost} Gocce</b>
+                  🔍 Pronto da aprire
                 </div>
                 <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                  Hai a disposizione <b>{profile.lightDrops} Gocce di Luce</b>. Vuoi spendere {monumentModal.monument.cost} Gocce per erigere questo monumento nel Regno?
+                  Questo indizio completa il sentiero narrativo del regno. Toccalo per segnarlo come trovato.
                 </p>
                 <div className="flex gap-2.5">
                   <button
@@ -5122,7 +4865,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
                   >
-                    🏛️ Si, Erigi Ora!
+                      🔍 Sì, Segna Come Trovato
                   </button>
                 </div>
               </>
@@ -5132,26 +4875,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   💧
                 </div>
                 <h3 className="text-base font-black text-rose-950 mb-1">
-                  Gocce Insufficienti!
+                  Indizio Bloccato!
                 </h3>
                 <div className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-200 px-3 py-1 rounded-full mb-3">
-                  Costo: 💧 {monumentModal.monument.cost} (Ne hai {profile.lightDrops})
+                  Costo indizio: 💧 {monumentModal.monument.cost} (Ne hai {profile.lightDrops})
                 </div>
                 <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-                  Per erigere <b>{monumentModal.monument.name}</b> ti mancano <b>{monumentModal.monument.cost - profile.lightDrops} Gocce di Luce</b>.
+                  Per aprire <b>{monumentModal.monument.name}</b> ti mancano <b>{monumentModal.monument.cost - profile.lightDrops} Gocce di Luce</b>.
                   <br /><br />
-                  Gioca nel passo <b>"Pratico (Avventura)"</b> per sconfiggere la nebbia e raccogliere le gocce necessarie!
+                  {praticoLockedMessage}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMonumentModal(null);
-                    setCurrencyModalType('drops');
-                  }}
-                  className="text-xs text-sky-600 hover:text-sky-800 font-bold underline mb-4 block mx-auto cursor-pointer"
-                >
-                  A cosa servono le Gocce? 💧
-                </button>
                 <div className="flex gap-2.5">
                   <button
                     type="button"
@@ -5162,11 +4895,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </button>
                   <button
                     type="button"
+                    aria-disabled={!canGoToPratico}
                     onClick={() => {
+                      if (!canGoToPratico) {
+                        sound.playError();
+                        setMonumentModal(null);
+                        setPathLockModalMessage(`🔒 Pratico Bloccato!\n\n${praticoLockedMessage}`);
+                        return;
+                      }
                       setMonumentModal(null);
                       startQuizMode();
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                    className={`flex-1 py-2.5 rounded-xl text-white font-black text-xs shadow-md transition-colors ${
+                      canGoToPratico
+                        ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
+                        : 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                    }`}
                   >
                     🛡️ Vai al Pratico
                   </button>
@@ -5177,13 +4921,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         </div>
       )}
 
-      <CurrencyInfoModal
-        type={currencyModalType}
-        isOpen={!!currencyModalType}
-        onClose={() => setCurrencyModalType(null)}
-        lightDrops={profile.lightDrops}
-        coins={profile.coins}
-      />
     </div>
   );
 }

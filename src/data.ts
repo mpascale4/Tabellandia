@@ -23,9 +23,9 @@ export const WORLDS_DATA: WorldConfig[] = [
     trickVisualExplanation: "Moltiplicare per 2 significa semplicemente RADDOPPIARE il numero di partenza! Ad esempio, 2 x 4 è come dire 4 + 4 = 8.",
     itemsToCount: "🦢",
     monuments: [
-      { id: "m2_1", name: "Roccia del Piccone", cost: 15, description: "Ripristina l'antico simbolo del Piccone inciso nella pietra, il primo segno che Orion riconoscerà.", emoji: "⛏️🪨" },
-      { id: "m2_2", name: "Lago di Cristallo", cost: 30, description: "Rigenera il lago dalle acque immobili dove Orion vede il suo riflesso e riconosce il suo duplice destino.", emoji: "🪞💧" },
-      { id: "m2_3", name: "Altare delle Ali", cost: 50, description: "Ricostituisce il santuario dove vengono venerate le ali dispiegate del Cigno Predestinato.", emoji: "🏛️✨" }
+      { id: "m2_1", name: "Cigno Orion", cost: 15, description: "Il primo segno nel cielo.", emoji: "🦢" },
+      { id: "m2_2", name: "Piccone", cost: 30, description: "La roccia che apre il passaggio.", emoji: "⛏️" },
+      { id: "m2_3", name: "Moneta rara", cost: 45, description: "La firma del destino.", emoji: "💶" }
     ]
   },
   {
@@ -45,9 +45,9 @@ export const WORLDS_DATA: WorldConfig[] = [
     trickVisualExplanation: "Moltiplicare per 3 significa fare tre passi della stessa misura! Ad esempio, 3 x 4 è 4 + 4 + 4 = 12.",
     itemsToCount: "💶",
     monuments: [
-      { id: "m3_1", name: "Nicchia della Moneta Incisa", cost: 20, description: "Illumina il profilo della Moneta Rara inciso nella roccia, il simbolo che Orion riconosce immediatamente.", emoji: "💶✨" },
-      { id: "m3_2", name: "Specchio di Cristallo", cost: 35, description: "Ripristina le acque specchianti dove la Moneta e le sue ali si riflettono come doppio destino.", emoji: "🪞💧" },
-      { id: "m3_3", name: "Cripta dei Segreti", cost: 60, description: "Sblocca la camera segreta dove dormono i ricordi incisi delle ali dispiegate del Cigno.", emoji: "🏛️🔐" }
+      { id: "m3_1", name: "Moneta rara", cost: 15, description: "Il segno che Orion cerca.", emoji: "💶" },
+      { id: "m3_2", name: "Specchio di cristallo", cost: 30, description: "Il riflesso che conferma la strada.", emoji: "🪞" },
+      { id: "m3_3", name: "Ali del destino", cost: 45, description: "La rotta che conduce oltre.", emoji: "🪽" }
     ]
   },
   {
@@ -67,9 +67,9 @@ export const WORLDS_DATA: WorldConfig[] = [
     trickVisualExplanation: "La tabellina del 4 è esattamente il doppio di quella del 2! Prova a confrontarle passo dopo passo.",
     itemsToCount: "🪑",
     monuments: [
-      { id: "m4_1", name: "Emersione della Sedia", cost: 25, description: "Riporta in superficie la Sedia Magica dalle profondità del lago di sale, rivelando il suo marchio dell'Infinito.", emoji: "🪑💎" },
-      { id: "m4_2", name: "Tempio del Riflesso", cost: 40, description: "Restaura le acque immobili dove la Sedia e il Cigno si riflettono in doppio, raddoppiando la verità.", emoji: "🪞✨" },
-      { id: "m4_3", name: "Altare dell'Infinito", cost: 70, description: "Ricompone il santuario dove il marchio dell'Infinito brilla sullo schienale della Sedia, centro di tutto il potere.", emoji: "♾️🏛️" }
+      { id: "m4_1", name: "Sedia Magica", cost: 15, description: "Il trono che apre il segreto.", emoji: "🪑" },
+      { id: "m4_2", name: "Lago di cristallo", cost: 30, description: "Il riflesso che raddoppia la verità.", emoji: "💧" },
+      { id: "m4_3", name: "Infinito", cost: 45, description: "Il cuore del passo.", emoji: "♾️" }
     ]
   },
   {
@@ -89,9 +89,9 @@ export const WORLDS_DATA: WorldConfig[] = [
     trickVisualExplanation: "Pensa alle dita di una mano! Ogni mano intera vale 5. Contare per 5 è come contare i palmi aperti delle mani.",
     itemsToCount: "🐍",
     monuments: [
-      { id: "m5_1", name: "Ponte di Cristallo Sommerso", cost: 30, description: "Ricostruisce un magico ponte sospeso sotto l'acqua dove Bobo guida i viaggiatori.", emoji: "🌉💧" },
-      { id: "m5_2", name: "Caverna Sacra di Bobo", cost: 45, description: "Restaura il santuario sotterraneo dove il Serpente Guida impartisce la sua saggezza silenziosa.", emoji: "🐍🕌" },
-      { id: "m5_3", name: "Miniera dei Segni Incisi", cost: 80, description: "Riattiva i passaggi della miniera dove ogni pietra racconta un indizio del cammino di Orion.", emoji: "⛏️✨" }
+      { id: "m5_1", name: "Serpente Bobo", cost: 15, description: "La guida che conosce il buio.", emoji: "🐍" },
+      { id: "m5_2", name: "Ponte sommerso", cost: 30, description: "Il passaggio sotto l'acqua.", emoji: "🌉" },
+      { id: "m5_3", name: "Segni incisi", cost: 45, description: "Le tracce lasciate nella roccia.", emoji: "⛏️" }
     ]
   },
   {
@@ -111,9 +111,9 @@ export const WORLDS_DATA: WorldConfig[] = [
     trickVisualExplanation: "La tabellina del 6 è il doppio di quella del 3! Inoltre, 6 x N è uguale a (5 x N) + N (es. 6 x 7 = 5 x 7 [35] + 7 = 42). Comodo, vero?",
     itemsToCount: "🐌",
     monuments: [
-      { id: "m6_1", name: "Caverna dei Consigli Incisi", cost: 35, description: "Riattiva la camera sacra dove le parole di Lina sono scolpite nella pietra, rivelando il cammino.", emoji: "🏛️📜" },
-      { id: "m6_2", name: "Fonte della Saggezza", cost: 50, description: "Ripristina le acque cristalline dove la voce di Lina risuona come eterna guida.", emoji: "💧✨" },
-      { id: "m6_3", name: "Porta della Fede", cost: 90, description: "Ricostruisce la soglia magica dove chi si siede sulla Sedia e ascolta comprende finalmente la verità.", emoji: "🚪🪑" }
+      { id: "m6_1", name: "Chiocciola Lina", cost: 15, description: "La voce che non si dimentica.", emoji: "🐌" },
+      { id: "m6_2", name: "Consigli incisi", cost: 30, description: "Le parole lasciate nella pietra.", emoji: "📜" },
+      { id: "m6_3", name: "Porta della fede", cost: 45, description: "La soglia che si apre ascoltando.", emoji: "🚪" }
     ]
   },
   {
@@ -133,9 +133,9 @@ export const WORLDS_DATA: WorldConfig[] = [
     trickVisualExplanation: "Il 7 è un numero magico e misterioso, non ha trucchi facilissimi ma puoi usare le altre tabelline: es. 7 x 6 è uguale a 6 x 7 (42), che conosci già!",
     itemsToCount: "⚡",
     monuments: [
-      { id: "m7_1", name: "Roccia dell'Infinito Illuminato", cost: 40, description: "Riporta in vita il marchio dell'Infinito sulla roccia, che brilla nel bagliore del Fulmine.", emoji: "♾️⚡" },
-      { id: "m7_2", name: "Altare dei Segni Rivelati", cost: 55, description: "Ripristina il santuario dove ogni fulmine rivela un nuovo segno inciso nella pietra.", emoji: "⛩️✨" },
-      { id: "m7_3", name: "Osservatorio del Cielo", cost: 100, description: "Ricostruisce la postazione dove i Fulmini trasmettono i loro messaggi luminosi verso le stelle.", emoji: "🔭⚡" }
+      { id: "m7_1", name: "Fulmine", cost: 15, description: "La luce che squarcia il cielo.", emoji: "⚡" },
+      { id: "m7_2", name: "Infinito illuminato", cost: 30, description: "Il cuore che appare nel lampo.", emoji: "♾️" },
+      { id: "m7_3", name: "Segni rivelati", cost: 45, description: "Le tracce che si leggono con la luce.", emoji: "✨" }
     ]
   },
   {
@@ -155,9 +155,9 @@ export const WORLDS_DATA: WorldConfig[] = [
     trickVisualExplanation: "La tabellina dell'8 è il doppio esatto della tabellina del 4! Ogni risultato è raddoppiato.",
     itemsToCount: "♾️",
     monuments: [
-      { id: "m8_1", name: "Basamento dell'Infinito", cost: 45, description: "Riporta in luce il simbolo dell'Infinito inciso sotto la Sedia Magica, il cuore stesso di tutta la Terra Magica.", emoji: "♾️🏛️" },
-      { id: "m8_2", name: "Camera della Chiave Doppia", cost: 60, description: "Ricostituisce la cripta dove due Infiniti sovrapposti formano la chiave della porta finale.", emoji: "🔑✨" },
-      { id: "m8_3", name: "Centrale del Potere Eterno", cost: 110, description: "Ricollega il flusso dell'Infinito che mantiene il legame tra tutti i mondi e i personaggi di Tabellandia.", emoji: "🌀💫" }
+      { id: "m8_1", name: "Infinito", cost: 15, description: "Il centro di tutto.", emoji: "♾️" },
+      { id: "m8_2", name: "Chiave doppia", cost: 30, description: "La combinazione che apre la porta.", emoji: "🔑" },
+      { id: "m8_3", name: "Cuore del potere", cost: 45, description: "L'energia che tiene uniti i mondi.", emoji: "🌀" }
     ]
   },
   {
@@ -177,9 +177,9 @@ export const WORLDS_DATA: WorldConfig[] = [
     trickVisualExplanation: "Un altro trucco: la cifra delle decine del risultato è sempre inferiore di 1 rispetto al moltiplicatore (es. 9 x 8 -> decine = 7). Inoltre, la somma delle due cifre del risultato fa sempre 9 (7 + 2 = 9)! Quindi 72!",
     itemsToCount: "🎈",
     monuments: [
-      { id: "m9_1", name: "Roccia del Piccone Finale", cost: 50, description: "Risveglia il Piccone inciso sulla roccia dove i due Palloncini Rossi fluttuano immobili, annunciando la rivelazione.", emoji: "⛏️🎈" },
-      { id: "m9_2", name: "Porta della Verità", cost: 70, description: "Ricostituisce la soglia segreta dove la roccia cede e rivela il simbolo dell'Infinito e le ali di Orion.", emoji: "🚪✨" },
-      { id: "m9_3", name: "Santuario del Destino Compiuto", cost: 120, description: "Ricongiungi il luogo sacro dove Orion ha finalmente riconosciuto se stesso come il Cigno Predestinato scritto nella pietra eterna.", emoji: "♾️🦢" }
+      { id: "m9_1", name: "Palloncino rosso", cost: 15, description: "La rotta invisibile.", emoji: "🎈" },
+      { id: "m9_2", name: "Piccone finale", cost: 30, description: "L'ultimo segno inciso.", emoji: "⛏️" },
+      { id: "m9_3", name: "Porta della verità", cost: 45, description: "L'uscita del mistero.", emoji: "🚪" }
     ]
   }
 ];

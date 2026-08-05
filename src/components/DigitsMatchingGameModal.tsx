@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Volume2, CheckCircle, RotateCcw, ArrowRight, Star } from 'lucide-react';
+import { Sparkles, Volume2, CheckCircle, RotateCcw, Star } from 'lucide-react';
 import { DIGITS_INFO, DigitInfo } from '../data/digitsData';
 import { useVoice } from '../contexts/VoiceContext';
 import { sound } from './SoundManager';
@@ -134,22 +134,6 @@ export default function DigitsMatchingGameModal({
                 </p>
               </div>
             </div>
-
-            {/* Score pill */}
-            <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
-              <div className="bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/30 text-[11px] font-black font-mono">
-                {matchedDigits.size} / 10 completati
-              </div>
-              {!isGameComplete && onSkip && (
-                <button
-                  type="button"
-                  onClick={handleSkip}
-                  className="text-[10px] sm:text-xs bg-white text-indigo-800 px-2 py-1 rounded-lg font-black border border-white/70 hover:bg-indigo-50 transition-colors cursor-pointer"
-                >
-                  Salta per ora
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Body Content */}
@@ -162,12 +146,6 @@ export default function DigitsMatchingGameModal({
                 transition={{ duration: 0.4 }}
               />
             </div>
-            {!isGameComplete && onSkip && (
-              <div className="rounded-xl border border-indigo-100 bg-white px-3 py-2 text-[11px] sm:text-xs text-slate-600">
-                Puoi saltare questo gioco e riprenderlo in seguito dalla guida delle cifre.
-              </div>
-            )}
-
             {/* Game Play Area */}
             {!isGameComplete ? (
               <div className="grid grid-cols-[repeat(auto-fit,minmax(13.5rem,1fr))] gap-3 sm:gap-5">
@@ -282,8 +260,22 @@ export default function DigitsMatchingGameModal({
                     🚀 Entra in Tabellandia!
                   </button>
                 </div>
+
               </motion.div>
             )}
+          </div>
+
+          {/* Footer Actions */}
+          <div className="shrink-0 border-t border-slate-200 bg-white/90 px-3 py-3 sm:px-6">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleSkip}
+                className="flex-1 rounded-xl border-2 border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-black text-indigo-800 transition-colors hover:bg-indigo-100 cursor-pointer"
+              >
+                Salta
+              </button>
+            </div>
           </div>
 
           {/* Explanation Modal Overlay when a match is found */}
@@ -333,7 +325,7 @@ export default function DigitsMatchingGameModal({
                       onClick={() => setShowingExplanationFor(null)}
                       className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl shadow-md transition-transform active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
                     >
-                      Continua <ArrowRight className="w-4 h-4" />
+                      Chiudi
                     </button>
                   </div>
                 </motion.div>

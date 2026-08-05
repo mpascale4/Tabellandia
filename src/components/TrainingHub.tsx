@@ -11,6 +11,7 @@ import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 import { getStoryDraftForEquation } from '../utils/storyMarkdown';
+import { getGenderedText, getPlayerGender, PlayerGender } from '../utils/playerCopy';
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
 // 0 🥚 Uovo      → ovale chiuso
@@ -127,14 +128,19 @@ const RANDOM_WORLD: WorldConfig = {
   monuments: [],
 };
 
-const MOTIVATIONAL_CORRECT = [
-  'Fantastico! 🎉', 'Bravo/a! 🌟', 'Perfetto! ✨', 'Esatto! 🏆',
-  'Ottimo lavoro! 💪', 'Sei fortissimo/a! 🚀', 'Continua così! 🌈',
-];
-
 const MOTIVATIONAL_WRONG = [
   'Quasi! Riprova! 💪', 'Non mollare! 🌟', 'Ci puoi riuscire! ✨',
   'Sbagliando si impara! 🧠', 'La prossima ce la fai! 🚀',
+];
+
+const getMotivationalCorrectMessages = (gender: PlayerGender) => [
+  'Fantastico! 🎉',
+  getGenderedText(gender, 'Bravo! 🌟', 'Brava! 🌟'),
+  'Perfetto! ✨',
+  'Esatto! 🏆',
+  'Ottimo lavoro! 💪',
+  getGenderedText(gender, 'Sei fortissimo! 🚀', 'Sei fortissima! 🚀'),
+  'Continua così! 🌈',
 ];
 
 function pickRandom<T>(arr: T[]): T {
@@ -245,10 +251,12 @@ type FeedbackState = { correct: boolean; message: string; optionIndex: number } 
 
 function TrainingSession({
   world,
+  profile,
   updateProfile,
   onBack,
 }: {
   world: WorldConfig;
+  profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onBack: () => void;
 }) {
@@ -279,7 +287,7 @@ function TrainingSession({
       updateProfile(p => ({ ...p, coins: p.coins + 1 }));
       setFeedback({
         correct: true,
-        message: pickRandom(MOTIVATIONAL_CORRECT),
+        message: pickRandom(getMotivationalCorrectMessages(getPlayerGender(profile))),
         optionIndex: optIndex,
       });
     } else {
@@ -517,6 +525,7 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
     return (
       <TrainingSession
         world={selectedWorld}
+        profile={profile}
         updateProfile={updateProfile}
         onBack={() => setSelectedId(null)}
       />

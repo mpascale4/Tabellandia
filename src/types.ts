@@ -25,9 +25,13 @@ export interface RebuiltMonument {
 export interface WorldProgress {
   worldId: number; // 2 to 9
   completedSteps: string[]; // ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida']
+  lockedSteps?: string[]; // Step IDs blocked by dev tools
   praticoCyclesCompleted?: number; // Number of completed Pratico streak cycles in this world
   sfidaUnlocked?: boolean; // Permanent unlock for Sfida in this world/tabellina
   rebuiltMonuments: string[]; // IDs of monuments rebuilt
+  lockedMonuments?: string[]; // Clue IDs blocked by dev tools
+  devCoins?: number; // Dev-only per-world coin counter
+  devLightDrops?: number; // Dev-only per-world droplet counter
   creatureEvolution: 'egg' | 'child' | 'adult';
   highScore: number; // Max correct answers in Time Trial
   stars: number; // 0 to 3 stars

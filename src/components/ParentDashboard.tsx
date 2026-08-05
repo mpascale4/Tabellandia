@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { UserProfile, QuestionAttempt } from '../types';
+import { UserProfile, QuestionAttempt, WorldProgress } from '../types';
 import { WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
 import { ShieldCheck, TrendingUp, AlertTriangle, Play, RotateCcw, Database, Trash2, Undo2, UserRoundX } from 'lucide-react';
@@ -12,6 +12,20 @@ import ActionGrid from './layout/ActionGrid';
 import ResponsiveGrid from './layout/ResponsiveGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
+import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
+
+const WORLD_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'] as const;
+
+const createDefaultWorldProgress = (worldId: number): WorldProgress => ({
+  worldId,
+  completedSteps: [],
+  rebuiltMonuments: [],
+  devCoins: 0,
+  devLightDrops: 0,
+  creatureEvolution: 'egg',
+  highScore: 0,
+  stars: 0
+});
 
 interface ParentDashboardProps {
   activeProfiles: UserProfile[];
@@ -22,6 +36,9 @@ interface ParentDashboardProps {
   onPermanentDeleteProfile: (profileId: string) => void;
   onClose: () => void;
   onChangePIN?: () => void;
+  onRequestDevArea?: () => void;
+  isDevAreaOpen?: boolean;
+  onCloseDevArea?: () => void;
   compactLayout?: boolean;
 }
 
@@ -48,6 +65,9 @@ export default function ParentDashboard({
   onPermanentDeleteProfile,
   onClose,
   onChangePIN,
+  onRequestDevArea,
+  isDevAreaOpen = false,
+  onCloseDevArea,
   compactLayout = false
 }: ParentDashboardProps) {
   const [profileDeleteModal, setProfileDeleteModal] = React.useState<{
@@ -56,6 +76,10 @@ export default function ParentDashboard({
     profileName: string;
   } | null>(null);
   const [selectedProfileId, setSelectedProfileId] = React.useState<string | null>(null);
+  const [devWorldId, setDevWorldId] = React.useState<number>(WORLDS_DATA[0]?.id || 2);
+  const [devTab, setDevTab] = React.useState<'profile' | 'world' | 'steps' | 'clues'>('profile');
+  const [devWorldCoinsInput, setDevWorldCoinsInput] = React.useState<string>('0');
+  const [devWorldDropsInput, setDevWorldDropsInput] = React.useState<string>('0');
 
   React.useEffect(() => {
     if (!selectedProfileId) return;
@@ -77,6 +101,21 @@ export default function ParentDashboard({
   const selectedProfile = selectedProfileId
     ? activeProfiles.find(item => item.id === selectedProfileId) || null
     : null;
+  const selectedProfileGender = getPlayerGender(selectedProfile);
+  const devProfile = selectedProfile;
+  const devWorld = WORLDS_DATA.find(world => world.id === devWorldId) || WORLDS_DATA[0];
+
+  React.useEffect(() => {
+    if (!devProfile) return;
+    const fallbackWorldId = devProfile.unlockedWorlds[devProfile.unlockedWorlds.length - 1] || WORLDS_DATA[0].id;
+    setDevWorldId(fallbackWorldId);
+  }, [devProfile?.id]);
+
+  React.useEffect(() => {
+    if (!isDevAreaOpen) {
+      setDevTab('profile');
+    }
+  }, [isDevAreaOpen]);
 
   const openSoftDeleteModal = (profileId: string, profileName: string) => {
     sound.playClick();
@@ -167,7 +206,7 @@ export default function ParentDashboard({
     if (window.confirm('Sei sicuro di voler cancellare tutti i progressi di Tabellandia? Questa operazione è irreversibile.')) {
       sound.playError();
       updateProfileById(selectedProfile.id, () => ({
-        name: 'Eroe',
+        name: getGenderedText(selectedProfileGender, 'Eroe', 'Eroina'),
         level: 1,
         xp: 0,
         coins: 0,
@@ -186,12 +225,160 @@ export default function ParentDashboard({
         unlockedWorlds: [2],
         unlockedAccessories: [],
         worldProgress: {
-          2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], creatureEvolution: 'egg', highScore: 0, stars: 0 }
+          2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], devCoins: 0, devLightDrops: 0, creatureEvolution: 'egg', highScore: 0, stars: 0 }
         },
         history: []
       }));
       onClose();
     }
+  };
+
+  const updateDevProfile = (updater: (profile: UserProfile) => UserProfile) => {
+    if (!devProfile?.id) return;
+    updateProfileById(devProfile.id, updater);
+  };
+
+  const currentDevWorldProgress = devProfile ? devProfile.worldProgress[devWorld.id] || createDefaultWorldProgress(devWorld.id) : null;
+  React.useEffect(() => {
+    if (!currentDevWorldProgress) return;
+    setDevWorldCoinsInput(String(currentDevWorldProgress.devCoins ?? 0));
+    setDevWorldDropsInput(String(currentDevWorldProgress.devLightDrops ?? 0));
+  }, [currentDevWorldProgress?.worldId, currentDevWorldProgress?.devCoins, currentDevWorldProgress?.devLightDrops, devProfile?.id]);
+
+  const isDevWorldUnlocked = Boolean(devProfile && devProfile.unlockedWorlds.includes(devWorld.id));
+  const areDevStepsUnlocked = Boolean(currentDevWorldProgress && currentDevWorldProgress.completedSteps.length === WORLD_STEP_IDS.length);
+  const areDevCluesFound = Boolean(currentDevWorldProgress && currentDevWorldProgress.rebuiltMonuments.length === devWorld.monuments.length);
+
+  const devStepLabels: Record<string, string> = {
+    comprendo: '1. Raccogli',
+    salto: '2. Salta',
+    costruisco: '3. Scoppia',
+    trucchi: '4. Trova',
+    pratico: '5. Pratico',
+    sfida: '6. Sfida',
+  };
+
+  const toggleLockedValue = (currentValues: string[] | undefined, value: string) => (
+    currentValues && currentValues.includes(value)
+      ? currentValues.filter(item => item !== value)
+      : [...(currentValues || []), value]
+  );
+
+  const handleToggleDevWorldLock = () => {
+    if (!devProfile?.id) return;
+    sound.playClick();
+    updateDevProfile(profile => {
+      const unlockedWorlds = profile.unlockedWorlds.includes(devWorld.id)
+        ? profile.unlockedWorlds.filter(worldId => worldId !== devWorld.id)
+        : Array.from(new Set([...profile.unlockedWorlds, devWorld.id])).sort((a, b) => a - b);
+      return {
+        ...profile,
+        unlockedWorlds
+      };
+    });
+  };
+
+  const handleApplyDevWorldCounters = () => {
+    if (!devProfile?.id) return;
+
+    const nextCoins = Number.parseInt(devWorldCoinsInput, 10);
+    const nextDrops = Number.parseInt(devWorldDropsInput, 10);
+    if (Number.isNaN(nextCoins) || Number.isNaN(nextDrops)) {
+      sound.playError();
+      return;
+    }
+
+    sound.playClick();
+    updateDevProfile(profile => {
+      const worldProgress = profile.worldProgress[devWorld.id] || createDefaultWorldProgress(devWorld.id);
+      return {
+        ...profile,
+        worldProgress: {
+          ...profile.worldProgress,
+          [devWorld.id]: {
+            ...worldProgress,
+            devCoins: Math.max(0, nextCoins),
+            devLightDrops: Math.max(0, nextDrops)
+          }
+        }
+      };
+    });
+  };
+
+  const handleToggleDevSteps = () => {
+    if (!devProfile?.id) return;
+    sound.playClick();
+    updateDevProfile(profile => {
+      const worldProgress = profile.worldProgress[devWorld.id] || createDefaultWorldProgress(devWorld.id);
+      const nextLockedSteps = worldProgress.lockedSteps?.length === WORLD_STEP_IDS.length ? [] : [...WORLD_STEP_IDS];
+      return {
+        ...profile,
+        worldProgress: {
+          ...profile.worldProgress,
+          [devWorld.id]: {
+            ...worldProgress,
+            lockedSteps: nextLockedSteps
+          }
+        }
+      };
+    });
+  };
+
+  const handleToggleDevClueFound = (monumentId: string) => {
+    if (!devProfile?.id) return;
+    sound.playClick();
+    updateDevProfile(profile => {
+      const worldProgress = profile.worldProgress[devWorld.id] || createDefaultWorldProgress(devWorld.id);
+      const rebuiltMonuments = worldProgress.rebuiltMonuments.includes(monumentId)
+        ? worldProgress.rebuiltMonuments.filter(item => item !== monumentId)
+        : [...worldProgress.rebuiltMonuments, monumentId];
+      return {
+        ...profile,
+        worldProgress: {
+          ...profile.worldProgress,
+          [devWorld.id]: {
+            ...worldProgress,
+            rebuiltMonuments
+          }
+        }
+      };
+    });
+  };
+
+  const handleToggleDevStepLock = (stepId: string) => {
+    if (!devProfile?.id) return;
+    sound.playClick();
+    updateDevProfile(profile => {
+      const worldProgress = profile.worldProgress[devWorld.id] || createDefaultWorldProgress(devWorld.id);
+      return {
+        ...profile,
+        worldProgress: {
+          ...profile.worldProgress,
+          [devWorld.id]: {
+            ...worldProgress,
+            lockedSteps: toggleLockedValue(worldProgress.lockedSteps, stepId)
+          }
+        }
+      };
+    });
+  };
+
+  const handleToggleDevClueLock = (monumentId: string) => {
+    if (!devProfile?.id) return;
+    sound.playClick();
+    updateDevProfile(profile => {
+      const worldProgress = profile.worldProgress[devWorld.id] || createDefaultWorldProgress(devWorld.id);
+      return {
+        ...profile,
+        worldProgress: {
+          ...profile.worldProgress,
+          [devWorld.id]: {
+            ...worldProgress,
+            lockedMonuments: toggleLockedValue(worldProgress.lockedMonuments, monumentId)
+          }
+        }
+      };
+    });
   };
 
   const totalAnswers = selectedProfile ? selectedProfile.history.length : 0;
@@ -243,7 +430,7 @@ export default function ParentDashboard({
     const unattempted = statsPerTable.filter(s => s.total === 0).map(s => s.tableNum);
 
     if (mastered.length > 0) {
-      advice.push(`🎉 Il bambino dimostra un'eccellente padronanza delle tabelline del **${mastered.join(', ')}** (precisione superiore all'80%). Ottimo lavoro!`);
+      advice.push(`🎉 ${getGenderedText(selectedProfileGender, 'Il bambino', 'La bambina')} dimostra un'eccellente padronanza delle tabelline del **${mastered.join(', ')}** (precisione superiore all'80%). Ottimo lavoro!`);
     }
 
     if (weak.length > 0) {
@@ -304,17 +491,33 @@ export default function ParentDashboard({
             : 'Seleziona un profilo attivo per visualizzare statistiche e strumenti diagnostici.'}
           icon={<ShieldCheck className="h-7 w-7 text-emerald-500" aria-hidden="true" />}
           actions={
-            <button
-              onClick={onChangePIN}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors"
-              id="parent-change-pin-btn"
-              title="Modifica il PIN"
-            >
-              🔑 Modifica PIN
-            </button>
-          }
-        />
-      </SurfaceCard>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      onChangePIN?.();
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors whitespace-nowrap"
+                    id="parent-change-pin-btn"
+                    title="Modifica il PIN"
+                  >
+                    🔑 Modifica PIN
+                  </button>
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      onRequestDevArea?.();
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 cursor-pointer transition-colors whitespace-nowrap"
+                    id="parent-dev-btn"
+                    title="Apri area dev"
+                  >
+                    🛠️ Area Dev
+                  </button>
+                </div>
+              }
+            />
+          </SurfaceCard>
 
       <SurfaceCard padding="md" className="mb-6 rounded-2xl border-slate-100">
         <SectionHeader
@@ -644,6 +847,305 @@ export default function ParentDashboard({
             </p>
           </div>
         </SurfaceCard>
+      )}
+
+      {isDevAreaOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 p-4 pt-6 backdrop-blur-sm">
+          <div
+            className="flex w-full max-w-4xl max-h-[calc(100vh-3rem)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dev-modal-title"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">Area dev</p>
+                <h3 id="dev-modal-title" className="mt-1 text-lg font-black text-slate-900">Strumenti rapidi</h3>
+                <p className="mt-1 text-xs text-slate-600">Tab compatte per restare dentro la pagina senza perdere i controlli.</p>
+              </div>
+            </div>
+
+            <div role="tablist" aria-label="Sezioni area dev" className="mt-4 grid grid-cols-4 gap-2 rounded-2xl bg-slate-100 p-1">
+              {[
+                { id: 'profile', label: 'Profilo' },
+                { id: 'world', label: 'Regno' },
+                { id: 'steps', label: 'Passi' },
+                { id: 'clues', label: 'Indizi' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={devTab === tab.id}
+                  aria-controls={`dev-panel-${tab.id}`}
+                  disabled={tab.id !== 'profile' && !devProfile}
+                  onClick={() => setDevTab(tab.id as 'profile' | 'world' | 'steps' | 'clues')}
+                  className={`rounded-xl px-3 py-2 text-xs font-black transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                    devTab === tab.id ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-white/70'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 flex-1 overflow-y-auto pr-1">
+              {devTab === 'profile' && (
+                <div id="dev-panel-profile" role="tabpanel" aria-labelledby="dev-modal-title" className="grid gap-3 lg:grid-cols-2">
+                  <SurfaceCard padding="sm" className="rounded-2xl border-slate-100">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Profilo target</p>
+                    <div role="list" className="mt-2 grid grid-cols-1 gap-2">
+                      {activeProfiles.length > 0 ? activeProfiles.map(item => {
+                        const isSelected = item.id === selectedProfileId;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            role="listitem"
+                            onClick={() => setSelectedProfileId(item.id)}
+                            className={`rounded-2xl border px-3 py-2 text-left transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'border-indigo-300 bg-indigo-50'
+                                : 'border-slate-200 bg-white hover:bg-slate-50'
+                            }`}
+                          >
+                            <p className="text-sm font-black text-slate-900">{item.name}</p>
+                            <p className="text-xs text-slate-600">
+                              Monete: <b>{item.coins}</b> · Gocce: <b>{item.lightDrops}</b>
+                            </p>
+                          </button>
+                        );
+                      }) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500">
+                          Nessun profilo attivo
+                        </div>
+                      )}
+                    </div>
+                  </SurfaceCard>
+
+                  <SurfaceCard padding="sm" className="rounded-2xl border-slate-100">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Anteprima</p>
+                    <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                      <p>Profilo selezionato: <b>{selectedProfile?.name || 'Nessuno'}</b></p>
+                      <p className="mt-1">Regno: <b>{devWorld?.name || 'Nessuno'}</b></p>
+                      <p className="mt-1">Monete: <b>{selectedProfile?.coins ?? 0}</b> · Gocce: <b>{selectedProfile?.lightDrops ?? 0}</b></p>
+                    </div>
+                    {!selectedProfile && (
+                      <p className="mt-2 text-xs text-slate-500">Seleziona un profilo per sbloccare le altre schede.</p>
+                    )}
+                  </SurfaceCard>
+                </div>
+              )}
+
+              {devTab === 'world' && (
+                <div id="dev-panel-world" role="tabpanel" className="space-y-3">
+                  <SurfaceCard padding="sm" className="rounded-2xl border-slate-100">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Regno target</p>
+                    {!devProfile && (
+                      <p className="mt-2 text-xs text-slate-500">Seleziona prima un profilo per attivare i controlli.</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {WORLDS_DATA.map(world => (
+                        <button
+                          key={world.id}
+                          type="button"
+                          onClick={() => setDevWorldId(world.id)}
+                          disabled={!devProfile}
+                          className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+                            !devProfile
+                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                              : devWorldId === world.id
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          x{world.id}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600">
+                      Selezionato: <b>{devWorld?.name || 'Nessuno'}</b>
+                    </p>
+                  </SurfaceCard>
+
+                  <SurfaceCard padding="sm" className="rounded-2xl border-slate-100">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Controlli utili</p>
+                    <div className="mt-2 grid gap-2.5 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={handleToggleDevWorldLock}
+                        disabled={!devProfile}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-bold transition-colors cursor-pointer ${
+                          !devProfile
+                            ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : isDevWorldUnlocked
+                              ? 'border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100'
+                              : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                        }`}
+                      >
+                        {!devProfile ? 'Seleziona profilo' : isDevWorldUnlocked ? 'Blocca regno' : 'Sblocca regno'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleToggleDevSteps}
+                        disabled={!devProfile}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-bold transition-colors cursor-pointer ${
+                          !devProfile
+                            ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : areDevStepsUnlocked
+                              ? 'border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100'
+                              : 'border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
+                        }`}
+                      >
+                        {!devProfile ? 'Seleziona profilo' : areDevStepsUnlocked ? 'Blocca passi' : 'Sblocca passi'}
+                      </button>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">Monete del regno</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={devWorldCoinsInput}
+                          onChange={event => setDevWorldCoinsInput(event.target.value)}
+                          disabled={!devProfile}
+                          className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:text-slate-400"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">Gocce del regno</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={devWorldDropsInput}
+                          onChange={event => setDevWorldDropsInput(event.target.value)}
+                          disabled={!devProfile}
+                          className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:text-slate-400"
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <p className="text-xs text-slate-600">
+                        Valori correnti: <b>{currentDevWorldProgress?.devCoins ?? 0}</b> monete · <b>{currentDevWorldProgress?.devLightDrops ?? 0}</b> gocce
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleApplyDevWorldCounters}
+                        disabled={!devProfile}
+                        className={`rounded-xl px-3 py-2 text-xs font-black transition-colors cursor-pointer ${
+                          !devProfile
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        }`}
+                      >
+                        Applica valori
+                      </button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+                      <span>Regno: <b>{isDevWorldUnlocked ? 'sbloccato' : 'bloccato'}</b></span>
+                      <span>Passi: <b>{currentDevWorldProgress?.completedSteps.length ?? 0}/6</b></span>
+                      <span>Indizi: <b>{currentDevWorldProgress?.rebuiltMonuments.length ?? 0}/{devWorld.monuments.length}</b></span>
+                    </div>
+                  </SurfaceCard>
+                </div>
+              )}
+
+              {devTab === 'steps' && (
+                <div id="dev-panel-steps" role="tabpanel" className="space-y-3">
+                  <SurfaceCard padding="sm" className="rounded-2xl border-slate-100">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Passi</p>
+                      <p className="text-xs text-slate-600">
+                        {currentDevWorldProgress?.completedSteps.length ?? 0}/{WORLD_STEP_IDS.length}
+                      </p>
+                    </div>
+                    <div role="list" className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
+                      {WORLD_STEP_IDS.map(stepId => {
+                        const isLocked = currentDevWorldProgress?.lockedSteps?.includes(stepId) ?? false;
+                        const isDone = currentDevWorldProgress?.completedSteps.includes(stepId) ?? false;
+                        return (
+                          <button
+                            key={stepId}
+                            type="button"
+                            role="listitem"
+                            onClick={() => handleToggleDevStepLock(stepId)}
+                            disabled={!devProfile}
+                            className={`rounded-2xl border px-3 py-2.5 text-left transition-colors cursor-pointer ${
+                              !devProfile
+                                ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : isLocked
+                                  ? 'border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100'
+                                  : 'border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
+                            }`}
+                          >
+                            <p className="text-sm font-black">{devStepLabels[stepId] || stepId}</p>
+                            <p className="text-[11px] text-slate-600 mt-1">
+                              Stato: <b>{isLocked ? 'Bloccato' : isDone ? 'Sbloccato e completato' : 'Sbloccato'}</b>
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </SurfaceCard>
+                </div>
+              )}
+
+              {devTab === 'clues' && (
+                <div id="dev-panel-clues" role="tabpanel" className="space-y-3">
+                  <SurfaceCard padding="sm" className="rounded-2xl border-slate-100">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Indizi</p>
+                      <p className="text-xs text-slate-600">
+                        {currentDevWorldProgress?.rebuiltMonuments.length ?? 0}/{devWorld.monuments.length}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600">
+                      Tocca una card per passare tra <b>trovato</b> e <b>da trovare</b>. Stato gruppo: <b>{areDevCluesFound ? 'tutti trovati' : 'ancora da completare'}</b>.
+                    </p>
+                    <div role="list" className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2">
+                      {devWorld.monuments.map(monument => {
+                        const isDone = currentDevWorldProgress?.rebuiltMonuments.includes(monument.id) ?? false;
+                        return (
+                          <button
+                            key={monument.id}
+                            type="button"
+                            role="listitem"
+                            onClick={() => handleToggleDevClueFound(monument.id)}
+                            disabled={!devProfile}
+                            className={`rounded-2xl border px-3 py-2.5 text-left transition-colors cursor-pointer ${
+                              !devProfile
+                                ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : isDone
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                                  : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                            }`}
+                          >
+                            <p className="text-sm font-black">{monument.emoji} {monument.name}</p>
+                            <p className="text-[11px] text-slate-600 mt-1">
+                              Stato: <b>{isDone ? 'Trovato' : 'Da trovare'}</b>
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </SurfaceCard>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-end border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => onCloseDevArea?.()}
+                className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200 cursor-pointer"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {profileDeleteModal && (

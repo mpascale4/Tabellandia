@@ -5,7 +5,7 @@
 
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Droplets, Coins, X, Volume2, Sparkles, MapPin, Shirt, Trophy } from 'lucide-react';
+import { Droplets, Coins, Volume2, Sparkles, MapPin, Shirt, Trophy } from 'lucide-react';
 import { useVoice } from '../contexts/VoiceContext';
 
 interface CurrencyInfoModalProps {
@@ -66,16 +66,6 @@ export default function CurrencyInfoModal({
               : 'bg-gradient-to-b from-amber-50 via-white to-amber-50 border-amber-200'
           }`}
         >
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
-            aria-label="Chiudi"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
           {/* Header Icon & Title */}
           <div className="flex items-center gap-3 mb-4">
             <div
@@ -230,18 +220,19 @@ export default function CurrencyInfoModal({
             </div>
           </div>
 
-          {/* Action Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className={`w-full mt-5 py-3 rounded-2xl font-black text-sm text-white shadow-md cursor-pointer transition-transform active:scale-95 ${
-              isDrops
-                ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-200'
-                : 'bg-amber-500 hover:bg-amber-600 shadow-amber-200'
-            }`}
-          >
-            Ho capito! 👍
-          </button>
+          <div className="mt-5 pt-4 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`w-full py-3 rounded-2xl font-black text-sm text-white shadow-md cursor-pointer transition-transform active:scale-95 ${
+                isDrops
+                  ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-200'
+                  : 'bg-amber-500 hover:bg-amber-600 shadow-amber-200'
+              }`}
+            >
+              Ho capito! 👍
+            </button>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
