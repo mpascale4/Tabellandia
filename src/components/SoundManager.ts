@@ -19,6 +19,9 @@ class SoundManager {
   private musicStep: number = 0;
   private frogAudioBuffer: AudioBuffer | null = null;
   private loadingFrogAudio = false;
+  private beeBuzzOscillator: OscillatorNode | null = null;
+  private beeBuzzHarmonic: OscillatorNode | null = null;
+  private beeBuzzGain: GainNode | null = null;
   private readonly antagonistsAudioUrls: Record<SaltoAntagonistAudioId, string> = {
     snake: snakeAudioUrl,
     bat: batAudioUrl,
@@ -66,6 +69,9 @@ class SoundManager {
 
   setMuted(muted: boolean) {
     this.effectsEnabled = !muted;
+    if (muted) {
+      this.stopBeeBuzz();
+    }
   }
 
   isMuted() {
@@ -74,6 +80,9 @@ class SoundManager {
 
   setEffectsEnabled(enabled: boolean) {
     this.effectsEnabled = enabled;
+    if (!enabled) {
+      this.stopBeeBuzz();
+    }
   }
 
   isEffectsEnabled() {
@@ -284,24 +293,92 @@ class SoundManager {
     this.ensureBackgroundMusic();
 
     const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
+    const sting = this.ctx.createOscillator();
+    const buzz = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(420, now);
-    osc.frequency.linearRampToValueAtTime(250, now + 0.08);
-    osc.frequency.linearRampToValueAtTime(180, now + 0.24);
+    sting.type = 'sawtooth';
+    sting.frequency.setValueAtTime(980, now);
+    sting.frequency.exponentialRampToValueAtTime(210, now + 0.26);
+
+    buzz.type = 'square';
+    buzz.frequency.setValueAtTime(180, now);
+    buzz.frequency.linearRampToValueAtTime(110, now + 0.26);
 
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.16, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.015, now + 0.18);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+    gain.gain.linearRampToValueAtTime(0.24, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.03, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
 
-    osc.connect(gain);
+    sting.connect(gain);
+    buzz.connect(gain);
     gain.connect(this.ctx.destination);
 
-    osc.start(now);
-    osc.stop(now + 0.3);
+    sting.start(now);
+    buzz.start(now);
+    sting.stop(now + 0.35);
+    buzz.stop(now + 0.35);
+  }
+
+  startBeeBuzz() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.beeBuzzOscillator || this.beeBuzzGain) return;
+
+    const now = this.ctx.currentTime;
+    const primary = this.ctx.createOscillator();
+    const harmonic = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    primary.type = 'sawtooth';
+    harmonic.type = 'triangle';
+    primary.frequency.setValueAtTime(172, now);
+    harmonic.frequency.setValueAtTime(206, now);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.028, now + 0.08);
+
+    primary.connect(gain);
+    harmonic.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    primary.start(now);
+    harmonic.start(now);
+
+    this.beeBuzzOscillator = primary;
+    this.beeBuzzHarmonic = harmonic;
+    this.beeBuzzGain = gain;
+  }
+
+  stopBeeBuzz() {
+    if (!this.ctx) {
+      this.beeBuzzOscillator = null;
+      this.beeBuzzHarmonic = null;
+      this.beeBuzzGain = null;
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const primary = this.beeBuzzOscillator;
+    const harmonic = this.beeBuzzHarmonic;
+    const gain = this.beeBuzzGain;
+
+    this.beeBuzzOscillator = null;
+    this.beeBuzzHarmonic = null;
+    this.beeBuzzGain = null;
+
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    }
+
+    if (primary) {
+      primary.stop(now + 0.07);
+    }
+    if (harmonic) {
+      harmonic.stop(now + 0.07);
+    }
   }
 
   playError() {

@@ -499,6 +499,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
 
   useEffect(() => {
     return () => {
+      sound.stopBeeBuzz();
       beeTapLockRef.current = 0;
       if (basketGuidanceTimeoutRef.current !== null) {
         window.clearTimeout(basketGuidanceTimeoutRef.current);
@@ -586,15 +587,29 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   useEffect(() => {
     const beeCount = displayB >= BEE_START_FACTOR ? getBeeCount(displayB) : 0;
     if (arenaSize.width <= 0 || arenaSize.height <= 0 || beeCount === 0 || isCompleted || isFailed) {
+      sound.stopBeeBuzz();
       beeParticlesRef.current = [];
       setBeePositions([]);
       return;
     }
 
+    sound.startBeeBuzz();
     const nextBees = createBeeParticles(beeCount, arenaSize, displayB, prefersReducedMotion);
     beeParticlesRef.current = nextBees;
     setBeePositions(nextBees);
    }, [arenaSize, displayB, isCompleted, isFailed, prefersReducedMotion]);
+
+  useEffect(() => {
+    const hasBees = !isCompleted && !isFailed && displayB >= BEE_START_FACTOR && beePositions.length > 0;
+    if (hasBees) {
+      sound.startBeeBuzz();
+      return () => {
+        sound.stopBeeBuzz();
+      };
+    }
+
+    sound.stopBeeBuzz();
+  }, [beePositions.length, displayB, isCompleted, isFailed]);
 
   useEffect(() => {
     onCompletionChange?.(isCompleted);
