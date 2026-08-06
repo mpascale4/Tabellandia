@@ -370,6 +370,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [saltoAntagonistsByStep, setSaltoAntagonistsByStep] = useState<Record<number, SaltoAntagonist>>({});
   const [saltoFrogPosition, setSaltoFrogPosition] = useState<number>(0);
   const [saltoLeap, setSaltoLeap] = useState<{ from: number; to: number } | null>(null);
+  const [saltoTapHop, setSaltoTapHop] = useState<{ step: number; token: number } | null>(null);
 
   // Costruisco (Step 3) state
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
@@ -645,6 +646,35 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const saltoExpectedValue = saltoSelectedFactor !== null ? world.id * (saltoIndex + 1) : null;
   const saltoObstaclePending = saltoEnemySteps.includes(saltoIndex + 1) && !saltoJumpedEnemySteps.has(saltoIndex + 1);
+  const triggerSaltoFrogJump = (fromStep: number) => {
+    if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
+    sound.playFrogCroak();
+    const currentEnemyStep = saltoIndex + 1;
+    const isJumpWindowOpen =
+      saltoEnemySteps.includes(currentEnemyStep) &&
+      !saltoJumpedEnemySteps.has(currentEnemyStep);
+
+    if (isJumpWindowOpen) {
+      consumeGuidance('saltoAvoid');
+      const toStep = currentEnemyStep;
+      const leapMs = prefersReducedMotion ? 140 : 420;
+      setSaltoLeap({ from: fromStep, to: toStep });
+      speak(GAMEPLAY_AUDIO_MESSAGES.saltoObstacleSuccess);
+      window.setTimeout(() => {
+        setSaltoJumpedEnemySteps(prev => new Set(prev).add(currentEnemyStep));
+        setSaltoFrogPosition(toStep);
+        setSaltoLeap(null);
+      }, leapMs);
+      return;
+    }
+
+    const token = Date.now();
+    const hopMs = prefersReducedMotion ? 120 : 260;
+    setSaltoTapHop({ step: fromStep, token });
+    window.setTimeout(() => {
+      setSaltoTapHop(current => (current?.token === token ? null : current));
+    }, hopMs);
+  };
   const hasCostruiscoTouchTarget = costruiscoActiveBalloons.some(balloon => balloon.isCorrect && !balloon.isTrap);
   const hasCostruiscoAvoidTarget = costruiscoActiveBalloons.some(balloon => balloon.isTrap);
   const trucchiCorrectValue = trucchiSelectedFactor !== null ? world.id * trucchiSelectedFactor : null;
@@ -654,6 +684,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   });
   const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && !guidanceSeen.saltoTouch && saltoExpectedValue !== null;
   const showSaltoAvoidGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && !guidanceSeen.saltoAvoid && saltoObstaclePending;
+  const showSaltoFrogTouchGuidance = showSaltoAvoidGuidance;
   const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoTouch && hasCostruiscoTouchTarget;
   const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoAvoid && hasCostruiscoAvoidTarget;
   const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiTouch && trucchiCorrectValue !== null;
@@ -2474,7 +2505,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     onSelect: (factor: number) => void;
     theme: StepSelectionTheme;
   }) => (
-    <div className="max-w-4xl mx-auto w-full h-full min-h-0">
+    <div className="max-w-4xl mx-auto w-full h-full min-h-0 overflow-hidden">
       <SurfaceCard padding="lg" className={`h-full min-h-0 shadow-lg border-2 ${theme.panel} flex flex-col`}>
         <div className="flex items-center justify-center gap-2">
           <span className={`text-xs font-bold px-3 py-1 rounded-full font-sans ${theme.badge}`}>
@@ -2626,6 +2657,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSaltoAntagonistsByStep({});
     setSaltoFrogPosition(0);
     setSaltoLeap(null);
+    setSaltoTapHop(null);
     setSaltoSelectedFactor(null);
   };
   const completeSaltoExercise = () => {
@@ -3316,6 +3348,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
               setSaltoFrogPosition(0);
               setSaltoLeap(null);
+              setSaltoTapHop(null);
             },
             theme: {
               panel: 'bg-purple-50 border-purple-200',
@@ -3399,35 +3432,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between">
                       {/* Water sparkles background */}
                       <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:16px_16px]" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
-                          sound.playClick();
-                          const currentEnemyStep = saltoIndex + 1;
-                          const isJumpWindowOpen =
-                            saltoEnemySteps.includes(currentEnemyStep) &&
-                            !saltoJumpedEnemySteps.has(currentEnemyStep);
-                          if (!isJumpWindowOpen) return;
-                          consumeGuidance('saltoAvoid');
-                          const fromStep = saltoFrogPosition;
-                          const toStep = currentEnemyStep;
-                          const leapMs = prefersReducedMotion ? 140 : 420;
-                          setSaltoLeap({ from: fromStep, to: toStep });
-                          speak(GAMEPLAY_AUDIO_MESSAGES.saltoObstacleSuccess);
-                          window.setTimeout(() => {
-                            setSaltoJumpedEnemySteps(prev => new Set(prev).add(currentEnemyStep));
-                            setSaltoFrogPosition(toStep);
-                            setSaltoLeap(null);
-                          }, leapMs);
-                        }}
-                        className="absolute left-3 bottom-3 z-20 h-11 w-11 rounded-2xl border-2 border-purple-200 bg-white text-xl text-purple-900 shadow-sm transition-all cursor-pointer active:scale-95 flex items-center justify-center"
-                        aria-label="Salta"
-                        title="Salta"
-                      >
-                        🐸
-                      </button>
-
+                      {/* Removed separate frog button: jump now uses the moving frog on riva/stone */}
                       {/* River Stream Container */}
                       <div className="relative z-10 my-1 flex min-w-0 items-center justify-between gap-1 px-2 py-2 bg-sky-900/30 backdrop-blur-xs rounded-2xl border border-sky-200/30">
                         {/* Stepping Stones Container (Riva + Stones 1 to saltoSelectedFactor) */}
@@ -3444,7 +3449,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           >
                             {/* Frog sitting on Riva when starting (saltoIndex === 0) */}
                             {saltoFrogPosition === 0 && !saltoGameCompleted && (
-                              <motion.div
+                              <motion.button
+                                type="button"
+                                onClick={() => triggerSaltoFrogJump(0)}
+                                aria-label="Salta con la rana"
                                 key={`frog-start-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
                                 initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
                                 animate={
@@ -3452,22 +3460,31 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                     ? { y: 28, rotate: 180, scale: 1.15 }
                                     : saltoLeap?.from === 0
                                       ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
-                                      : { y: [0, -6, 0], scale: 1 }
+                                      : saltoTapHop?.step === 0
+                                        ? { y: [0, -16, 0], scale: [1, 1.08, 1] }
+                                        : { y: [0, -6, 0], scale: 1 }
                                 }
                                 transition={
                                   isFrogSplashing
                                     ? { duration: 0.4, ease: "easeOut" }
                                     : saltoLeap?.from === 0
                                       ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
-                                      : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
+                                      : saltoTapHop?.step === 0
+                                        ? { duration: prefersReducedMotion ? 0.12 : 0.26, ease: "easeOut" }
+                                        : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
                                 }
-                                className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
+                                className="absolute -top-7 z-30 flex flex-col items-center cursor-pointer"
                               >
                                 <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
+                                {showSaltoFrogTouchGuidance && (
+                                  <span className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-0.5">
+                                    <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                                  </span>
+                                )}
                                 {isFrogSplashing && (
                                   <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
                                 )}
-                              </motion.div>
+                              </motion.button>
                             )}
                             <span className="text-xl">🌱</span>
                             <span className="text-[9px] font-black text-sky-950 bg-amber-100 px-1.5 py-0.5 rounded shadow-xs font-sans">
@@ -3521,7 +3538,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 >
                                   {/* Frog sitting on current stone during jumps */}
                                   {isFrogHere && (
-                                    <motion.div
+                                    <motion.button
+                                      type="button"
+                                      onClick={() => triggerSaltoFrogJump(stoneStep)}
+                                      aria-label="Salta con la rana"
                                       key={`frog-${idx}-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
                                       initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
                                       animate={
@@ -3529,22 +3549,31 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                           ? { y: 28, rotate: 180, scale: 1.15 }
                                           : saltoLeap?.from === stoneStep
                                             ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
-                                            : { y: [0, -6, 0], scale: 1 }
+                                            : saltoTapHop?.step === stoneStep
+                                              ? { y: [0, -16, 0], scale: [1, 1.08, 1] }
+                                              : { y: [0, -6, 0], scale: 1 }
                                       }
                                       transition={
                                         isFrogSplashing
                                           ? { duration: 0.4, ease: "easeOut" }
                                           : saltoLeap?.from === stoneStep
                                             ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
-                                            : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
+                                            : saltoTapHop?.step === stoneStep
+                                              ? { duration: prefersReducedMotion ? 0.12 : 0.26, ease: "easeOut" }
+                                              : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
                                       }
-                                      className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
+                                      className="absolute -top-7 z-30 flex flex-col items-center cursor-pointer"
                                     >
                                       <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
+                                      {showSaltoFrogTouchGuidance && (
+                                        <span className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-0.5">
+                                          <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                                        </span>
+                                      )}
                                       {isFrogSplashing && (
                                         <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
                                       )}
-                                    </motion.div>
+                                    </motion.button>
                                   )}
 
                                   {/* Frog sitting on final stone on completion */}
@@ -3610,6 +3639,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             setSaltoCorrectClicks(new Set());
                             setSaltoFrogPosition(0);
                             setSaltoLeap(null);
+                            setSaltoTapHop(null);
                             if (saltoSelectedFactor !== null) {
                               const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
                               setSaltoEnemySteps(enemyLayout.steps);
@@ -3633,7 +3663,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           return (
                             <div key={idx} className="relative">
                               {showSaltoTouchGuidance && opt === saltoExpectedValue && (
-                                <div className="pointer-events-none absolute left-1/2 top-0 z-20">
+                                <div className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-1">
                                   <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
                                 </div>
                               )}
@@ -3696,16 +3726,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </div>
 
                     {showSaltoCompletionEffect && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                      >
+                      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
                         </div>
-                      </motion.div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -4869,7 +4894,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-3xl">
               🪙
             </div>
-            <h3 id="sfida-confirm-title" className="mb-2 text-base font-black text-amber-900">
+            <h3 id="sfida-confirm-title" className="mb-5 text-base font-black text-amber-900">
               Vai alla Sfida?
             </h3>
             <p className="mb-5 text-sm text-slate-700">

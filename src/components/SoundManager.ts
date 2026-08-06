@@ -326,6 +326,36 @@ class SoundManager {
     osc.start();
     osc.stop(this.ctx.currentTime + 0.03);
   }
+
+  playFrogCroak() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    // Verso della rana: due toni bassi in successione per creare un effetto di gracidio
+    const frequencies = [150, 120]; // Frequenze basse per il verso di rana
+    const duration = 0.15;
+
+    frequencies.forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * duration * 0.5);
+
+      gain.gain.setValueAtTime(0, now + idx * duration * 0.5);
+      gain.gain.linearRampToValueAtTime(0.12, now + idx * duration * 0.5 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * duration * 0.5 + duration);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(now + idx * duration * 0.5);
+      osc.stop(now + idx * duration * 0.5 + duration);
+    });
+  }
 }
 
 export const sound = new SoundManager();
