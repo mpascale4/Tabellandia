@@ -123,8 +123,8 @@ const getBeeBounds = (maxX: number, maxY: number): {
   attractMinY: number;
   attractMaxY: number;
 } => {
-  const quietInsetX = ARENA_INNER_FRAME_INSET_PX + BEE_QUIET_MARGIN_PX;
-  const quietInsetY = ARENA_INNER_FRAME_INSET_PX + BEE_QUIET_MARGIN_PX;
+   const quietInsetX = ARENA_INNER_FRAME_INSET_PX + beeQuietMargin;
+   const quietInsetY = ARENA_INNER_FRAME_INSET_PX + beeQuietMargin;
   const attractInsetLeft = quietInsetX;
   const attractInsetRight = quietInsetX;
   const attractInsetY = quietInsetY;
@@ -204,6 +204,9 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const [beeDefeat, setBeeDefeat] = useState<boolean>(false);
   const [basketGuidanceSeen, setBasketGuidanceSeen] = useState<boolean>(false);
   const [beeGuidanceSeen, setBeeGuidanceSeen] = useState<boolean>(false);
+  const [beeQuietMargin, setBeeQuietMargin] = useState<number>(BEE_QUIET_MARGIN_PX);
+  const [beeEdgeMargin, setBeeEdgeMargin] = useState<number>(BEE_IDLE_EDGE_MARGIN);
+  const [beeCenterPull, setBeeCenterPull] = useState<number>(BEE_IDLE_CENTER_PULL);
   const basketGuidanceTimeoutRef = useRef<number | null>(null);
   const beeGuidanceTimeoutRef = useRef<number | null>(null);
 
@@ -476,17 +479,23 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         ? clamp((pointerAttractor.activeUntil - time) / POINTER_ATTRACTION_ACTIVE_MS, 0, 1)
         : 0;
       const maxX = Math.max(0, arenaSize.width - BEE_SIZE);
-      const maxY = Math.max(0, arenaSize.height - BEE_SIZE);
-      const {
-        quietMinX,
-        quietMaxX,
-        quietMinY,
-        quietMaxY,
-        attractMinX,
-        attractMaxX,
-        attractMinY,
-        attractMaxY,
-      } = getBeeBounds(maxX, maxY);
+       const maxY = Math.max(0, arenaSize.height - BEE_SIZE);
+
+       // Dynamically calculate bounds using tunable parameters
+       const quietInsetX = ARENA_INNER_FRAME_INSET_PX + beeQuietMargin;
+       const quietInsetY = ARENA_INNER_FRAME_INSET_PX + beeQuietMargin;
+       const attractInsetLeft = quietInsetX;
+       const attractInsetRight = quietInsetX;
+       const attractInsetY = quietInsetY;
+
+       const quietMinX = Math.min(quietInsetX, maxX);
+       const quietMaxX = Math.max(quietMinX, maxX - quietInsetX);
+       const quietMinY = Math.min(quietInsetY, maxY);
+       const quietMaxY = Math.max(quietMinY, maxY - quietInsetY);
+       const attractMinX = Math.min(attractInsetLeft, maxX);
+       const attractMaxX = Math.max(attractMinX, maxX - attractInsetRight);
+       const attractMinY = Math.min(attractInsetY, maxY);
+       const attractMaxY = Math.max(attractMinY, maxY - attractInsetY);
       const centerX = maxX / 2;
       const centerY = maxY / 2;
       const boundsMinX = quietMinX;
@@ -501,23 +510,23 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         const centerDy = centerY - bee.y;
         const centerDist = Math.hypot(centerDx, centerDy);
         if (centerDist > 1) {
-          const centering = (BEE_IDLE_CENTER_PULL / Math.max(64, centerDist)) * agility;
-          ax += (centerDx / centerDist) * centering;
-          ay += (centerDy / centerDist) * centering;
-        }
+           const centering = (beeCenterPull / Math.max(64, centerDist)) * agility;
+           ax += (centerDx / centerDist) * centering;
+           ay += (centerDy / centerDist) * centering;
+         }
 
         // Keep idle movement central and avoid borders at all times.
-        if (bee.x < quietMinX + BEE_IDLE_EDGE_MARGIN) {
-          ax += BEE_IDLE_EDGE_AVOIDANCE * agility;
-        } else if (bee.x > quietMaxX - BEE_IDLE_EDGE_MARGIN) {
-          ax -= BEE_IDLE_EDGE_AVOIDANCE * agility;
-        }
+         if (bee.x < quietMinX + beeEdgeMargin) {
+           ax += BEE_IDLE_EDGE_AVOIDANCE * agility;
+         } else if (bee.x > quietMaxX - beeEdgeMargin) {
+           ax -= BEE_IDLE_EDGE_AVOIDANCE * agility;
+         }
 
-        if (bee.y < quietMinY + BEE_IDLE_EDGE_MARGIN) {
-          ay += BEE_IDLE_EDGE_AVOIDANCE * agility;
-        } else if (bee.y > quietMaxY - BEE_IDLE_EDGE_MARGIN) {
-          ay -= BEE_IDLE_EDGE_AVOIDANCE * agility;
-        }
+         if (bee.y < quietMinY + beeEdgeMargin) {
+           ay += BEE_IDLE_EDGE_AVOIDANCE * agility;
+         } else if (bee.y > quietMaxY - beeEdgeMargin) {
+           ay -= BEE_IDLE_EDGE_AVOIDANCE * agility;
+         }
 
         if (pointerBoost > 0 && pointerAttractor) {
           const targetX = clamp(pointerAttractor.x, attractMinX, attractMaxX);
@@ -589,8 +598,8 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         window.cancelAnimationFrame(beeFrameRef.current);
         beeFrameRef.current = null;
       }
-    };
-  }, [arenaSize, beePositions.length, displayB, isCompleted, isFailed, prefersReducedMotion]);
+     };
+   }, [arenaSize, beePositions.length, displayB, isCompleted, isFailed, prefersReducedMotion, beeQuietMargin, beeEdgeMargin, beeCenterPull]);
 
   const registerArenaPointerAttraction = (clientX: number, clientY: number) => {
     const arena = arenaRef.current;
@@ -706,6 +715,72 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
             <p className="text-[10px] font-bold text-slate-700">
               Mele: {filledItems}/{totalItems} ({Math.round(totalProgressPercent)}%)
             </p>
+          </div>
+          {/* Temporary bee tuning panel */}
+          <div className="mt-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2">
+            <div className="text-[10px] font-black uppercase tracking-wide text-amber-800">
+              Tuning Api (Temporaneo)
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="bee-quiet-margin" className="text-[9px] font-bold text-amber-700">
+                  Range (margin)
+                </label>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black text-amber-700" aria-live="polite">
+                  {beeQuietMargin}px
+                </span>
+              </div>
+              <input
+                id="bee-quiet-margin"
+                type="range"
+                min={16}
+                max={40}
+                step={1}
+                value={beeQuietMargin}
+                onChange={(event) => setBeeQuietMargin(Number(event.target.value))}
+                className="h-1.5 w-full cursor-pointer accent-amber-600"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="bee-edge-margin" className="text-[9px] font-bold text-amber-700">
+                  Edge margin
+                </label>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black text-amber-700" aria-live="polite">
+                  {beeEdgeMargin}px
+                </span>
+              </div>
+              <input
+                id="bee-edge-margin"
+                type="range"
+                min={32}
+                max={80}
+                step={2}
+                value={beeEdgeMargin}
+                onChange={(event) => setBeeEdgeMargin(Number(event.target.value))}
+                className="h-1.5 w-full cursor-pointer accent-amber-600"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="bee-center-pull" className="text-[9px] font-bold text-amber-700">
+                  Center pull
+                </label>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black text-amber-700" aria-live="polite">
+                  {beeCenterPull}
+                </span>
+              </div>
+              <input
+                id="bee-center-pull"
+                type="range"
+                min={80}
+                max={200}
+                step={5}
+                value={beeCenterPull}
+                onChange={(event) => setBeeCenterPull(Number(event.target.value))}
+                className="h-1.5 w-full cursor-pointer accent-amber-600"
+              />
+            </div>
           </div>
         </div>
       </div>
