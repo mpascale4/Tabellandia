@@ -41,11 +41,11 @@ const BASKET_SIZE = 84;
 const BEE_START_FACTOR = 4;
 const BEE_SIZE = 52;
 const BEE_IDLE_INNER_PADDING_RATIO = 0.3;
-const BEE_IDLE_CENTER_PULL = 140;
+const BEE_IDLE_CENTER_PULL = 80;
 const BEE_IDLE_EDGE_AVOIDANCE = 260;
-const BEE_IDLE_EDGE_MARGIN = 56;
+const BEE_IDLE_EDGE_MARGIN = 32;
 const ARENA_INNER_FRAME_INSET_PX = 10;
-const BEE_QUIET_MARGIN_PX = 28;
+const BEE_QUIET_MARGIN_PX = 16;
 const BEE_EDGE_DAMPING_BAND_PX = 14;
 const BEE_EDGE_DAMPING_FACTOR = 0.78;
 const INTERACTION_GUIDANCE_VISIBLE_MS = 5000;
@@ -113,7 +113,7 @@ const createReducedMotionLayout = (count: number, arena: ArenaSize): BasketParti
   });
 };
 
-const getBeeBounds = (maxX: number, maxY: number, beeQuietMarginValue: number = BEE_QUIET_MARGIN_PX): {
+const getBeeBounds = (maxX: number, maxY: number): {
    quietMinX: number;
    quietMaxX: number;
    quietMinY: number;
@@ -123,8 +123,8 @@ const getBeeBounds = (maxX: number, maxY: number, beeQuietMarginValue: number = 
    attractMinY: number;
    attractMaxY: number;
  } => {
-   const quietInsetX = ARENA_INNER_FRAME_INSET_PX + beeQuietMarginValue;
-   const quietInsetY = ARENA_INNER_FRAME_INSET_PX + beeQuietMarginValue;
+   const quietInsetX = ARENA_INNER_FRAME_INSET_PX + BEE_QUIET_MARGIN_PX;
+   const quietInsetY = ARENA_INNER_FRAME_INSET_PX + BEE_QUIET_MARGIN_PX;
   const attractInsetLeft = quietInsetX;
   const attractInsetRight = quietInsetX;
   const attractInsetY = quietInsetY;
@@ -150,10 +150,10 @@ const getBeeBounds = (maxX: number, maxY: number, beeQuietMarginValue: number = 
   };
 };
 
-const createBeeParticles = (count: number, arena: ArenaSize, factor: number, reducedMotion: boolean, beeQuietMarginValue: number = BEE_QUIET_MARGIN_PX): BeeParticle[] => {
+const createBeeParticles = (count: number, arena: ArenaSize, factor: number, reducedMotion: boolean): BeeParticle[] => {
    const maxX = Math.max(0, arena.width - BEE_SIZE);
    const maxY = Math.max(0, arena.height - BEE_SIZE);
-   const { quietMinX, quietMaxX, quietMinY, quietMaxY } = getBeeBounds(maxX, maxY, beeQuietMarginValue);
+   const { quietMinX, quietMaxX, quietMinY, quietMaxY } = getBeeBounds(maxX, maxY);
   const innerPaddingX = maxX * BEE_IDLE_INNER_PADDING_RATIO;
   const innerPaddingY = maxY * BEE_IDLE_INNER_PADDING_RATIO;
   const idleMinX = Math.max(quietMinX, innerPaddingX);
@@ -204,9 +204,6 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const [beeDefeat, setBeeDefeat] = useState<boolean>(false);
   const [basketGuidanceSeen, setBasketGuidanceSeen] = useState<boolean>(false);
   const [beeGuidanceSeen, setBeeGuidanceSeen] = useState<boolean>(false);
-  const [beeQuietMargin, setBeeQuietMargin] = useState<number>(BEE_QUIET_MARGIN_PX);
-  const [beeEdgeMargin, setBeeEdgeMargin] = useState<number>(BEE_IDLE_EDGE_MARGIN);
-  const [beeCenterPull, setBeeCenterPull] = useState<number>(BEE_IDLE_CENTER_PULL);
   const basketGuidanceTimeoutRef = useRef<number | null>(null);
   const beeGuidanceTimeoutRef = useRef<number | null>(null);
 
@@ -369,10 +366,10 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       return;
     }
 
-    const nextBees = createBeeParticles(beeCount, arenaSize, displayB, prefersReducedMotion, beeQuietMargin);
+    const nextBees = createBeeParticles(beeCount, arenaSize, displayB, prefersReducedMotion);
     beeParticlesRef.current = nextBees;
     setBeePositions(nextBees);
-   }, [arenaSize, displayB, isCompleted, isFailed, prefersReducedMotion, beeQuietMargin]);
+   }, [arenaSize, displayB, isCompleted, isFailed, prefersReducedMotion]);
 
   useEffect(() => {
     onCompletionChange?.(isCompleted);
@@ -715,72 +712,6 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
             <p className="text-[10px] font-bold text-slate-700">
               Mele: {filledItems}/{totalItems} ({Math.round(totalProgressPercent)}%)
             </p>
-          </div>
-          {/* Temporary bee tuning panel */}
-          <div className="mt-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2">
-            <div className="text-[10px] font-black uppercase tracking-wide text-amber-800">
-              Tuning Api (Temporaneo)
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor="bee-quiet-margin" className="text-[9px] font-bold text-amber-700">
-                  Range (margin)
-                </label>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black text-amber-700" aria-live="polite">
-                  {beeQuietMargin}px
-                </span>
-              </div>
-              <input
-                id="bee-quiet-margin"
-                type="range"
-                min={16}
-                max={40}
-                step={1}
-                value={beeQuietMargin}
-                onChange={(event) => setBeeQuietMargin(Number(event.target.value))}
-                className="h-1.5 w-full cursor-pointer accent-amber-600"
-              />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor="bee-edge-margin" className="text-[9px] font-bold text-amber-700">
-                  Edge margin
-                </label>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black text-amber-700" aria-live="polite">
-                  {beeEdgeMargin}px
-                </span>
-              </div>
-              <input
-                id="bee-edge-margin"
-                type="range"
-                min={32}
-                max={80}
-                step={2}
-                value={beeEdgeMargin}
-                onChange={(event) => setBeeEdgeMargin(Number(event.target.value))}
-                className="h-1.5 w-full cursor-pointer accent-amber-600"
-              />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor="bee-center-pull" className="text-[9px] font-bold text-amber-700">
-                  Center pull
-                </label>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black text-amber-700" aria-live="polite">
-                  {beeCenterPull}
-                </span>
-              </div>
-              <input
-                id="bee-center-pull"
-                type="range"
-                min={80}
-                max={200}
-                step={5}
-                value={beeCenterPull}
-                onChange={(event) => setBeeCenterPull(Number(event.target.value))}
-                className="h-1.5 w-full cursor-pointer accent-amber-600"
-              />
-            </div>
           </div>
         </div>
       </div>
