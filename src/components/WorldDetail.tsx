@@ -412,6 +412,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     return speakMultiplicationSuccess(a, b, result);
   };
 
+  const speakOperationOnly = (a: number, b: number) => {
+    sound.playClick();
+    return speak(`${toItalianWord(a)} per ${toItalianWord(b)}`);
+  };
+
   const speakPraticoOperation = (a: number, b: number) => speak(`${a} per ${b}`);
   const stepMotivationLabels: Record<'comprendo' | 'salto' | 'costruisco' | 'trucchi', string> = {
     comprendo: 'Raccogli',
@@ -3192,10 +3197,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <div className="bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-4">
                      <div className="text-center">
                        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
-                         Comprendo: {world.id} × {comprendoSelectedFactor}
+                          <button
+                            type="button"
+                            onClick={() => speakOperationOnly(world.id, comprendoSelectedFactor)}
+                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-indigo-500"
+                            aria-label={`Ascolta operazione ${world.id} per ${comprendoSelectedFactor}`}
+                          >
+                            Comprendo: {world.id} × {comprendoSelectedFactor}
+                          </button>
                        </span>
                        <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
-                         Che cos'è {world.id} × {comprendoSelectedFactor}?
+                          Che cos'è{' '}
+                          <button
+                            type="button"
+                            onClick={() => speakOperationOnly(world.id, comprendoSelectedFactor)}
+                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-indigo-500"
+                            aria-label={`Ascolta operazione ${world.id} per ${comprendoSelectedFactor}`}
+                          >
+                            {world.id} × {comprendoSelectedFactor}
+                          </button>
+                          ?
                        </h3>
                        <p className="text-xs text-slate-500 mt-1">
                          La moltiplicazione non è altro che addizione ripetuta dello stesso gruppo!
@@ -3207,7 +3228,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          Tocca gli oggetti e contali uno alla volta: ogni gruppo contiene <strong>{comprendoSelectedFactor}</strong> elementi e ci sono <strong>{world.id}</strong> gruppi.
                        </p>
                        <p className="text-slate-600 mt-1 leading-relaxed">
-                         Quando hai contato tutto, collega il totale all'operazione <strong>{world.id} × {comprendoSelectedFactor} = {world.id * comprendoSelectedFactor}</strong>.
+                          Quando hai contato tutto, collega il totale all'operazione{' '}
+                          <strong>
+                            <button
+                              type="button"
+                              onClick={() => speakOperationOnly(world.id, comprendoSelectedFactor)}
+                              className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-indigo-500"
+                              aria-label={`Ascolta operazione ${world.id} per ${comprendoSelectedFactor}`}
+                            >
+                              {world.id} × {comprendoSelectedFactor} = {world.id * comprendoSelectedFactor}
+                            </button>
+                          </strong>
+                          .
                        </p>
                      </div>
                      <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -3373,7 +3405,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <div className="bg-white rounded-3xl p-5 border border-purple-100 shadow-xl space-y-4">
                     <div className="text-center">
                       <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2.5 py-0.5 rounded-full font-sans">
-                        Salto: {world.id} × {saltoSelectedFactor}
+                        <button
+                          type="button"
+                          onClick={() => speakOperationOnly(world.id, saltoSelectedFactor)}
+                          className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-purple-500"
+                          aria-label={`Ascolta operazione ${world.id} per ${saltoSelectedFactor}`}
+                        >
+                          Salto: {world.id} × {saltoSelectedFactor}
+                        </button>
                       </span>
                       <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
                         🐸 Fai saltare {world.mascotName} sui sassi!
@@ -3861,7 +3900,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <div className="bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-4">
                      <div className="text-center">
                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full font-sans">
-                         Scoppia: {world.id} × {costruiscoSelectedFactor}
+                          <button
+                            type="button"
+                            onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-emerald-500"
+                            aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
+                          >
+                            Scoppia: {world.id} × {costruiscoSelectedFactor}
+                          </button>
                        </span>
                        <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
                          Scoppia il palloncino col risultato giusto!
@@ -3873,7 +3919,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
                        <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
                        <p className="text-slate-600 mt-1 leading-relaxed">
-                         Tocca il palloncino con il risultato giusto di <b>{world.id} × {costruiscoSelectedFactor}</b>.
+                          Tocca il palloncino con il risultato giusto di{' '}
+                          <b>
+                            <button
+                              type="button"
+                              onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                              className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-emerald-500"
+                              aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
+                            >
+                              {world.id} × {costruiscoSelectedFactor}
+                            </button>
+                          </b>
+                          .
                        </p>
                        <p className="text-slate-600 mt-1 leading-relaxed text-rose-700 font-semibold">
                          ⚠️ Attenzione: c'è un 💣 palloncino trappola col numero corretto! Cerca quello <b>colorato</b>, non quello scuro.
@@ -3894,9 +3951,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <div className="relative bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-6">
                      <div className="text-center bg-emerald-100 rounded-2xl p-5 border-2 border-emerald-300">
                        <p className="text-xs text-emerald-700 font-bold uppercase">Completa questa operazione</p>
-                       <p className="text-3xl font-black text-emerald-900 mt-2 font-mono">
-                         {world.id} × {costruiscoSelectedFactor} = ?
-                       </p>
+                        <button
+                          type="button"
+                          onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                          className="mt-2 cursor-pointer rounded px-2 py-1 text-3xl font-black text-emerald-900 font-mono focus-visible:outline-2 focus-visible:outline-emerald-500"
+                          aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
+                        >
+                          {world.id} × {costruiscoSelectedFactor} = ?
+                        </button>
                      </div>
 
                      <div>
@@ -3943,7 +4005,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                              <h3 className="text-base font-black text-emerald-800">Successo!</h3>
                              <p className="text-xs text-slate-600">
                                {getGenderedText(playerGender, 'Bravo! Risposta esatta:', 'Brava! Risposta esatta:')}<br />
-                               <b className="text-sm text-emerald-900 font-mono">{world.id} × {costruiscoSelectedFactor} = {world.id * (costruiscoSelectedFactor || 1)}</b>
+                                <b className="text-sm text-emerald-900 font-mono">
+                                  <button
+                                    type="button"
+                                    onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor || 1)}
+                                    className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-emerald-500"
+                                    aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor || 1}`}
+                                  >
+                                    {world.id} × {costruiscoSelectedFactor} = {world.id * (costruiscoSelectedFactor || 1)}
+                                  </button>
+                                </b>
                              </p>
                            </div>
                          ) : (
@@ -4147,7 +4218,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <div className="bg-white rounded-3xl p-5 border border-amber-100 shadow-xl space-y-4">
                     <div className="text-center">
                       <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full font-sans">
-                        Trova: {world.id} × {trucchiSelectedFactor}
+                        <button
+                          type="button"
+                          onClick={() => speakOperationOnly(world.id, trucchiSelectedFactor)}
+                          className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-amber-500"
+                          aria-label={`Ascolta operazione ${world.id} per ${trucchiSelectedFactor}`}
+                        >
+                          Trova: {world.id} × {trucchiSelectedFactor}
+                        </button>
                       </span>
                       <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
                         {world.trickTitle}
@@ -4207,7 +4285,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     )}
                     <div className="text-center space-y-2">
                       <h4 className="text-sm font-bold text-amber-900">
-                        Quanto fa <strong>{world.id} × {trucchiSelectedFactor}</strong>?
+                        Quanto fa{' '}
+                        <strong>
+                          <button
+                            type="button"
+                            onClick={() => speakOperationOnly(world.id, trucchiSelectedFactor)}
+                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-amber-500"
+                            aria-label={`Ascolta operazione ${world.id} per ${trucchiSelectedFactor}`}
+                          >
+                            {world.id} × {trucchiSelectedFactor}
+                          </button>
+                        </strong>
+                        ?
                       </h4>
                       <p className="text-xs text-amber-800 font-sans">
                         {trucchiPreviewActive
