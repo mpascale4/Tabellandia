@@ -381,6 +381,18 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
     setHelperBonuses(current => current.filter(bonus => bonus.id !== bonusId));
   };
 
+  const playHelperBonusTapSound = (kind: HelperBonusKind) => {
+    if (kind === 'ladybug') {
+      sound.playSaltoAntagonistSound('spider');
+      return;
+    }
+    if (kind === 'butterfly') {
+      sound.playSaltoAntagonistSound('bat');
+      return;
+    }
+    sound.playFrogCroak();
+  };
+
   const spawnAppleBurst = (x: number, y: number) => {
     const burstId = ++appleBurstIdRef.current;
     setAppleBursts(current => [...current, { id: burstId, x, y }]);
@@ -1078,6 +1090,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
+                playHelperBonusTapSound(bonus.kind);
                 applyHelperBonus(bonus);
               }}
               animate={prefersReducedMotion ? undefined : { y: [0, -6, 0] }}
