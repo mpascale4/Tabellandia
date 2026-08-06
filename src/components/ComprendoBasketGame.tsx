@@ -596,7 +596,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         beeFrameRef.current = null;
       }
      };
-   }, [arenaSize, beePositions.length, displayB, isCompleted, isFailed, prefersReducedMotion, beeQuietMargin, beeEdgeMargin, beeCenterPull]);
+   }, [arenaSize, beePositions.length, displayB, isCompleted, isFailed, prefersReducedMotion]);
 
   const registerArenaPointerAttraction = (clientX: number, clientY: number) => {
     const arena = arenaRef.current;
