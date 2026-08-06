@@ -12,9 +12,12 @@ import saltoAmbienceAudioUrl from '../data/animal-sounds/wood-frogs-calling-in-s
 import raccogliBirdsAmbienceAudioUrl from '../data/animal-sounds/raccogli-birds-spain.wav';
 import costruiscoLaughingAmbienceAudioUrl from '../data/animal-sounds/costruisco-laughing-commons.wav';
 import trovaPneumaticpickhammerAmbienceAudioUrl from '../data/animal-sounds/trova-pneumaticpickhammer.ogg';
+import praticoNietzscheMusicAmbienceAudioUrl from '../data/animal-sounds/pratico-nietzsche-music.ogg';
+import sfidaTickingAmbienceAudioUrl from '../data/animal-sounds/sfida-ticking-commons.ogg';
 
 type SaltoAntagonistAudioId = 'snake' | 'bat' | 'spider' | 'scorpion';
 const MAX_AUDIO_PLAY_SECONDS = 2;
+const PRATICO_AMBIENCE_OFFSET_SECONDS = 5;
 
 class SoundManager {
   private ctx: AudioContext | null = null;
@@ -40,6 +43,14 @@ class SoundManager {
   private loadingTrucchiAmbienceAudio = false;
   private trucchiAmbienceSource: AudioBufferSourceNode | null = null;
   private trucchiAmbienceGain: GainNode | null = null;
+  private praticoAmbienceBuffer: AudioBuffer | null = null;
+  private loadingPraticoAmbienceAudio = false;
+  private praticoAmbienceSource: AudioBufferSourceNode | null = null;
+  private praticoAmbienceGain: GainNode | null = null;
+  private sfidaAmbienceBuffer: AudioBuffer | null = null;
+  private loadingSfidaAmbienceAudio = false;
+  private sfidaAmbienceSource: AudioBufferSourceNode | null = null;
+  private sfidaAmbienceGain: GainNode | null = null;
   private saltoAmbienceBuffer: AudioBuffer | null = null;
   private loadingSaltoAmbienceAudio = false;
   private saltoAmbienceSource: AudioBufferSourceNode | null = null;
@@ -96,7 +107,9 @@ class SoundManager {
       this.stopRaccogliBirdsAmbience();
       this.stopCostruiscoAmbience();
       this.stopTrucchiAmbience();
+      this.stopPraticoAmbience();
       this.stopSaltoAmbience();
+      this.stopSfidaAmbience();
     }
   }
 
@@ -111,7 +124,9 @@ class SoundManager {
       this.stopRaccogliBirdsAmbience();
       this.stopCostruiscoAmbience();
       this.stopTrucchiAmbience();
+      this.stopPraticoAmbience();
       this.stopSaltoAmbience();
+      this.stopSfidaAmbience();
     }
   }
 
@@ -742,6 +757,121 @@ class SoundManager {
     }
   }
 
+  startPraticoAmbience() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.praticoAmbienceSource || this.praticoAmbienceGain) return;
+
+    if (!this.praticoAmbienceBuffer) {
+      this.loadPraticoAmbienceAudio(() => {
+        this.startPraticoAmbience();
+      });
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.praticoAmbienceBuffer;
+    source.loop = true;
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.19, now + 0.16);
+
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    const safeOffset = this.praticoAmbienceBuffer.duration > PRATICO_AMBIENCE_OFFSET_SECONDS
+      ? PRATICO_AMBIENCE_OFFSET_SECONDS
+      : 0;
+    source.start(now, safeOffset);
+
+    this.praticoAmbienceSource = source;
+    this.praticoAmbienceGain = gain;
+  }
+
+  stopPraticoAmbience() {
+    if (!this.ctx) {
+      this.praticoAmbienceSource = null;
+      this.praticoAmbienceGain = null;
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.praticoAmbienceSource;
+    const gain = this.praticoAmbienceGain;
+
+    this.praticoAmbienceSource = null;
+    this.praticoAmbienceGain = null;
+
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    }
+
+    if (source) {
+      source.stop(now + 0.09);
+    }
+  }
+
+  startSfidaAmbience() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.sfidaAmbienceSource || this.sfidaAmbienceGain) return;
+
+    if (!this.sfidaAmbienceBuffer) {
+      this.loadSfidaAmbienceAudio(() => {
+        this.startSfidaAmbience();
+      });
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.sfidaAmbienceBuffer;
+    source.loop = true;
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.032, now + 0.14);
+
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    source.start(now);
+
+    this.sfidaAmbienceSource = source;
+    this.sfidaAmbienceGain = gain;
+  }
+
+  stopSfidaAmbience() {
+    if (!this.ctx) {
+      this.sfidaAmbienceSource = null;
+      this.sfidaAmbienceGain = null;
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.sfidaAmbienceSource;
+    const gain = this.sfidaAmbienceGain;
+
+    this.sfidaAmbienceSource = null;
+    this.sfidaAmbienceGain = null;
+
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    }
+
+    if (source) {
+      source.stop(now + 0.09);
+    }
+  }
+
   startSaltoAmbience() {
     if (!this.effectsEnabled) return;
     this.initContext();
@@ -876,6 +1006,92 @@ class SoundManager {
       })
       .finally(() => {
         this.loadingTrucchiAmbienceAudio = false;
+      });
+  }
+
+  private loadPraticoAmbienceAudio(onLoaded?: () => void) {
+    if (this.praticoAmbienceBuffer) {
+      onLoaded?.();
+      return;
+    }
+    if (this.loadingPraticoAmbienceAudio) return;
+
+    this.loadingPraticoAmbienceAudio = true;
+    fetch(praticoNietzscheMusicAmbienceAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.praticoAmbienceBuffer = decodedBuffer;
+        onLoaded?.();
+      })
+      .catch((error) => {
+        console.error('Error loading Pratico ambience audio:', error);
+        this.initContext();
+        if (this.ctx && !this.praticoAmbienceBuffer) {
+          this.praticoAmbienceBuffer = this.createPraticoFallbackAmbienceBuffer();
+          onLoaded?.();
+        }
+      })
+      .finally(() => {
+        this.loadingPraticoAmbienceAudio = false;
+      });
+  }
+
+  private createPraticoFallbackAmbienceBuffer(): AudioBuffer {
+    if (!this.ctx) {
+      throw new Error('AudioContext not available');
+    }
+
+    const durationSec = 2.4;
+    const sampleRate = this.ctx.sampleRate;
+    const frameCount = Math.floor(sampleRate * durationSec);
+    const buffer = this.ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    const freqs = [261.63, 329.63, 392.0];
+    for (let i = 0; i < frameCount; i += 1) {
+      const t = i / sampleRate;
+      const fade = Math.min(1, i / (sampleRate * 0.12));
+      const release = Math.min(1, (frameCount - i) / (sampleRate * 0.18));
+      const env = Math.max(0.12, Math.min(fade, release));
+      const value =
+        Math.sin(2 * Math.PI * freqs[0] * t) * 0.34 +
+        Math.sin(2 * Math.PI * freqs[1] * t) * 0.24 +
+        Math.sin(2 * Math.PI * freqs[2] * t) * 0.18;
+      data[i] = value * env * 0.18;
+    }
+
+    return buffer;
+  }
+
+  private loadSfidaAmbienceAudio(onLoaded?: () => void) {
+    if (this.sfidaAmbienceBuffer) {
+      onLoaded?.();
+      return;
+    }
+    if (this.loadingSfidaAmbienceAudio) return;
+
+    this.loadingSfidaAmbienceAudio = true;
+    fetch(sfidaTickingAmbienceAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.sfidaAmbienceBuffer = decodedBuffer;
+        onLoaded?.();
+      })
+      .catch((error) => {
+        console.error('Error loading Sfida ambience audio:', error);
+      })
+      .finally(() => {
+        this.loadingSfidaAmbienceAudio = false;
       });
   }
 

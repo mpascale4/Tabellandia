@@ -882,6 +882,28 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   }, [activeStep, trucchiFlowStage]);
 
   useEffect(() => {
+    if (activeStep === 'pratico') {
+      sound.startPraticoAmbience?.();
+      return () => {
+        sound.stopPraticoAmbience?.();
+      };
+    }
+
+    sound.stopPraticoAmbience?.();
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (activeStep === 'sfida') {
+      sound.startSfidaAmbience?.();
+      return () => {
+        sound.stopSfidaAmbience?.();
+      };
+    }
+
+    sound.stopSfidaAmbience?.();
+  }, [activeStep]);
+
+  useEffect(() => {
     if (comprendoSelectedFactor === null) {
       setComprendoFlowStage('objective');
     }
@@ -2950,55 +2972,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 </div>
               </div>
 
-              <div className="mt-3 rounded-2xl border border-indigo-100 bg-white/80 p-2.5">
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="text-[11px] font-black text-indigo-900 uppercase tracking-wider font-sans">
-                    Indizi del Regno ({rebuiltCount}/{world.monuments.length})
-                  </h4>
-                </div>
-                <div role="list" className="grid grid-cols-3 gap-1.5 pb-1">
-                  {world.monuments.map(monument => {
-                    const isErected = worldProg.rebuiltMonuments.includes(monument.id);
-                    const canAfford = profile.lightDrops >= monument.cost;
-
-                    return (
-                      <button
-                        key={`compact-monument-${monument.id}`}
-                        type="button"
-                        role="listitem"
-                        onClick={() => {
-                          sound.playClick();
-                          setShouldReturnToMonumentsListAfterModal(false);
-                          setMonumentModal({ monument, canAfford, isErected });
-                        }}
-                        className={`rounded-2xl border px-2 py-2 text-left shadow-sm transition-all cursor-pointer min-w-0 ${
-                          isErected
-                            ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-400'
-                            : canAfford
-                              ? 'border-amber-500 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-100 ring-2 ring-amber-300 animate-monument-glow'
-                              : 'border-slate-200 border-dashed bg-slate-50 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="mb-1 flex items-center justify-between">
-                          <span className={`text-lg leading-none ${isErected ? '' : canAfford ? 'scale-110' : 'grayscale opacity-60'}`}>
-                            {monument.emoji}
-                          </span>
-                          <span className={`text-[10px] font-black ${
-                            isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900' : 'text-slate-600'
-                          }`}>
-                            {isErected ? '✓' : '🧭'}
-                          </span>
-                        </div>
-                        <p className={`mt-0.5 text-xs font-black ${
-                          isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900 animate-badge-blink' : 'text-sky-800'
-                        }`}>
-                          {monument.name}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
 
             {/* PARTE 2: PASSI DIDATTICI (1 - 5) */}
@@ -3012,7 +2985,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   { id: 'salto', title: '2. Salta', desc: 'Salta di sasso in sasso sul ruscello.', icon: '🐸', coins: 0, drops: 0, isFactorBased: true },
                   { id: 'costruisco', title: '3. Scoppia', desc: 'Scoppia il palloncino giusto.', icon: '🎈', coins: 0, drops: 0, isFactorBased: true },
                   { id: 'trucchi', title: '4. Trova', desc: 'Trova il mattone corretto.', icon: '🧱', coins: 0, drops: 0, isFactorBased: true },
-                  { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Sconfiggi la nebbia e raccogli monete per la Sfida.', icon: '🛡️', coins: 5, drops: 0, isFactorBased: false },
+                  { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Sconfiggi la nebbia e raccogli monete per la Sfida.', icon: '🛡️', coins: 1, drops: 0, isFactorBased: false },
                 ].map((step, idx) => {
                   const isDone = stepDoneMap[step.id] || false;
                   const prevStepId = idx > 0 ? ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico'][idx - 1] : null;
@@ -4915,7 +4888,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 }`}
               >
                 <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Monete vinte</p>
-                <p className="text-lg font-black text-amber-800">🪙 +3</p>
+                <p className="text-lg font-black text-amber-800">🪙 +1</p>
                 <p className={`text-[11px] font-black ${shouldHighlightSfidaCta ? 'text-amber-950 animate-badge-blink' : 'text-amber-900'}`}>
                   {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
                 </p>
