@@ -58,12 +58,14 @@ const FINAL_BASKET_MAX_SIZE = 68;
 const FINAL_BASKET_MIN_SIZE = 42;
 const FINAL_BASKET_GAP = 8;
 const ARENA_HEIGHT_CLASS = 'h-64';
-const POINTER_ATTRACTION_ACTIVE_MS = 900;
-const BASKET_POINTER_ATTRACTION = 560;
-const BASKET_MAX_SPEED_BASE = 104;
-const BASKET_MAX_SPEED_BOOST = 168;
-const BEE_POINTER_ATTRACTION = 210;
-const BEE_POINTER_SPEED_BOOST = 120;
+const POINTER_ATTRACTION_ACTIVE_MS = 3000;
+const BASKET_SPEED_BOOST_BASE = 2.0;
+const BASKET_SPEED_BOOST_PER_LEVEL = 1.0;
+const BASKET_SPEED_BOOST_MAX = 10;
+const BEE_POINTER_ATTRACTION_BASE = 180;
+const BEE_POINTER_ATTRACTION_PER_LEVEL = 12;
+const BEE_POINTER_SPEED_BOOST_BASE = 100;
+const BEE_POINTER_SPEED_BOOST_PER_LEVEL = 14;
 
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
@@ -385,6 +387,12 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       const pointerBoost = pointerAttractor
         ? clamp((pointerAttractor.activeUntil - time) / POINTER_ATTRACTION_ACTIVE_MS, 0, 1)
         : 0;
+      const basketSpeedBoostStrength = clamp(
+        BASKET_SPEED_BOOST_BASE + (Math.max(0, displayB - 2) * BASKET_SPEED_BOOST_PER_LEVEL),
+        BASKET_SPEED_BOOST_BASE,
+        BASKET_SPEED_BOOST_MAX,
+      );
+      const basketSpeedMultiplier = 1 + (pointerBoost * basketSpeedBoostStrength);
 
       const maxX = Math.max(0, arenaSize.width - BASKET_SIZE);
       const maxY = Math.max(0, arenaSize.height - BASKET_SIZE);
@@ -397,30 +405,9 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         let nextVx = particle.vx;
         let nextVy = particle.vy;
 
-        if (pointerBoost > 0 && pointerAttractor) {
-          const basketCenterX = particle.x + (BASKET_SIZE / 2);
-          const basketCenterY = particle.y + (BASKET_SIZE / 2);
-          const dx = pointerAttractor.x - basketCenterX;
-          const dy = pointerAttractor.y - basketCenterY;
-          const distance = Math.hypot(dx, dy);
-
-          if (distance > 1) {
-            const pull = BASKET_POINTER_ATTRACTION * pointerBoost;
-            nextVx += ((dx / distance) * pull) * deltaSeconds;
-            nextVy += ((dy / distance) * pull) * deltaSeconds;
-          }
-        }
-
-        const maxBasketSpeed = BASKET_MAX_SPEED_BASE + (BASKET_MAX_SPEED_BOOST * pointerBoost);
-        const basketSpeed = Math.hypot(nextVx, nextVy);
-        if (basketSpeed > maxBasketSpeed) {
-          const scale = maxBasketSpeed / basketSpeed;
-          nextVx *= scale;
-          nextVy *= scale;
-        }
-
-        let nextX = particle.x + (nextVx * deltaSeconds);
-        let nextY = particle.y + (nextVy * deltaSeconds);
+        // Speed boost keeps original trajectory; it only scales movement for a short time.
+        let nextX = particle.x + (nextVx * basketSpeedMultiplier * deltaSeconds);
+        let nextY = particle.y + (nextVy * basketSpeedMultiplier * deltaSeconds);
 
         if (nextX <= 0) {
           nextX = 0;
@@ -459,7 +446,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         frameRef.current = null;
       }
     };
-  }, [a, arenaSize, basketCounts, b, isCompleted, isFailed, positions.length, prefersReducedMotion]);
+  }, [a, arenaSize, basketCounts, b, displayB, isCompleted, isFailed, positions.length, prefersReducedMotion]);
 
   useEffect(() => {
     if (
@@ -477,6 +464,8 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
     const maxBeeSpeed = 120 + (displayB * 12);
     const jitterStrength = 14 + (displayB * 1.1);
     const agility = 0.72 + (displayB * 0.06);
+    const beePointerAttraction = BEE_POINTER_ATTRACTION_BASE + (Math.max(0, displayB - 2) * BEE_POINTER_ATTRACTION_PER_LEVEL);
+    const beePointerSpeedBoost = BEE_POINTER_SPEED_BOOST_BASE + (Math.max(0, displayB - 2) * BEE_POINTER_SPEED_BOOST_PER_LEVEL);
     let previousTime = performance.now();
 
     const animateBees = (time: number) => {
@@ -538,7 +527,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
           const pointerDistance = Math.hypot(pointerDx, pointerDy);
 
           if (pointerDistance > 1) {
-            const pull = BEE_POINTER_ATTRACTION * pointerBoost * agility;
+            const pull = beePointerAttraction * pointerBoost * agility;
             ax += (pointerDx / pointerDistance) * pull;
             ay += (pointerDy / pointerDistance) * pull;
           }
@@ -547,7 +536,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         let nextVx = bee.vx + (ax * deltaSeconds);
         let nextVy = bee.vy + (ay * deltaSeconds);
         const speed = Math.hypot(nextVx, nextVy);
-        const liveMaxBeeSpeed = maxBeeSpeed + (BEE_POINTER_SPEED_BOOST * pointerBoost);
+        const liveMaxBeeSpeed = maxBeeSpeed + (beePointerSpeedBoost * pointerBoost);
         if (speed > liveMaxBeeSpeed) {
           const scale = liveMaxBeeSpeed / speed;
           nextVx *= scale;
@@ -728,14 +717,8 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
           aria-label={`Arena con ${a} cestini mobili`}
           className={`relative ${ARENA_HEIGHT_CLASS} overflow-hidden rounded-[1.35rem] border border-cyan-200/70 bg-gradient-to-b from-sky-500 via-sky-600 to-cyan-700`}
           onPointerDown={(event) => {
+            if (event.currentTarget !== event.target) return;
             registerArenaPointerAttraction(event.clientX, event.clientY);
-          }}
-          onPointerMove={(event) => {
-            if (event.pointerType === 'mouse' && (event.buttons & 1) !== 1) return;
-            registerArenaPointerAttraction(event.clientX, event.clientY);
-          }}
-          onPointerLeave={() => {
-            pointerAttractorRef.current = null;
           }}
         >
           {basketGuidanceAnchor && (
