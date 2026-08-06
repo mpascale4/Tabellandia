@@ -6,10 +6,10 @@
 import frogAudioUrl from '../data/frog.mp3';
 import snakeAudioUrl from '../data/animal-sounds/snake-rattlesnake.ogg';
 import batAudioUrl from '../data/animal-sounds/bat-feeding-buzz.wav';
-import spiderAudioUrl from '../data/animal-sounds/spider-insect-ambience.wav';
 import scorpionAudioUrl from '../data/animal-sounds/scorpion-night-insects.wav';
 
 type SaltoAntagonistAudioId = 'snake' | 'bat' | 'spider' | 'scorpion';
+const MAX_AUDIO_PLAY_SECONDS = 2;
 
 class SoundManager {
   private ctx: AudioContext | null = null;
@@ -22,7 +22,8 @@ class SoundManager {
   private readonly antagonistsAudioUrls: Record<SaltoAntagonistAudioId, string> = {
     snake: snakeAudioUrl,
     bat: batAudioUrl,
-    spider: spiderAudioUrl,
+    // Evita la traccia precedente con cani: per il ragno usiamo una traccia insetti neutra.
+    spider: scorpionAudioUrl,
     scorpion: scorpionAudioUrl,
   };
   private readonly antagonistsAudioBuffers: Partial<Record<SaltoAntagonistAudioId, AudioBuffer>> = {};
@@ -146,28 +147,13 @@ class SoundManager {
   }
 
   private ensureBackgroundMusic() {
-    if (!this.musicEnabled) return;
-    this.initContext();
-    if (!this.ctx || this.musicTimer !== null) return;
-
-    const stepDuration = 0.5;
-    const playStep = () => {
-      if (!this.musicEnabled || !this.ctx) {
-        this.stopBackgroundMusic();
-        return;
-      }
-
-      const note = this.musicPattern[this.musicStep % this.musicPattern.length];
-      this.playMusicTone(note, stepDuration * 0.9, 0.012);
-      this.musicStep += 1;
-    };
-
-    playStep();
-    this.musicTimer = window.setInterval(playStep, stepDuration * 1000);
+    // Background music disabled globally: keep SFX active, never schedule loop.
+    return;
   }
 
   startBackgroundMusic() {
-    this.ensureBackgroundMusic();
+    // Background music disabled globally.
+    this.stopBackgroundMusic();
   }
 
   stopBackgroundMusic() {
@@ -381,7 +367,7 @@ class SoundManager {
     const source = this.ctx.createBufferSource();
     source.buffer = this.frogAudioBuffer;
     source.connect(this.ctx.destination);
-    source.start(0);
+    source.start(0, 0, Math.min(MAX_AUDIO_PLAY_SECONDS, this.frogAudioBuffer.duration));
   }
 
   private playAudioBuffer(buffer: AudioBuffer) {
@@ -389,7 +375,7 @@ class SoundManager {
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(this.ctx.destination);
-    source.start(0);
+    source.start(0, 0, Math.min(MAX_AUDIO_PLAY_SECONDS, buffer.duration));
   }
 
   playSaltoAntagonistSound(antagonistId: SaltoAntagonistAudioId) {

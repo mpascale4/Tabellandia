@@ -648,7 +648,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const saltoObstaclePending = saltoEnemySteps.includes(saltoIndex + 1) && !saltoJumpedEnemySteps.has(saltoIndex + 1);
   const triggerSaltoFrogJump = (fromStep: number) => {
     if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
-    sound.playClick();
+    sound.playFrogCroak();
     const currentEnemyStep = saltoIndex + 1;
     const isJumpWindowOpen =
       saltoEnemySteps.includes(currentEnemyStep) &&
@@ -3514,7 +3514,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                       onClick={() => {
                                         if (!enemyForStep) return;
                                         consumeGuidance('saltoAvoid');
-                                        speak(`Antagonista ${enemyForStep.label}`);
+                                        sound.playSaltoAntagonistSound(enemyForStep.id);
+                                        speak(enemyForStep.label);
                                       }}
                                       className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center shadow-sm transition-all cursor-pointer ${
                                         isEnemyStepPending
@@ -3592,7 +3593,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                   {/* Stepping Stone 🪨 */}
                                   <motion.button
                                     type="button"
-                                    onClick={() => speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`)}
+                                    onClick={() => {
+                                      if (isLastStone) {
+                                        speak('Traguardo');
+                                        return;
+                                      }
+                                      speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`);
+                                    }}
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-mono font-black text-xs sm:text-sm border-2 shadow-sm transition-all cursor-pointer relative ${
