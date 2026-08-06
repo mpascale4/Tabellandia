@@ -5,19 +5,16 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
+import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
-import { Sparkles, Check, AlertCircle, Award, Timer, Trophy, Compass, ShieldAlert, RotateCcw } from 'lucide-react';
-import ComprendoBasketGame from './ComprendoBasketGame';
+import { AlertCircle, Award, Timer, Trophy, Compass, RotateCcw } from 'lucide-react';
+import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
 import RewardPopup from './RewardPopup';
-import NumericKeypad from './NumericKeypad';
-import CombinationCarousel from './CombinationCarousel';
 import FireworksOverlay from './FireworksOverlay';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
-import { withTableIcon } from '../utils/tableLabels';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import { useVoice } from '../contexts/VoiceContext';
 import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
@@ -289,7 +286,6 @@ const COSTRUISCO_BALLOON_PALETTES = [
 
 type CostruiscoBalloonPalette = typeof COSTRUISCO_BALLOON_PALETTES[number];
 type SaltoAntagonist = typeof SALTO_ANTAGONISTS[number];
-type GuidanceKey = 'saltoTouch' | 'saltoAvoid' | 'costruiscoTouch' | 'costruiscoAvoid' | 'trucchiTouch' | 'trucchiAvoid' | 'sfidaStart';
 type CostruiscoActiveBalloon = {
   id: number;
   value: number;
@@ -317,17 +313,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // View stack for modal-to-page conversion
   const [viewStack, setViewStack] = useState<string[]>([]); // Stack of views, e.g. ['rules-comprendo', 'intro']
-  
   const currentView = viewStack.length > 0 ? viewStack[viewStack.length - 1] : null;
   const pushView = (view: string) => setViewStack([...viewStack, view]);
   const popView = () => setViewStack(viewStack.slice(0, -1));
   const replaceTopView = (view: string) => setViewStack(prev => prev.length > 0 ? [...prev.slice(0, -1), view] : [view]);
-  const activePlayableStep = ALL_STEP_IDS.includes(activeStep) ? activeStep : 'comprendo';
-  
-  // States for sub-games
-  const [stepScore, setStepScore] = useState<number>(0);
-  const [attempts, setAttempts] = useState<number>(0);
-  
+
   // Track completed combinations for each step (1-10 correspond to x1 to x10)
   const [comprendoCompleted, setComprendoCompleted] = useState<Set<number>>(new Set());
   const [saltoCompleted, setSaltoCompleted] = useState<Set<number>>(new Set());
@@ -371,7 +361,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   
   // For the current game being played
   const [saltoIndex, setSaltoIndex] = useState<number>(0); // which multiple we are on (0 to 9)
-  const saltoNumbers = Array.from({ length: 10 }).map((_, i) => world.id * (i + 1));
   const [saltoOptions, setSaltoOptions] = useState<number[]>([]);
   const [saltoCorrectClicks, setSaltoCorrectClicks] = useState<Set<number>>(new Set());
   const [isFrogSplashing, setIsFrogSplashing] = useState<boolean>(false);
@@ -380,6 +369,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [saltoAntagonistsByStep, setSaltoAntagonistsByStep] = useState<Record<number, SaltoAntagonist>>({});
   const [saltoFrogPosition, setSaltoFrogPosition] = useState<number>(0);
   const [saltoLeap, setSaltoLeap] = useState<{ from: number; to: number } | null>(null);
+  const [saltoTapHop, setSaltoTapHop] = useState<{ step: number; token: number } | null>(null);
 
   // Costruisco (Step 3) state
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
@@ -410,6 +400,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const trucchiQuestionSolvedRef = useRef<boolean>(false);
   const trucchiPyramidCollapsedRef = useRef<boolean>(false);
   const comprendoCompletionOverlayTimeoutRef = useRef<number | null>(null);
+  const comprendoBasketGameRef = useRef<ComprendoBasketGameHandle | null>(null);
   const COMPRENDO_COMPLETION_OVERLAY_MS = 1200;
 
   const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
@@ -420,19 +411,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     return speakMultiplicationSuccess(a, b, result);
   };
 
+  const speakOperationOnly = (a: number, b: number) => {
+    sound.playClick();
+    return speak(`${toItalianWord(a)} per ${toItalianWord(b)}`);
+  };
+
   const speakPraticoOperation = (a: number, b: number) => speak(`${a} per ${b}`);
   const stepMotivationLabels: Record<'comprendo' | 'salto' | 'costruisco' | 'trucchi', string> = {
     comprendo: 'Raccogli',
     salto: 'Salta',
     costruisco: 'Scoppia',
     trucchi: 'Trova',
-  };
-
-  const unlockedStepLabels: Record<'salto' | 'costruisco' | 'trucchi' | 'pratico', string> = {
-    salto: '2. Salta',
-    costruisco: '3. Scoppia',
-    trucchi: '4. Trova',
-    pratico: '5. Pratico',
   };
 
   const getNextStepAfterCompletion = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
@@ -586,44 +575,27 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const saltoStoneRef = useRef<HTMLDivElement | null>(null);
   const saltoContainerRef = useRef<HTMLDivElement | null>(null);
   const saltoFinishRef = useRef<HTMLDivElement | null>(null);
-  const [guidanceSeen, setGuidanceSeen] = useState<Record<GuidanceKey, boolean>>({
-    saltoTouch: false,
-    saltoAvoid: false,
-    costruiscoTouch: false,
-    costruiscoAvoid: false,
-    trucchiTouch: false,
-    trucchiAvoid: false,
-    sfidaStart: false,
-  });
-  const guidanceTimeoutsRef = useRef<Partial<Record<GuidanceKey, number>>>({});
+  const guidanceSeen = profile.helperGuidanceSeen ?? {};
+  const guidanceTimeoutsRef = useRef<Partial<Record<HelperGuidanceKey, number>>>({});
 
-  const consumeGuidance = useCallback((key: GuidanceKey) => {
-    setGuidanceSeen((current) => (current[key] ? current : { ...current, [key]: true }));
+  const consumeGuidance = useCallback((key: HelperGuidanceKey) => {
+    if (guidanceSeen[key]) return;
+    updateProfile((currentProfile) => {
+      if (currentProfile.helperGuidanceSeen?.[key]) return currentProfile;
+      return {
+        ...currentProfile,
+        helperGuidanceSeen: {
+          ...currentProfile.helperGuidanceSeen,
+          [key]: true,
+        },
+      };
+    });
     const timeoutId = guidanceTimeoutsRef.current[key];
     if (timeoutId !== undefined) {
       window.clearTimeout(timeoutId);
       delete guidanceTimeoutsRef.current[key];
     }
-  }, []);
-
-  const resetGuidance = useCallback((keys: GuidanceKey[]) => {
-    setGuidanceSeen((current) => {
-      const next = { ...current };
-      let changed = false;
-      keys.forEach((key) => {
-        if (next[key]) {
-          next[key] = false;
-          changed = true;
-        }
-        const timeoutId = guidanceTimeoutsRef.current[key];
-        if (timeoutId !== undefined) {
-          window.clearTimeout(timeoutId);
-          delete guidanceTimeoutsRef.current[key];
-        }
-      });
-      return changed ? next : current;
-    });
-  }, []);
+  }, [guidanceSeen, updateProfile]);
 
   // Auto-scroll the stream stones so the frog stays centered in view as it moves
   useEffect(() => {
@@ -661,6 +633,35 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const saltoExpectedValue = saltoSelectedFactor !== null ? world.id * (saltoIndex + 1) : null;
   const saltoObstaclePending = saltoEnemySteps.includes(saltoIndex + 1) && !saltoJumpedEnemySteps.has(saltoIndex + 1);
+  const triggerSaltoFrogJump = (fromStep: number) => {
+    if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
+    sound.playFrogCroak();
+    const currentEnemyStep = saltoIndex + 1;
+    const isJumpWindowOpen =
+      saltoEnemySteps.includes(currentEnemyStep) &&
+      !saltoJumpedEnemySteps.has(currentEnemyStep);
+
+    if (isJumpWindowOpen) {
+      consumeGuidance('saltoAvoid');
+      const toStep = currentEnemyStep;
+      const leapMs = prefersReducedMotion ? 140 : 420;
+      setSaltoLeap({ from: fromStep, to: toStep });
+      speak(GAMEPLAY_AUDIO_MESSAGES.saltoObstacleSuccess);
+      window.setTimeout(() => {
+        setSaltoJumpedEnemySteps(prev => new Set(prev).add(currentEnemyStep));
+        setSaltoFrogPosition(toStep);
+        setSaltoLeap(null);
+      }, leapMs);
+      return;
+    }
+
+    const token = Date.now();
+    const hopMs = prefersReducedMotion ? 120 : 260;
+    setSaltoTapHop({ step: fromStep, token });
+    window.setTimeout(() => {
+      setSaltoTapHop(current => (current?.token === token ? null : current));
+    }, hopMs);
+  };
   const hasCostruiscoTouchTarget = costruiscoActiveBalloons.some(balloon => balloon.isCorrect && !balloon.isTrap);
   const hasCostruiscoAvoidTarget = costruiscoActiveBalloons.some(balloon => balloon.isTrap);
   const trucchiCorrectValue = trucchiSelectedFactor !== null ? world.id * trucchiSelectedFactor : null;
@@ -670,6 +671,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   });
   const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && !guidanceSeen.saltoTouch && saltoExpectedValue !== null;
   const showSaltoAvoidGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && !guidanceSeen.saltoAvoid && saltoObstaclePending;
+  const showSaltoFrogTouchGuidance = showSaltoAvoidGuidance;
   const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoTouch && hasCostruiscoTouchTarget;
   const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoAvoid && hasCostruiscoAvoidTarget;
   const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiTouch && trucchiCorrectValue !== null;
@@ -686,7 +688,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   }, []);
 
   useEffect(() => {
-    const rules: Array<{ key: GuidanceKey; show: boolean }> = [
+    const rules: Array<{ key: HelperGuidanceKey; show: boolean }> = [
       { key: 'saltoTouch', show: showSaltoTouchGuidance },
       { key: 'saltoAvoid', show: showSaltoAvoidGuidance },
       { key: 'costruiscoTouch', show: showCostruiscoTouchGuidance },
@@ -971,7 +973,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const resetTrucchiRound = (factor: number | null = trucchiSelectedFactor) => {
     clearTrucchiRoundTimeouts();
-    resetGuidance(['trucchiTouch', 'trucchiAvoid']);
 
     if (factor === null) {
       setTrucchiBrickValues([]);
@@ -1369,7 +1370,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const startCostruiscoSingleBalloonGame = (factor?: number) => {
     const activeFactor = factor ?? costruiscoSelectedFactor ?? 1;
-    resetGuidance(['costruiscoTouch', 'costruiscoAvoid']);
     clearCostruiscoFlightTimeout();
     setCostruiscoFlowStage('game');
     setCostruiscoGameCompleted(false);
@@ -1396,7 +1396,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       consumeGuidance('costruiscoTouch');
     }
 
-    sound.playClick();
+    sound.playBalloonPop();
     const timeoutId = costruiscoEscapeTimeoutsRef.current[balloon.id];
     if (timeoutId !== undefined) {
       window.clearTimeout(timeoutId);
@@ -1411,7 +1411,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     // Bomb trap: immediate fail
     if (balloon.isTrap) {
-      sound.playError();
+      sound.playBombTrapFailure();
       speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoBomb);
       setCostruiscoFailReason('wrong-tap');
       setCostruiscoWrongTappedValue(null);
@@ -1693,7 +1693,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const isCorrect = selectedVal === correctVal;
 
     const key = `${currentQ.a}x${currentQ.b}`;
-    const startTime = Date.now(); // simplified response logging duration
 
     // Record question attempt
     const attempt: QuestionAttempt = {
@@ -1860,7 +1859,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   // Initialize Sfida with START button
   const initializeSfida = () => {
     sound.playPowerUp();
-    resetGuidance(['sfidaStart']);
     setSfidaReady(true); // Show START button
     setSfidaActive(false);
     setSfidaInteractionLocked(false);
@@ -2491,7 +2489,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     onSelect: (factor: number) => void;
     theme: StepSelectionTheme;
   }) => (
-    <div className="max-w-4xl mx-auto w-full h-full min-h-0">
+    <div className="max-w-4xl mx-auto w-full h-full min-h-0 overflow-hidden">
       <SurfaceCard padding="lg" className={`h-full min-h-0 shadow-lg border-2 ${theme.panel} flex flex-col`}>
         <div className="flex items-center justify-center gap-2">
           <span className={`text-xs font-bold px-3 py-1 rounded-full font-sans ${theme.badge}`}>
@@ -2643,6 +2641,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSaltoAntagonistsByStep({});
     setSaltoFrogPosition(0);
     setSaltoLeap(null);
+    setSaltoTapHop(null);
     setSaltoSelectedFactor(null);
   };
   const completeSaltoExercise = () => {
@@ -2702,6 +2701,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
     cancelTrucchiExercise();
   };
+
+  // Temporary debug shortcut: simulates completing the currently selected table for each step.
+  // Raccogli → triggers the in-game star bonus (fills all baskets, user still presses Continua).
+  // Other steps → call the same complete*Exercise() the real game uses, completing only the active factor.
+  const completeStepTemporarily = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
+    if (stepName === 'comprendo') { comprendoBasketGameRef.current?.triggerStarBonus(); return; }
+    if (stepName === 'salto')     { completeSaltoExercise();     return; }
+    if (stepName === 'costruisco') { completeCostruiscoExercise(); return; }
+    if (stepName === 'trucchi')   { completeTrucchiExercise();   return; }
+  };
+
   const goBackFromWorldContent = () => {
     if (activeStep === 'sfida' && sfidaActive) {
       if (timerRef.current) {
@@ -2886,8 +2896,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     >
       {/* Main content - only show if no view is pushed */}
       {!currentView && (
-        <>
-          
+        <React.Fragment>
       {/* Main Container */}
       <div className={`flex-1 overflow-y-auto flex flex-col ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
         {activeStep !== 'comprendo' && activeStep !== 'salto' && activeStep !== 'costruisco' && activeStep !== 'trucchi' && activeStep !== 'pratico' && activeStep !== 'sfida' && (
@@ -3167,10 +3176,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <div className="bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-4">
                      <div className="text-center">
                        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-sans">
-                         Comprendo: {world.id} × {comprendoSelectedFactor}
+                          <button
+                            type="button"
+                            onClick={() => speakOperationOnly(world.id, comprendoSelectedFactor)}
+                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-indigo-500"
+                            aria-label={`Ascolta operazione ${world.id} per ${comprendoSelectedFactor}`}
+                          >
+                            Comprendo: {world.id} × {comprendoSelectedFactor}
+                          </button>
                        </span>
                        <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
-                         Che cos'è {world.id} × {comprendoSelectedFactor}?
+                          Che cos'è{' '}
+                          <button
+                            type="button"
+                            onClick={() => speakOperationOnly(world.id, comprendoSelectedFactor)}
+                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-indigo-500"
+                            aria-label={`Ascolta operazione ${world.id} per ${comprendoSelectedFactor}`}
+                          >
+                            {world.id} × {comprendoSelectedFactor}
+                          </button>
+                          ?
                        </h3>
                        <p className="text-xs text-slate-500 mt-1">
                          La moltiplicazione non è altro che addizione ripetuta dello stesso gruppo!
@@ -3182,7 +3207,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          Tocca gli oggetti e contali uno alla volta: ogni gruppo contiene <strong>{comprendoSelectedFactor}</strong> elementi e ci sono <strong>{world.id}</strong> gruppi.
                        </p>
                        <p className="text-slate-600 mt-1 leading-relaxed">
-                         Quando hai contato tutto, collega il totale all'operazione <strong>{world.id} × {comprendoSelectedFactor} = {world.id * comprendoSelectedFactor}</strong>.
+                          Quando hai contato tutto, collega il totale all'operazione{' '}
+                          <strong>
+                            <button
+                              type="button"
+                              onClick={() => speakOperationOnly(world.id, comprendoSelectedFactor)}
+                              className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-indigo-500"
+                              aria-label={`Ascolta operazione ${world.id} per ${comprendoSelectedFactor}`}
+                            >
+                              {world.id} × {comprendoSelectedFactor} = {world.id * comprendoSelectedFactor}
+                            </button>
+                          </strong>
+                          .
                        </p>
                      </div>
                      <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
@@ -3199,24 +3235,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                  {comprendoFlowStage === 'game' && (
                    <div className="relative bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
                      <ComprendoBasketGame
+                        ref={comprendoBasketGameRef}
                        a={world.id}
                        b={comprendoSelectedFactor}
                        itemEmoji={world.itemsToCount}
                        onCompletionChange={handleComprendoCompletionChange}
+                        helperGuidanceSeen={profile.helperGuidanceSeen}
+                        onConsumeGuidance={consumeGuidance}
                      />
-                     {showComprendoCompletionEffect && (
-                       <motion.div
-                         initial={{ opacity: 0, scale: 0.9 }}
-                         animate={{ opacity: 1, scale: 1 }}
-                         exit={{ opacity: 0, scale: 0.9 }}
-                         className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                       >
-                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
-                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                           
-                         </div>
-                       </motion.div>
-                     )}
+                      {showComprendoCompletionEffect && (
+                        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
+                          <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
+                            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
+                          </div>
+                        </div>
+                      )}
                    </div>
                  )}
 
@@ -3286,8 +3319,20 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      </button>
                    </div>
                  )}
+                  {comprendoFlowStage === 'game' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        completeStepTemporarily('comprendo');
+                      }}
+                      className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
+                      id="comprendo-debug-complete-btn"
+                    >
+                      Termina step (temporaneo)
+                    </button>
+                  )}
                </div>
-              </div>
+             </div>
             </div>
         )}
 
@@ -3302,7 +3347,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             onSelect: (factor) => {
               sound.playClick();
               const enemyLayout = buildSaltoEnemyLayout(factor);
-              resetGuidance(['saltoTouch', 'saltoAvoid']);
               setSaltoSelectedFactor(factor);
               setSaltoIndex(0);
               setSaltoOptions([]);
@@ -3316,6 +3360,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
               setSaltoFrogPosition(0);
               setSaltoLeap(null);
+              setSaltoTapHop(null);
             },
             theme: {
               panel: 'bg-purple-50 border-purple-200',
@@ -3340,7 +3385,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <div className="bg-white rounded-3xl p-5 border border-purple-100 shadow-xl space-y-4">
                     <div className="text-center">
                       <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2.5 py-0.5 rounded-full font-sans">
-                        Salto: {world.id} × {saltoSelectedFactor}
+                        <button
+                          type="button"
+                          onClick={() => speakOperationOnly(world.id, saltoSelectedFactor)}
+                          className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-purple-500"
+                          aria-label={`Ascolta operazione ${world.id} per ${saltoSelectedFactor}`}
+                        >
+                          Salto: {world.id} × {saltoSelectedFactor}
+                        </button>
                       </span>
                       <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
                         🐸 Fai saltare {world.mascotName} sui sassi!
@@ -3376,7 +3428,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                 {saltoFlowStage === 'game' && (
                   <div className={`relative bg-white rounded-3xl border border-purple-100 shadow-xl ${compactLayout ? 'p-3 space-y-3' : 'p-5 space-y-5'}`}>
-                    {/* Header badge / operation touch speech */}
                     <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-indigo-50 p-3 rounded-2xl border border-purple-200 shadow-sm">
                       <button
                         type="button"
@@ -3400,42 +3451,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between">
                       {/* Water sparkles background */}
                       <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:16px_16px]" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
-                          sound.playClick();
-                          const currentEnemyStep = saltoIndex + 1;
-                          const isJumpWindowOpen =
-                            saltoEnemySteps.includes(currentEnemyStep) &&
-                            !saltoJumpedEnemySteps.has(currentEnemyStep);
-                          if (!isJumpWindowOpen) return;
-                          consumeGuidance('saltoAvoid');
-                          const fromStep = saltoFrogPosition;
-                          const toStep = currentEnemyStep;
-                          const leapMs = prefersReducedMotion ? 140 : 420;
-                          setSaltoLeap({ from: fromStep, to: toStep });
-                          speak(GAMEPLAY_AUDIO_MESSAGES.saltoObstacleSuccess);
-                          window.setTimeout(() => {
-                            setSaltoJumpedEnemySteps(prev => new Set(prev).add(currentEnemyStep));
-                            setSaltoFrogPosition(toStep);
-                            setSaltoLeap(null);
-                          }, leapMs);
-                        }}
-                        className="absolute left-3 bottom-3 z-20 h-11 w-11 rounded-2xl border-2 border-purple-200 bg-white text-xl text-purple-900 shadow-sm transition-all cursor-pointer active:scale-95 flex items-center justify-center"
-                        aria-label="Salta"
-                        title="Salta"
-                      >
-                        🐸
-                      </button>
-
+                      {/* Removed separate frog button: jump now uses the moving frog on riva/stone */}
                       {/* River Stream Container */}
                       <div className="relative z-10 my-1 flex min-w-0 items-center justify-between gap-1 px-2 py-2 bg-sky-900/30 backdrop-blur-xs rounded-2xl border border-sky-200/30">
                         {/* Stepping Stones Container (Riva + Stones 1 to saltoSelectedFactor) */}
                         <div
                           ref={saltoContainerRef}
                           data-touch-swipe-lock="true"
-                          className="relative flex min-w-0 flex-1 items-center justify-start gap-2.5 overflow-x-auto scroll-smooth px-2 pt-8 pb-2 sm:gap-3.5"
+                          className="relative flex min-w-0 flex-1 items-center justify-start gap-2.5 overflow-x-auto overflow-y-hidden scroll-smooth px-2 pt-8 pb-2 sm:gap-3.5"
                           style={{ touchAction: 'pan-x' }}
                         >
                           {/* Start Bank (Riva / Partenza) - Frog starts here! */}
@@ -3445,30 +3468,42 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           >
                             {/* Frog sitting on Riva when starting (saltoIndex === 0) */}
                             {saltoFrogPosition === 0 && !saltoGameCompleted && (
-                              <motion.div
+                              <motion.button
+                                type="button"
+                                onClick={() => triggerSaltoFrogJump(0)}
+                                aria-label="Salta con la rana"
                                 key={`frog-start-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
                                 initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
                                 animate={
                                   isFrogSplashing
-                                    ? { y: 28, rotate: 180, scale: 1.15 }
+                                    ? { y: [0, 28, 72], rotate: [0, 12, 20], scale: [1, 1.06, 0.96], opacity: [1, 1, 0] }
                                     : saltoLeap?.from === 0
                                       ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
-                                      : { y: [0, -6, 0], scale: 1 }
+                                      : saltoTapHop?.step === 0
+                                        ? { y: [0, -16, 0], scale: [1, 1.08, 1] }
+                                        : { y: [0, -6, 0], scale: 1 }
                                 }
                                 transition={
                                   isFrogSplashing
-                                    ? { duration: 0.4, ease: "easeOut" }
+                                    ? { duration: prefersReducedMotion ? 0.2 : 0.42, ease: "easeIn" }
                                     : saltoLeap?.from === 0
                                       ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
-                                      : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
+                                      : saltoTapHop?.step === 0
+                                        ? { duration: prefersReducedMotion ? 0.12 : 0.26, ease: "easeOut" }
+                                        : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
                                 }
-                                className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
+                                className="absolute -top-7 z-30 flex flex-col items-center cursor-pointer"
                               >
                                 <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                {isFrogSplashing && (
-                                  <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
+                                {showSaltoFrogTouchGuidance && (
+                                  <span className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-0.5">
+                                    <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                                  </span>
                                 )}
-                              </motion.div>
+                              </motion.button>
+                            )}
+                            {saltoFrogPosition === 0 && isFrogSplashing && (
+                              <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none" aria-hidden="true">💦</span>
                             )}
                             <span className="text-xl">🌱</span>
                             <span className="text-[9px] font-black text-sky-950 bg-amber-100 px-1.5 py-0.5 rounded shadow-xs font-sans">
@@ -3498,7 +3533,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                       onClick={() => {
                                         if (!enemyForStep) return;
                                         consumeGuidance('saltoAvoid');
-                                        speak(`Antagonista ${enemyForStep.label}`);
+                                        sound.playSaltoAntagonistSound(enemyForStep.id);
+                                        speak(enemyForStep.label);
                                       }}
                                       className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center shadow-sm transition-all cursor-pointer ${
                                         isEnemyStepPending
@@ -3522,30 +3558,42 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 >
                                   {/* Frog sitting on current stone during jumps */}
                                   {isFrogHere && (
-                                    <motion.div
+                                    <motion.button
+                                      type="button"
+                                      onClick={() => triggerSaltoFrogJump(stoneStep)}
+                                      aria-label="Salta con la rana"
                                       key={`frog-${idx}-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
                                       initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
                                       animate={
                                         isFrogSplashing
-                                          ? { y: 28, rotate: 180, scale: 1.15 }
+                                          ? { y: [0, 28, 72], rotate: [0, 12, 20], scale: [1, 1.06, 0.96], opacity: [1, 1, 0] }
                                           : saltoLeap?.from === stoneStep
                                             ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
-                                            : { y: [0, -6, 0], scale: 1 }
+                                            : saltoTapHop?.step === stoneStep
+                                              ? { y: [0, -16, 0], scale: [1, 1.08, 1] }
+                                              : { y: [0, -6, 0], scale: 1 }
                                       }
                                       transition={
                                         isFrogSplashing
-                                          ? { duration: 0.4, ease: "easeOut" }
+                                          ? { duration: prefersReducedMotion ? 0.2 : 0.42, ease: "easeIn" }
                                           : saltoLeap?.from === stoneStep
                                             ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
-                                            : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
+                                            : saltoTapHop?.step === stoneStep
+                                              ? { duration: prefersReducedMotion ? 0.12 : 0.26, ease: "easeOut" }
+                                              : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
                                       }
-                                      className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
+                                      className="absolute -top-7 z-30 flex flex-col items-center cursor-pointer"
                                     >
                                       <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                      {isFrogSplashing && (
-                                        <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
+                                      {showSaltoFrogTouchGuidance && (
+                                        <span className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-0.5">
+                                          <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                                        </span>
                                       )}
-                                    </motion.div>
+                                    </motion.button>
+                                  )}
+                                  {isFrogHere && isFrogSplashing && (
+                                    <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none" aria-hidden="true">💦</span>
                                   )}
 
                                   {/* Frog sitting on final stone on completion */}
@@ -3564,7 +3612,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                   {/* Stepping Stone 🪨 */}
                                   <motion.button
                                     type="button"
-                                    onClick={() => speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`)}
+                                    onClick={() => {
+                                      if (isLastStone) {
+                                        speak('Traguardo');
+                                        return;
+                                      }
+                                      speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`);
+                                    }}
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-mono font-black text-xs sm:text-sm border-2 shadow-sm transition-all cursor-pointer relative ${
@@ -3605,12 +3659,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           animate={{ scale: 1, opacity: 1 }}
                           onClick={() => {
                             sound.playClick();
-                            resetGuidance(['saltoTouch', 'saltoAvoid']);
                             setIsFrogSplashing(false);
                             setSaltoIndex(0);
                             setSaltoCorrectClicks(new Set());
                             setSaltoFrogPosition(0);
                             setSaltoLeap(null);
+                            setSaltoTapHop(null);
                             if (saltoSelectedFactor !== null) {
                               const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
                               setSaltoEnemySteps(enemyLayout.steps);
@@ -3634,7 +3688,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           return (
                             <div key={idx} className="relative">
                               {showSaltoTouchGuidance && opt === saltoExpectedValue && (
-                                <div className="pointer-events-none absolute left-1/2 top-0 z-20">
+                                <div className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-1">
                                   <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
                                 </div>
                               )}
@@ -3694,19 +3748,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         </div>
                       </div>
                     )}
+                    </div>
 
                     {showSaltoCompletionEffect && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                      >
+                      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                          
                         </div>
-                      </motion.div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -3768,6 +3817,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </button>
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    completeStepTemporarily('salto');
+                  }}
+                  className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
+                  id="salto-debug-complete-btn"
+                >
+                  Termina step (temporaneo)
+                </button>
               </div>
             </div>
           </div>
@@ -3783,7 +3843,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               completed: effectiveCostruiscoCompleted,
               onSelect: (factor) => {
                 sound.playClick();
-              resetGuidance(['costruiscoTouch', 'costruiscoAvoid']);
               setCostruiscoSelectedFactor(factor);
               setCostruiscoBalloonPool([]);
               setCostruiscoActiveBalloons([]);
@@ -3819,7 +3878,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <div className="bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-4">
                      <div className="text-center">
                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full font-sans">
-                         Scoppia: {world.id} × {costruiscoSelectedFactor}
+                          <button
+                            type="button"
+                            onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-emerald-500"
+                            aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
+                          >
+                            Scoppia: {world.id} × {costruiscoSelectedFactor}
+                          </button>
                        </span>
                        <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
                          Scoppia il palloncino col risultato giusto!
@@ -3831,7 +3897,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 text-xs">
                        <h4 className="font-bold text-indigo-950 font-sans">Come si gioca:</h4>
                        <p className="text-slate-600 mt-1 leading-relaxed">
-                         Tocca il palloncino con il risultato giusto di <b>{world.id} × {costruiscoSelectedFactor}</b>.
+                          Tocca il palloncino con il risultato giusto di{' '}
+                          <b>
+                            <button
+                              type="button"
+                              onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                              className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-emerald-500"
+                              aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
+                            >
+                              {world.id} × {costruiscoSelectedFactor}
+                            </button>
+                          </b>
+                          .
                        </p>
                        <p className="text-slate-600 mt-1 leading-relaxed text-rose-700 font-semibold">
                          ⚠️ Attenzione: c'è un 💣 palloncino trappola col numero corretto! Cerca quello <b>colorato</b>, non quello scuro.
@@ -3852,9 +3929,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    <div className="relative bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-6">
                      <div className="text-center bg-emerald-100 rounded-2xl p-5 border-2 border-emerald-300">
                        <p className="text-xs text-emerald-700 font-bold uppercase">Completa questa operazione</p>
-                       <p className="text-3xl font-black text-emerald-900 mt-2 font-mono">
-                         {world.id} × {costruiscoSelectedFactor} = ?
-                       </p>
+                        <button
+                          type="button"
+                          onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                          className="mt-2 cursor-pointer rounded px-2 py-1 text-3xl font-black text-emerald-900 font-mono focus-visible:outline-2 focus-visible:outline-emerald-500"
+                          aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
+                        >
+                          {world.id} × {costruiscoSelectedFactor} = ?
+                        </button>
                      </div>
 
                      <div>
@@ -3901,7 +3983,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                              <h3 className="text-base font-black text-emerald-800">Successo!</h3>
                              <p className="text-xs text-slate-600">
                                {getGenderedText(playerGender, 'Bravo! Risposta esatta:', 'Brava! Risposta esatta:')}<br />
-                               <b className="text-sm text-emerald-900 font-mono">{world.id} × {costruiscoSelectedFactor} = {world.id * (costruiscoSelectedFactor || 1)}</b>
+                                <b className="text-sm text-emerald-900 font-mono">
+                                  <button
+                                    type="button"
+                                    onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor || 1)}
+                                    className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-emerald-500"
+                                    aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor || 1}`}
+                                  >
+                                    {world.id} × {costruiscoSelectedFactor} = {world.id * (costruiscoSelectedFactor || 1)}
+                                  </button>
+                                </b>
                              </p>
                            </div>
                          ) : (
@@ -3974,17 +4065,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      </div>
 
                      {showCostruiscoCompletionEffect && (
-                       <motion.div
-                         initial={{ opacity: 0, scale: 0.9 }}
-                         animate={{ opacity: 1, scale: 1 }}
-                         exit={{ opacity: 0, scale: 0.9 }}
-                         className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                       >
+                       <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
                          <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                           
                          </div>
-                       </motion.div>
+                       </div>
                      )}
                    </div>
                  )}
@@ -4046,14 +4131,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      <button
                        onClick={() => {
                          sound.playClick();
-                         startCostruiscoSingleBalloonGame();
+                         setCostruiscoFlowStage('game');
                        }}
-                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors"
+                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
                      >
-                       Inizia Gioco 🎈
+                       Continua
                      </button>
                    </div>
                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      completeStepTemporarily('costruisco');
+                    }}
+                    className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
+                    id="costruisco-debug-complete-btn"
+                  >
+                    Termina step (temporaneo)
+                  </button>
                </div>
              </div>
             </div>
@@ -4070,7 +4166,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             completed: effectiveTrucchiCompleted,
             onSelect: (factor) => {
               sound.playClick();
-            resetGuidance(['trucchiTouch', 'trucchiAvoid']);
             setTrucchiSelectedFactor(factor);
               setTrucchiFlowStage('game');
               setTrucchiQuestionSolved(false);
@@ -4100,7 +4195,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <div className="bg-white rounded-3xl p-5 border border-amber-100 shadow-xl space-y-4">
                     <div className="text-center">
                       <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full font-sans">
-                        Trova: {world.id} × {trucchiSelectedFactor}
+                        <button
+                          type="button"
+                          onClick={() => speakOperationOnly(world.id, trucchiSelectedFactor)}
+                          className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-amber-500"
+                          aria-label={`Ascolta operazione ${world.id} per ${trucchiSelectedFactor}`}
+                        >
+                          Trova: {world.id} × {trucchiSelectedFactor}
+                        </button>
                       </span>
                       <h3 className="text-lg font-black text-slate-800 mt-3 font-sans">
                         {world.trickTitle}
@@ -4160,7 +4262,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     )}
                     <div className="text-center space-y-2">
                       <h4 className="text-sm font-bold text-amber-900">
-                        Quanto fa <strong>{world.id} × {trucchiSelectedFactor}</strong>?
+                        Quanto fa{' '}
+                        <strong>
+                          <button
+                            type="button"
+                            onClick={() => speakOperationOnly(world.id, trucchiSelectedFactor)}
+                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-amber-500"
+                            aria-label={`Ascolta operazione ${world.id} per ${trucchiSelectedFactor}`}
+                          >
+                            {world.id} × {trucchiSelectedFactor}
+                          </button>
+                        </strong>
+                        ?
                       </h4>
                       <p className="text-xs text-amber-800 font-sans">
                         {trucchiPreviewActive
@@ -4307,7 +4420,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                           <>
                                             {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">🔨</span>}
                                             <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/60" aria-hidden="true" />
-                                            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-stone-300/80" aria-hidden="true" />
+                                            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/80" aria-hidden="true" />
                                             <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
                                             <span className="absolute left-2/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
                                             <span className="absolute inset-x-0 bottom-[0.38rem] h-px bg-orange-800/35" aria-hidden="true" />
@@ -4362,17 +4475,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     )}
 
                     {showTrucchiCompletionEffect && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                      >
+                      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                          
                         </div>
-                      </motion.div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -4435,6 +4542,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </button>
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    completeStepTemporarily('trucchi');
+                  }}
+                  className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
+                  id="trucchi-debug-complete-btn"
+                >
+                  Termina step (temporaneo)
+                </button>
               </div>
             </div>
           </div>
@@ -4688,7 +4806,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           </div>
         </div>
       )}
-        </>
+        </React.Fragment>
       )}
 
       {errorFeedback && (
@@ -4849,7 +4967,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-3xl">
               🪙
             </div>
-            <h3 id="sfida-confirm-title" className="mb-2 text-base font-black text-amber-900">
+            <h3 id="sfida-confirm-title" className="mb-5 text-base font-black text-amber-900">
               Vai alla Sfida?
             </h3>
             <p className="mb-5 text-sm text-slate-700">

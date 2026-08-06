@@ -14,26 +14,6 @@ Quando generi o modifichi codice:
 
 ---
 
-## Flusso Git obbligatorio (Git Flow)
-
-**Prima di qualsiasi modifica al codice:**
-1. Aprire una nuova feature con Git Flow:
-   ```bash
-   git flow feature start <nome-feature>
-   ```
-
-**Al termine di tutte le modifiche:**
-2. Chiudere la feature e fare la push:
-   ```bash
-   git flow feature finish <nome-feature>
-   git push origin develop
-   git push origin --tags
-   ```
-
-> ⚠️ Non eseguire mai commit direttamente su `main` o `develop` senza passare per una feature branch di Git Flow.
-
----
-
 ## Comandi personalizzati
 
 Quando l'utente scrive `/pull` o `#pull`, esegui immediatamente i seguenti comandi nell'ordine indicato, senza chiedere conferma:
@@ -107,7 +87,15 @@ Le regole valgono per tutto il codice del progetto (esistente e nuovo): ogni ref
 - Usa nomi chiari e consistenti; evita abbreviazioni ambigue.
 - Scrivi o aggiorna test per logica critica e regressioni.
 - Mantieni lint, typecheck e test verdi prima di finalizzare le modifiche.
+- Esegui il commit solo quando `npm run lint` termina senza errori.
 - Documenta decisioni non ovvie con commenti brevi e mirati.
+
+### 5) Strutturare JSX complesso in blocchi piccoli
+
+- Quando un componente JSX cresce molto, spezzare i rami condizionali grandi in blocchi più piccoli e leggibili.
+- Evitare annidamenti profondi di `<>`, `()`, `{}` e `&&` nello stesso tratto di render quando una sottosezione può essere isolata.
+- Preferire wrapper espliciti e componenti/estratti dedicati se aiutano a ridurre errori di chiusura e regressioni di parsing.
+- Dopo refactor di JSX complesso, verificare sempre con `lint`/`typecheck` prima di considerare la modifica conclusa.
 
 
 ---
@@ -231,3 +219,10 @@ Usa sempre questo pattern:
 - Lucchetto: sfondo bianco, bordo slate, emoji `🔒`
 - Sempre `aria-hidden="true"` (informazione trasmessa anche da colore/testo)
 - Non usare `✅` nei badge di stato su card (solo nei testi descrittivi)
+
+---
+
+## Session Learnings
+
+- Per download automatici di asset audio da Wikimedia Commons, preferire endpoint `Special:FilePath/<nome-file>` con `User-Agent` esplicito e piccole pause tra richieste per ridurre errori `429 Too many requests`.
+

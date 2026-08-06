@@ -51,6 +51,20 @@ export interface QuestionAttempt {
   timestamp: string;
 }
 
+export type HelperGuidanceKey =
+  | 'comprendoTouch'
+  | 'comprendoAvoid'
+  | 'comprendoBonus'
+  | 'saltoTouch'
+  | 'saltoAvoid'
+  | 'costruiscoTouch'
+  | 'costruiscoAvoid'
+  | 'trucchiTouch'
+  | 'trucchiAvoid'
+  | 'sfidaStart';
+
+export type HelperGuidanceState = Record<HelperGuidanceKey, boolean>;
+
 export interface UserProfile {
   id?: string;
   birthYear?: number | null;
@@ -67,6 +81,7 @@ export interface UserProfile {
   worldProgress: { [worldId: number]: WorldProgress };
   history: QuestionAttempt[];
   completedOnboardingGame?: boolean;
+  helperGuidanceSeen?: Partial<HelperGuidanceState>;
 }
 
 export interface WorldConfig {

@@ -3,12 +3,36 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import frogAudioUrl from '../data/frog.mp3';
+import snakeAudioUrl from '../data/animal-sounds/snake-rattlesnake.ogg';
+import batAudioUrl from '../data/animal-sounds/bat-feeding-buzz.wav';
+import beeBuzzAudioUrl from '../data/animal-sounds/bee-buzzing.opus';
+import scorpionAudioUrl from '../data/animal-sounds/scorpion-night-insects.wav';
+
+type SaltoAntagonistAudioId = 'snake' | 'bat' | 'spider' | 'scorpion';
+const MAX_AUDIO_PLAY_SECONDS = 2;
+
 class SoundManager {
   private ctx: AudioContext | null = null;
   private effectsEnabled: boolean = true;
   private musicEnabled: boolean = true;
   private musicTimer: number | null = null;
   private musicStep: number = 0;
+  private frogAudioBuffer: AudioBuffer | null = null;
+  private loadingFrogAudio = false;
+  private beeBuzzBuffer: AudioBuffer | null = null;
+  private loadingBeeBuzzAudio = false;
+  private beeBuzzSource: AudioBufferSourceNode | null = null;
+  private beeBuzzGain: GainNode | null = null;
+  private readonly antagonistsAudioUrls: Record<SaltoAntagonistAudioId, string> = {
+    snake: snakeAudioUrl,
+    bat: batAudioUrl,
+    // Evita la traccia precedente con cani: per il ragno usiamo una traccia insetti neutra.
+    spider: scorpionAudioUrl,
+    scorpion: scorpionAudioUrl,
+  };
+  private readonly antagonistsAudioBuffers: Partial<Record<SaltoAntagonistAudioId, AudioBuffer>> = {};
+  private readonly loadingAntagonistsAudio = new Set<SaltoAntagonistAudioId>();
   private readonly musicPattern = [
     // Divertente melodia playful in tonalità maggiore
     392.00, // G4
@@ -47,6 +71,9 @@ class SoundManager {
 
   setMuted(muted: boolean) {
     this.effectsEnabled = !muted;
+    if (muted) {
+      this.stopBeeBuzz();
+    }
   }
 
   isMuted() {
@@ -55,6 +82,9 @@ class SoundManager {
 
   setEffectsEnabled(enabled: boolean) {
     this.effectsEnabled = enabled;
+    if (!enabled) {
+      this.stopBeeBuzz();
+    }
   }
 
   isEffectsEnabled() {
@@ -128,28 +158,13 @@ class SoundManager {
   }
 
   private ensureBackgroundMusic() {
-    if (!this.musicEnabled) return;
-    this.initContext();
-    if (!this.ctx || this.musicTimer !== null) return;
-
-    const stepDuration = 0.5;
-    const playStep = () => {
-      if (!this.musicEnabled || !this.ctx) {
-        this.stopBackgroundMusic();
-        return;
-      }
-
-      const note = this.musicPattern[this.musicStep % this.musicPattern.length];
-      this.playMusicTone(note, stepDuration * 0.9, 0.012);
-      this.musicStep += 1;
-    };
-
-    playStep();
-    this.musicTimer = window.setInterval(playStep, stepDuration * 1000);
+    // Background music disabled globally: keep SFX active, never schedule loop.
+    return;
   }
 
   startBackgroundMusic() {
-    this.ensureBackgroundMusic();
+    // Background music disabled globally.
+    this.stopBackgroundMusic();
   }
 
   stopBackgroundMusic() {
@@ -165,6 +180,56 @@ class SoundManager {
     if (!this.ctx) return;
     this.ensureBackgroundMusic();
     this.playTone([400], 0.05, 0.1);
+  }
+
+  playBalloonPop() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.12), this.ctx.sampleRate);
+    const channelData = noiseBuffer.getChannelData(0);
+
+    for (let i = 0; i < channelData.length; i += 1) {
+      channelData[i] = (Math.random() * 2 - 1) * (1 - (i / channelData.length));
+    }
+
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const bandpass = this.ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(920, now);
+    bandpass.Q.setValueAtTime(0.9, now);
+
+    const popOsc = this.ctx.createOscillator();
+    popOsc.type = 'triangle';
+    popOsc.frequency.setValueAtTime(240, now);
+    popOsc.frequency.exponentialRampToValueAtTime(70, now + 0.1);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.001, now);
+    noiseGain.gain.linearRampToValueAtTime(0.22, now + 0.005);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+    const popGain = this.ctx.createGain();
+    popGain.gain.setValueAtTime(0.001, now);
+    popGain.gain.linearRampToValueAtTime(0.12, now + 0.01);
+    popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    noiseSource.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+
+    popOsc.connect(popGain);
+    popGain.connect(this.ctx.destination);
+
+    noiseSource.start(now);
+    noiseSource.stop(now + 0.11);
+    popOsc.start(now);
+    popOsc.stop(now + 0.12);
   }
 
   playCorrect() {
@@ -199,6 +264,246 @@ class SoundManager {
       osc.start(now + idx * 0.08);
       osc.stop(now + idx * 0.08 + 0.25);
     });
+  }
+
+  playLadybugSuccess() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    // Suono breve e giocoso per la coccinella.
+    [880, 1046.5].forEach((freq, idx) => {
+      const start = now + idx * 0.055;
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.1, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(start);
+      osc.stop(start + 0.13);
+    });
+  }
+
+  playButterflySuccess() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    // Suono leggero e ascendente per la farfalla.
+    [523.25, 659.25, 783.99].forEach((freq, idx) => {
+      const start = now + idx * 0.07;
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.09, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.19);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
+  }
+
+  playStarSuccess() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    // Suono brillante a "twinkle" per la stella.
+    [659.25, 987.77, 1318.51, 1567.98].forEach((freq, idx) => {
+      const start = now + idx * 0.06;
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.1, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.17);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(start);
+      osc.stop(start + 0.18);
+    });
+  }
+
+  playBeeFailure() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const sting = this.ctx.createOscillator();
+    const buzz = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    sting.type = 'sawtooth';
+    sting.frequency.setValueAtTime(980, now);
+    sting.frequency.exponentialRampToValueAtTime(210, now + 0.26);
+
+    buzz.type = 'square';
+    buzz.frequency.setValueAtTime(180, now);
+    buzz.frequency.linearRampToValueAtTime(110, now + 0.26);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.24, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.03, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+
+    sting.connect(gain);
+    buzz.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    sting.start(now);
+    buzz.start(now);
+    sting.stop(now + 0.35);
+    buzz.stop(now + 0.35);
+  }
+
+  playBombTrapFailure() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.24), this.ctx.sampleRate);
+    const channelData = noiseBuffer.getChannelData(0);
+
+    for (let i = 0; i < channelData.length; i += 1) {
+      const decay = 1 - (i / channelData.length);
+      channelData[i] = (Math.random() * 2 - 1) * decay;
+    }
+
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const lowpass = this.ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.setValueAtTime(1400, now);
+    lowpass.Q.setValueAtTime(0.8, now);
+
+    const boomOsc = this.ctx.createOscillator();
+    boomOsc.type = 'sawtooth';
+    boomOsc.frequency.setValueAtTime(180, now);
+    boomOsc.frequency.exponentialRampToValueAtTime(48, now + 0.22);
+
+    const hissGain = this.ctx.createGain();
+    hissGain.gain.setValueAtTime(0.001, now);
+    hissGain.gain.linearRampToValueAtTime(0.28, now + 0.008);
+    hissGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+    const boomGain = this.ctx.createGain();
+    boomGain.gain.setValueAtTime(0.001, now);
+    boomGain.gain.linearRampToValueAtTime(0.18, now + 0.015);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+    noiseSource.connect(lowpass);
+    lowpass.connect(hissGain);
+    hissGain.connect(this.ctx.destination);
+
+    boomOsc.connect(boomGain);
+    boomGain.connect(this.ctx.destination);
+
+    noiseSource.start(now);
+    noiseSource.stop(now + 0.24);
+    boomOsc.start(now);
+    boomOsc.stop(now + 0.26);
+  }
+
+  startBeeBuzz() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.beeBuzzSource || this.beeBuzzGain) return;
+
+    if (!this.beeBuzzBuffer) {
+      this.loadBeeBuzzAudio(() => {
+        this.startBeeBuzz();
+      });
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.beeBuzzBuffer;
+    source.loop = true;
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.05, now + 0.08);
+
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    source.start(now);
+
+    this.beeBuzzSource = source;
+    this.beeBuzzGain = gain;
+  }
+
+  stopBeeBuzz() {
+    if (!this.ctx) {
+      this.beeBuzzSource = null;
+      this.beeBuzzGain = null;
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.beeBuzzSource;
+    const gain = this.beeBuzzGain;
+
+    this.beeBuzzSource = null;
+    this.beeBuzzGain = null;
+
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    }
+
+    if (source) {
+      source.stop(now + 0.07);
+    }
+  }
+
+  private loadBeeBuzzAudio(onLoaded?: () => void) {
+    if (this.beeBuzzBuffer) {
+      onLoaded?.();
+      return;
+    }
+    if (this.loadingBeeBuzzAudio) return;
+
+    this.loadingBeeBuzzAudio = true;
+    fetch(beeBuzzAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.beeBuzzBuffer = decodedBuffer;
+        onLoaded?.();
+      })
+      .catch((error) => {
+        console.error('Error loading bee buzz audio:', error);
+      })
+      .finally(() => {
+        this.loadingBeeBuzzAudio = false;
+      });
   }
 
   playError() {
@@ -325,6 +630,135 @@ class SoundManager {
 
     osc.start();
     osc.stop(this.ctx.currentTime + 0.03);
+  }
+
+  playFrogCroak() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    // Se il buffer non è stato caricato, avviamo il caricamento
+    if (!this.frogAudioBuffer && !this.loadingFrogAudio) {
+      this.loadingFrogAudio = true;
+      fetch(frogAudioUrl)
+        .then((response) => response.arrayBuffer())
+        .then((arrayBuffer) => this.ctx!.decodeAudioData(arrayBuffer))
+        .then((decodedBuffer) => {
+          this.frogAudioBuffer = decodedBuffer;
+          this.loadingFrogAudio = false;
+          this.playFrogCroakFromBuffer();
+        })
+        .catch((error) => {
+          this.loadingFrogAudio = false;
+          console.error('Error loading frog audio:', error);
+          this.playFrogCroakFallback();
+        });
+      return;
+    }
+
+    // Se il buffer è caricato, riproducilo
+    if (this.frogAudioBuffer) {
+      this.playFrogCroakFromBuffer();
+    }
+  }
+
+  private playFrogCroakFromBuffer() {
+    if (!this.ctx || !this.frogAudioBuffer) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.frogAudioBuffer;
+    source.connect(this.ctx.destination);
+    source.start(0, 0, Math.min(MAX_AUDIO_PLAY_SECONDS, this.frogAudioBuffer.duration));
+  }
+
+  private playAudioBuffer(buffer: AudioBuffer) {
+    if (!this.ctx) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.ctx.destination);
+    source.start(0, 0, Math.min(MAX_AUDIO_PLAY_SECONDS, buffer.duration));
+  }
+
+  playSaltoAntagonistSound(antagonistId: SaltoAntagonistAudioId) {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const cached = this.antagonistsAudioBuffers[antagonistId];
+    if (cached) {
+      this.playAudioBuffer(cached);
+      return;
+    }
+
+    if (this.loadingAntagonistsAudio.has(antagonistId)) {
+      this.playClick();
+      return;
+    }
+
+    const targetUrl = this.antagonistsAudioUrls[antagonistId];
+    this.loadingAntagonistsAudio.add(antagonistId);
+    fetch(targetUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => this.ctx!.decodeAudioData(arrayBuffer))
+      .then((decodedBuffer) => {
+        this.antagonistsAudioBuffers[antagonistId] = decodedBuffer;
+        this.playAudioBuffer(decodedBuffer);
+      })
+      .catch((error) => {
+        console.error(`Error loading ${antagonistId} audio:`, error);
+        this.playClick();
+      })
+      .finally(() => {
+        this.loadingAntagonistsAudio.delete(antagonistId);
+      });
+  }
+
+  private playFrogCroakFallback() {
+    if (!this.ctx) return;
+    // Fallback al suono sintetico
+    const now = this.ctx.currentTime;
+    const frequencies = [150, 120];
+    const duration = 0.15;
+
+    frequencies.forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * duration * 0.5);
+
+      gain.gain.setValueAtTime(0, now + idx * duration * 0.5);
+      gain.gain.linearRampToValueAtTime(0.12, now + idx * duration * 0.5 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * duration * 0.5 + duration);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(now + idx * duration * 0.5);
+      osc.stop(now + idx * duration * 0.5 + duration);
+    });
+  }
+
+  loadFrogAudio() {
+    if (this.loadingFrogAudio || this.frogAudioBuffer) return;
+    this.loadingFrogAudio = true;
+
+    fetch(frogAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.frogAudioBuffer = decodedBuffer;
+        this.loadingFrogAudio = false;
+      })
+      .catch((error) => {
+        console.error('Error loading frog audio:', error);
+        this.loadingFrogAudio = false;
+      });
   }
 }
 

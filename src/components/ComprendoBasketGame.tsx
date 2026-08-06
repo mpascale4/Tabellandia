@@ -1,15 +1,24 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
+import type { HelperGuidanceKey } from '../types';
+
+type ComprendoGuidanceKey = Extract<HelperGuidanceKey, 'comprendoTouch' | 'comprendoAvoid' | 'comprendoBonus'>;
 
 interface ComprendoBasketGameProps {
   a: number;
   b: number;
   itemEmoji: string;
   onCompletionChange?: (isCompleted: boolean) => void;
+  helperGuidanceSeen?: Partial<Record<ComprendoGuidanceKey, boolean>>;
+  onConsumeGuidance?: (key: ComprendoGuidanceKey) => void;
+}
+
+export interface ComprendoBasketGameHandle {
+  triggerStarBonus: () => void;
 }
 
 interface ArenaSize {
@@ -35,6 +44,24 @@ interface PointerAttractor {
   x: number;
   y: number;
   activeUntil: number;
+}
+
+type HelperBonusKind = 'ladybug' | 'butterfly' | 'star';
+
+interface HelperBonus {
+  id: number;
+  kind: HelperBonusKind;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  expiresAt: number;
+}
+
+interface AppleBurst {
+  id: number;
+  x: number;
+  y: number;
 }
 
 const BASKET_SIZE = 84;
@@ -66,6 +93,31 @@ const BEE_POINTER_ATTRACTION_BASE = 280;
 const BEE_POINTER_ATTRACTION_PER_LEVEL = 12;
 const BEE_POINTER_SPEED_BOOST_BASE = 100;
 const BEE_POINTER_SPEED_BOOST_PER_LEVEL = 14;
+const HELPER_BONUS_VISIBLE_MS = 3000;
+const HELPER_BONUS_RESPAWN_MIN_MS = 4000;
+const HELPER_BONUS_RESPAWN_MAX_MS = 8000;
+const HELPER_BONUS_SIZE = 50;
+const HELPER_BONUS_EDGE_MARGIN = 16;
+const HELPER_BONUS_KIND_WEIGHTS: Array<{ kind: HelperBonusKind; weight: number }> = [
+  { kind: 'ladybug', weight: 0.62 },
+  { kind: 'butterfly', weight: 0.26 },
+  { kind: 'star', weight: 0.12 },
+];
+const HELPER_BONUS_EMOJIS: Record<HelperBonusKind, string> = {
+  ladybug: '🐞',
+  butterfly: '🦋',
+  star: '⭐',
+};
+const HELPER_BONUS_SPEEDS: Record<HelperBonusKind, number> = {
+  ladybug: 62,
+  butterfly: 78,
+  star: 92,
+};
+const HELPER_BONUS_LABELS: Record<HelperBonusKind, string> = {
+  ladybug: 'Coccinella',
+  butterfly: 'Farfalla',
+  star: 'Stella',
+};
 
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
@@ -179,12 +231,15 @@ const createBeeParticles = (count: number, arena: ArenaSize, factor: number, red
   });
 };
 
-export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onCompletionChange }: ComprendoBasketGameProps) {
+const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBasketGameProps>(function ComprendoBasketGame(
+  { a: propA, b: propB, itemEmoji, onCompletionChange, helperGuidanceSeen, onConsumeGuidance }: ComprendoBasketGameProps,
+  ref,
+) {
   const displayA = propA;
   const displayB = propB;
   const a = propB; // number of baskets
   const b = propA; // items per basket
-  const { speak, voiceEnabled } = useVoice();
+  const { speak } = useVoice();
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const particlesRef = useRef<BasketParticle[]>([]);
   const frameRef = useRef<number | null>(null);
@@ -202,10 +257,19 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const [beePositions, setBeePositions] = useState<BeeParticle[]>([]);
   const [beeHit, setBeeHit] = useState<boolean>(false);
   const [beeDefeat, setBeeDefeat] = useState<boolean>(false);
-  const [basketGuidanceSeen, setBasketGuidanceSeen] = useState<boolean>(false);
-  const [beeGuidanceSeen, setBeeGuidanceSeen] = useState<boolean>(false);
+  const [helperBonuses, setHelperBonuses] = useState<HelperBonus[]>([]);
+  const [appleBursts, setAppleBursts] = useState<AppleBurst[]>([]);
+  const basketGuidanceSeen = helperGuidanceSeen?.comprendoTouch ?? false;
+  const beeGuidanceSeen = helperGuidanceSeen?.comprendoAvoid ?? false;
+  const helperBonusGuidanceSeen = helperGuidanceSeen?.comprendoBonus ?? false;
   const basketGuidanceTimeoutRef = useRef<number | null>(null);
   const beeGuidanceTimeoutRef = useRef<number | null>(null);
+  const helperBonusGuidanceTimeoutRef = useRef<number | null>(null);
+  const helperBonusSpawnTimeoutRef = useRef<number | null>(null);
+  const helperBonusExpiryTimeoutRef = useRef<number | null>(null);
+  const helperBonusFrameRef = useRef<number | null>(null);
+  const helperBonusIdRef = useRef<number>(0);
+  const appleBurstIdRef = useRef<number>(0);
 
   const totalItems = a * b;
   const filledItems = basketCounts.reduce((sum, count) => sum + Math.min(b, Math.max(0, count)), 0);
@@ -218,6 +282,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   const firstIncompleteBasketIndex = basketCounts.findIndex(count => count < b);
   const showBasketGuidance = !basketGuidanceSeen && !isCompleted && !isFailed && firstIncompleteBasketIndex >= 0;
   const showBeeGuidance = !beeGuidanceSeen && !isCompleted && !isFailed && displayB >= BEE_START_FACTOR && beePositions.length > 0;
+  const showHelperBonusGuidance = !helperBonusGuidanceSeen && !isCompleted && !isFailed && helperBonuses.length > 0;
   const basketGuidanceAnchor = showBasketGuidance && firstIncompleteBasketIndex >= 0
     ? positions[firstIncompleteBasketIndex] ?? null
     : null;
@@ -260,14 +325,173 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       columns: bestColumns,
     };
   }, [a, arenaSize.height, arenaSize.width]);
+
+  const getRemainingBasketIndexes = (basketCountsSnapshot: number[]) => basketCountsSnapshot.reduce<number[]>((result, count, index) => {
+    if (count < b) result.push(index);
+    return result;
+  }, []);
+
+  const getRandomizedBasketTargets = (basketCountsSnapshot: number[], targetCount: number) => {
+    const remaining = getRemainingBasketIndexes(basketCountsSnapshot);
+    const shuffled = [...remaining].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.max(1, Math.min(shuffled.length, targetCount)));
+  };
+
+  const chooseHelperBonusKind = (): HelperBonusKind => {
+    const roll = Math.random();
+    let cumulative = 0;
+    for (const entry of HELPER_BONUS_KIND_WEIGHTS) {
+      cumulative += entry.weight;
+      if (roll <= cumulative) return entry.kind;
+    }
+    return 'star';
+  };
+
+  const createHelperBonus = (kind: HelperBonusKind): HelperBonus => {
+    const maxX = Math.max(0, arenaSize.width - HELPER_BONUS_SIZE);
+    const maxY = Math.max(0, arenaSize.height - HELPER_BONUS_SIZE);
+    const x = clamp(
+      HELPER_BONUS_EDGE_MARGIN + (Math.random() * Math.max(1, maxX - (HELPER_BONUS_EDGE_MARGIN * 2))),
+      0,
+      maxX,
+    );
+    const y = clamp(
+      HELPER_BONUS_EDGE_MARGIN + (Math.random() * Math.max(1, maxY - (HELPER_BONUS_EDGE_MARGIN * 2))),
+      0,
+      maxY,
+    );
+    const speed = HELPER_BONUS_SPEEDS[kind];
+
+    return {
+      id: ++helperBonusIdRef.current,
+      kind,
+      x,
+      y,
+      vx: (Math.random() > 0.5 ? 1 : -1) * speed,
+      vy: (Math.random() > 0.5 ? 1 : -1) * (speed * 0.78),
+      expiresAt: performance.now() + HELPER_BONUS_VISIBLE_MS,
+    };
+  };
+
+  const clearHelperBonusTimers = () => {
+    if (helperBonusSpawnTimeoutRef.current !== null) {
+      window.clearTimeout(helperBonusSpawnTimeoutRef.current);
+      helperBonusSpawnTimeoutRef.current = null;
+    }
+    if (helperBonusExpiryTimeoutRef.current !== null) {
+      window.clearTimeout(helperBonusExpiryTimeoutRef.current);
+      helperBonusExpiryTimeoutRef.current = null;
+    }
+  };
+
+  const consumeGuidance = (key: ComprendoGuidanceKey) => {
+    onConsumeGuidance?.(key);
+    if (key === 'comprendoTouch' && basketGuidanceTimeoutRef.current !== null) {
+      window.clearTimeout(basketGuidanceTimeoutRef.current);
+      basketGuidanceTimeoutRef.current = null;
+    }
+    if (key === 'comprendoAvoid' && beeGuidanceTimeoutRef.current !== null) {
+      window.clearTimeout(beeGuidanceTimeoutRef.current);
+      beeGuidanceTimeoutRef.current = null;
+    }
+    if (key === 'comprendoBonus' && helperBonusGuidanceTimeoutRef.current !== null) {
+      window.clearTimeout(helperBonusGuidanceTimeoutRef.current);
+      helperBonusGuidanceTimeoutRef.current = null;
+    }
+  };
+
+  const removeHelperBonus = (bonusId: number) => {
+    clearHelperBonusTimers();
+    setHelperBonuses(current => current.filter(bonus => bonus.id !== bonusId));
+  };
+
+  const playHelperBonusTapSound = (kind: HelperBonusKind) => {
+    if (kind === 'ladybug') {
+      sound.playLadybugSuccess();
+      return;
+    }
+    if (kind === 'butterfly') {
+      sound.playButterflySuccess();
+      return;
+    }
+    sound.playStarSuccess();
+  };
+
+  const spawnAppleBurst = (x: number, y: number) => {
+    const burstId = ++appleBurstIdRef.current;
+    setAppleBursts(current => [...current, { id: burstId, x, y }]);
+    window.setTimeout(() => {
+      setAppleBursts(current => current.filter(burst => burst.id !== burstId));
+    }, 700);
+  };
+
+  const applyHelperBonus = (bonus: HelperBonus) => {
+    const remaining = getRemainingBasketIndexes(basketCounts);
+    if (remaining.length === 0) {
+      removeHelperBonus(bonus.id);
+      return;
+    }
+
+    const targetCount = bonus.kind === 'ladybug'
+      ? 1
+      : bonus.kind === 'butterfly'
+        ? Math.max(1, Math.ceil(remaining.length / 2))
+        : remaining.length;
+    const targets = getRandomizedBasketTargets(basketCounts, targetCount);
+    if (targets.length === 0) {
+      removeHelperBonus(bonus.id);
+      return;
+    }
+
+    const nextCounts = [...basketCounts];
+    targets.forEach((basketIndex) => {
+      nextCounts[basketIndex] = b;
+    });
+
+    spawnAppleBurst(bonus.x + (HELPER_BONUS_SIZE / 2), bonus.y + (HELPER_BONUS_SIZE / 2));
+    setBasketCounts(nextCounts);
+    setCelebratingBasket(targets[0]);
+    window.setTimeout(() => {
+      setCelebratingBasket(current => (current === targets[0] ? null : current));
+    }, 350);
+
+    if (nextCounts.every(count => count >= b)) {
+      sound.playLevelUp();
+      speak(`Mela ${totalItems} di ${totalItems}. ${buildMultiplicationResultSpeech(displayA, displayB, totalItems)}`);
+    } else {
+      speakAppleProgress(nextCounts.reduce((sum, count) => sum + Math.min(b, Math.max(0, count)), 0));
+    }
+
+    removeHelperBonus(bonus.id);
+  };
+
+  useImperativeHandle(ref, () => ({
+    triggerStarBonus: () => {
+      if (isCompleted || isFailed) return;
+
+      const centerX = Math.max(0, (arenaSize.width - HELPER_BONUS_SIZE) / 2);
+      const centerY = Math.max(0, (arenaSize.height - HELPER_BONUS_SIZE) / 2);
+      const fallbackBonus: HelperBonus = {
+        id: -1,
+        kind: 'star',
+        x: helperBonuses[0]?.x ?? centerX,
+        y: helperBonuses[0]?.y ?? centerY,
+        vx: 0,
+        vy: 0,
+        expiresAt: performance.now() + HELPER_BONUS_VISIBLE_MS,
+      };
+
+      clearHelperBonusTimers();
+      setHelperBonuses([]);
+      applyHelperBonus(fallbackBonus);
+    },
+  }), [arenaSize.height, arenaSize.width, helperBonuses, isCompleted, isFailed, applyHelperBonus]);
   useEffect(() => {
     setBasketCounts(createEmptyCounts(a));
     setCelebratingBasket(null);
     setErrorBasket(null);
     setBeeDefeat(false);
     setBeeHit(false);
-    setBasketGuidanceSeen(false);
-    setBeeGuidanceSeen(false);
     if (basketGuidanceTimeoutRef.current !== null) {
       window.clearTimeout(basketGuidanceTimeoutRef.current);
       basketGuidanceTimeoutRef.current = null;
@@ -276,13 +500,32 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       window.clearTimeout(beeGuidanceTimeoutRef.current);
       beeGuidanceTimeoutRef.current = null;
     }
+    if (helperBonusGuidanceTimeoutRef.current !== null) {
+      window.clearTimeout(helperBonusGuidanceTimeoutRef.current);
+      helperBonusGuidanceTimeoutRef.current = null;
+    }
     lastBasketFillAtRef.current = performance.now();
     beeTapLockRef.current = 0;
     pointerAttractorRef.current = null;
+    setHelperBonuses([]);
+    setAppleBursts([]);
+    if (helperBonusSpawnTimeoutRef.current !== null) {
+      window.clearTimeout(helperBonusSpawnTimeoutRef.current);
+      helperBonusSpawnTimeoutRef.current = null;
+    }
+    if (helperBonusExpiryTimeoutRef.current !== null) {
+      window.clearTimeout(helperBonusExpiryTimeoutRef.current);
+      helperBonusExpiryTimeoutRef.current = null;
+    }
+    if (helperBonusFrameRef.current !== null) {
+      window.cancelAnimationFrame(helperBonusFrameRef.current);
+      helperBonusFrameRef.current = null;
+    }
   }, [a, b]);
 
   useEffect(() => {
     return () => {
+      sound.stopBeeBuzz();
       beeTapLockRef.current = 0;
       if (basketGuidanceTimeoutRef.current !== null) {
         window.clearTimeout(basketGuidanceTimeoutRef.current);
@@ -290,8 +533,20 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       if (beeGuidanceTimeoutRef.current !== null) {
         window.clearTimeout(beeGuidanceTimeoutRef.current);
       }
+      if (helperBonusGuidanceTimeoutRef.current !== null) {
+        window.clearTimeout(helperBonusGuidanceTimeoutRef.current);
+      }
       if (beeFrameRef.current !== null) {
         window.cancelAnimationFrame(beeFrameRef.current);
+      }
+      if (helperBonusSpawnTimeoutRef.current !== null) {
+        window.clearTimeout(helperBonusSpawnTimeoutRef.current);
+      }
+      if (helperBonusExpiryTimeoutRef.current !== null) {
+        window.clearTimeout(helperBonusExpiryTimeoutRef.current);
+      }
+      if (helperBonusFrameRef.current !== null) {
+        window.cancelAnimationFrame(helperBonusFrameRef.current);
       }
     };
   }, []);
@@ -299,7 +554,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   useEffect(() => {
     if (!showBasketGuidance || basketGuidanceTimeoutRef.current !== null) return;
     basketGuidanceTimeoutRef.current = window.setTimeout(() => {
-      setBasketGuidanceSeen(true);
+      consumeGuidance('comprendoTouch');
       basketGuidanceTimeoutRef.current = null;
     }, INTERACTION_GUIDANCE_VISIBLE_MS);
   }, [showBasketGuidance]);
@@ -307,10 +562,18 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   useEffect(() => {
     if (!showBeeGuidance || beeGuidanceTimeoutRef.current !== null) return;
     beeGuidanceTimeoutRef.current = window.setTimeout(() => {
-      setBeeGuidanceSeen(true);
+      consumeGuidance('comprendoAvoid');
       beeGuidanceTimeoutRef.current = null;
     }, INTERACTION_GUIDANCE_VISIBLE_MS);
   }, [showBeeGuidance]);
+
+  useEffect(() => {
+    if (!showHelperBonusGuidance || helperBonusGuidanceTimeoutRef.current !== null) return;
+    helperBonusGuidanceTimeoutRef.current = window.setTimeout(() => {
+      consumeGuidance('comprendoBonus');
+      helperBonusGuidanceTimeoutRef.current = null;
+    }, Math.min(INTERACTION_GUIDANCE_VISIBLE_MS, HELPER_BONUS_VISIBLE_MS));
+  }, [showHelperBonusGuidance]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -361,15 +624,29 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   useEffect(() => {
     const beeCount = displayB >= BEE_START_FACTOR ? getBeeCount(displayB) : 0;
     if (arenaSize.width <= 0 || arenaSize.height <= 0 || beeCount === 0 || isCompleted || isFailed) {
+      sound.stopBeeBuzz();
       beeParticlesRef.current = [];
       setBeePositions([]);
       return;
     }
 
+    sound.startBeeBuzz();
     const nextBees = createBeeParticles(beeCount, arenaSize, displayB, prefersReducedMotion);
     beeParticlesRef.current = nextBees;
     setBeePositions(nextBees);
    }, [arenaSize, displayB, isCompleted, isFailed, prefersReducedMotion]);
+
+  useEffect(() => {
+    const hasBees = !isCompleted && !isFailed && displayB >= BEE_START_FACTOR && beePositions.length > 0;
+    if (hasBees) {
+      sound.startBeeBuzz();
+      return () => {
+        sound.stopBeeBuzz();
+      };
+    }
+
+    sound.stopBeeBuzz();
+  }, [beePositions.length, displayB, isCompleted, isFailed]);
 
   useEffect(() => {
     onCompletionChange?.(isCompleted);
@@ -598,6 +875,91 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
      };
    }, [arenaSize, beePositions.length, displayB, isCompleted, isFailed, prefersReducedMotion]);
 
+  useEffect(() => {
+    if (isCompleted || isFailed || arenaSize.width <= 0 || arenaSize.height <= 0) {
+      clearHelperBonusTimers();
+      setHelperBonuses([]);
+      return;
+    }
+
+    if (helperBonuses.length > 0) {
+      return;
+    }
+
+    const delay = HELPER_BONUS_RESPAWN_MIN_MS + Math.floor(Math.random() * (HELPER_BONUS_RESPAWN_MAX_MS - HELPER_BONUS_RESPAWN_MIN_MS));
+    helperBonusSpawnTimeoutRef.current = window.setTimeout(() => {
+      helperBonusSpawnTimeoutRef.current = null;
+      if (isCompleted || isFailed) return;
+      const bonus = createHelperBonus(chooseHelperBonusKind());
+      setHelperBonuses([bonus]);
+      helperBonusExpiryTimeoutRef.current = window.setTimeout(() => {
+        setHelperBonuses(current => current.filter(entry => entry.id !== bonus.id));
+        helperBonusExpiryTimeoutRef.current = null;
+      }, HELPER_BONUS_VISIBLE_MS);
+    }, delay);
+
+    return () => {
+      if (helperBonusSpawnTimeoutRef.current !== null) {
+        window.clearTimeout(helperBonusSpawnTimeoutRef.current);
+        helperBonusSpawnTimeoutRef.current = null;
+      }
+    };
+  }, [arenaSize.height, arenaSize.width, helperBonuses.length, isCompleted, isFailed]);
+
+  useEffect(() => {
+    if (helperBonuses.length === 0) {
+      if (helperBonusFrameRef.current !== null) {
+        window.cancelAnimationFrame(helperBonusFrameRef.current);
+        helperBonusFrameRef.current = null;
+      }
+      return;
+    }
+
+    let previousTime = performance.now();
+    const animateHelperBonuses = (time: number) => {
+      const deltaSeconds = Math.min(0.04, (time - previousTime) / 1000);
+      previousTime = time;
+      const maxX = Math.max(0, arenaSize.width - HELPER_BONUS_SIZE);
+      const maxY = Math.max(0, arenaSize.height - HELPER_BONUS_SIZE);
+
+      setHelperBonuses(current => current.map((bonus) => {
+        let nextX = bonus.x + (bonus.vx * deltaSeconds);
+        let nextY = bonus.y + (bonus.vy * deltaSeconds);
+        let nextVx = bonus.vx;
+        let nextVy = bonus.vy;
+
+        if (nextX <= 0) {
+          nextX = 0;
+          nextVx = Math.abs(nextVx);
+        } else if (nextX >= maxX) {
+          nextX = maxX;
+          nextVx = -Math.abs(nextVx);
+        }
+
+        if (nextY <= 0) {
+          nextY = 0;
+          nextVy = Math.abs(nextVy);
+        } else if (nextY >= maxY) {
+          nextY = maxY;
+          nextVy = -Math.abs(nextVy);
+        }
+
+        return { ...bonus, x: nextX, y: nextY, vx: nextVx, vy: nextVy };
+      }));
+
+      helperBonusFrameRef.current = window.requestAnimationFrame(animateHelperBonuses);
+    };
+
+    helperBonusFrameRef.current = window.requestAnimationFrame(animateHelperBonuses);
+
+    return () => {
+      if (helperBonusFrameRef.current !== null) {
+        window.cancelAnimationFrame(helperBonusFrameRef.current);
+        helperBonusFrameRef.current = null;
+      }
+    };
+  }, [arenaSize.height, arenaSize.width, helperBonuses.length]);
+
   const registerArenaPointerAttraction = (clientX: number, clientY: number) => {
     const arena = arenaRef.current;
     if (!arena) return;
@@ -622,17 +984,13 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
   };
 
   const handleBeeTap = () => {
-    setBeeGuidanceSeen(true);
-    if (beeGuidanceTimeoutRef.current !== null) {
-      window.clearTimeout(beeGuidanceTimeoutRef.current);
-      beeGuidanceTimeoutRef.current = null;
-    }
+    if (!beeGuidanceSeen) consumeGuidance('comprendoAvoid');
     const now = performance.now();
     if (isCompleted || isFailed || beeHit || (now - beeTapLockRef.current) < 650) return;
     beeTapLockRef.current = now;
 
     setBeeHit(true);
-    sound.playError();
+    sound.playBeeFailure();
     setBeeDefeat(true);
     speak(COMPRENDO_AUDIO_MESSAGES.bee);
 
@@ -641,11 +999,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
 
   const handleFillBasket = (basketIndex: number) => {
     if (isFailed) return;
-    setBasketGuidanceSeen(true);
-    if (basketGuidanceTimeoutRef.current !== null) {
-      window.clearTimeout(basketGuidanceTimeoutRef.current);
-      basketGuidanceTimeoutRef.current = null;
-    }
+    if (!basketGuidanceSeen) consumeGuidance('comprendoTouch');
     const currentBasketCount = basketCounts[basketIndex];
 
     if (currentBasketCount >= b) {
@@ -682,7 +1036,7 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       <div className="rounded-[1.6rem] border border-violet-200 bg-gradient-to-b from-violet-50 to-fuchsia-50 px-4 py-3 shadow-[0_8px_18px_rgba(124,58,237,0.10)]">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-wide text-fuchsia-700">Raccogli</p>
+            <p className="text-[11px] font-black uppercase tracking-wide text-fuchsia-700">Raccogli {itemEmoji}</p>
             <p className="text-xl font-black text-slate-800">
               {displayA} x {displayB} = {isCompleted ? totalItems : '?'}
             </p>
@@ -738,6 +1092,67 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
               <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
             </div>
           )}
+
+          {appleBursts.map((burst) => {
+            const burstSprites = [
+              { x: -16, y: -4 },
+              { x: 12, y: -18 },
+              { x: 20, y: 12 },
+              { x: -4, y: 20 },
+              { x: -22, y: 14 },
+              { x: 0, y: -24 },
+              { x: 24, y: -2 },
+              { x: -10, y: -28 },
+            ];
+
+            return (
+              <div
+                key={`apple-burst-${burst.id}`}
+                className="pointer-events-none absolute z-[75]"
+                style={{ left: `${burst.x}px`, top: `${burst.y}px` }}
+                aria-hidden="true"
+              >
+                {burstSprites.map((sprite, index) => (
+                  <motion.span
+                    key={`${burst.id}-${index}`}
+                    initial={{ opacity: 0, scale: 0.4, y: 0 }}
+                    animate={{ opacity: [0, 1, 0], scale: [0.4, 1.05, 0.85], x: sprite.x, y: sprite.y }}
+                    transition={{ duration: 0.7, ease: 'easeOut' }}
+                    className="absolute text-2xl drop-shadow-md"
+                    style={{ left: 0, top: 0 }}
+                  >
+                    🍎
+                  </motion.span>
+                ))}
+              </div>
+            );
+          })}
+
+          {helperBonuses.map((bonus, index) => (
+            <motion.button
+              key={`helper-bonus-${bonus.id}`}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (!helperBonusGuidanceSeen) consumeGuidance('comprendoBonus');
+                playHelperBonusTapSound(bonus.kind);
+                applyHelperBonus(bonus);
+              }}
+              animate={prefersReducedMotion ? undefined : { y: [0, -6, 0] }}
+              transition={prefersReducedMotion ? undefined : { duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute z-[74] inline-flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-white bg-white/95 text-[26px] shadow-[0_10px_18px_rgba(15,23,42,0.22)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/75 cursor-pointer"
+              style={{ left: `${bonus.x}px`, top: `${bonus.y}px` }}
+              aria-label={`${HELPER_BONUS_LABELS[bonus.kind]}: tocca per attivare il bonus`}
+              title={`${HELPER_BONUS_LABELS[bonus.kind]}: tocca per attivare il bonus`}
+            >
+              {index === 0 && showHelperBonusGuidance && (
+                <div className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2">
+                  <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                </div>
+              )}
+              <span aria-hidden="true">{HELPER_BONUS_EMOJIS[bonus.kind]}</span>
+            </motion.button>
+          ))}
 
           {/* 🐝 Bee obstacles — devono stare sopra la coccinella */}
           {displayB >= BEE_START_FACTOR && !isCompleted && !isFailed && (
@@ -885,5 +1300,9 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
 
     </div>
   );
-}
+});
+
+ComprendoBasketGame.displayName = 'ComprendoBasketGame';
+
+export default ComprendoBasketGame;
 
