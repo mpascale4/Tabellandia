@@ -562,7 +562,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     previousRecord: number;
     passedSfida: boolean;
     dropsEarned: number;
-    recordBonusApplied: boolean;
     didCompleteWorldNow: boolean;
   } | null>(null);
   const [showFireworks, setShowFireworks] = useState(false);
@@ -864,6 +863,61 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   }, [saltoSelectedFactor, activeStep, world.id, saltoFlowStage, saltoGameCompleted, saltoOptions.length]);
 
   useEffect(() => {
+    if (activeStep === 'salto' && saltoFlowStage === 'game') {
+      sound.startSaltoAmbience();
+      return () => {
+        sound.stopSaltoAmbience();
+      };
+    }
+
+    sound.stopSaltoAmbience();
+  }, [activeStep, saltoFlowStage]);
+
+  useEffect(() => {
+    if (activeStep === 'costruisco' && costruiscoFlowStage === 'game') {
+      sound.startCostruiscoAmbience();
+      return () => {
+        sound.stopCostruiscoAmbience();
+      };
+    }
+
+    sound.stopCostruiscoAmbience();
+  }, [activeStep, costruiscoFlowStage]);
+
+  useEffect(() => {
+    if (activeStep === 'trucchi' && trucchiFlowStage === 'game') {
+      sound.startTrucchiAmbience();
+      return () => {
+        sound.stopTrucchiAmbience();
+      };
+    }
+
+    sound.stopTrucchiAmbience();
+  }, [activeStep, trucchiFlowStage]);
+
+  useEffect(() => {
+    if (activeStep === 'pratico') {
+      sound.startPraticoAmbience?.();
+      return () => {
+        sound.stopPraticoAmbience?.();
+      };
+    }
+
+    sound.stopPraticoAmbience?.();
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (activeStep === 'sfida') {
+      sound.startSfidaAmbience?.();
+      return () => {
+        sound.stopSfidaAmbience?.();
+      };
+    }
+
+    sound.stopSfidaAmbience?.();
+  }, [activeStep]);
+
+  useEffect(() => {
     if (comprendoSelectedFactor === null) {
       setComprendoFlowStage('objective');
     }
@@ -1041,6 +1095,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setTrucchiHammerHasStruck(true);
     setTrucchiHammerPose(prev => ({ ...prev, striking: false }));
     setTrucchiHammerHitBricks(new Set([targetIndex]));
+    sound.playHammerBrickHit();
     if (trucchiHammerHitClearTimeoutRef.current !== null) {
       window.clearTimeout(trucchiHammerHitClearTimeoutRef.current);
     }
@@ -2023,6 +2078,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       : currentCompletedSteps;
     const didCompleteWorldNow = !currentCompletedSteps.includes('sfida') && nextCompletedSteps.includes('sfida');
 
+    let sfidDropsEarned = 0;
+    if (score >= SFIDA_DROPS_HIGH_THRESHOLD) {
+      sfidDropsEarned = SFIDA_DROPS_HIGH_REWARD;
+    } else if (score >= SFIDA_DROPS_MID_THRESHOLD) {
+      sfidDropsEarned = SFIDA_DROPS_MID_REWARD;
+    } else if (score >= SFIDA_DROPS_LOW_THRESHOLD) {
+      sfidDropsEarned = SFIDA_DROPS_LOW_REWARD;
+    }
+    if (isNewRecord && sfidDropsEarned > 0) {
+      sfidDropsEarned *= 2;
+    }
+
     updateProfile(p => {
       const worldProg = p.worldProgress[world.id] || {
         worldId: world.id,
@@ -2057,22 +2124,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         nextUnlocked.push(nextWorldId);
       }
 
-      let sfidaDropsEarned = 0;
-      if (score >= SFIDA_DROPS_HIGH_THRESHOLD) {
-        sfidaDropsEarned = SFIDA_DROPS_HIGH_REWARD;
-      } else if (score >= SFIDA_DROPS_MID_THRESHOLD) {
-        sfidaDropsEarned = SFIDA_DROPS_MID_REWARD;
-      } else if (score >= SFIDA_DROPS_LOW_THRESHOLD) {
-        sfidaDropsEarned = SFIDA_DROPS_LOW_REWARD;
-      }
-      const canApplyRecordBonus = score > previousMax && score >= SFIDA_RECORD_THRESHOLD && previousMax >= SFIDA_RECORD_THRESHOLD;
-      if (canApplyRecordBonus && sfidaDropsEarned > 0) {
-        sfidaDropsEarned *= 2;
-      }
       const currentWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
       const currentWorldDrops = currentWp.lightDrops ?? currentWp.devLightDrops ?? 0;
       const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
-      const nextLightDrops = currentWorldDrops + sfidaDropsEarned;
+      const nextLightDrops = currentWorldDrops + sfidDropsEarned;
 
       let evolution = currentWp?.creatureEvolution || 'egg';
       if (completed.length >= 6) {
@@ -2110,19 +2165,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       isNewRecord,
       previousRecord: currentHighScore,
       passedSfida,
-      dropsEarned: (() => {
-        if (score >= SFIDA_DROPS_HIGH_THRESHOLD) {
-          return isNewRecord ? SFIDA_DROPS_HIGH_REWARD * 2 : SFIDA_DROPS_HIGH_REWARD;
-        }
-        if (score >= SFIDA_DROPS_MID_THRESHOLD) {
-          return isNewRecord ? SFIDA_DROPS_MID_REWARD * 2 : SFIDA_DROPS_MID_REWARD;
-        }
-        if (score >= SFIDA_DROPS_LOW_THRESHOLD) {
-          return isNewRecord ? SFIDA_DROPS_LOW_REWARD * 2 : SFIDA_DROPS_LOW_REWARD;
-        }
-        return 0;
-      })(),
-      recordBonusApplied: isNewRecord,
+      dropsEarned: sfidDropsEarned,
       didCompleteWorldNow
     });
     setShowSfidaResultPopup(true);
@@ -4377,11 +4420,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                                     return (
                                       <div key={`trucchi-brick-${globalIndex}`} className="relative">
-                                        {showTrucchiTouchGuidance && isCorrectBrick && (
-                                          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} placement="center" />
-                                          </div>
-                                        )}
                                       <motion.button
                                         type="button"
                                         role="listitem"
@@ -4465,6 +4503,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                         } ${isHammerTarget ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
                                         aria-label={isRevealed ? `Mattone con risultato ${hiddenValue}` : 'Mattone chiuso'}
                                       >
+                                        {showTrucchiTouchGuidance && isCorrectBrick && (
+                                          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                                          </div>
+                                        )}
                                         {isRevealed ? (
                                           <>
                                             {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">🔨</span>}
@@ -4710,10 +4753,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-left text-xs text-slate-700 font-sans space-y-1">
                 <p className="font-black text-indigo-900">Ogni Sfida costa: {SFIDA_UNLOCK_COST} 🪙 moneta</p>
                 <p>La Sfida non assegna monete: le monete si vincono nel Pratico.</p>
-                <p>Da 10 a 13 corrette: <b>+{SFIDA_DROPS_LOW_REWARD} 💧</b></p>
-                <p>Da 14 a 16 corrette: <b>+{SFIDA_DROPS_MID_REWARD} 💧</b></p>
-                <p>Da 17 in su: <b>+{SFIDA_DROPS_HIGH_REWARD} 💧</b></p>
-                <p>Se fai record valido: <b className="text-indigo-900">gocce x2</b>.</p>
+                <p>Vinci fino a <b>45 💧</b> Gocce di Luce (raddoppiate con un nuovo record)!</p>
               </div>
             </div>
 
@@ -4965,7 +5005,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 }`}
               >
                 <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Monete vinte</p>
-                <p className="text-lg font-black text-amber-800">🪙 +3</p>
+                <p className="text-lg font-black text-amber-800">🪙 +1</p>
                 <p className={`text-[11px] font-black ${shouldHighlightSfidaCta ? 'text-amber-950 animate-badge-blink' : 'text-amber-900'}`}>
                   {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
                 </p>
@@ -5079,8 +5119,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="mt-2.5 rounded-xl border border-emerald-200 bg-emerald-100/90 p-2 text-xs font-bold text-emerald-900">
                 {sfidaResult.didCompleteWorldNow
                   ? <>🎆 Hai completato tutte le tabelline di questo Regno! Hai guadagnato +{sfidaResult.dropsEarned} 💧.</>
-                  : sfidaResult.recordBonusApplied
-                  ? <>✨ Record valido! <b>Gocce x2</b>: +{sfidaResult.dropsEarned} 💧 Gocce di Luce.</>
                   : <>✅ Sfida superata! Hai guadagnato +{sfidaResult.dropsEarned} 💧 Gocce di Luce.</>}
               </div>
             ) : (
