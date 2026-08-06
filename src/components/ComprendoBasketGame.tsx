@@ -41,11 +41,11 @@ const BASKET_SIZE = 84;
 const BEE_START_FACTOR = 4;
 const BEE_SIZE = 52;
 const BEE_IDLE_INNER_PADDING_RATIO = 0.3;
-const BEE_IDLE_CENTER_PULL = 120;
+const BEE_IDLE_CENTER_PULL = 140;
 const BEE_IDLE_EDGE_AVOIDANCE = 260;
-const BEE_IDLE_EDGE_MARGIN = 32;
+const BEE_IDLE_EDGE_MARGIN = 56;
 const ARENA_INNER_FRAME_INSET_PX = 10;
-const BEE_QUIET_MARGIN_PX = 16;
+const BEE_QUIET_MARGIN_PX = 20;
 const BEE_EDGE_DAMPING_BAND_PX = 14;
 const BEE_EDGE_DAMPING_FACTOR = 0.78;
 const INTERACTION_GUIDANCE_VISIBLE_MS = 5000;
@@ -478,9 +478,9 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       const maxX = Math.max(0, arenaSize.width - BEE_SIZE);
        const maxY = Math.max(0, arenaSize.height - BEE_SIZE);
 
-       // Dynamically calculate bounds using tunable parameters
-       const quietInsetX = ARENA_INNER_FRAME_INSET_PX + beeQuietMargin;
-       const quietInsetY = ARENA_INNER_FRAME_INSET_PX + beeQuietMargin;
+        // Dynamically calculate bounds using tunable parameters
+       const quietInsetX = ARENA_INNER_FRAME_INSET_PX + BEE_QUIET_MARGIN_PX;
+       const quietInsetY = ARENA_INNER_FRAME_INSET_PX + BEE_QUIET_MARGIN_PX;
        const attractInsetLeft = quietInsetX;
        const attractInsetRight = quietInsetX;
        const attractInsetY = quietInsetY;
@@ -507,21 +507,21 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
         const centerDy = centerY - bee.y;
         const centerDist = Math.hypot(centerDx, centerDy);
         if (centerDist > 1) {
-           const centering = (beeCenterPull / Math.max(64, centerDist)) * agility;
+           const centering = (BEE_IDLE_CENTER_PULL / Math.max(64, centerDist)) * agility;
            ax += (centerDx / centerDist) * centering;
            ay += (centerDy / centerDist) * centering;
          }
 
-        // Keep idle movement central and avoid borders at all times.
-         if (bee.x < quietMinX + beeEdgeMargin) {
+         // Keep idle movement central and avoid borders at all times.
+         if (bee.x < quietMinX + BEE_IDLE_EDGE_MARGIN) {
            ax += BEE_IDLE_EDGE_AVOIDANCE * agility;
-         } else if (bee.x > quietMaxX - beeEdgeMargin) {
+         } else if (bee.x > quietMaxX - BEE_IDLE_EDGE_MARGIN) {
            ax -= BEE_IDLE_EDGE_AVOIDANCE * agility;
          }
 
-         if (bee.y < quietMinY + beeEdgeMargin) {
+         if (bee.y < quietMinY + BEE_IDLE_EDGE_MARGIN) {
            ay += BEE_IDLE_EDGE_AVOIDANCE * agility;
-         } else if (bee.y > quietMaxY - beeEdgeMargin) {
+         } else if (bee.y > quietMaxY - BEE_IDLE_EDGE_MARGIN) {
            ay -= BEE_IDLE_EDGE_AVOIDANCE * agility;
          }
 
