@@ -205,6 +205,78 @@ class SoundManager {
     });
   }
 
+  playLadybugSuccess() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    // Suono breve e giocoso per la coccinella.
+    [880, 1046.5].forEach((freq, idx) => {
+      const start = now + idx * 0.055;
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.1, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(start);
+      osc.stop(start + 0.13);
+    });
+  }
+
+  playButterflySuccess() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    // Suono leggero e ascendente per la farfalla.
+    [523.25, 659.25, 783.99].forEach((freq, idx) => {
+      const start = now + idx * 0.07;
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.09, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.19);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
+  }
+
+  playStarSuccess() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    // Suono brillante a "twinkle" per la stella.
+    [659.25, 987.77, 1318.51, 1567.98].forEach((freq, idx) => {
+      const start = now + idx * 0.06;
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.1, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.17);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(start);
+      osc.stop(start + 0.18);
+    });
+  }
+
   playError() {
     if (!this.effectsEnabled) return;
     this.initContext();

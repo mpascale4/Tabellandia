@@ -383,14 +383,14 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
 
   const playHelperBonusTapSound = (kind: HelperBonusKind) => {
     if (kind === 'ladybug') {
-      sound.playSaltoAntagonistSound('spider');
+      sound.playLadybugSuccess();
       return;
     }
     if (kind === 'butterfly') {
-      sound.playSaltoAntagonistSound('bat');
+      sound.playButterflySuccess();
       return;
     }
-    sound.playFrogCroak();
+    sound.playStarSuccess();
   };
 
   const spawnAppleBurst = (x: number, y: number) => {
