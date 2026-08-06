@@ -942,7 +942,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
     beeTapLockRef.current = now;
 
     setBeeHit(true);
-    sound.playError();
+    sound.playBeeFailure();
     setBeeDefeat(true);
     speak(COMPRENDO_AUDIO_MESSAGES.bee);
 
