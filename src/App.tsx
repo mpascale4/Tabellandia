@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelperGuidanceState, UserProfile } from './types';
+import { HelperGuidanceState, UserProfile, createDefaultWorldProgress } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
 import { getTableIcon, withTableIcon } from './utils/tableLabels';
 import { getStoryEntriesForTable } from './utils/storyMarkdown';
@@ -1869,7 +1869,8 @@ export default function App() {
                               <div className="mt-3 grid grid-cols-3 gap-1.5 sm:mt-4 sm:gap-2">
                                 {world.monuments.map(monument => {
                                   const isBuilt = worldProg.rebuiltMonuments.includes(monument.id);
-                                  const canAfford = profile ? profile.lightDrops >= monument.cost : false;
+                                  const worldDrops = worldProg.lightDrops ?? worldProg.devLightDrops ?? 0;
+                                  const canAfford = profile ? worldDrops >= monument.cost : false;
                                   return (
                                     <div
                                       key={monument.id}
@@ -2216,103 +2217,104 @@ export default function App() {
                   Chiudi
                 </button>
               </>
-            ) : appMonumentModal.canAfford ? (
-              <>
-                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-sm">
-                  {appMonumentModal.monument.emoji}
-                </div>
-                <h3 className="text-base font-black text-indigo-950 mb-1">
-                  Apri indizio: {appMonumentModal.monument.name}?
-                </h3>
-                <div className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full mb-3">
-                  💧 Costo: <b>{appMonumentModal.monument.cost} Gocce</b>
-                </div>
-                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                  Hai a disposizione <b>{profile?.lightDrops || 0} Gocce di Luce</b>. Vuoi spendere {appMonumentModal.monument.cost} Gocce per aprire questo indizio nel {appMonumentModal.world.title}?
-                </p>
-                <div className="flex gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setAppMonumentModal(null)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sound.playPowerUp();
-                      handleUpdateProfile(p => {
-                        const worldProg = p.worldProgress[appMonumentModal.world.id] || {
-                          worldId: appMonumentModal.world.id,
-                          completedSteps: [],
-                          rebuiltMonuments: [],
-                          creatureEvolution: 'egg',
-                          highScore: 0,
-                          stars: 0
-                        };
-                        const monuments = [...(worldProg.rebuiltMonuments || [])];
-                        if (!monuments.includes(appMonumentModal.monument.id)) {
-                          monuments.push(appMonumentModal.monument.id);
-                        }
-                        return {
-                          ...p,
-                          lightDrops: Math.max(0, p.lightDrops - appMonumentModal.monument.cost),
-                          worldProgress: {
-                            ...p.worldProgress,
-                            [appMonumentModal.world.id]: {
-                              ...worldProg,
-                              rebuiltMonuments: monuments
+            ) : (() => {
+                const targetWId = appMonumentModal.world.id;
+                const targetWp = profile?.worldProgress[targetWId] || createDefaultWorldProgress(targetWId);
+                const kingdomDrops = targetWp.lightDrops ?? targetWp.devLightDrops ?? 0;
+                return appMonumentModal.canAfford ? (
+                  <>
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-sm">
+                      {appMonumentModal.monument.emoji}
+                    </div>
+                    <h3 className="text-base font-black text-indigo-950 mb-1">
+                      Apri indizio: {appMonumentModal.monument.name}?
+                    </h3>
+                    <div className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full mb-3">
+                      💧 Costo: <b>{appMonumentModal.monument.cost} Gocce</b>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                      Hai a disposizione <b>{kingdomDrops} Gocce di Luce</b> in questo regno. Vuoi spendere {appMonumentModal.monument.cost} Gocce per aprire questo indizio nel {appMonumentModal.world.title}?
+                    </p>
+                    <div className="flex gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setAppMonumentModal(null)}
+                        className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sound.playPowerUp();
+                          handleUpdateProfile(p => {
+                            const worldProg = p.worldProgress[targetWId] || createDefaultWorldProgress(targetWId);
+                            const curDrops = worldProg.lightDrops ?? worldProg.devLightDrops ?? 0;
+                            const monuments = [...(worldProg.rebuiltMonuments || [])];
+                            if (!monuments.includes(appMonumentModal.monument.id)) {
+                              monuments.push(appMonumentModal.monument.id);
                             }
-                          }
-                        };
-                      });
-                      setAppMonumentModal(null);
-                    }}
-                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
-                  >
-                    🔍 Sì, Apri Ora!
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-50 border-2 border-rose-200 flex items-center justify-center text-3xl shadow-sm">
-                  💧
-                </div>
-                <h3 className="text-base font-black text-rose-950 mb-1">
-                  Gocce Insufficienti!
-                </h3>
-                <div className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-200 px-3 py-1 rounded-full mb-3">
-                  Costo: 💧 {appMonumentModal.monument.cost} (Ne hai {profile?.lightDrops || 0})
-                </div>
-                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                  Per aprire <b>{appMonumentModal.monument.name}</b> ti mancano <b>{appMonumentModal.monument.cost - (profile?.lightDrops || 0)} Gocce di Luce</b>.
-                  <br /><br />
-                  Sblocca i giochi fino a <b>Pratico</b>, vinci le monete in <b>Pratico (Avventura)</b> e usa la <b>Sfida</b> per ottenere le gocce.
-                </p>
-                <div className="flex gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setAppMonumentModal(null)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const wId = appMonumentModal.world.id;
-                      setAppMonumentModal(null);
-                      setSelectedWorldId(wId);
-                    }}
-                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
-                  >
-                    🛡️ Apri Regno
-                  </button>
-                </div>
-              </>
-            )}
+                            const nextDrops = Math.max(0, curDrops - appMonumentModal.monument.cost);
+                            return {
+                              ...p,
+                              worldProgress: {
+                                ...p.worldProgress,
+                                [targetWId]: {
+                                  ...worldProg,
+                                  lightDrops: nextDrops,
+                                  devLightDrops: nextDrops,
+                                  rebuiltMonuments: monuments
+                                }
+                              }
+                            };
+                          });
+                          setAppMonumentModal(null);
+                        }}
+                        className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
+                      >
+                        🔍 Sì, Apri Ora!
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-50 border-2 border-rose-200 flex items-center justify-center text-3xl shadow-sm">
+                      💧
+                    </div>
+                    <h3 className="text-base font-black text-rose-950 mb-1">
+                      Gocce Insufficienti!
+                    </h3>
+                    <div className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-200 px-3 py-1 rounded-full mb-3">
+                      Costo: 💧 {appMonumentModal.monument.cost} (Ne hai {kingdomDrops})
+                    </div>
+                    <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                      Per aprire <b>{appMonumentModal.monument.name}</b> ti mancano <b>{appMonumentModal.monument.cost - kingdomDrops} Gocce di Luce</b> in questo regno.
+                      <br /><br />
+                      Sblocca i giochi fino a <b>Pratico</b>, vinci le monete in <b>Pratico (Avventura)</b> e usa la <b>Sfida</b> per ottenere le gocce.
+                    </p>
+                    <div className="flex gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setAppMonumentModal(null)}
+                        className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const wId = appMonumentModal.world.id;
+                          setAppMonumentModal(null);
+                          setSelectedWorldId(wId);
+                        }}
+                        className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                      >
+                        🛡️ Apri Regno
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
           </motion.div>
         </div>
       )}
@@ -2372,8 +2374,8 @@ export default function App() {
         type={currencyModalType}
         isOpen={!!currencyModalType}
         onClose={() => setCurrencyModalType(null)}
-        lightDrops={profile?.lightDrops || 0}
-        coins={profile?.coins || 0}
+        lightDrops={selectedWorldId ? (profile?.worldProgress[selectedWorldId]?.lightDrops ?? profile?.worldProgress[selectedWorldId]?.devLightDrops ?? 0) : 0}
+        coins={selectedWorldId ? (profile?.worldProgress[selectedWorldId]?.coins ?? profile?.worldProgress[selectedWorldId]?.devCoins ?? 0) : 0}
       />
     </div>
   );

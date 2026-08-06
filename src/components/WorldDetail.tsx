@@ -5,7 +5,24 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt } from '../types';
+import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt, createDefaultWorldProgress } from '../types';
+import {
+  MONUMENT_CLUE_COST,
+  PRATICO_REWARD_COINS,
+  PRATICO_REWARD_DROPS,
+  SFIDA_UNLOCK_COST,
+  SFIDA_FEEDBACK_HOLD_MS,
+  SFIDA_RECORD_THRESHOLD,
+  SFIDA_DROPS_LOW_THRESHOLD,
+  SFIDA_DROPS_MID_THRESHOLD,
+  SFIDA_DROPS_HIGH_THRESHOLD,
+  SFIDA_DROPS_LOW_REWARD,
+  SFIDA_DROPS_MID_REWARD,
+  SFIDA_DROPS_HIGH_REWARD,
+  GAME_REWARDS_CONFIG,
+  getMonumentCostMissingMessage,
+  getSfidaUnlockMissingCoinsMessage
+} from '../constants/gameRules';
 import { sound } from './SoundManager';
 import { AlertCircle, Award, Timer, Trophy, Compass, RotateCcw } from 'lucide-react';
 import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
@@ -142,15 +159,6 @@ const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
 const TRUCCHI_HAMMER_START_FACTOR = 1;
 const TRUCCHI_HAMMER_TRAVEL_MS = 520;
-const SFIDA_FEEDBACK_HOLD_MS = 120;
-const SFIDA_UNLOCK_COST = 1;
-const SFIDA_RECORD_THRESHOLD = 15;
-const SFIDA_DROPS_LOW_THRESHOLD = 10;
-const SFIDA_DROPS_MID_THRESHOLD = 14;
-const SFIDA_DROPS_HIGH_THRESHOLD = 17;
-const SFIDA_DROPS_LOW_REWARD = 15;
-const SFIDA_DROPS_MID_REWARD = 30;
-const SFIDA_DROPS_HIGH_REWARD = 45;
 const COSTRUISCO_BALLOON_SPAWN_MIN_MS = 260;
 const COSTRUISCO_BALLOON_SPAWN_MAX_MS = 650;
 const COSTRUISCO_BALLOON_FLIGHT_MIN_MS = 4500;
@@ -401,6 +409,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const trucchiPyramidCollapsedRef = useRef<boolean>(false);
   const comprendoCompletionOverlayTimeoutRef = useRef<number | null>(null);
   const comprendoBasketGameRef = useRef<ComprendoBasketGameHandle | null>(null);
+  const activeStepCardRef = useRef<HTMLButtonElement | null>(null);
   const COMPRENDO_COMPLETION_OVERLAY_MS = 1200;
 
   const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
@@ -675,7 +684,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoTouch && hasCostruiscoTouchTarget;
   const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoAvoid && hasCostruiscoAvoidTarget;
   const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiTouch && trucchiCorrectValue !== null;
-  const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiAvoid && firstTrucchiWrongIndex >= 0;
+  const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiAvoid;
   const showSfidaStartGuidance = activeStep === 'sfida' && sfidaReady && !sfidaActive && !guidanceSeen.sfidaStart;
 
   useEffect(() => {
@@ -1707,10 +1716,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       // Append attempt to history
       const nextHistory = [...p.history, attempt];
       
+      const currentWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const currentWorldDrops = currentWp.lightDrops ?? currentWp.devLightDrops ?? 0;
+
       // Calculate XP and Light Drops if correct
       let nextXP = p.xp;
-      let nextCoins = p.coins;
-      let nextLightDrops = p.lightDrops;
+      let nextLightDrops = currentWorldDrops;
 
       if (isCorrect) {
         nextXP += 10;
@@ -1728,10 +1739,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       return {
         ...p,
         xp: nextXP,
-        coins: nextCoins,
-        lightDrops: nextLightDrops,
         level: nextLevel,
-        history: nextHistory
+        history: nextHistory,
+        worldProgress: {
+          ...p.worldProgress,
+          [world.id]: {
+            ...currentWp,
+            lightDrops: nextLightDrops,
+            devLightDrops: nextLightDrops,
+          }
+        }
       };
     });
 
@@ -1832,22 +1849,38 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
 
   const beginSfidaFromUnlockFlow = () => {
-    if (profile.coins < SFIDA_UNLOCK_COST) {
+    const currentWp = profile.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+    const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
+    if (currentWorldCoins < SFIDA_UNLOCK_COST) {
       sound.playError();
       setSfidaUnlockModalMode('insufficient');
       return;
     }
-    updateProfile(p => ({
-      ...p,
-      coins: p.coins - SFIDA_UNLOCK_COST,
-    }));
+    updateProfile(p => {
+      const pWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const cCoins = pWp.coins ?? pWp.devCoins ?? 0;
+      const nCoins = Math.max(0, cCoins - SFIDA_UNLOCK_COST);
+      return {
+        ...p,
+        worldProgress: {
+          ...p.worldProgress,
+          [world.id]: {
+            ...pWp,
+            coins: nCoins,
+            devCoins: nCoins,
+          }
+        }
+      };
+    });
     setSfidaUnlockModalMode(null);
     beginSfidaGame();
   };
 
   const handleSfidaStartClick = () => {
     consumeGuidance('sfidaStart');
-    if (profile.coins < SFIDA_UNLOCK_COST) {
+    const currentWp = profile.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+    const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
+    if (currentWorldCoins < SFIDA_UNLOCK_COST) {
       sound.playError();
       setSfidaUnlockModalMode('insufficient');
       return;
@@ -1982,7 +2015,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const currentHighScore = profile.worldProgress[world.id]?.highScore || 0;
     const hasReachedRecordThresholdBefore = currentHighScore >= SFIDA_RECORD_THRESHOLD;
     const isNewRecord = score > currentHighScore && score >= SFIDA_RECORD_THRESHOLD && hasReachedRecordThresholdBefore;
-    const passedSfida = score >= SFIDA_RECORD_THRESHOLD;
+    const passedSfida = score >= SFIDA_DROPS_LOW_THRESHOLD;
     const currentWorldProgress = profile.worldProgress[world.id];
     const currentCompletedSteps = [...(currentWorldProgress?.completedSteps || [])];
     const nextCompletedSteps = passedSfida && !currentCompletedSteps.includes('sfida')
@@ -2036,10 +2069,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       if (canApplyRecordBonus && sfidaDropsEarned > 0) {
         sfidaDropsEarned *= 2;
       }
-      const nextLightDrops = p.lightDrops + sfidaDropsEarned;
-      const nextCoins = p.coins;
+      const currentWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const currentWorldDrops = currentWp.lightDrops ?? currentWp.devLightDrops ?? 0;
+      const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
+      const nextLightDrops = currentWorldDrops + sfidaDropsEarned;
 
-      let evolution = worldProg?.creatureEvolution || 'egg';
+      let evolution = currentWp?.creatureEvolution || 'egg';
       if (completed.length >= 6) {
         evolution = 'adult';
       } else if (completed.length >= 3) {
@@ -2048,16 +2083,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
       return {
         ...p,
-        coins: nextCoins,
-        lightDrops: nextLightDrops,
         unlockedWorlds: nextUnlocked,
         worldProgress: {
           ...p.worldProgress,
           [world.id]: {
-            ...worldProg,
+            ...currentWp,
+            coins: currentWorldCoins,
+            devCoins: currentWorldCoins,
+            lightDrops: nextLightDrops,
+            devLightDrops: nextLightDrops,
             completedSteps: completed,
             highScore: nextMax,
-            stars: Math.max(stars, worldProg?.stars || 0),
+            stars: Math.max(stars, currentWp?.stars || 0),
             creatureEvolution: evolution
           }
         }
@@ -2095,46 +2132,34 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   // Helper to save completed sub-steps offline and evolve creature
   const saveStepCompleted = (stepName: string) => {
     // Rewards based on step
-    const rewardMap: { [key: string]: { coins: number; drops: number } } = {
-      comprendo: { coins: 0, drops: 0 },
-      salto: { coins: 0, drops: 0 },
-      costruisco: { coins: 0, drops: 0 },
-      trucchi: { coins: 0, drops: 0 },
-      pratico: { coins: 3, drops: 0 },
-      sfida: { coins: 0, drops: 0 }
-    };
+    const rewardMap = GAME_REWARDS_CONFIG;
     
-    const reward = rewardMap[stepName] || { coins: 0, drops: 0 };
+    const reward = rewardMap[stepName as keyof typeof GAME_REWARDS_CONFIG] || { coins: 0, drops: 0 };
 
     updateProfile(p => {
-      const worldProg = p.worldProgress[world.id] || {
-        worldId: world.id,
-        completedSteps: [],
-        rebuiltMonuments: [],
-        creatureEvolution: 'egg',
-        highScore: 0,
-        stars: 0
-      };
+      const currentWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
+      const currentWorldDrops = currentWp.lightDrops ?? currentWp.devLightDrops ?? 0;
 
-      const completed = [...worldProg.completedSteps];
+      const completed = [...currentWp.completedSteps];
       if (!completed.includes(stepName)) {
         completed.push(stepName);
       }
-      const currentPraticoCycles = worldProg.praticoCyclesCompleted
-        ?? (worldProg.completedSteps.includes('pratico') ? 1 : 0);
+      const currentPraticoCycles = currentWp.praticoCyclesCompleted
+        ?? (currentWp.completedSteps.includes('pratico') ? 1 : 0);
       const nextPraticoCycles = stepName === 'pratico'
         ? currentPraticoCycles + 1
         : currentPraticoCycles;
 
       // XP and Coin rewards for world steps completed! (Gamification)
       let nextXP = p.xp + 50;
-      let nextCoins = p.coins + reward.coins;
-      let nextLightDrops = p.lightDrops + reward.drops;
+      let nextCoins = currentWorldCoins + reward.coins;
+      let nextLightDrops = currentWorldDrops + reward.drops;
       let nextLevel = p.level;
       if (nextXP >= nextLevel * 100) nextLevel += 1;
 
       // Evolve creature depending on step count
-      let evolution = worldProg.creatureEvolution;
+      let evolution = currentWp.creatureEvolution;
       if (completed.length >= 6) {
         evolution = 'adult';
       } else if (completed.length >= 3) {
@@ -2145,13 +2170,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       return {
         ...p,
         xp: nextXP,
-        coins: nextCoins,
-        lightDrops: nextLightDrops,
         level: nextLevel,
         worldProgress: {
           ...p.worldProgress,
           [world.id]: {
-            ...worldProg,
+            ...currentWp,
+            coins: nextCoins,
+            devCoins: nextCoins,
+            lightDrops: nextLightDrops,
+            devLightDrops: nextLightDrops,
             completedSteps: completed,
             praticoCyclesCompleted: nextPraticoCycles,
             creatureEvolution: evolution
@@ -2166,7 +2193,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
 
   const handleRebuildMonument = (monId: string, cost: number) => {
-    if (profile.lightDrops < cost) {
+    const activeWp = profile.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+    const activeWorldDrops = activeWp.lightDrops ?? activeWp.devLightDrops ?? 0;
+    if (activeWorldDrops < cost) {
       sound.playError();
       speak(GAMEPLAY_AUDIO_MESSAGES.notEnoughLightDrops);
       return;
@@ -2174,19 +2203,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     sound.playPowerUp();
     updateProfile(p => {
-      const worldProg = p.worldProgress[world.id];
-      const monuments = [...(worldProg?.rebuiltMonuments || [])];
+      const pWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const curDrops = pWp.lightDrops ?? pWp.devLightDrops ?? 0;
+      const monuments = [...(pWp?.rebuiltMonuments || [])];
       if (!monuments.includes(monId)) {
         monuments.push(monId);
       }
+      const nextDrops = Math.max(0, curDrops - cost);
 
       return {
         ...p,
-        lightDrops: p.lightDrops - cost,
         worldProgress: {
           ...p.worldProgress,
           [world.id]: {
-            ...worldProg,
+            ...pWp,
+            lightDrops: nextDrops,
+            devLightDrops: nextDrops,
             rebuiltMonuments: monuments
           }
         }
@@ -2211,8 +2243,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     stars: 0
   };
   const worldProg = worldProgBase;
+  const worldCoins = worldProg.coins ?? worldProg.devCoins ?? 0;
+  const worldLightDrops = worldProg.lightDrops ?? worldProg.devLightDrops ?? 0;
   const blockedMonuments = world.monuments.filter(monument => !worldProg.rebuiltMonuments.includes(monument.id));
-  const canSuggestSfidaFromMonuments = blockedMonuments.length === 0 && profile.lightDrops <= 0 && profile.coins >= SFIDA_UNLOCK_COST;
+  const canSuggestSfidaFromMonuments = blockedMonuments.length === 0 && worldLightDrops <= 0 && worldCoins >= SFIDA_UNLOCK_COST;
   const allFactorsSet = new Set<number>(ALL_FACTORS);
 
   const getEffectiveCompletedFactors = (stepKey: 'comprendo' | 'salto' | 'costruisco' | 'trucchi', stateSet: Set<number>) => {
@@ -2252,8 +2286,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             : (areSfidaPrerequisitesDone && !isSfidaDone)
               ? 'sfida'
               : null;
-  const hasErectableBlockedMonuments = blockedMonuments.some(monument => profile.lightDrops >= monument.cost);
-  const canGoToSfidaFromCoins = profile.coins >= SFIDA_UNLOCK_COST && areSfidaPrerequisitesDone;
+  const hasErectableBlockedMonuments = blockedMonuments.some(monument => worldLightDrops >= monument.cost);
+  const canGoToSfidaFromCoins = worldCoins >= SFIDA_UNLOCK_COST && areSfidaPrerequisitesDone;
   const canGoToPratico = nextStepToPlay === 'pratico';
   const praticoLockedMessage = 'Completa prima tutti i passi precedenti per entrare in Pratico (Avventura).';
   const sfidaDropsGuidanceMessage = 'Completa prima tutti i passi, fai pratica e vinci la Sfida per guadagnare gocce.';
@@ -2283,6 +2317,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const allMonumentsErected = rebuiltCount === world.monuments.length;
   const isSfidaPathLocked = !areSfidaPrerequisitesDone;
   const shouldHighlightSfidaCta = canGoToSfidaFromCoins && !isSfidaDone && !isSfidaPathLocked && nextStepToPlay === 'sfida';
+
+  // Auto-scroll allo step attivo/prossimo quando ci si trova nella vista Sentiero ('intro')
+  useEffect(() => {
+    if (activeStep === 'intro' && nextStepToPlay) {
+      const timer = setTimeout(() => {
+        activeStepCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [activeStep, nextStepToPlay]);
+
   const isInPlayableStepView = ALL_STEP_IDS.includes(activeStep);
   const showWorldFooterBack = !(
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
@@ -2319,8 +2364,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       return;
     }
 
-    const reason = profile.coins < SFIDA_UNLOCK_COST
-      ? `Ti servono ancora ${SFIDA_UNLOCK_COST - profile.coins} monete per entrare nella Sfida.`
+    const reason = worldCoins < SFIDA_UNLOCK_COST
+      ? getSfidaUnlockMissingCoinsMessage(worldCoins)
       : sfidaLockedMessage;
     setPathLockModalMessage(`🏁 Sfida non ancora disponibile\n\n${reason}`);
     void speak(reason);
@@ -2924,7 +2969,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   }`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Monete</p>
-                  <p className="text-lg font-black text-amber-800">🪙 {profile.coins}</p>
+                  <p className="text-lg font-black text-amber-800">🪙 {worldCoins}</p>
                   <p className={`text-[11px] font-black ${shouldHighlightSfidaCta ? 'text-amber-950 animate-badge-blink' : 'text-amber-900'}`}>
                     {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
                   </p>
@@ -2938,7 +2983,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   }`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">Gocce</p>
-                  <p className="text-lg font-black text-sky-800">💧 {profile.lightDrops}</p>
+                  <p className="text-lg font-black text-sky-800">💧 {worldLightDrops}</p>
                   <p className={`text-[11px] font-black ${hasErectableBlockedMonuments ? 'text-amber-950 animate-badge-blink' : 'text-sky-900'}`}>
                     {hasErectableBlockedMonuments ? '✨ Scopri Indizi! 🧭' : 'Indizi del Regno'}
                   </p>
@@ -2954,7 +2999,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 <div role="list" className="grid grid-cols-3 gap-1.5 pb-1">
                   {world.monuments.map(monument => {
                     const isErected = worldProg.rebuiltMonuments.includes(monument.id);
-                    const canAfford = profile.lightDrops >= monument.cost;
+                    const canAfford = worldLightDrops >= monument.cost;
 
                     return (
                       <button
@@ -3007,7 +3052,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   { id: 'salto', title: '2. Salta', desc: 'Salta di sasso in sasso sul ruscello.', icon: '🐸', coins: 0, drops: 0, isFactorBased: true },
                   { id: 'costruisco', title: '3. Scoppia', desc: 'Scoppia il palloncino giusto.', icon: '🎈', coins: 0, drops: 0, isFactorBased: true },
                   { id: 'trucchi', title: '4. Trova', desc: 'Trova il mattone corretto.', icon: '🧱', coins: 0, drops: 0, isFactorBased: true },
-                  { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Sconfiggi la nebbia e raccogli monete per la Sfida.', icon: '🛡️', coins: 5, drops: 0, isFactorBased: false },
+                  { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Sconfiggi la nebbia e raccogli monete per la Sfida.', icon: '🛡️', coins: PRATICO_REWARD_COINS, drops: PRATICO_REWARD_DROPS, isFactorBased: false },
                 ].map((step, idx) => {
                   const isDone = stepDoneMap[step.id] || false;
                   const prevStepId = idx > 0 ? ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico'][idx - 1] : null;
@@ -3019,6 +3064,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   return (
                     <button
                       key={step.id}
+                      ref={isNext ? activeStepCardRef : null}
                       type="button"
                       onClick={() => {
                         if (isLocked) {
@@ -3096,6 +3142,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                 return (
                   <button
+                    ref={isSfidaNext ? activeStepCardRef : null}
                     type="button"
                     onClick={() => {
                       if (isSfidaLocked) {
@@ -4257,7 +4304,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           ease: 'easeInOut',
                         }}
                       >
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-200 bg-white text-xl shadow-lg">🔨</span>
+                        <div className="relative">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-200 bg-white text-xl shadow-lg">🔨</span>
+                          {showTrucchiAvoidGuidance && (
+                            <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
+                          )}
+                        </div>
                       </motion.div>
                     )}
                     <div className="text-center space-y-2">
@@ -4326,8 +4378,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                     return (
                                       <div key={`trucchi-brick-${globalIndex}`} className="relative">
                                         {showTrucchiTouchGuidance && isCorrectBrick && (
-                                          <div className="pointer-events-none absolute left-1/2 top-0 z-20">
-                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                                          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} placement="center" />
                                           </div>
                                         )}
                                       <motion.button
@@ -4413,9 +4465,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                         } ${isHammerTarget ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
                                         aria-label={isRevealed ? `Mattone con risultato ${hiddenValue}` : 'Mattone chiuso'}
                                       >
-                                        {showTrucchiAvoidGuidance && globalIndex === firstTrucchiWrongIndex && (
-                                          <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
-                                        )}
                                         {isRevealed ? (
                                           <>
                                             {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">🔨</span>}
@@ -4670,8 +4719,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
             <div className="relative w-full">
               {showSfidaStartGuidance && (
-                <div className="pointer-events-none absolute left-1/2 top-0 z-20">
-                  <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+                  <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} placement="center" />
                 </div>
               )}
               <button
@@ -5047,7 +5096,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </motion.span>
                 </div>
                 <div className="rounded-xl border border-rose-200 bg-rose-100/90 p-2 text-xs font-medium leading-relaxed text-rose-900">
-                  Hai guadagnato <b>+{sfidaResult.dropsEarned} 💧</b>. Per superare lo step Sfida e sbloccare il prossimo Regno sul Sentiero servono <b>almeno 15 risposte corrette</b>. Ti mancavano {Math.max(1, 15 - sfidaResult.correctAnswers)} risposte!
+                  Hai guadagnato <b>+{sfidaResult.dropsEarned} 💧</b>. Per superare lo step Sfida e sbloccare il prossimo Regno sul Sentiero servono <b>almeno 10 risposte corrette</b>. Ti mancavano {Math.max(1, SFIDA_DROPS_LOW_THRESHOLD - sfidaResult.correctAnswers)} risposte!
                 </div>
               </div>
             )}
@@ -5091,7 +5140,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               Monete insufficienti
             </h3>
             <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-              Ogni Sfida costa <b>{SFIDA_UNLOCK_COST} moneta</b>. Al momento ne hai <b>{profile.coins}</b>.
+              Ogni Sfida costa <b>{SFIDA_UNLOCK_COST} moneta</b>. Al momento ne hai <b>{worldCoins}</b>.
             </p>
             <button
               type="button"
@@ -5142,7 +5191,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         <div className="mb-1 flex items-center justify-center gap-2">
           <h3 className="text-base font-black text-indigo-950">Indizi da scoprire</h3>
           <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-black text-sky-800">
-            💧 {profile.lightDrops}
+            💧 {worldLightDrops}
           </span>
         </div>
         <p className="text-xs text-slate-600 mb-4">
@@ -5153,7 +5202,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <>
                 <div role="list" className="grid grid-cols-1 gap-2.5 max-h-72 overflow-y-auto pr-1 text-left">
                   {blockedMonuments.map(monument => {
-                    const canAfford = profile.lightDrops >= monument.cost;
+                    const canAfford = worldLightDrops >= monument.cost;
                     return (
                       <div
                         key={monument.id}
@@ -5203,7 +5252,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     );
                   })}
                 </div>
-                {profile.lightDrops <= 0 && profile.coins >= SFIDA_UNLOCK_COST && (
+                {worldLightDrops <= 0 && worldCoins >= SFIDA_UNLOCK_COST && (
                   <p className="mt-3 text-xs text-indigo-800 text-left">
                     Suggerimento: al momento non hai gocce, ma hai almeno <b>{SFIDA_UNLOCK_COST} monete</b>. Puoi provare la <b>Sfida</b> per puntare a nuove ricompense.
                   </p>
@@ -5322,10 +5371,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Indizio Bloccato!
                 </h3>
                 <div className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-200 px-3 py-1 rounded-full mb-3">
-                  Costo indizio: 💧 {monumentModal.monument.cost} (Ne hai {profile.lightDrops})
+                  Costo indizio: 💧 {monumentModal.monument.cost} (Ne hai {worldLightDrops})
                 </div>
                 <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-                  Per aprire <b>{monumentModal.monument.name}</b> ti mancano <b>{monumentModal.monument.cost - profile.lightDrops} Gocce di Luce</b>.
+                  Per aprire <b>{monumentModal.monument.name}</b> ti mancano <b>{monumentModal.monument.cost - worldLightDrops} Gocce di Luce</b>.
                   <br /><br />
                   {sfidaDropsGuidanceMessage}
                 </p>

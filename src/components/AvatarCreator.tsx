@@ -38,23 +38,43 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
   const FREE_SHIRT_COLORS = ["#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#ec4899", "#8b5cf6"];
   const FREE_PANTS_COLORS = ["#4b5563", "#2563eb", "#059669", "#dc2626", "#d97706", "#7c3aed"];
 
+  const totalCoins = Object.values(profile.worldProgress || {}).reduce((sum, wp) => sum + (wp.coins ?? wp.devCoins ?? 0), 0);
+  const totalDrops = Object.values(profile.worldProgress || {}).reduce((sum, wp) => sum + (wp.lightDrops ?? wp.devLightDrops ?? 0), 0);
+
   const handleBuyItem = (item: ShopItem) => {
-    if (profile.coins < item.cost) {
+    if (totalCoins < item.cost) {
       sound.playError();
       return;
     }
 
     sound.playPowerUp();
-    updateProfile(p => ({
-      ...p,
-      coins: p.coins - item.cost,
-      unlockedAccessories: [...p.unlockedAccessories, item.id],
-      // Automatically equip the new item
-      avatar: {
-        ...p.avatar,
-        [item.category === 'hair' ? 'hairStyle' : item.category]: item.name
+    updateProfile(p => {
+      let costToDeduct = item.cost;
+      const updatedWorldProgress = { ...p.worldProgress };
+      for (const wIdStr of Object.keys(updatedWorldProgress)) {
+        if (costToDeduct <= 0) break;
+        const wId = Number(wIdStr);
+        const wp = updatedWorldProgress[wId];
+        const currentWCoins = wp.coins ?? wp.devCoins ?? 0;
+        const deduct = Math.min(costToDeduct, currentWCoins);
+        const newWCoins = currentWCoins - deduct;
+        updatedWorldProgress[wId] = {
+          ...wp,
+          coins: newWCoins,
+          devCoins: newWCoins,
+        };
+        costToDeduct -= deduct;
       }
-    }));
+      return {
+        ...p,
+        worldProgress: updatedWorldProgress,
+        unlockedAccessories: [...p.unlockedAccessories, item.id],
+        avatar: {
+          ...p.avatar,
+          [item.category === 'hair' ? 'hairStyle' : item.category]: item.name
+        }
+      };
+    });
   };
 
   const handleEquipFreeColor = (category: 'hairColor' | 'shirtColor' | 'pantsColor', color: string) => {
@@ -218,14 +238,14 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
             <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium font-sans group-hover:text-amber-800">Monete</span>
             <span className="text-xl font-black text-amber-600 font-mono flex items-center gap-1 justify-center">
               <Coins className="w-5 h-5 text-amber-500 fill-amber-500 animate-bounce" />
-              {profile.coins}
+              {totalCoins}
             </span>
           </div>
           <div className="h-8 w-px bg-indigo-100"></div>
           <div className="text-center p-1 rounded-xl group">
             <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium group-hover:text-sky-800">Gocce</span>
             <span className="text-xl font-black text-sky-600 font-mono flex items-center gap-1 justify-center">
-              💧 {profile.lightDrops}
+              💧 {totalDrops}
             </span>
           </div>
         </div>
@@ -648,7 +668,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
             <div className="flex-1 overflow-y-auto max-h-[250px] p-1 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
               {SHOP_ITEMS.filter(item => item.category === shopCategory).map(item => {
                 const isBought = profile.unlockedAccessories.includes(item.id);
-                const canAfford = profile.coins >= item.cost;
+                const canAfford = totalCoins >= item.cost;
 
                 return (
                   <div 
@@ -705,8 +725,8 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
         type={currencyModalType}
         isOpen={!!currencyModalType}
         onClose={() => setCurrencyModalType(null)}
-        lightDrops={profile.lightDrops}
-        coins={profile.coins}
+        lightDrops={totalDrops}
+        coins={totalCoins}
       />
     </div>
   );
