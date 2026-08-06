@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile } from './types';
+import { HelperGuidanceState, UserProfile } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
 import { getTableIcon, withTableIcon } from './utils/tableLabels';
 import { getStoryEntriesForTable } from './utils/storyMarkdown';
@@ -184,6 +184,18 @@ const APP_SIDEBAR_TABS = [
   { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600', label: 'Allenamento' },
   { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600', label: 'Genitori' },
 ] as const;
+const DEFAULT_HELPER_GUIDANCE_SEEN: HelperGuidanceState = {
+  comprendoTouch: false,
+  comprendoAvoid: false,
+  comprendoBonus: false,
+  saltoTouch: false,
+  saltoAvoid: false,
+  costruiscoTouch: false,
+  costruiscoAvoid: false,
+  trucchiTouch: false,
+  trucchiAvoid: false,
+  sfidaStart: false,
+};
 
 const getAdventureWorldProgress = (profile: UserProfile, worldId: number) => {
   return profile.worldProgress[worldId] || {
@@ -212,6 +224,7 @@ const BASE_PROFILE: Omit<ProfileRecord, 'id' | 'birthYear'> = {
   },
   unlockedWorlds: [2], // Starts with Table of 2 unlocked
   unlockedAccessories: [],
+  helperGuidanceSeen: DEFAULT_HELPER_GUIDANCE_SEEN,
   worldProgress: {
     2: { worldId: 2, completedSteps: [], rebuiltMonuments: [], devCoins: 0, devLightDrops: 0, creatureEvolution: 'egg', highScore: 0, stars: 0 }
   },
@@ -256,6 +269,10 @@ const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string):
     },
     unlockedWorlds: profile.unlockedWorlds ? [...profile.unlockedWorlds] : [...BASE_PROFILE.unlockedWorlds],
     unlockedAccessories: profile.unlockedAccessories ? [...profile.unlockedAccessories] : [...BASE_PROFILE.unlockedAccessories],
+    helperGuidanceSeen: {
+      ...DEFAULT_HELPER_GUIDANCE_SEEN,
+      ...(profile.helperGuidanceSeen || {}),
+    },
     history: profile.history ? [...profile.history] : [],
     worldProgress: profile.worldProgress
       ? Object.fromEntries(

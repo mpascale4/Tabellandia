@@ -4,12 +4,17 @@ import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
+import type { HelperGuidanceKey } from '../types';
+
+type ComprendoGuidanceKey = Extract<HelperGuidanceKey, 'comprendoTouch' | 'comprendoAvoid' | 'comprendoBonus'>;
 
 interface ComprendoBasketGameProps {
   a: number;
   b: number;
   itemEmoji: string;
   onCompletionChange?: (isCompleted: boolean) => void;
+  helperGuidanceSeen?: Partial<Record<ComprendoGuidanceKey, boolean>>;
+  onConsumeGuidance?: (key: ComprendoGuidanceKey) => void;
 }
 
 export interface ComprendoBasketGameHandle {
@@ -227,7 +232,7 @@ const createBeeParticles = (count: number, arena: ArenaSize, factor: number, red
 };
 
 const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBasketGameProps>(function ComprendoBasketGame(
-  { a: propA, b: propB, itemEmoji, onCompletionChange }: ComprendoBasketGameProps,
+  { a: propA, b: propB, itemEmoji, onCompletionChange, helperGuidanceSeen, onConsumeGuidance }: ComprendoBasketGameProps,
   ref,
 ) {
   const displayA = propA;
@@ -254,10 +259,12 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   const [beeDefeat, setBeeDefeat] = useState<boolean>(false);
   const [helperBonuses, setHelperBonuses] = useState<HelperBonus[]>([]);
   const [appleBursts, setAppleBursts] = useState<AppleBurst[]>([]);
-  const [basketGuidanceSeen, setBasketGuidanceSeen] = useState<boolean>(false);
-  const [beeGuidanceSeen, setBeeGuidanceSeen] = useState<boolean>(false);
+  const basketGuidanceSeen = helperGuidanceSeen?.comprendoTouch ?? false;
+  const beeGuidanceSeen = helperGuidanceSeen?.comprendoAvoid ?? false;
+  const helperBonusGuidanceSeen = helperGuidanceSeen?.comprendoBonus ?? false;
   const basketGuidanceTimeoutRef = useRef<number | null>(null);
   const beeGuidanceTimeoutRef = useRef<number | null>(null);
+  const helperBonusGuidanceTimeoutRef = useRef<number | null>(null);
   const helperBonusSpawnTimeoutRef = useRef<number | null>(null);
   const helperBonusExpiryTimeoutRef = useRef<number | null>(null);
   const helperBonusFrameRef = useRef<number | null>(null);
@@ -275,6 +282,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   const firstIncompleteBasketIndex = basketCounts.findIndex(count => count < b);
   const showBasketGuidance = !basketGuidanceSeen && !isCompleted && !isFailed && firstIncompleteBasketIndex >= 0;
   const showBeeGuidance = !beeGuidanceSeen && !isCompleted && !isFailed && displayB >= BEE_START_FACTOR && beePositions.length > 0;
+  const showHelperBonusGuidance = !helperBonusGuidanceSeen && !isCompleted && !isFailed && helperBonuses.length > 0;
   const basketGuidanceAnchor = showBasketGuidance && firstIncompleteBasketIndex >= 0
     ? positions[firstIncompleteBasketIndex] ?? null
     : null;
@@ -376,6 +384,22 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
     }
   };
 
+  const consumeGuidance = (key: ComprendoGuidanceKey) => {
+    onConsumeGuidance?.(key);
+    if (key === 'comprendoTouch' && basketGuidanceTimeoutRef.current !== null) {
+      window.clearTimeout(basketGuidanceTimeoutRef.current);
+      basketGuidanceTimeoutRef.current = null;
+    }
+    if (key === 'comprendoAvoid' && beeGuidanceTimeoutRef.current !== null) {
+      window.clearTimeout(beeGuidanceTimeoutRef.current);
+      beeGuidanceTimeoutRef.current = null;
+    }
+    if (key === 'comprendoBonus' && helperBonusGuidanceTimeoutRef.current !== null) {
+      window.clearTimeout(helperBonusGuidanceTimeoutRef.current);
+      helperBonusGuidanceTimeoutRef.current = null;
+    }
+  };
+
   const removeHelperBonus = (bonusId: number) => {
     clearHelperBonusTimers();
     setHelperBonuses(current => current.filter(bonus => bonus.id !== bonusId));
@@ -468,8 +492,6 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
     setErrorBasket(null);
     setBeeDefeat(false);
     setBeeHit(false);
-    setBasketGuidanceSeen(false);
-    setBeeGuidanceSeen(false);
     if (basketGuidanceTimeoutRef.current !== null) {
       window.clearTimeout(basketGuidanceTimeoutRef.current);
       basketGuidanceTimeoutRef.current = null;
@@ -477,6 +499,10 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
     if (beeGuidanceTimeoutRef.current !== null) {
       window.clearTimeout(beeGuidanceTimeoutRef.current);
       beeGuidanceTimeoutRef.current = null;
+    }
+    if (helperBonusGuidanceTimeoutRef.current !== null) {
+      window.clearTimeout(helperBonusGuidanceTimeoutRef.current);
+      helperBonusGuidanceTimeoutRef.current = null;
     }
     lastBasketFillAtRef.current = performance.now();
     beeTapLockRef.current = 0;
@@ -507,6 +533,9 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
       if (beeGuidanceTimeoutRef.current !== null) {
         window.clearTimeout(beeGuidanceTimeoutRef.current);
       }
+      if (helperBonusGuidanceTimeoutRef.current !== null) {
+        window.clearTimeout(helperBonusGuidanceTimeoutRef.current);
+      }
       if (beeFrameRef.current !== null) {
         window.cancelAnimationFrame(beeFrameRef.current);
       }
@@ -525,7 +554,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   useEffect(() => {
     if (!showBasketGuidance || basketGuidanceTimeoutRef.current !== null) return;
     basketGuidanceTimeoutRef.current = window.setTimeout(() => {
-      setBasketGuidanceSeen(true);
+      consumeGuidance('comprendoTouch');
       basketGuidanceTimeoutRef.current = null;
     }, INTERACTION_GUIDANCE_VISIBLE_MS);
   }, [showBasketGuidance]);
@@ -533,10 +562,18 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   useEffect(() => {
     if (!showBeeGuidance || beeGuidanceTimeoutRef.current !== null) return;
     beeGuidanceTimeoutRef.current = window.setTimeout(() => {
-      setBeeGuidanceSeen(true);
+      consumeGuidance('comprendoAvoid');
       beeGuidanceTimeoutRef.current = null;
     }, INTERACTION_GUIDANCE_VISIBLE_MS);
   }, [showBeeGuidance]);
+
+  useEffect(() => {
+    if (!showHelperBonusGuidance || helperBonusGuidanceTimeoutRef.current !== null) return;
+    helperBonusGuidanceTimeoutRef.current = window.setTimeout(() => {
+      consumeGuidance('comprendoBonus');
+      helperBonusGuidanceTimeoutRef.current = null;
+    }, Math.min(INTERACTION_GUIDANCE_VISIBLE_MS, HELPER_BONUS_VISIBLE_MS));
+  }, [showHelperBonusGuidance]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -947,11 +984,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   };
 
   const handleBeeTap = () => {
-    setBeeGuidanceSeen(true);
-    if (beeGuidanceTimeoutRef.current !== null) {
-      window.clearTimeout(beeGuidanceTimeoutRef.current);
-      beeGuidanceTimeoutRef.current = null;
-    }
+    if (!beeGuidanceSeen) consumeGuidance('comprendoAvoid');
     const now = performance.now();
     if (isCompleted || isFailed || beeHit || (now - beeTapLockRef.current) < 650) return;
     beeTapLockRef.current = now;
@@ -966,11 +999,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
 
   const handleFillBasket = (basketIndex: number) => {
     if (isFailed) return;
-    setBasketGuidanceSeen(true);
-    if (basketGuidanceTimeoutRef.current !== null) {
-      window.clearTimeout(basketGuidanceTimeoutRef.current);
-      basketGuidanceTimeoutRef.current = null;
-    }
+    if (!basketGuidanceSeen) consumeGuidance('comprendoTouch');
     const currentBasketCount = basketCounts[basketIndex];
 
     if (currentBasketCount >= b) {
@@ -1099,12 +1128,13 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
             );
           })}
 
-          {helperBonuses.map((bonus) => (
+          {helperBonuses.map((bonus, index) => (
             <motion.button
               key={`helper-bonus-${bonus.id}`}
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!helperBonusGuidanceSeen) consumeGuidance('comprendoBonus');
                 playHelperBonusTapSound(bonus.kind);
                 applyHelperBonus(bonus);
               }}
@@ -1115,6 +1145,11 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
               aria-label={`${HELPER_BONUS_LABELS[bonus.kind]}: tocca per attivare il bonus`}
               title={`${HELPER_BONUS_LABELS[bonus.kind]}: tocca per attivare il bonus`}
             >
+              {index === 0 && showHelperBonusGuidance && (
+                <div className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2">
+                  <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                </div>
+              )}
               <span aria-hidden="true">{HELPER_BONUS_EMOJIS[bonus.kind]}</span>
             </motion.button>
           ))}

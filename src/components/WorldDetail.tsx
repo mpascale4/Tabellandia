@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
+import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
 import { AlertCircle, Award, Timer, Trophy, Compass, RotateCcw } from 'lucide-react';
 import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
@@ -286,7 +286,6 @@ const COSTRUISCO_BALLOON_PALETTES = [
 
 type CostruiscoBalloonPalette = typeof COSTRUISCO_BALLOON_PALETTES[number];
 type SaltoAntagonist = typeof SALTO_ANTAGONISTS[number];
-type GuidanceKey = 'saltoTouch' | 'saltoAvoid' | 'costruiscoTouch' | 'costruiscoAvoid' | 'trucchiTouch' | 'trucchiAvoid' | 'sfidaStart';
 type CostruiscoActiveBalloon = {
   id: number;
   value: number;
@@ -576,44 +575,27 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const saltoStoneRef = useRef<HTMLDivElement | null>(null);
   const saltoContainerRef = useRef<HTMLDivElement | null>(null);
   const saltoFinishRef = useRef<HTMLDivElement | null>(null);
-  const [guidanceSeen, setGuidanceSeen] = useState<Record<GuidanceKey, boolean>>({
-    saltoTouch: false,
-    saltoAvoid: false,
-    costruiscoTouch: false,
-    costruiscoAvoid: false,
-    trucchiTouch: false,
-    trucchiAvoid: false,
-    sfidaStart: false,
-  });
-  const guidanceTimeoutsRef = useRef<Partial<Record<GuidanceKey, number>>>({});
+  const guidanceSeen = profile.helperGuidanceSeen ?? {};
+  const guidanceTimeoutsRef = useRef<Partial<Record<HelperGuidanceKey, number>>>({});
 
-  const consumeGuidance = useCallback((key: GuidanceKey) => {
-    setGuidanceSeen((current) => (current[key] ? current : { ...current, [key]: true }));
+  const consumeGuidance = useCallback((key: HelperGuidanceKey) => {
+    if (guidanceSeen[key]) return;
+    updateProfile((currentProfile) => {
+      if (currentProfile.helperGuidanceSeen?.[key]) return currentProfile;
+      return {
+        ...currentProfile,
+        helperGuidanceSeen: {
+          ...currentProfile.helperGuidanceSeen,
+          [key]: true,
+        },
+      };
+    });
     const timeoutId = guidanceTimeoutsRef.current[key];
     if (timeoutId !== undefined) {
       window.clearTimeout(timeoutId);
       delete guidanceTimeoutsRef.current[key];
     }
-  }, []);
-
-  const resetGuidance = useCallback((keys: GuidanceKey[]) => {
-    setGuidanceSeen((current) => {
-      const next = { ...current };
-      let changed = false;
-      keys.forEach((key) => {
-        if (next[key]) {
-          next[key] = false;
-          changed = true;
-        }
-        const timeoutId = guidanceTimeoutsRef.current[key];
-        if (timeoutId !== undefined) {
-          window.clearTimeout(timeoutId);
-          delete guidanceTimeoutsRef.current[key];
-        }
-      });
-      return changed ? next : current;
-    });
-  }, []);
+  }, [guidanceSeen, updateProfile]);
 
   // Auto-scroll the stream stones so the frog stays centered in view as it moves
   useEffect(() => {
@@ -706,7 +688,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   }, []);
 
   useEffect(() => {
-    const rules: Array<{ key: GuidanceKey; show: boolean }> = [
+    const rules: Array<{ key: HelperGuidanceKey; show: boolean }> = [
       { key: 'saltoTouch', show: showSaltoTouchGuidance },
       { key: 'saltoAvoid', show: showSaltoAvoidGuidance },
       { key: 'costruiscoTouch', show: showCostruiscoTouchGuidance },
@@ -991,7 +973,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const resetTrucchiRound = (factor: number | null = trucchiSelectedFactor) => {
     clearTrucchiRoundTimeouts();
-    resetGuidance(['trucchiTouch', 'trucchiAvoid']);
 
     if (factor === null) {
       setTrucchiBrickValues([]);
@@ -1389,7 +1370,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const startCostruiscoSingleBalloonGame = (factor?: number) => {
     const activeFactor = factor ?? costruiscoSelectedFactor ?? 1;
-    resetGuidance(['costruiscoTouch', 'costruiscoAvoid']);
     clearCostruiscoFlightTimeout();
     setCostruiscoFlowStage('game');
     setCostruiscoGameCompleted(false);
@@ -1879,7 +1859,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   // Initialize Sfida with START button
   const initializeSfida = () => {
     sound.playPowerUp();
-    resetGuidance(['sfidaStart']);
     setSfidaReady(true); // Show START button
     setSfidaActive(false);
     setSfidaInteractionLocked(false);
@@ -3261,6 +3240,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                        b={comprendoSelectedFactor}
                        itemEmoji={world.itemsToCount}
                        onCompletionChange={handleComprendoCompletionChange}
+                        helperGuidanceSeen={profile.helperGuidanceSeen}
+                        onConsumeGuidance={consumeGuidance}
                      />
                       {showComprendoCompletionEffect && (
                         <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
@@ -3366,7 +3347,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             onSelect: (factor) => {
               sound.playClick();
               const enemyLayout = buildSaltoEnemyLayout(factor);
-              resetGuidance(['saltoTouch', 'saltoAvoid']);
               setSaltoSelectedFactor(factor);
               setSaltoIndex(0);
               setSaltoOptions([]);
@@ -3679,7 +3659,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           animate={{ scale: 1, opacity: 1 }}
                           onClick={() => {
                             sound.playClick();
-                            resetGuidance(['saltoTouch', 'saltoAvoid']);
                             setIsFrogSplashing(false);
                             setSaltoIndex(0);
                             setSaltoCorrectClicks(new Set());
@@ -3864,7 +3843,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               completed: effectiveCostruiscoCompleted,
               onSelect: (factor) => {
                 sound.playClick();
-              resetGuidance(['costruiscoTouch', 'costruiscoAvoid']);
               setCostruiscoSelectedFactor(factor);
               setCostruiscoBalloonPool([]);
               setCostruiscoActiveBalloons([]);
@@ -4188,7 +4166,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             completed: effectiveTrucchiCompleted,
             onSelect: (factor) => {
               sound.playClick();
-            resetGuidance(['trucchiTouch', 'trucchiAvoid']);
             setTrucchiSelectedFactor(factor);
               setTrucchiFlowStage('game');
               setTrucchiQuestionSolved(false);
