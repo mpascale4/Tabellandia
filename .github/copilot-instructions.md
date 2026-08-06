@@ -87,6 +87,7 @@ Le regole valgono per tutto il codice del progetto (esistente e nuovo): ogni ref
 - Usa nomi chiari e consistenti; evita abbreviazioni ambigue.
 - Scrivi o aggiorna test per logica critica e regressioni.
 - Mantieni lint, typecheck e test verdi prima di finalizzare le modifiche.
+- Esegui il commit solo quando `npm run lint` termina senza errori.
 - Documenta decisioni non ovvie con commenti brevi e mirati.
 
 ### 5) Strutturare JSX complesso in blocchi piccoli
