@@ -26,7 +26,7 @@ export default function CurrencyInfoModal({
   const { speak } = useVoice();
 
   const dropsSpeechText =
-    "Le Gocce di Luce servono per ricostruire ed erigere i Monumenti Magici nei Regni di Tabellandia! Le guadagni superando i passi del sentiero e facendo nuovi record nelle sfide.";
+    "Le Gocce di Luce servono per ricostruire ed erigere i Monumenti Magici nei Regni di Tabellandia! Le guadagni superando i passi del sentiero e vincendo la Sfida, che assegna 15 gocce.";
 
   const coinsSpeechText =
     "Le Monete d'Oro servono nel Sarto del Regno per sbloccare vestiti, cappelli, accessori e mascotte per il tuo personaggio! Le guadagni nel Pratico quando superi l obiettivo di risposte consecutive.";
@@ -166,7 +166,7 @@ export default function CurrencyInfoModal({
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="shrink-0">⚡</span>
-                      <span>Facendo nuovi record di punteggio nella <b>Sfida Velocissima</b>.</span>
+                      <span>Vincendo la <b>Sfida Velocissima</b> (+15 gocce).</span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="shrink-0">🧩</span>
@@ -177,11 +177,11 @@ export default function CurrencyInfoModal({
                   <>
                     <li className="flex items-start gap-1.5">
                       <span className="shrink-0">🧮</span>
-                      <span>Nel <b>Pratico</b>, quando superi l'obiettivo di consecutive (+3 monete).</span>
+                      <span>Nel <b>Pratico</b>, quando superi l'obiettivo di consecutive (+1 moneta).</span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="shrink-0">🎯</span>
-                      <span>La <b>Sfida</b> non assegna monete: assegna gocce in base al risultato.</span>
+                      <span>La <b>Sfida</b> non assegna monete: assegna 15 gocce quando la vinci.</span>
                     </li>
                   </>
                 )}

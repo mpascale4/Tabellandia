@@ -145,12 +145,7 @@ const TRUCCHI_HAMMER_TRAVEL_MS = 520;
 const SFIDA_FEEDBACK_HOLD_MS = 120;
 const SFIDA_UNLOCK_COST = 1;
 const SFIDA_RECORD_THRESHOLD = 15;
-const SFIDA_DROPS_LOW_THRESHOLD = 10;
-const SFIDA_DROPS_MID_THRESHOLD = 14;
-const SFIDA_DROPS_HIGH_THRESHOLD = 17;
-const SFIDA_DROPS_LOW_REWARD = 15;
-const SFIDA_DROPS_MID_REWARD = 30;
-const SFIDA_DROPS_HIGH_REWARD = 45;
+const SFIDA_DROPS_WIN_REWARD = 15;
 const COSTRUISCO_BALLOON_SPAWN_MIN_MS = 260;
 const COSTRUISCO_BALLOON_SPAWN_MAX_MS = 650;
 const COSTRUISCO_BALLOON_FLIGHT_MIN_MS = 4500;
@@ -553,7 +548,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     previousRecord: number;
     passedSfida: boolean;
     dropsEarned: number;
-    recordBonusApplied: boolean;
     didCompleteWorldNow: boolean;
   } | null>(null);
   const [showFireworks, setShowFireworks] = useState(false);
@@ -855,6 +849,39 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   }, [saltoSelectedFactor, activeStep, world.id, saltoFlowStage, saltoGameCompleted, saltoOptions.length]);
 
   useEffect(() => {
+    if (activeStep === 'salto' && saltoFlowStage === 'game') {
+      sound.startSaltoAmbience();
+      return () => {
+        sound.stopSaltoAmbience();
+      };
+    }
+
+    sound.stopSaltoAmbience();
+  }, [activeStep, saltoFlowStage]);
+
+  useEffect(() => {
+    if (activeStep === 'costruisco' && costruiscoFlowStage === 'game') {
+      sound.startCostruiscoAmbience();
+      return () => {
+        sound.stopCostruiscoAmbience();
+      };
+    }
+
+    sound.stopCostruiscoAmbience();
+  }, [activeStep, costruiscoFlowStage]);
+
+  useEffect(() => {
+    if (activeStep === 'trucchi' && trucchiFlowStage === 'game') {
+      sound.startTrucchiAmbience();
+      return () => {
+        sound.stopTrucchiAmbience();
+      };
+    }
+
+    sound.stopTrucchiAmbience();
+  }, [activeStep, trucchiFlowStage]);
+
+  useEffect(() => {
     if (comprendoSelectedFactor === null) {
       setComprendoFlowStage('objective');
     }
@@ -1032,6 +1059,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setTrucchiHammerHasStruck(true);
     setTrucchiHammerPose(prev => ({ ...prev, striking: false }));
     setTrucchiHammerHitBricks(new Set([targetIndex]));
+    sound.playHammerBrickHit();
     if (trucchiHammerHitClearTimeoutRef.current !== null) {
       window.clearTimeout(trucchiHammerHitClearTimeoutRef.current);
     }
@@ -2024,18 +2052,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         nextUnlocked.push(nextWorldId);
       }
 
-      let sfidaDropsEarned = 0;
-      if (score >= SFIDA_DROPS_HIGH_THRESHOLD) {
-        sfidaDropsEarned = SFIDA_DROPS_HIGH_REWARD;
-      } else if (score >= SFIDA_DROPS_MID_THRESHOLD) {
-        sfidaDropsEarned = SFIDA_DROPS_MID_REWARD;
-      } else if (score >= SFIDA_DROPS_LOW_THRESHOLD) {
-        sfidaDropsEarned = SFIDA_DROPS_LOW_REWARD;
-      }
-      const canApplyRecordBonus = score > previousMax && score >= SFIDA_RECORD_THRESHOLD && previousMax >= SFIDA_RECORD_THRESHOLD;
-      if (canApplyRecordBonus && sfidaDropsEarned > 0) {
-        sfidaDropsEarned *= 2;
-      }
+      const sfidaDropsEarned = passedSfida ? SFIDA_DROPS_WIN_REWARD : 0;
       const nextLightDrops = p.lightDrops + sfidaDropsEarned;
       const nextCoins = p.coins;
 
@@ -2073,19 +2090,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       isNewRecord,
       previousRecord: currentHighScore,
       passedSfida,
-      dropsEarned: (() => {
-        if (score >= SFIDA_DROPS_HIGH_THRESHOLD) {
-          return isNewRecord ? SFIDA_DROPS_HIGH_REWARD * 2 : SFIDA_DROPS_HIGH_REWARD;
-        }
-        if (score >= SFIDA_DROPS_MID_THRESHOLD) {
-          return isNewRecord ? SFIDA_DROPS_MID_REWARD * 2 : SFIDA_DROPS_MID_REWARD;
-        }
-        if (score >= SFIDA_DROPS_LOW_THRESHOLD) {
-          return isNewRecord ? SFIDA_DROPS_LOW_REWARD * 2 : SFIDA_DROPS_LOW_REWARD;
-        }
-        return 0;
-      })(),
-      recordBonusApplied: isNewRecord,
+      dropsEarned: passedSfida ? SFIDA_DROPS_WIN_REWARD : 0,
       didCompleteWorldNow
     });
     setShowSfidaResultPopup(true);
@@ -2100,7 +2105,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       salto: { coins: 0, drops: 0 },
       costruisco: { coins: 0, drops: 0 },
       trucchi: { coins: 0, drops: 0 },
-      pratico: { coins: 3, drops: 0 },
+      pratico: { coins: 1, drops: 0 },
       sfida: { coins: 0, drops: 0 }
     };
     
@@ -4325,11 +4330,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                                     return (
                                       <div key={`trucchi-brick-${globalIndex}`} className="relative">
-                                        {showTrucchiTouchGuidance && isCorrectBrick && (
-                                          <div className="pointer-events-none absolute left-1/2 top-0 z-20">
-                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
-                                          </div>
-                                        )}
                                       <motion.button
                                         type="button"
                                         role="listitem"
@@ -4413,8 +4413,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                         } ${isHammerTarget ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
                                         aria-label={isRevealed ? `Mattone con risultato ${hiddenValue}` : 'Mattone chiuso'}
                                       >
-                                        {showTrucchiAvoidGuidance && globalIndex === firstTrucchiWrongIndex && (
-                                          <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
+                                        {showTrucchiTouchGuidance && isCorrectBrick && (
+                                          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                                          </div>
                                         )}
                                         {isRevealed ? (
                                           <>
@@ -4661,10 +4663,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-left text-xs text-slate-700 font-sans space-y-1">
                 <p className="font-black text-indigo-900">Ogni Sfida costa: {SFIDA_UNLOCK_COST} 🪙 moneta</p>
                 <p>La Sfida non assegna monete: le monete si vincono nel Pratico.</p>
-                <p>Da 10 a 13 corrette: <b>+{SFIDA_DROPS_LOW_REWARD} 💧</b></p>
-                <p>Da 14 a 16 corrette: <b>+{SFIDA_DROPS_MID_REWARD} 💧</b></p>
-                <p>Da 17 in su: <b>+{SFIDA_DROPS_HIGH_REWARD} 💧</b></p>
-                <p>Se fai record valido: <b className="text-indigo-900">gocce x2</b>.</p>
+                <p>Sfida superata: <b>+{SFIDA_DROPS_WIN_REWARD} 💧</b> Gocce di Luce.</p>
               </div>
             </div>
 
@@ -5030,8 +5029,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="mt-2.5 rounded-xl border border-emerald-200 bg-emerald-100/90 p-2 text-xs font-bold text-emerald-900">
                 {sfidaResult.didCompleteWorldNow
                   ? <>🎆 Hai completato tutte le tabelline di questo Regno! Hai guadagnato +{sfidaResult.dropsEarned} 💧.</>
-                  : sfidaResult.recordBonusApplied
-                  ? <>✨ Record valido! <b>Gocce x2</b>: +{sfidaResult.dropsEarned} 💧 Gocce di Luce.</>
                   : <>✅ Sfida superata! Hai guadagnato +{sfidaResult.dropsEarned} 💧 Gocce di Luce.</>}
               </div>
             ) : (

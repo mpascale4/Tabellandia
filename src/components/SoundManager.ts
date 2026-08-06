@@ -8,6 +8,10 @@ import snakeAudioUrl from '../data/animal-sounds/snake-rattlesnake.ogg';
 import batAudioUrl from '../data/animal-sounds/bat-feeding-buzz.wav';
 import beeBuzzAudioUrl from '../data/animal-sounds/bee-buzzing.opus';
 import scorpionAudioUrl from '../data/animal-sounds/scorpion-night-insects.wav';
+import saltoAmbienceAudioUrl from '../data/animal-sounds/wood-frogs-calling-in-spring.ogg';
+import raccogliBirdsAmbienceAudioUrl from '../data/animal-sounds/raccogli-birds-spain.wav';
+import costruiscoLaughingAmbienceAudioUrl from '../data/animal-sounds/costruisco-laughing-commons.wav';
+import trovaPneumaticpickhammerAmbienceAudioUrl from '../data/animal-sounds/trova-pneumaticpickhammer.ogg';
 
 type SaltoAntagonistAudioId = 'snake' | 'bat' | 'spider' | 'scorpion';
 const MAX_AUDIO_PLAY_SECONDS = 2;
@@ -24,6 +28,22 @@ class SoundManager {
   private loadingBeeBuzzAudio = false;
   private beeBuzzSource: AudioBufferSourceNode | null = null;
   private beeBuzzGain: GainNode | null = null;
+  private raccogliBirdsAmbienceBuffer: AudioBuffer | null = null;
+  private loadingRaccogliBirdsAmbienceAudio = false;
+  private raccogliBirdsAmbienceSource: AudioBufferSourceNode | null = null;
+  private raccogliBirdsAmbienceGain: GainNode | null = null;
+  private costruiscoAmbienceBuffer: AudioBuffer | null = null;
+  private loadingCostruiscoAmbienceAudio = false;
+  private costruiscoAmbienceSource: AudioBufferSourceNode | null = null;
+  private costruiscoAmbienceGain: GainNode | null = null;
+  private trucchiAmbienceBuffer: AudioBuffer | null = null;
+  private loadingTrucchiAmbienceAudio = false;
+  private trucchiAmbienceSource: AudioBufferSourceNode | null = null;
+  private trucchiAmbienceGain: GainNode | null = null;
+  private saltoAmbienceBuffer: AudioBuffer | null = null;
+  private loadingSaltoAmbienceAudio = false;
+  private saltoAmbienceSource: AudioBufferSourceNode | null = null;
+  private saltoAmbienceGain: GainNode | null = null;
   private readonly antagonistsAudioUrls: Record<SaltoAntagonistAudioId, string> = {
     snake: snakeAudioUrl,
     bat: batAudioUrl,
@@ -73,6 +93,10 @@ class SoundManager {
     this.effectsEnabled = !muted;
     if (muted) {
       this.stopBeeBuzz();
+      this.stopRaccogliBirdsAmbience();
+      this.stopCostruiscoAmbience();
+      this.stopTrucchiAmbience();
+      this.stopSaltoAmbience();
     }
   }
 
@@ -84,6 +108,10 @@ class SoundManager {
     this.effectsEnabled = enabled;
     if (!enabled) {
       this.stopBeeBuzz();
+      this.stopRaccogliBirdsAmbience();
+      this.stopCostruiscoAmbience();
+      this.stopTrucchiAmbience();
+      this.stopSaltoAmbience();
     }
   }
 
@@ -423,6 +451,73 @@ class SoundManager {
     boomOsc.stop(now + 0.26);
   }
 
+  playHammerBrickHit() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const thudOsc = this.ctx.createOscillator();
+    const ringOsc = this.ctx.createOscillator();
+    const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.09), this.ctx.sampleRate);
+    const channelData = noiseBuffer.getChannelData(0);
+
+    for (let i = 0; i < channelData.length; i += 1) {
+      const decay = 1 - (i / channelData.length);
+      channelData[i] = (Math.random() * 2 - 1) * decay;
+    }
+
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const noiseFilter = this.ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(1700, now);
+    noiseFilter.Q.setValueAtTime(1.2, now);
+
+    const thudGain = this.ctx.createGain();
+    thudGain.gain.setValueAtTime(0.001, now);
+    thudGain.gain.linearRampToValueAtTime(0.18, now + 0.008);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+    const ringGain = this.ctx.createGain();
+    ringGain.gain.setValueAtTime(0.001, now);
+    ringGain.gain.linearRampToValueAtTime(0.08, now + 0.01);
+    ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.001, now);
+    noiseGain.gain.linearRampToValueAtTime(0.14, now + 0.006);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+    thudOsc.type = 'triangle';
+    thudOsc.frequency.setValueAtTime(210, now);
+    thudOsc.frequency.exponentialRampToValueAtTime(92, now + 0.14);
+
+    ringOsc.type = 'square';
+    ringOsc.frequency.setValueAtTime(1240, now);
+    ringOsc.frequency.exponentialRampToValueAtTime(680, now + 0.13);
+
+    thudOsc.connect(thudGain);
+    thudGain.connect(this.ctx.destination);
+
+    ringOsc.connect(ringGain);
+    ringGain.connect(this.ctx.destination);
+
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+
+    thudOsc.start(now);
+    ringOsc.start(now);
+    noiseSource.start(now);
+
+    thudOsc.stop(now + 0.17);
+    ringOsc.stop(now + 0.15);
+    noiseSource.stop(now + 0.11);
+  }
+
   startBeeBuzz() {
     if (!this.effectsEnabled) return;
     this.initContext();
@@ -477,6 +572,338 @@ class SoundManager {
     if (source) {
       source.stop(now + 0.07);
     }
+  }
+
+  startRaccogliBirdsAmbience() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.raccogliBirdsAmbienceSource || this.raccogliBirdsAmbienceGain) return;
+
+    if (!this.raccogliBirdsAmbienceBuffer) {
+      this.loadRaccogliBirdsAmbienceAudio(() => {
+        this.startRaccogliBirdsAmbience();
+      });
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.raccogliBirdsAmbienceBuffer;
+    source.loop = true;
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.045, now + 0.14);
+
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    source.start(now);
+
+    this.raccogliBirdsAmbienceSource = source;
+    this.raccogliBirdsAmbienceGain = gain;
+  }
+
+  stopRaccogliBirdsAmbience() {
+    if (!this.ctx) {
+      this.raccogliBirdsAmbienceSource = null;
+      this.raccogliBirdsAmbienceGain = null;
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.raccogliBirdsAmbienceSource;
+    const gain = this.raccogliBirdsAmbienceGain;
+
+    this.raccogliBirdsAmbienceSource = null;
+    this.raccogliBirdsAmbienceGain = null;
+
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    }
+
+    if (source) {
+      source.stop(now + 0.09);
+    }
+  }
+
+  startCostruiscoAmbience() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.costruiscoAmbienceSource || this.costruiscoAmbienceGain) return;
+
+    if (!this.costruiscoAmbienceBuffer) {
+      this.loadCostruiscoAmbienceAudio(() => {
+        this.startCostruiscoAmbience();
+      });
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.costruiscoAmbienceBuffer;
+    source.loop = true;
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.045, now + 0.14);
+
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    source.start(now);
+
+    this.costruiscoAmbienceSource = source;
+    this.costruiscoAmbienceGain = gain;
+  }
+
+  stopCostruiscoAmbience() {
+    if (!this.ctx) {
+      this.costruiscoAmbienceSource = null;
+      this.costruiscoAmbienceGain = null;
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.costruiscoAmbienceSource;
+    const gain = this.costruiscoAmbienceGain;
+
+    this.costruiscoAmbienceSource = null;
+    this.costruiscoAmbienceGain = null;
+
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    }
+
+    if (source) {
+      source.stop(now + 0.09);
+    }
+  }
+
+  startTrucchiAmbience() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.trucchiAmbienceSource || this.trucchiAmbienceGain) return;
+
+    if (!this.trucchiAmbienceBuffer) {
+      this.loadTrucchiAmbienceAudio(() => {
+        this.startTrucchiAmbience();
+      });
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.trucchiAmbienceBuffer;
+    source.loop = true;
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.04, now + 0.14);
+
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    source.start(now);
+
+    this.trucchiAmbienceSource = source;
+    this.trucchiAmbienceGain = gain;
+  }
+
+  stopTrucchiAmbience() {
+    if (!this.ctx) {
+      this.trucchiAmbienceSource = null;
+      this.trucchiAmbienceGain = null;
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.trucchiAmbienceSource;
+    const gain = this.trucchiAmbienceGain;
+
+    this.trucchiAmbienceSource = null;
+    this.trucchiAmbienceGain = null;
+
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    }
+
+    if (source) {
+      source.stop(now + 0.09);
+    }
+  }
+
+  startSaltoAmbience() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx || this.saltoAmbienceSource || this.saltoAmbienceGain) return;
+
+    if (!this.saltoAmbienceBuffer) {
+      this.loadSaltoAmbienceAudio(() => {
+        this.startSaltoAmbience();
+      });
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.saltoAmbienceBuffer;
+    source.loop = true;
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.045, now + 0.2);
+
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    source.start(now);
+
+    this.saltoAmbienceSource = source;
+    this.saltoAmbienceGain = gain;
+  }
+
+  stopSaltoAmbience() {
+    if (!this.ctx) {
+      this.saltoAmbienceSource = null;
+      this.saltoAmbienceGain = null;
+      return;
+    }
+
+    const now = this.ctx.currentTime;
+    const source = this.saltoAmbienceSource;
+    const gain = this.saltoAmbienceGain;
+
+    this.saltoAmbienceSource = null;
+    this.saltoAmbienceGain = null;
+
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    }
+
+    if (source) {
+      source.stop(now + 0.09);
+    }
+  }
+
+  private loadSaltoAmbienceAudio(onLoaded?: () => void) {
+    if (this.saltoAmbienceBuffer) {
+      onLoaded?.();
+      return;
+    }
+    if (this.loadingSaltoAmbienceAudio) return;
+
+    this.loadingSaltoAmbienceAudio = true;
+    fetch(saltoAmbienceAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.saltoAmbienceBuffer = decodedBuffer;
+        onLoaded?.();
+      })
+      .catch((error) => {
+        console.error('Error loading Salto ambience audio:', error);
+      })
+      .finally(() => {
+        this.loadingSaltoAmbienceAudio = false;
+      });
+  }
+
+  private loadCostruiscoAmbienceAudio(onLoaded?: () => void) {
+    if (this.costruiscoAmbienceBuffer) {
+      onLoaded?.();
+      return;
+    }
+    if (this.loadingCostruiscoAmbienceAudio) return;
+
+    this.loadingCostruiscoAmbienceAudio = true;
+    fetch(costruiscoLaughingAmbienceAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.costruiscoAmbienceBuffer = decodedBuffer;
+        onLoaded?.();
+      })
+      .catch((error) => {
+        console.error('Error loading Costruisco ambience audio:', error);
+      })
+      .finally(() => {
+        this.loadingCostruiscoAmbienceAudio = false;
+      });
+  }
+
+  private loadTrucchiAmbienceAudio(onLoaded?: () => void) {
+    if (this.trucchiAmbienceBuffer) {
+      onLoaded?.();
+      return;
+    }
+    if (this.loadingTrucchiAmbienceAudio) return;
+
+    this.loadingTrucchiAmbienceAudio = true;
+    fetch(trovaPneumaticpickhammerAmbienceAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.trucchiAmbienceBuffer = decodedBuffer;
+        onLoaded?.();
+      })
+      .catch((error) => {
+        console.error('Error loading Trova ambience audio:', error);
+      })
+      .finally(() => {
+        this.loadingTrucchiAmbienceAudio = false;
+      });
+  }
+
+  private loadRaccogliBirdsAmbienceAudio(onLoaded?: () => void) {
+    if (this.raccogliBirdsAmbienceBuffer) {
+      onLoaded?.();
+      return;
+    }
+    if (this.loadingRaccogliBirdsAmbienceAudio) return;
+
+    this.loadingRaccogliBirdsAmbienceAudio = true;
+    fetch(raccogliBirdsAmbienceAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.raccogliBirdsAmbienceBuffer = decodedBuffer;
+        onLoaded?.();
+      })
+      .catch((error) => {
+        console.error('Error loading Raccogli birds ambience audio:', error);
+      })
+      .finally(() => {
+        this.loadingRaccogliBirdsAmbienceAudio = false;
+      });
   }
 
   private loadBeeBuzzAudio(onLoaded?: () => void) {
