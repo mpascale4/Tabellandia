@@ -811,24 +811,30 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
           {/* 🐝 Bee obstacles — devono stare sopra la coccinella */}
           {displayB >= BEE_START_FACTOR && !isCompleted && !isFailed && (
             beePositions.map((bee, i) => {
-              return (
-                <button
-                  type="button"
-                  key={`bee-${displayB}-${i}`}
-                  onClick={(e) => { e.stopPropagation(); handleBeeTap(); }}
-                  className="absolute z-30 inline-flex h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-full cursor-pointer select-none transition-transform"
-                  style={{ top: `${Math.floor(bee.y)}px`, left: `${Math.floor(bee.x)}px` }}
-                  aria-label={`Calabrone: non toccare. ${beeTouchStatusLabel}`}
-                >
-                  {i === 0 && showBeeGuidance && (
-                    <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
-                  )}
-                  <span className="inline-flex h-full w-full items-center justify-center overflow-hidden text-[26px] leading-none" aria-hidden="true">
-                    🐝
-                  </span>
-                </button>
-              );
-            })
+               return (
+                 <div
+                   key={`bee-${displayB}-${i}`}
+                   className="absolute"
+                   style={{ top: `${Math.floor(bee.y)}px`, left: `${Math.floor(bee.x)}px`, width: '52px', height: '52px' }}
+                 >
+                   <button
+                     type="button"
+                     onClick={(e) => { e.stopPropagation(); handleBeeTap(); }}
+                     className="relative inline-flex h-full w-full items-center justify-center rounded-full cursor-pointer select-none transition-transform z-30"
+                     aria-label={`Calabrone: non toccare. ${beeTouchStatusLabel}`}
+                   >
+                     {i === 0 && showBeeGuidance && (
+                       <div className="absolute">
+                         <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
+                       </div>
+                     )}
+                     <span className="inline-flex h-full w-full items-center justify-center overflow-hidden rounded-full text-[26px] leading-none" aria-hidden="true">
+                       🐝
+                     </span>
+                   </button>
+                 </div>
+               );
+             })
           )}
 
           {isFailed ? (
