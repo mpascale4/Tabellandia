@@ -3457,7 +3457,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
                                 animate={
                                   isFrogSplashing
-                                    ? { y: 28, rotate: 180, scale: 1.15 }
+                                    ? { y: [0, 28, 72], rotate: [0, 12, 20], scale: [1, 1.06, 0.96], opacity: [1, 1, 0] }
                                     : saltoLeap?.from === 0
                                       ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
                                       : saltoTapHop?.step === 0
@@ -3466,7 +3466,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 }
                                 transition={
                                   isFrogSplashing
-                                    ? { duration: 0.4, ease: "easeOut" }
+                                    ? { duration: prefersReducedMotion ? 0.2 : 0.42, ease: "easeIn" }
                                     : saltoLeap?.from === 0
                                       ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
                                       : saltoTapHop?.step === 0
@@ -3481,10 +3481,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                     <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
                                   </span>
                                 )}
-                                {isFrogSplashing && (
-                                  <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
-                                )}
                               </motion.button>
+                            )}
+                            {saltoFrogPosition === 0 && isFrogSplashing && (
+                              <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none animate-ping" aria-hidden="true">💦</span>
                             )}
                             <span className="text-xl">🌱</span>
                             <span className="text-[9px] font-black text-sky-950 bg-amber-100 px-1.5 py-0.5 rounded shadow-xs font-sans">
@@ -3547,7 +3547,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                       initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
                                       animate={
                                         isFrogSplashing
-                                          ? { y: 28, rotate: 180, scale: 1.15 }
+                                          ? { y: [0, 28, 72], rotate: [0, 12, 20], scale: [1, 1.06, 0.96], opacity: [1, 1, 0] }
                                           : saltoLeap?.from === stoneStep
                                             ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
                                             : saltoTapHop?.step === stoneStep
@@ -3556,7 +3556,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                       }
                                       transition={
                                         isFrogSplashing
-                                          ? { duration: 0.4, ease: "easeOut" }
+                                          ? { duration: prefersReducedMotion ? 0.2 : 0.42, ease: "easeIn" }
                                           : saltoLeap?.from === stoneStep
                                             ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
                                             : saltoTapHop?.step === stoneStep
@@ -3571,10 +3571,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                           <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
                                         </span>
                                       )}
-                                      {isFrogSplashing && (
-                                        <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
-                                      )}
                                     </motion.button>
+                                  )}
+                                  {isFrogHere && isFrogSplashing && (
+                                    <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none animate-ping" aria-hidden="true">💦</span>
                                   )}
 
                                   {/* Frog sitting on final stone on completion */}
