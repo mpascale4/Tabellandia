@@ -113,18 +113,18 @@ const createReducedMotionLayout = (count: number, arena: ArenaSize): BasketParti
   });
 };
 
-const getBeeBounds = (maxX: number, maxY: number): {
-  quietMinX: number;
-  quietMaxX: number;
-  quietMinY: number;
-  quietMaxY: number;
-  attractMinX: number;
-  attractMaxX: number;
-  attractMinY: number;
-  attractMaxY: number;
-} => {
-   const quietInsetX = ARENA_INNER_FRAME_INSET_PX + beeQuietMargin;
-   const quietInsetY = ARENA_INNER_FRAME_INSET_PX + beeQuietMargin;
+const getBeeBounds = (maxX: number, maxY: number, beeQuietMarginValue: number = BEE_QUIET_MARGIN_PX): {
+   quietMinX: number;
+   quietMaxX: number;
+   quietMinY: number;
+   quietMaxY: number;
+   attractMinX: number;
+   attractMaxX: number;
+   attractMinY: number;
+   attractMaxY: number;
+ } => {
+   const quietInsetX = ARENA_INNER_FRAME_INSET_PX + beeQuietMarginValue;
+   const quietInsetY = ARENA_INNER_FRAME_INSET_PX + beeQuietMarginValue;
   const attractInsetLeft = quietInsetX;
   const attractInsetRight = quietInsetX;
   const attractInsetY = quietInsetY;
@@ -150,10 +150,10 @@ const getBeeBounds = (maxX: number, maxY: number): {
   };
 };
 
-const createBeeParticles = (count: number, arena: ArenaSize, factor: number, reducedMotion: boolean): BeeParticle[] => {
-  const maxX = Math.max(0, arena.width - BEE_SIZE);
-  const maxY = Math.max(0, arena.height - BEE_SIZE);
-  const { quietMinX, quietMaxX, quietMinY, quietMaxY } = getBeeBounds(maxX, maxY);
+const createBeeParticles = (count: number, arena: ArenaSize, factor: number, reducedMotion: boolean, beeQuietMarginValue: number = BEE_QUIET_MARGIN_PX): BeeParticle[] => {
+   const maxX = Math.max(0, arena.width - BEE_SIZE);
+   const maxY = Math.max(0, arena.height - BEE_SIZE);
+   const { quietMinX, quietMaxX, quietMinY, quietMaxY } = getBeeBounds(maxX, maxY, beeQuietMarginValue);
   const innerPaddingX = maxX * BEE_IDLE_INNER_PADDING_RATIO;
   const innerPaddingY = maxY * BEE_IDLE_INNER_PADDING_RATIO;
   const idleMinX = Math.max(quietMinX, innerPaddingX);
@@ -369,10 +369,10 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
       return;
     }
 
-    const nextBees = createBeeParticles(beeCount, arenaSize, displayB, prefersReducedMotion);
+    const nextBees = createBeeParticles(beeCount, arenaSize, displayB, prefersReducedMotion, beeQuietMargin);
     beeParticlesRef.current = nextBees;
     setBeePositions(nextBees);
-  }, [arenaSize, displayB, isCompleted, isFailed, prefersReducedMotion]);
+   }, [arenaSize, displayB, isCompleted, isFailed, prefersReducedMotion, beeQuietMargin]);
 
   useEffect(() => {
     onCompletionChange?.(isCompleted);
