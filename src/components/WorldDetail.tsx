@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
 import { AlertCircle, Award, Timer, Trophy, Compass, RotateCcw } from 'lucide-react';
-import ComprendoBasketGame from './ComprendoBasketGame';
+import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
 import RewardPopup from './RewardPopup';
 import FireworksOverlay from './FireworksOverlay';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
@@ -400,6 +400,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const trucchiQuestionSolvedRef = useRef<boolean>(false);
   const trucchiPyramidCollapsedRef = useRef<boolean>(false);
   const comprendoCompletionOverlayTimeoutRef = useRef<number | null>(null);
+  const comprendoBasketGameRef = useRef<ComprendoBasketGameHandle | null>(null);
   const COMPRENDO_COMPLETION_OVERLAY_MS = 1200;
 
   const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
@@ -2684,6 +2685,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
     cancelTrucchiExercise();
   };
+
+  // Temporary debug shortcut: simulates completing the currently selected table for each step.
+  // Raccogli → triggers the in-game star bonus (fills all baskets, user still presses Continua).
+  // Other steps → call the same complete*Exercise() the real game uses, completing only the active factor.
+  const completeStepTemporarily = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
+    if (stepName === 'comprendo') { comprendoBasketGameRef.current?.triggerStarBonus(); return; }
+    if (stepName === 'salto')     { completeSaltoExercise();     return; }
+    if (stepName === 'costruisco') { completeCostruiscoExercise(); return; }
+    if (stepName === 'trucchi')   { completeTrucchiExercise();   return; }
+  };
+
   const goBackFromWorldContent = () => {
     if (activeStep === 'sfida' && sfidaActive) {
       if (timerRef.current) {
@@ -3180,24 +3192,19 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                  {comprendoFlowStage === 'game' && (
                    <div className="relative bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
                      <ComprendoBasketGame
+                        ref={comprendoBasketGameRef}
                        a={world.id}
                        b={comprendoSelectedFactor}
                        itemEmoji={world.itemsToCount}
                        onCompletionChange={handleComprendoCompletionChange}
                      />
-                     {showComprendoCompletionEffect && (
-                       <motion.div
-                         initial={{ opacity: 0, scale: 0.9 }}
-                         animate={{ opacity: 1, scale: 1 }}
-                         exit={{ opacity: 0, scale: 0.9 }}
-                         className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                       >
-                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
-                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                           
-                         </div>
-                       </motion.div>
-                     )}
+                      {showComprendoCompletionEffect && (
+                        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
+                          <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
+                            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
+                          </div>
+                        </div>
+                      )}
                    </div>
                  )}
 
@@ -3267,6 +3274,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      </button>
                    </div>
                  )}
+                  {comprendoFlowStage === 'game' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        completeStepTemporarily('comprendo');
+                      }}
+                      className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
+                      id="comprendo-debug-complete-btn"
+                    >
+                      Termina step (temporaneo)
+                    </button>
+                  )}
                </div>
               </div>
             </div>
@@ -3538,16 +3557,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     )}
 
                     {showSaltoCompletionEffect && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                      >
+                      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
                         </div>
-                      </motion.div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -3611,13 +3625,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 )}
                 <button
                   type="button"
-                  onClick={completeSaltoExercise}
-                  className="hidden"
-                  aria-hidden="true"
-                  tabIndex={-1}
+                  onClick={() => {
+                    sound.playClick();
+                    completeStepTemporarily('salto');
+                  }}
+                  className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
                   id="salto-debug-complete-btn"
                 >
-                  Complete salto step
+                  Termina step (temporaneo)
                 </button>
               </div>
             </div>
@@ -3825,17 +3840,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      </div>
 
                      {showCostruiscoCompletionEffect && (
-                       <motion.div
-                         initial={{ opacity: 0, scale: 0.9 }}
-                         animate={{ opacity: 1, scale: 1 }}
-                         exit={{ opacity: 0, scale: 0.9 }}
-                         className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                       >
+                       <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
                          <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                           
                          </div>
-                       </motion.div>
+                       </div>
                      )}
                    </div>
                  )}
@@ -3907,13 +3916,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                  )}
                   <button
                     type="button"
-                    onClick={completeCostruiscoExercise}
-                    className="hidden"
-                    aria-hidden="true"
-                    tabIndex={-1}
+                    onClick={() => {
+                      sound.playClick();
+                      completeStepTemporarily('costruisco');
+                    }}
+                    className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
                     id="costruisco-debug-complete-btn"
                   >
-                    Complete costruisco step
+                    Termina step (temporaneo)
                   </button>
                </div>
              </div>
@@ -4223,17 +4233,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     )}
 
                     {showTrucchiCompletionEffect && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto"
-                      >
+                      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                          
                         </div>
-                      </motion.div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -4298,13 +4302,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 )}
                 <button
                   type="button"
-                  onClick={completeTrucchiExercise}
-                  className="hidden"
-                  aria-hidden="true"
-                  tabIndex={-1}
+                  onClick={() => {
+                    sound.playClick();
+                    completeStepTemporarily('trucchi');
+                  }}
+                  className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
                   id="trucchi-debug-complete-btn"
                 >
-                  Complete trucchi step
+                  Termina step (temporaneo)
                 </button>
               </div>
             </div>

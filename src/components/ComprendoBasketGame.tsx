@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
@@ -10,6 +10,10 @@ interface ComprendoBasketGameProps {
   b: number;
   itemEmoji: string;
   onCompletionChange?: (isCompleted: boolean) => void;
+}
+
+export interface ComprendoBasketGameHandle {
+  triggerStarBonus: () => void;
 }
 
 interface ArenaSize {
@@ -85,8 +89,8 @@ const BEE_POINTER_ATTRACTION_PER_LEVEL = 12;
 const BEE_POINTER_SPEED_BOOST_BASE = 100;
 const BEE_POINTER_SPEED_BOOST_PER_LEVEL = 14;
 const HELPER_BONUS_VISIBLE_MS = 3000;
-const HELPER_BONUS_RESPAWN_MIN_MS = 1800;
-const HELPER_BONUS_RESPAWN_MAX_MS = 4200;
+const HELPER_BONUS_RESPAWN_MIN_MS = 4000;
+const HELPER_BONUS_RESPAWN_MAX_MS = 8000;
 const HELPER_BONUS_SIZE = 50;
 const HELPER_BONUS_EDGE_MARGIN = 16;
 const HELPER_BONUS_KIND_WEIGHTS: Array<{ kind: HelperBonusKind; weight: number }> = [
@@ -222,7 +226,10 @@ const createBeeParticles = (count: number, arena: ArenaSize, factor: number, red
   });
 };
 
-export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onCompletionChange }: ComprendoBasketGameProps) {
+const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBasketGameProps>(function ComprendoBasketGame(
+  { a: propA, b: propB, itemEmoji, onCompletionChange }: ComprendoBasketGameProps,
+  ref,
+) {
   const displayA = propA;
   const displayB = propB;
   const a = propB; // number of baskets
@@ -421,6 +428,28 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
 
     removeHelperBonus(bonus.id);
   };
+
+  useImperativeHandle(ref, () => ({
+    triggerStarBonus: () => {
+      if (isCompleted || isFailed) return;
+
+      const centerX = Math.max(0, (arenaSize.width - HELPER_BONUS_SIZE) / 2);
+      const centerY = Math.max(0, (arenaSize.height - HELPER_BONUS_SIZE) / 2);
+      const fallbackBonus: HelperBonus = {
+        id: -1,
+        kind: 'star',
+        x: helperBonuses[0]?.x ?? centerX,
+        y: helperBonuses[0]?.y ?? centerY,
+        vx: 0,
+        vy: 0,
+        expiresAt: performance.now() + HELPER_BONUS_VISIBLE_MS,
+      };
+
+      clearHelperBonusTimers();
+      setHelperBonuses([]);
+      applyHelperBonus(fallbackBonus);
+    },
+  }), [arenaSize.height, arenaSize.width, helperBonuses, isCompleted, isFailed, applyHelperBonus]);
   useEffect(() => {
     setBasketCounts(createEmptyCounts(a));
     setCelebratingBasket(null);
@@ -1208,5 +1237,9 @@ export default function ComprendoBasketGame({ a: propA, b: propB, itemEmoji, onC
 
     </div>
   );
-}
+});
+
+ComprendoBasketGame.displayName = 'ComprendoBasketGame';
+
+export default ComprendoBasketGame;
 
