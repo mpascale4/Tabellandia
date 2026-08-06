@@ -219,3 +219,10 @@ Usa sempre questo pattern:
 - Lucchetto: sfondo bianco, bordo slate, emoji `🔒`
 - Sempre `aria-hidden="true"` (informazione trasmessa anche da colore/testo)
 - Non usare `✅` nei badge di stato su card (solo nei testi descrittivi)
+
+---
+
+## Session Learnings
+
+- Per download automatici di asset audio da Wikimedia Commons, preferire endpoint `Special:FilePath/<nome-file>` con `User-Agent` esplicito e piccole pause tra richieste per ridurre errori `429 Too many requests`.
+

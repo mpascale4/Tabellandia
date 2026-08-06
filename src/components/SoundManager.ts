@@ -4,6 +4,12 @@
  */
 
 import frogAudioUrl from '../data/frog.mp3';
+import snakeAudioUrl from '../data/animal-sounds/snake-rattlesnake.ogg';
+import batAudioUrl from '../data/animal-sounds/bat-feeding-buzz.wav';
+import spiderAudioUrl from '../data/animal-sounds/spider-insect-ambience.wav';
+import scorpionAudioUrl from '../data/animal-sounds/scorpion-night-insects.wav';
+
+type SaltoAntagonistAudioId = 'snake' | 'bat' | 'spider' | 'scorpion';
 
 class SoundManager {
   private ctx: AudioContext | null = null;
@@ -13,6 +19,14 @@ class SoundManager {
   private musicStep: number = 0;
   private frogAudioBuffer: AudioBuffer | null = null;
   private loadingFrogAudio = false;
+  private readonly antagonistsAudioUrls: Record<SaltoAntagonistAudioId, string> = {
+    snake: snakeAudioUrl,
+    bat: batAudioUrl,
+    spider: spiderAudioUrl,
+    scorpion: scorpionAudioUrl,
+  };
+  private readonly antagonistsAudioBuffers: Partial<Record<SaltoAntagonistAudioId, AudioBuffer>> = {};
+  private readonly loadingAntagonistsAudio = new Set<SaltoAntagonistAudioId>();
   private readonly musicPattern = [
     // Divertente melodia playful in tonalità maggiore
     392.00, // G4
@@ -339,14 +353,17 @@ class SoundManager {
 
     // Se il buffer non è stato caricato, avviamo il caricamento
     if (!this.frogAudioBuffer && !this.loadingFrogAudio) {
+      this.loadingFrogAudio = true;
       fetch(frogAudioUrl)
         .then((response) => response.arrayBuffer())
         .then((arrayBuffer) => this.ctx!.decodeAudioData(arrayBuffer))
         .then((decodedBuffer) => {
           this.frogAudioBuffer = decodedBuffer;
+          this.loadingFrogAudio = false;
           this.playFrogCroakFromBuffer();
         })
         .catch((error) => {
+          this.loadingFrogAudio = false;
           console.error('Error loading frog audio:', error);
           this.playFrogCroakFallback();
         });
@@ -365,6 +382,49 @@ class SoundManager {
     source.buffer = this.frogAudioBuffer;
     source.connect(this.ctx.destination);
     source.start(0);
+  }
+
+  private playAudioBuffer(buffer: AudioBuffer) {
+    if (!this.ctx) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.ctx.destination);
+    source.start(0);
+  }
+
+  playSaltoAntagonistSound(antagonistId: SaltoAntagonistAudioId) {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const cached = this.antagonistsAudioBuffers[antagonistId];
+    if (cached) {
+      this.playAudioBuffer(cached);
+      return;
+    }
+
+    if (this.loadingAntagonistsAudio.has(antagonistId)) {
+      this.playClick();
+      return;
+    }
+
+    const targetUrl = this.antagonistsAudioUrls[antagonistId];
+    this.loadingAntagonistsAudio.add(antagonistId);
+    fetch(targetUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => this.ctx!.decodeAudioData(arrayBuffer))
+      .then((decodedBuffer) => {
+        this.antagonistsAudioBuffers[antagonistId] = decodedBuffer;
+        this.playAudioBuffer(decodedBuffer);
+      })
+      .catch((error) => {
+        console.error(`Error loading ${antagonistId} audio:`, error);
+        this.playClick();
+      })
+      .finally(() => {
+        this.loadingAntagonistsAudio.delete(antagonistId);
+      });
   }
 
   private playFrogCroakFallback() {
