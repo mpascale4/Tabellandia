@@ -3510,12 +3510,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 {hasEnemyStep && (
                                   <div className="relative flex flex-col items-center justify-end min-w-[40px] shrink-0">
                                     <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (!enemyForStep) return;
-                                        consumeGuidance('saltoAvoid');
-                                        speak(`Antagonista ${enemyForStep.label}`);
-                                      }}
+                                       type="button"
+                                       onClick={() => {
+                                         if (!enemyForStep) return;
+                                         consumeGuidance('saltoAvoid');
+                                         speak(enemyForStep.label);
+                                       }}
                                       className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center shadow-sm transition-all cursor-pointer ${
                                         isEnemyStepPending
                                           ? 'bg-rose-100 border-rose-400 ring-4 ring-rose-200 motion-safe:animate-pulse'
