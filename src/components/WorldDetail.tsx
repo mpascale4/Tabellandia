@@ -3478,7 +3478,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         <div
                           ref={saltoContainerRef}
                           data-touch-swipe-lock="true"
-                          className="relative flex min-w-0 flex-1 items-center justify-start gap-2.5 overflow-x-auto scroll-smooth px-2 pt-8 pb-2 sm:gap-3.5"
+                          className="relative flex min-w-0 flex-1 items-center justify-start gap-2.5 overflow-x-auto overflow-y-hidden scroll-smooth px-2 pt-8 pb-2 sm:gap-3.5"
                           style={{ touchAction: 'pan-x' }}
                         >
                           {/* Start Bank (Riva / Partenza) - Frog starts here! */}
@@ -3523,7 +3523,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               </motion.button>
                             )}
                             {saltoFrogPosition === 0 && isFrogSplashing && (
-                              <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none animate-ping" aria-hidden="true">💦</span>
+                              <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none" aria-hidden="true">💦</span>
                             )}
                             <span className="text-xl">🌱</span>
                             <span className="text-[9px] font-black text-sky-950 bg-amber-100 px-1.5 py-0.5 rounded shadow-xs font-sans">
@@ -3613,7 +3613,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                     </motion.button>
                                   )}
                                   {isFrogHere && isFrogSplashing && (
-                                    <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none animate-ping" aria-hidden="true">💦</span>
+                                    <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none" aria-hidden="true">💦</span>
                                   )}
 
                                   {/* Frog sitting on final stone on completion */}
