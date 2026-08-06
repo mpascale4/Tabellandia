@@ -3,12 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import frogAudioUrl from '../data/frog.mp3';
+
 class SoundManager {
   private ctx: AudioContext | null = null;
   private effectsEnabled: boolean = true;
   private musicEnabled: boolean = true;
   private musicTimer: number | null = null;
   private musicStep: number = 0;
+  private frogAudioBuffer: AudioBuffer | null = null;
+  private loadingFrogAudio = false;
   private readonly musicPattern = [
     // Divertente melodia playful in tonalità maggiore
     392.00, // G4
@@ -333,9 +337,41 @@ class SoundManager {
     if (!this.ctx) return;
     this.ensureBackgroundMusic();
 
+    // Se il buffer non è stato caricato, avviamo il caricamento
+    if (!this.frogAudioBuffer && !this.loadingFrogAudio) {
+      fetch(frogAudioUrl)
+        .then((response) => response.arrayBuffer())
+        .then((arrayBuffer) => this.ctx!.decodeAudioData(arrayBuffer))
+        .then((decodedBuffer) => {
+          this.frogAudioBuffer = decodedBuffer;
+          this.playFrogCroakFromBuffer();
+        })
+        .catch((error) => {
+          console.error('Error loading frog audio:', error);
+          this.playFrogCroakFallback();
+        });
+      return;
+    }
+
+    // Se il buffer è caricato, riproducilo
+    if (this.frogAudioBuffer) {
+      this.playFrogCroakFromBuffer();
+    }
+  }
+
+  private playFrogCroakFromBuffer() {
+    if (!this.ctx || !this.frogAudioBuffer) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.frogAudioBuffer;
+    source.connect(this.ctx.destination);
+    source.start(0);
+  }
+
+  private playFrogCroakFallback() {
+    if (!this.ctx) return;
+    // Fallback al suono sintetico
     const now = this.ctx.currentTime;
-    // Verso della rana: due toni bassi in successione per creare un effetto di gracidio
-    const frequencies = [150, 120]; // Frequenze basse per il verso di rana
+    const frequencies = [150, 120];
     const duration = 0.15;
 
     frequencies.forEach((freq, idx) => {
@@ -355,6 +391,27 @@ class SoundManager {
       osc.start(now + idx * duration * 0.5);
       osc.stop(now + idx * duration * 0.5 + duration);
     });
+  }
+
+  loadFrogAudio() {
+    if (this.loadingFrogAudio || this.frogAudioBuffer) return;
+    this.loadingFrogAudio = true;
+
+    fetch(frogAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.frogAudioBuffer = decodedBuffer;
+        this.loadingFrogAudio = false;
+      })
+      .catch((error) => {
+        console.error('Error loading frog audio:', error);
+        this.loadingFrogAudio = false;
+      });
   }
 }
 
