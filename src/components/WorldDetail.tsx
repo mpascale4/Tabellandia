@@ -222,6 +222,29 @@ const STEP_MOTIVATION_MESSAGES = {
     'Grandissima! Hai conquistato questo passo!',
   ],
 } as const;
+
+const STEP_UNLOCK_MESSAGES = {
+  male: {
+    salto: 'Il passo successivo Salta è sbloccato! 🐸',
+    costruisco: 'Il passo successivo Scoppia è sbloccato! 🎈',
+    trucchi: 'Il passo successivo Trova è sbloccato! 🧱',
+    pratico: 'La Sfida è sbloccata! ⚔️ Raccogli le monete per entrare!',
+  },
+  female: {
+    salto: 'Il passo successivo Salta è sbloccato! 🐸',
+    costruisco: 'Il passo successivo Scoppia è sbloccato! 🎈',
+    trucchi: 'Il passo successivo Trova è sbloccato! 🧱',
+    pratico: 'La Sfida è sbloccata! ⚔️ Raccogli le monete per entrare!',
+  },
+} as const;
+
+const STEP_LABELS = {
+  salto: { title: '2. Salta', icon: '🐸', short: 'Salta' },
+  costruisco: { title: '3. Scoppia', icon: '🎈', short: 'Scoppia' },
+  trucchi: { title: '4. Trova', icon: '🧱', short: 'Trova' },
+  pratico: { title: '5. Pratico (Avventura)', icon: '🛡️', short: 'Pratico' },
+} as const;
+
 const GAMEPLAY_AUDIO_MESSAGES = {
   saltoFall: 'Oh no, la ranocchia e caduta! Riproviamo.',
   saltoObstacleBlocked: "Oh no! Ti ha fermato l'antagonista.",
@@ -285,7 +308,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [activeStep, setActiveStep] = useState<string>(initialExercise || 'intro'); // intro, comprendo, salto, costruisco, trucchi, pratico, sfida
   const [hasSeenIntro, setHasSeenIntro] = useState<boolean>(false);
   const [showRewardPopup, setShowRewardPopup] = useState<{ step: string; coins: number; drops: number } | null>(null);
-  const [motivationPopup, setMotivationPopup] = useState<{ stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi'; message: string } | null>(null);
+  const [motivationPopup, setMotivationPopup] = useState<{
+    stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi';
+    message: string;
+    unlockedStepId: 'salto' | 'costruisco' | 'trucchi' | 'pratico' | null;
+    unlockedStepLabel: string | null;
+  } | null>(null);
 
   // View stack for modal-to-page conversion
   const [viewStack, setViewStack] = useState<string[]>([]); // Stack of views, e.g. ['rules-comprendo', 'intro']
@@ -400,11 +428,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     trucchi: 'Trova',
   };
 
+  const unlockedStepLabels: Record<'salto' | 'costruisco' | 'trucchi' | 'pratico', string> = {
+    salto: '2. Salta',
+    costruisco: '3. Scoppia',
+    trucchi: '4. Trova',
+    pratico: '5. Pratico',
+  };
+
+  const getNextStepAfterCompletion = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
+    if (stepName === 'comprendo') return 'salto';
+    if (stepName === 'salto') return 'costruisco';
+    if (stepName === 'costruisco') return 'trucchi';
+    return 'pratico';
+  };
+
   const showStepMotivationPopup = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
-    const messages = STEP_MOTIVATION_MESSAGES[playerGender];
-    const message = messages[Math.floor(Math.random() * messages.length)];
-    setMotivationPopup({ stepName, message });
-    speak(message);
+    const nextStepId = getNextStepAfterCompletion(stepName) as 'salto' | 'costruisco' | 'trucchi' | 'pratico';
+    const nextStepLabel = STEP_LABELS[nextStepId];
+    const unlockedMessage = STEP_UNLOCK_MESSAGES[playerGender][nextStepId];
+    setMotivationPopup({ stepName, message: unlockedMessage, unlockedStepId: nextStepId, unlockedStepLabel: nextStepLabel.title });
+    speak(`${unlockedMessage}`);
   };
 
   const triggerFireworksAndMotivation = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
@@ -414,7 +457,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
 
     setShowFireworks(false);
-    showStepMotivationPopup(stepName);
+    
+    // Delay di 600ms per permettere al suono playLevelUp() di completarsi prima della voce
+    window.setTimeout(() => {
+      showStepMotivationPopup(stepName);
+    }, 600);
 
     fireworksRestartTimeoutRef.current = window.setTimeout(() => {
       setShowFireworks(true);
@@ -2151,6 +2198,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const closeMotivationPopup = () => {
     sound.playClick();
+    if (motivationPopup?.unlockedStepId) {
+      setActiveStep('intro');
+    }
     setMotivationPopup(null);
   };
 
@@ -2492,7 +2542,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
       const existingFactors = worldProg.completedFactors?.[stepName] || [];
       const nextFactors = existingFactors.includes(factor) ? existingFactors : [...existingFactors, factor];
-      didReachTenNow = nextFactors.length >= 10;
+      const wasAlreadyCompleted = existingFactors.length >= 10 || worldProg.completedSteps.includes(stepName);
+      didReachTenNow = !wasAlreadyCompleted && nextFactors.length >= 10;
       const newCompletedFactors = {
         ...(worldProg.completedFactors || {}),
         [stepName]: nextFactors
@@ -2502,6 +2553,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       if (nextFactors.length >= 10 && !nextCompletedSteps.includes(stepName)) {
         nextCompletedSteps.push(stepName);
       }
+      const nextStepToUnlock = nextFactors.length >= 10 ? getNextStepAfterCompletion(stepName) : null;
+      const nextLockedSteps = nextStepToUnlock
+        ? (worldProg.lockedSteps || []).filter(lockedStepId => lockedStepId !== nextStepToUnlock)
+        : (worldProg.lockedSteps || []);
 
       let evolution = worldProg.creatureEvolution;
       if (nextCompletedSteps.length >= 6) {
@@ -2526,6 +2581,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             ...worldProg,
             completedSteps: nextCompletedSteps,
             completedFactors: newCompletedFactors,
+            lockedSteps: nextLockedSteps,
             creatureEvolution: evolution
           }
         }
@@ -3301,6 +3357,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       <p className="text-slate-600 mt-1 leading-relaxed">
                         Continua finché completi il percorso e arrivi al totale giusto <strong>{world.id * saltoSelectedFactor}</strong>.
                       </p>
+                      {(saltoSelectedFactor ?? 0) >= TRUCCHI_HAMMER_START_FACTOR && (
+                        <p className="text-rose-700 font-semibold mt-1 leading-relaxed">
+                          ⚠️ Il 🔨 martello parte gia da ×1: e lento all'inizio, accelera da ×4, ×6 e ×8. Se colpisce il mattone giusto, perdi!
+                        </p>
+                      )}
                     </div>
                     <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200">
                       <h4 className="font-bold text-yellow-900 font-sans">
@@ -3535,37 +3596,36 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           })}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Options Grid or Splash Retry Button */}
-                    {isFrogSplashing ? (
-                      <motion.button
-                        type="button"
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        onClick={() => {
-                          sound.playClick();
-                          resetGuidance(['saltoTouch', 'saltoAvoid']);
-                          setIsFrogSplashing(false);
-                          setSaltoIndex(0);
-                          setSaltoCorrectClicks(new Set());
-                          setSaltoFrogPosition(0);
-                          setSaltoLeap(null);
-                          if (saltoSelectedFactor !== null) {
-                            const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
-                            setSaltoEnemySteps(enemyLayout.steps);
-                            setSaltoJumpedEnemySteps(new Set());
-                            setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
-                          }
-                        }}
-                        className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm text-center py-3.5 px-4 rounded-2xl border-2 border-rose-300 shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 font-sans"
-                      >
-                        <span className="text-lg sm:text-xl">💦</span>
-                        <span>Riprova</span>
-                      </motion.button>
-                    ) : (
-                      <div className="w-full space-y-2.5">
-                        <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                      {/* Options Grid or Splash Retry Button */}
+                      {isFrogSplashing ? (
+                        <motion.button
+                          type="button"
+                          initial={{ scale: 0.95, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          onClick={() => {
+                            sound.playClick();
+                            resetGuidance(['saltoTouch', 'saltoAvoid']);
+                            setIsFrogSplashing(false);
+                            setSaltoIndex(0);
+                            setSaltoCorrectClicks(new Set());
+                            setSaltoFrogPosition(0);
+                            setSaltoLeap(null);
+                            if (saltoSelectedFactor !== null) {
+                              const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
+                              setSaltoEnemySteps(enemyLayout.steps);
+                              setSaltoJumpedEnemySteps(new Set());
+                              setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
+                            }
+                          }}
+                          className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm text-center py-3.5 px-4 rounded-2xl border-2 border-rose-300 shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 font-sans"
+                        >
+                          <span className="text-lg sm:text-xl">💦</span>
+                          <span>Riprova</span>
+                        </motion.button>
+                      ) : (
+                        <div className="w-full space-y-2.5">
+                          <div className="grid grid-cols-4 gap-2 sm:gap-3">
                         {saltoOptions.map((opt, idx) => {
                           const solvedNum = world.id * saltoSelectedFactor;
                           const isSelected = saltoGameCompleted && opt === solvedNum;
@@ -3678,17 +3738,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         Annulla
                       </button>
                       <button
-                        onClick={() => {
-                          sound.playClick();
-                          if (!saltoGameCompleted) return;
-                          completeSaltoExercise();
-                        }}
-                        disabled={!saltoGameCompleted}
-                        className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors motion-safe:animate-pulse ${
-                          saltoGameCompleted
-                            ? 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
-                            : 'bg-purple-300 cursor-not-allowed opacity-70'
-                        }`}
+                        disabled
+                        className="w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all bg-slate-100 text-slate-400 cursor-not-allowed motion-safe:animate-pulse"
+                        id="trick-done-btn"
                       >
                         Continua
                       </button>
@@ -4694,12 +4746,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             <p className="mb-5 text-sm text-slate-600">
               {motivationPopup.message}
             </p>
+            {motivationPopup.unlockedStepLabel && (
+              <div className="mb-5 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-left">
+                <p className="text-[10px] font-black uppercase tracking-wide text-indigo-600">Nuovo passo sbloccato</p>
+                <div className="mt-2 flex items-center gap-2.5">
+                  <span className="text-2xl">{motivationPopup.unlockedStepId ? STEP_LABELS[motivationPopup.unlockedStepId as keyof typeof STEP_LABELS].icon : '✨'}</span>
+                  <p className="text-sm font-black text-indigo-950">{motivationPopup.unlockedStepLabel}</p>
+                </div>
+                <p className="mt-2 text-xs text-indigo-800">Lo trovi ora nel Sentiero del Regno.</p>
+              </div>
+            )}
             <button
               type="button"
               onClick={closeMotivationPopup}
               className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-black text-white shadow-md transition-colors hover:bg-emerald-700 cursor-pointer motion-safe:animate-pulse"
             >
-              Continua
+              {motivationPopup.unlockedStepId ? 'Vai al Sentiero' : 'Continua'}
             </button>
           </motion.div>
         </div>
