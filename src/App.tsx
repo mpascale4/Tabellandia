@@ -24,7 +24,7 @@ import ActionGrid from './components/layout/ActionGrid';
 import ResponsiveGrid from './components/layout/ResponsiveGrid';
 import SectionHeader from './components/layout/SectionHeader';
 import SurfaceCard from './components/layout/SurfaceCard';
-import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Coins, Droplets, Map } from 'lucide-react';
+import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Map } from 'lucide-react';
 import { getGenderedText, getPlayerGender, PlayerGender } from './utils/playerCopy';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
@@ -1502,26 +1502,6 @@ export default function App() {
                  </span>
                 </div>
 
-                {/* Monete & Gocce (Sovrapposte una sotto l'altra) */}
-                <div className={`flex flex-col justify-center gap-1 shrink-0 bg-white/65 rounded-2xl border border-white/80 ${isPhoneMode ? 'px-2 py-1 min-w-[72px]' : 'px-3 py-1.5 min-w-[105px]'}`}>
-                  {/* Monete */}
-                  <div className="flex items-center justify-between gap-1.5 rounded px-1 text-left w-full group">
-                    <div className="flex items-center gap-1 text-amber-600 group-hover:text-amber-700">
-                      <Coins className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
-                      <span className={`font-bold uppercase tracking-wide text-sky-950/60 group-hover:text-amber-900 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Monete</span>
-                    </div>
-                    <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.coins}</span>
-                  </div>
-
-                  {/* Gocce */}
-                  <div className="flex items-center justify-between gap-1.5 border-t border-sky-950/10 pt-0.5 rounded px-1 text-left w-full group">
-                    <div className="flex items-center gap-1 text-sky-500 group-hover:text-sky-600">
-                      <Droplets className={`${isPhoneMode ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />
-                      <span className={`font-bold uppercase tracking-wide text-sky-950/60 group-hover:text-sky-900 ${isPhoneMode ? 'text-[7px]' : 'text-[9px]'}`}>Gocce</span>
-                    </div>
-                    <span className={`font-black text-sky-950 leading-none ${isPhoneMode ? 'text-[9px]' : 'text-xs'}`}>{profile.lightDrops}</span>
-                  </div>
-                </div>
               </>
             )}
 

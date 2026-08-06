@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { WorldConfig } from '../types';
 import { sound } from './SoundManager';
 import { Landmark } from 'lucide-react';
+import { useVoice } from '../contexts/VoiceContext';
 
 interface MonumentAreaProps {
   world: WorldConfig;
@@ -22,9 +23,15 @@ export default function MonumentArea({
   userDrops = 0,
   onRebuildMonument
 }: MonumentAreaProps) {
+  const { speak } = useVoice();
   const monuments = world.monuments || [];
   const [pendingUnlock, setPendingUnlock] = useState<{ id: string; name: string; cost: number; emoji: string; description: string } | null>(null);
   const [insufficientNotice, setInsufficientNotice] = useState<{ name: string; cost: number } | null>(null);
+
+  useEffect(() => {
+    if (!insufficientNotice) return;
+    void speak('Per avere le gocce, completa prima tutti i passi, fai pratica e vinci la Sfida.');
+  }, [insufficientNotice, speak]);
 
   // Terrain background colors based on world
   const getTerrainClass = () => {
