@@ -1665,6 +1665,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setQuizStreakJustReset(false);
     quizInteractionLockedRef.current = false;
     setQuizInteractionLocked(false);
+    setQuizPressedFeedback(null);
     setQuizHistory([]);
     setQuizWrongAttempts({});
     generateQuizOptions(questions[0].a, questions[0].b);
@@ -1869,6 +1870,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const proceedQuiz = () => {
     quizInteractionLockedRef.current = false;
     setQuizInteractionLocked(false);
+    setQuizPressedFeedback(null);
     if (currentQuizIdx < quizQuestions.length - 1) {
       const nextIdx = currentQuizIdx + 1;
       setCurrentQuizIdx(nextIdx);
@@ -4712,22 +4714,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   ? quizPressedFeedback!.correct
                     ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
                     : 'bg-rose-100 border-rose-400 text-rose-800 scale-95'
-                  : 'bg-white border-slate-100 hover:border-indigo-400 hover:bg-slate-50 text-slate-800';
+                  : 'bg-white border-slate-100 hover:border-indigo-400 hover:bg-slate-50 text-slate-800 active:scale-95';
                 return (
                   <button
                     key={idx}
                     disabled={quizInteractionLocked}
-                    onPointerDown={() => {
-                      if (quizInteractionLocked) return;
-                      setQuizPressedFeedback({ opt, correct: isCorrectOpt });
-                    }}
-                    onPointerUp={() => {
+                    onClick={() => {
                       if (quizInteractionLocked) return;
                       setQuizPressedFeedback({ opt, correct: isCorrectOpt });
                       handleQuizAnswer(opt);
                     }}
-                    onPointerLeave={() => setQuizPressedFeedback(null)}
-                    onPointerCancel={() => setQuizPressedFeedback(null)}
                     className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${quizInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     id={`quiz-opt-${opt}`}
                     aria-label={`Risposta ${opt}`}
@@ -4824,23 +4820,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   ? sfidaPressedFeedback!.correct
                     ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
                     : 'bg-rose-100 border-rose-400 text-rose-800 scale-95'
-                  : 'bg-white border-slate-100 hover:border-amber-400 hover:bg-slate-50 text-slate-800';
+                  : 'bg-white border-slate-100 hover:border-amber-400 hover:bg-slate-50 text-slate-800 active:scale-95';
                 return (
                   <button
                     key={idx}
+                    disabled={sfidaInteractionLocked}
                     aria-disabled={sfidaInteractionLocked}
-                    onPointerDown={() => {
-                      if (sfidaInteractionLocked) return;
-                      setSfidaPressedFeedback({ opt, correct: !!isCorrectOpt });
-                    }}
-                    onPointerUp={() => {
+                    onClick={() => {
                       if (sfidaInteractionLocked) return;
                       setSfidaPressedFeedback({ opt, correct: !!isCorrectOpt });
                       handleSfidaAnswer(opt);
                     }}
-                    onPointerLeave={() => setSfidaPressedFeedback(null)}
-                    onPointerCancel={() => setSfidaPressedFeedback(null)}
-                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} cursor-pointer`}
+                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${sfidaInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     id={`sfida-opt-${opt}`}
                     aria-label={`Risposta ${opt}`}
                   >
