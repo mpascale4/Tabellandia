@@ -7,17 +7,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { WorldConfig, UserProfile, QuestionAttempt } from '../types';
 import { sound } from './SoundManager';
-import { Sparkles, Check, AlertCircle, Award, Timer, Trophy, Compass, ShieldAlert, RotateCcw } from 'lucide-react';
+import { AlertCircle, Award, Timer, Trophy, Compass, RotateCcw } from 'lucide-react';
 import ComprendoBasketGame from './ComprendoBasketGame';
 import RewardPopup from './RewardPopup';
-import NumericKeypad from './NumericKeypad';
-import CombinationCarousel from './CombinationCarousel';
 import FireworksOverlay from './FireworksOverlay';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
-import { withTableIcon } from '../utils/tableLabels';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import { useVoice } from '../contexts/VoiceContext';
 import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
@@ -317,17 +314,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // View stack for modal-to-page conversion
   const [viewStack, setViewStack] = useState<string[]>([]); // Stack of views, e.g. ['rules-comprendo', 'intro']
-  
   const currentView = viewStack.length > 0 ? viewStack[viewStack.length - 1] : null;
   const pushView = (view: string) => setViewStack([...viewStack, view]);
   const popView = () => setViewStack(viewStack.slice(0, -1));
   const replaceTopView = (view: string) => setViewStack(prev => prev.length > 0 ? [...prev.slice(0, -1), view] : [view]);
-  const activePlayableStep = ALL_STEP_IDS.includes(activeStep) ? activeStep : 'comprendo';
-  
-  // States for sub-games
-  const [stepScore, setStepScore] = useState<number>(0);
-  const [attempts, setAttempts] = useState<number>(0);
-  
+
   // Track completed combinations for each step (1-10 correspond to x1 to x10)
   const [comprendoCompleted, setComprendoCompleted] = useState<Set<number>>(new Set());
   const [saltoCompleted, setSaltoCompleted] = useState<Set<number>>(new Set());
@@ -371,7 +362,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   
   // For the current game being played
   const [saltoIndex, setSaltoIndex] = useState<number>(0); // which multiple we are on (0 to 9)
-  const saltoNumbers = Array.from({ length: 10 }).map((_, i) => world.id * (i + 1));
   const [saltoOptions, setSaltoOptions] = useState<number[]>([]);
   const [saltoCorrectClicks, setSaltoCorrectClicks] = useState<Set<number>>(new Set());
   const [isFrogSplashing, setIsFrogSplashing] = useState<boolean>(false);
@@ -426,13 +416,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     salto: 'Salta',
     costruisco: 'Scoppia',
     trucchi: 'Trova',
-  };
-
-  const unlockedStepLabels: Record<'salto' | 'costruisco' | 'trucchi' | 'pratico', string> = {
-    salto: '2. Salta',
-    costruisco: '3. Scoppia',
-    trucchi: '4. Trova',
-    pratico: '5. Pratico',
   };
 
   const getNextStepAfterCompletion = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
@@ -1693,7 +1676,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const isCorrect = selectedVal === correctVal;
 
     const key = `${currentQ.a}x${currentQ.b}`;
-    const startTime = Date.now(); // simplified response logging duration
 
     // Record question attempt
     const attempt: QuestionAttempt = {
@@ -2886,8 +2868,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     >
       {/* Main content - only show if no view is pushed */}
       {!currentView && (
-        <>
-          
+        <React.Fragment>
       {/* Main Container */}
       <div className={`flex-1 overflow-y-auto flex flex-col ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
         {activeStep !== 'comprendo' && activeStep !== 'salto' && activeStep !== 'costruisco' && activeStep !== 'trucchi' && activeStep !== 'pratico' && activeStep !== 'sfida' && (
@@ -3376,7 +3357,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                 {saltoFlowStage === 'game' && (
                   <div className={`relative bg-white rounded-3xl border border-purple-100 shadow-xl ${compactLayout ? 'p-3 space-y-3' : 'p-5 space-y-5'}`}>
-                    {/* Header badge / operation touch speech */}
                     <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-indigo-50 p-3 rounded-2xl border border-purple-200 shadow-sm">
                       <button
                         type="button"
@@ -3396,301 +3376,163 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       </button>
                     </div>
 
-                    {/* River Stream with Stepping Stones & Frog */}
-                    <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between">
-                      {/* Water sparkles background */}
-                      <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:16px_16px]" />
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3">
+                      <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(5rem,1fr))] gap-2">
+                        {Array.from({ length: saltoSelectedFactor }).map((_, idx) => {
+                          const stoneStep = idx + 1;
+                          const stoneNum = world.id * stoneStep;
+                          const isReached = stoneStep <= saltoIndex || saltoGameCompleted;
+                          const isBlocked =
+                            saltoEnemySteps.includes(stoneStep) &&
+                            !saltoJumpedEnemySteps.has(stoneStep) &&
+                            !isReached;
+
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              role="listitem"
+                              onClick={() => speak(isReached ? stoneNum.toString() : `Sasso ${stoneStep}`)}
+                              className={`rounded-xl border px-2 py-2 text-center font-black font-mono text-sm transition-colors cursor-pointer ${
+                                isBlocked
+                                  ? 'border-rose-300 bg-rose-100 text-rose-700'
+                                  : isReached
+                                    ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                                    : 'border-slate-200 bg-white text-slate-500'
+                              }`}
+                            >
+                              {isReached ? stoneNum : '?'}
+                            </button>
+                          );
+                        })}
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => {
                           if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
-                          sound.playClick();
                           const currentEnemyStep = saltoIndex + 1;
                           const isJumpWindowOpen =
                             saltoEnemySteps.includes(currentEnemyStep) &&
                             !saltoJumpedEnemySteps.has(currentEnemyStep);
                           if (!isJumpWindowOpen) return;
+                          sound.playClick();
                           consumeGuidance('saltoAvoid');
-                          const fromStep = saltoFrogPosition;
-                          const toStep = currentEnemyStep;
                           const leapMs = prefersReducedMotion ? 140 : 420;
-                          setSaltoLeap({ from: fromStep, to: toStep });
+                          setSaltoLeap({ from: saltoFrogPosition, to: currentEnemyStep });
                           speak(GAMEPLAY_AUDIO_MESSAGES.saltoObstacleSuccess);
                           window.setTimeout(() => {
                             setSaltoJumpedEnemySteps(prev => new Set(prev).add(currentEnemyStep));
-                            setSaltoFrogPosition(toStep);
+                            setSaltoFrogPosition(currentEnemyStep);
                             setSaltoLeap(null);
                           }, leapMs);
                         }}
-                        className="absolute left-3 bottom-3 z-20 h-11 w-11 rounded-2xl border-2 border-purple-200 bg-white text-xl text-purple-900 shadow-sm transition-all cursor-pointer active:scale-95 flex items-center justify-center"
-                        aria-label="Salta"
-                        title="Salta"
+                        disabled={
+                          saltoGameCompleted ||
+                          isFrogSplashing ||
+                          saltoLeap !== null ||
+                          !(saltoEnemySteps.includes(saltoIndex + 1) && !saltoJumpedEnemySteps.has(saltoIndex + 1))
+                        }
+                        className="mt-3 w-full rounded-xl border border-purple-200 bg-white py-2 text-sm font-bold text-purple-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                       >
-                        🐸
+                        Salta ostacolo
                       </button>
+                    </div>
 
-                      {/* River Stream Container */}
-                      <div className="relative z-10 my-1 flex min-w-0 items-center justify-between gap-1 px-2 py-2 bg-sky-900/30 backdrop-blur-xs rounded-2xl border border-sky-200/30">
-                        {/* Stepping Stones Container (Riva + Stones 1 to saltoSelectedFactor) */}
-                        <div
-                          ref={saltoContainerRef}
-                          data-touch-swipe-lock="true"
-                          className="relative flex min-w-0 flex-1 items-center justify-start gap-2.5 overflow-x-auto scroll-smooth px-2 pt-8 pb-2 sm:gap-3.5"
-                          style={{ touchAction: 'pan-x' }}
-                        >
-                          {/* Start Bank (Riva / Partenza) - Frog starts here! */}
-                          <div
-                            ref={saltoFrogPosition === 0 && !saltoGameCompleted ? saltoStoneRef : null}
-                            className="relative flex flex-col items-center justify-end shrink-0 min-w-[50px] pt-8 pb-2 px-1"
-                          >
-                            {/* Frog sitting on Riva when starting (saltoIndex === 0) */}
-                            {saltoFrogPosition === 0 && !saltoGameCompleted && (
-                              <motion.div
-                                key={`frog-start-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
-                                initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
-                                animate={
-                                  isFrogSplashing
-                                    ? { y: 28, rotate: 180, scale: 1.15 }
-                                    : saltoLeap?.from === 0
-                                      ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
-                                      : { y: [0, -6, 0], scale: 1 }
-                                }
-                                transition={
-                                  isFrogSplashing
-                                    ? { duration: 0.4, ease: "easeOut" }
-                                    : saltoLeap?.from === 0
-                                      ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
-                                      : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
-                                }
-                                className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
-                              >
-                                <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                {isFrogSplashing && (
-                                  <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
-                                )}
-                              </motion.div>
-                            )}
-                            <span className="text-xl">🌱</span>
-                            <span className="text-[9px] font-black text-sky-950 bg-amber-100 px-1.5 py-0.5 rounded shadow-xs font-sans">
-                              Riva
-                            </span>
-                          </div>
-
-                          {/* Stepping Stones (1 to saltoSelectedFactor) */}
-                          {Array.from({ length: saltoSelectedFactor }).map((_, idx) => {
-                            const stoneStep = idx + 1;
-                            const stoneNum = world.id * (idx + 1);
-                            const isLastStone = idx === saltoSelectedFactor - 1;
-                            const isFrogHere = !saltoGameCompleted && saltoFrogPosition === stoneStep;
-                            const isFrogOnFinish = saltoGameCompleted && isLastStone;
-                            const isReached = (stoneStep <= saltoIndex) || saltoGameCompleted;
-                            const hasEnemyStep = saltoEnemySteps.includes(idx + 1);
-                            const isEnemyStepPending = hasEnemyStep && !saltoJumpedEnemySteps.has(stoneStep) && !isReached;
-                            const isNextTarget = !saltoGameCompleted && idx === saltoIndex && !isEnemyStepPending;
-                            const enemyForStep = saltoAntagonistsByStep[idx + 1];
+                    {isFrogSplashing ? (
+                      <motion.button
+                        type="button"
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        onClick={() => {
+                          sound.playClick();
+                          resetGuidance(['saltoTouch', 'saltoAvoid']);
+                          setIsFrogSplashing(false);
+                          setSaltoIndex(0);
+                          setSaltoCorrectClicks(new Set());
+                          setSaltoFrogPosition(0);
+                          setSaltoLeap(null);
+                          if (saltoSelectedFactor !== null) {
+                            const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
+                            setSaltoEnemySteps(enemyLayout.steps);
+                            setSaltoJumpedEnemySteps(new Set());
+                            setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
+                          }
+                        }}
+                        className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm text-center py-3.5 px-4 rounded-2xl border-2 border-rose-300 shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 font-sans"
+                      >
+                        <span className="text-lg sm:text-xl">💦</span>
+                        <span>Riprova</span>
+                      </motion.button>
+                    ) : (
+                      <div className="w-full space-y-2.5">
+                        <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                          {saltoOptions.map((opt, idx) => {
+                            const solvedNum = world.id * saltoSelectedFactor;
+                            const isSelected = saltoGameCompleted && opt === solvedNum;
+                            const isCorrectlyClicked = saltoCorrectClicks.has(opt);
 
                             return (
-                              <React.Fragment key={idx}>
-                                {hasEnemyStep && (
-                                  <div className="relative flex flex-col items-center justify-end min-w-[40px] shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (!enemyForStep) return;
-                                        consumeGuidance('saltoAvoid');
-                                        speak(`Antagonista ${enemyForStep.label}`);
-                                      }}
-                                      className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center shadow-sm transition-all cursor-pointer ${
-                                        isEnemyStepPending
-                                          ? 'bg-rose-100 border-rose-400 ring-4 ring-rose-200 motion-safe:animate-pulse'
-                                          : 'bg-slate-100 border-slate-300 opacity-65'
-                                      } relative`}
-                                      aria-label={enemyForStep ? `Step antagonista ${enemyForStep.label}` : 'Step antagonista'}
-                                    >
-                                      {showSaltoAvoidGuidance && isEnemyStepPending && (
-                                        <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
-                                      )}
-                                      <span className="text-base leading-none" role="img" aria-hidden="true">
-                                        {enemyForStep ? enemyForStep.emoji : '👾'}
-                                      </span>
-                                    </button>
+                              <div key={idx} className="relative">
+                                {showSaltoTouchGuidance && opt === saltoExpectedValue && (
+                                  <div className="pointer-events-none absolute left-1/2 top-0 z-20">
+                                    <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
                                   </div>
                                 )}
-                                <div
-                                  ref={isFrogHere ? saltoStoneRef : isFrogOnFinish ? saltoFinishRef : null}
-                                  className="relative flex flex-col items-center justify-end min-w-[46px] shrink-0"
+                                <button
+                                  disabled={saltoGameCompleted}
+                                  onClick={() => {
+                                    if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
+                                    consumeGuidance('saltoTouch');
+                                    const isObstacleBlocking =
+                                      saltoEnemySteps.includes(saltoIndex + 1) &&
+                                      !saltoJumpedEnemySteps.has(saltoIndex + 1);
+                                    if (isObstacleBlocking) {
+                                      consumeGuidance('saltoAvoid');
+                                      sound.playError();
+                                      const blockingAntagonist = saltoAntagonistsByStep[saltoIndex + 1];
+                                      const blockingLabel = blockingAntagonist?.label ?? "l'antagonista";
+                                      speak(`Oh no! Ti ha fermato il ${blockingLabel}.`);
+                                      setIsFrogSplashing(true);
+                                      return;
+                                    }
+
+                                    const expected = world.id * (saltoIndex + 1);
+                                    if (opt === expected) {
+                                      sound.playSuccess();
+                                      setSaltoCorrectClicks(prev => new Set([...prev, opt]));
+                                      setSaltoFrogPosition(saltoIndex + 1);
+                                      setSaltoLeap(null);
+                                      if (saltoIndex + 1 >= saltoSelectedFactor) {
+                                        speakSaltoSuccess(world.id, saltoSelectedFactor, opt);
+                                        setSaltoGameCompleted(true);
+                                        setShowSaltoCompletionEffect(true);
+                                        setSaltoCompleted(prev => new Set([...prev, saltoSelectedFactor]));
+                                      } else {
+                                        setSaltoIndex(prev => prev + 1);
+                                      }
+                                    } else {
+                                      sound.playError();
+                                      speak(GAMEPLAY_AUDIO_MESSAGES.saltoFall);
+                                      setIsFrogSplashing(true);
+                                    }
+                                  }}
+                                  className={`py-3 sm:py-3.5 text-base sm:text-xl font-black font-mono w-full px-1 rounded-2xl border-2 bg-white shadow-sm transition-all ${
+                                    isSelected
+                                      ? 'border-emerald-400 bg-emerald-100 text-emerald-800 ring-4 ring-emerald-200 shadow-md scale-105 cursor-default'
+                                      : isCorrectlyClicked
+                                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm cursor-pointer'
+                                        : saltoGameCompleted
+                                          ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed opacity-60'
+                                          : 'border-purple-100 hover:border-purple-400 text-purple-950 hover:bg-purple-50 cursor-pointer shadow-xs active:scale-95'
+                                  } relative`}
+                                  id={`salto-opt-${opt}`}
                                 >
-                                  {/* Frog sitting on current stone during jumps */}
-                                  {isFrogHere && (
-                                    <motion.div
-                                      key={`frog-${idx}-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
-                                      initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
-                                      animate={
-                                        isFrogSplashing
-                                          ? { y: 28, rotate: 180, scale: 1.15 }
-                                          : saltoLeap?.from === stoneStep
-                                            ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
-                                            : { y: [0, -6, 0], scale: 1 }
-                                      }
-                                      transition={
-                                        isFrogSplashing
-                                          ? { duration: 0.4, ease: "easeOut" }
-                                          : saltoLeap?.from === stoneStep
-                                            ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
-                                            : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
-                                      }
-                                      className="absolute -top-7 z-30 pointer-events-none flex flex-col items-center"
-                                    >
-                                      <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                      {isFrogSplashing && (
-                                        <span className="absolute -bottom-2 text-xl select-none animate-ping">💦</span>
-                                      )}
-                                    </motion.div>
-                                  )}
-
-                                  {/* Frog sitting on final stone on completion */}
-                                  {isFrogOnFinish && (
-                                    <motion.div
-                                      initial={{ scale: 0, y: -15 }}
-                                      animate={{ scale: [1, 1.2, 1], y: [0, -8, 0] }}
-                                      transition={{ repeat: Infinity, duration: 0.9, ease: "easeInOut" }}
-                                      className="absolute -top-7 z-30 flex flex-col items-center pointer-events-none"
-                                    >
-                                      <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                      <span className="absolute -top-2.5 -right-1.5 text-base animate-bounce">👑</span>
-                                    </motion.div>
-                                  )}
-
-                                  {/* Stepping Stone 🪨 */}
-                                  <motion.button
-                                    type="button"
-                                    onClick={() => speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`)}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-mono font-black text-xs sm:text-sm border-2 shadow-sm transition-all cursor-pointer relative ${
-                                      isFrogOnFinish
-                                        ? 'bg-amber-300 border-amber-500 text-amber-950 ring-4 ring-amber-300 shadow-lg scale-105'
-                                        : isReached
-                                          ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-md ring-2 ring-emerald-300/50'
-                                          : isNextTarget
-                                            ? 'bg-amber-50 border-amber-400 text-amber-900 ring-4 ring-amber-300/80 shadow-md animate-pulse'
-                                            : 'bg-slate-200/90 border-slate-300 text-slate-600'
-                                    }`}
-                                  >
-                                    {isReached ? stoneNum : isNextTarget ? '?' : '🪨'}
-                                  </motion.button>
-
-                                  {/* Badge below last stone */}
-                                  {isLastStone && (
-                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded mt-1 shadow-2xs ${
-                                      isFrogOnFinish
-                                        ? 'bg-amber-300 text-amber-950 border border-amber-400 font-sans'
-                                        : 'bg-indigo-100 text-indigo-900 border border-indigo-200 font-sans'
-                                    }`}>
-                                      {isFrogOnFinish ? 'Traguardo! 👑' : `Traguardo ${stoneNum}`}
-                                    </span>
-                                  )}
-                                </div>
-                              </React.Fragment>
+                                  {opt}
+                                </button>
+                              </div>
                             );
                           })}
-                        </div>
-                      </div>
-
-                      {/* Options Grid or Splash Retry Button */}
-                      {isFrogSplashing ? (
-                        <motion.button
-                          type="button"
-                          initial={{ scale: 0.95, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          onClick={() => {
-                            sound.playClick();
-                            resetGuidance(['saltoTouch', 'saltoAvoid']);
-                            setIsFrogSplashing(false);
-                            setSaltoIndex(0);
-                            setSaltoCorrectClicks(new Set());
-                            setSaltoFrogPosition(0);
-                            setSaltoLeap(null);
-                            if (saltoSelectedFactor !== null) {
-                              const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
-                              setSaltoEnemySteps(enemyLayout.steps);
-                              setSaltoJumpedEnemySteps(new Set());
-                              setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
-                            }
-                          }}
-                          className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm text-center py-3.5 px-4 rounded-2xl border-2 border-rose-300 shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 font-sans"
-                        >
-                          <span className="text-lg sm:text-xl">💦</span>
-                          <span>Riprova</span>
-                        </motion.button>
-                      ) : (
-                        <div className="w-full space-y-2.5">
-                          <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                        {saltoOptions.map((opt, idx) => {
-                          const solvedNum = world.id * saltoSelectedFactor;
-                          const isSelected = saltoGameCompleted && opt === solvedNum;
-                          const isCorrectlyClicked = saltoCorrectClicks.has(opt);
-
-                          return (
-                            <div key={idx} className="relative">
-                              {showSaltoTouchGuidance && opt === saltoExpectedValue && (
-                                <div className="pointer-events-none absolute left-1/2 top-0 z-20">
-                                  <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
-                                </div>
-                              )}
-                              <button
-                                disabled={saltoGameCompleted}
-                                onClick={() => {
-                                if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
-                                consumeGuidance('saltoTouch');
-                                const isObstacleBlocking =
-                                  saltoEnemySteps.includes(saltoIndex + 1) &&
-                                  !saltoJumpedEnemySteps.has(saltoIndex + 1);
-                                if (isObstacleBlocking) {
-                                  consumeGuidance('saltoAvoid');
-                                  sound.playError();
-                                  const blockingAntagonist = saltoAntagonistsByStep[saltoIndex + 1];
-                                  const blockingLabel = blockingAntagonist?.label ?? "l'antagonista";
-                                  speak(`Oh no! Ti ha fermato il ${blockingLabel}.`);
-                                  setIsFrogSplashing(true);
-                                  return;
-                                }
-                                const expected = world.id * (saltoIndex + 1);
-                                if (opt === expected) {
-                                  sound.playSuccess();
-                                  setSaltoCorrectClicks(prev => new Set([...prev, opt]));
-                                  setSaltoFrogPosition(saltoIndex + 1);
-                                  setSaltoLeap(null);
-                                  if (saltoIndex + 1 >= saltoSelectedFactor) {
-                                    speakSaltoSuccess(world.id, saltoSelectedFactor, opt);
-                                    setSaltoGameCompleted(true);
-                                    setShowSaltoCompletionEffect(true);
-                                    setSaltoCompleted(prev => new Set([...prev, saltoSelectedFactor]));
-                                  } else {
-                                    setSaltoIndex(prev => prev + 1);
-                                  }
-                                } else {
-                                  sound.playError();
-                                  speak(GAMEPLAY_AUDIO_MESSAGES.saltoFall);
-                                  setIsFrogSplashing(true);
-                                }
-                              }}
-                                className={`py-3 sm:py-3.5 text-base sm:text-xl font-black font-mono w-full px-1 rounded-2xl border-2 bg-white shadow-sm transition-all ${
-                                isSelected
-                                  ? 'border-emerald-400 bg-emerald-100 text-emerald-800 ring-4 ring-emerald-200 shadow-md scale-105 cursor-default'
-                                  : isCorrectlyClicked
-                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm cursor-pointer'
-                                  : saltoGameCompleted
-                                    ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed opacity-60'
-                                    : 'border-purple-100 hover:border-purple-400 text-purple-950 hover:bg-purple-50 cursor-pointer shadow-xs active:scale-95'
-                              } relative`}
-                                id={`salto-opt-${opt}`}
-                              >
-                                {opt}
-                              </button>
-                            </div>
-                          );
-                        })}
                         </div>
                       </div>
                     )}
@@ -3704,7 +3546,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       >
                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                          
                         </div>
                       </motion.div>
                     )}
@@ -3768,6 +3609,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </button>
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={completeSaltoExercise}
+                  className="hidden"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  id="salto-debug-complete-btn"
+                >
+                  Complete salto step
+                </button>
               </div>
             </div>
           </div>
@@ -4054,6 +3905,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      </button>
                    </div>
                  )}
+                  <button
+                    type="button"
+                    onClick={completeCostruiscoExercise}
+                    className="hidden"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    id="costruisco-debug-complete-btn"
+                  >
+                    Complete costruisco step
+                  </button>
                </div>
              </div>
             </div>
@@ -4435,6 +4296,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </button>
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={completeTrucchiExercise}
+                  className="hidden"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  id="trucchi-debug-complete-btn"
+                >
+                  Complete trucchi step
+                </button>
               </div>
             </div>
           </div>
@@ -4688,7 +4559,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           </div>
         </div>
       )}
-        </>
+        </React.Fragment>
       )}
 
       {errorFeedback && (
