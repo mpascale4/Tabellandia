@@ -6,6 +6,7 @@
 import frogAudioUrl from '../data/frog.mp3';
 import snakeAudioUrl from '../data/animal-sounds/snake-rattlesnake.ogg';
 import batAudioUrl from '../data/animal-sounds/bat-feeding-buzz.wav';
+import beeBuzzAudioUrl from '../data/animal-sounds/bee-buzzing.opus';
 import scorpionAudioUrl from '../data/animal-sounds/scorpion-night-insects.wav';
 
 type SaltoAntagonistAudioId = 'snake' | 'bat' | 'spider' | 'scorpion';
@@ -19,8 +20,9 @@ class SoundManager {
   private musicStep: number = 0;
   private frogAudioBuffer: AudioBuffer | null = null;
   private loadingFrogAudio = false;
-  private beeBuzzOscillator: OscillatorNode | null = null;
-  private beeBuzzHarmonic: OscillatorNode | null = null;
+  private beeBuzzBuffer: AudioBuffer | null = null;
+  private loadingBeeBuzzAudio = false;
+  private beeBuzzSource: AudioBufferSourceNode | null = null;
   private beeBuzzGain: GainNode | null = null;
   private readonly antagonistsAudioUrls: Record<SaltoAntagonistAudioId, string> = {
     snake: snakeAudioUrl,
@@ -180,6 +182,56 @@ class SoundManager {
     this.playTone([400], 0.05, 0.1);
   }
 
+  playBalloonPop() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.12), this.ctx.sampleRate);
+    const channelData = noiseBuffer.getChannelData(0);
+
+    for (let i = 0; i < channelData.length; i += 1) {
+      channelData[i] = (Math.random() * 2 - 1) * (1 - (i / channelData.length));
+    }
+
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const bandpass = this.ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(920, now);
+    bandpass.Q.setValueAtTime(0.9, now);
+
+    const popOsc = this.ctx.createOscillator();
+    popOsc.type = 'triangle';
+    popOsc.frequency.setValueAtTime(240, now);
+    popOsc.frequency.exponentialRampToValueAtTime(70, now + 0.1);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.001, now);
+    noiseGain.gain.linearRampToValueAtTime(0.22, now + 0.005);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+    const popGain = this.ctx.createGain();
+    popGain.gain.setValueAtTime(0.001, now);
+    popGain.gain.linearRampToValueAtTime(0.12, now + 0.01);
+    popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    noiseSource.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+
+    popOsc.connect(popGain);
+    popGain.connect(this.ctx.destination);
+
+    noiseSource.start(now);
+    noiseSource.stop(now + 0.11);
+    popOsc.start(now);
+    popOsc.stop(now + 0.12);
+  }
+
   playCorrect() {
     this.playSuccess();
   }
@@ -320,51 +372,100 @@ class SoundManager {
     buzz.stop(now + 0.35);
   }
 
+  playBombTrapFailure() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.24), this.ctx.sampleRate);
+    const channelData = noiseBuffer.getChannelData(0);
+
+    for (let i = 0; i < channelData.length; i += 1) {
+      const decay = 1 - (i / channelData.length);
+      channelData[i] = (Math.random() * 2 - 1) * decay;
+    }
+
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const lowpass = this.ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.setValueAtTime(1400, now);
+    lowpass.Q.setValueAtTime(0.8, now);
+
+    const boomOsc = this.ctx.createOscillator();
+    boomOsc.type = 'sawtooth';
+    boomOsc.frequency.setValueAtTime(180, now);
+    boomOsc.frequency.exponentialRampToValueAtTime(48, now + 0.22);
+
+    const hissGain = this.ctx.createGain();
+    hissGain.gain.setValueAtTime(0.001, now);
+    hissGain.gain.linearRampToValueAtTime(0.28, now + 0.008);
+    hissGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+    const boomGain = this.ctx.createGain();
+    boomGain.gain.setValueAtTime(0.001, now);
+    boomGain.gain.linearRampToValueAtTime(0.18, now + 0.015);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+    noiseSource.connect(lowpass);
+    lowpass.connect(hissGain);
+    hissGain.connect(this.ctx.destination);
+
+    boomOsc.connect(boomGain);
+    boomGain.connect(this.ctx.destination);
+
+    noiseSource.start(now);
+    noiseSource.stop(now + 0.24);
+    boomOsc.start(now);
+    boomOsc.stop(now + 0.26);
+  }
+
   startBeeBuzz() {
     if (!this.effectsEnabled) return;
     this.initContext();
-    if (!this.ctx || this.beeBuzzOscillator || this.beeBuzzGain) return;
+    if (!this.ctx || this.beeBuzzSource || this.beeBuzzGain) return;
+
+    if (!this.beeBuzzBuffer) {
+      this.loadBeeBuzzAudio(() => {
+        this.startBeeBuzz();
+      });
+      return;
+    }
 
     const now = this.ctx.currentTime;
-    const primary = this.ctx.createOscillator();
-    const harmonic = this.ctx.createOscillator();
+    const source = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();
 
-    primary.type = 'sawtooth';
-    harmonic.type = 'triangle';
-    primary.frequency.setValueAtTime(172, now);
-    harmonic.frequency.setValueAtTime(206, now);
+    source.buffer = this.beeBuzzBuffer;
+    source.loop = true;
 
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.028, now + 0.08);
+    gain.gain.linearRampToValueAtTime(0.05, now + 0.08);
 
-    primary.connect(gain);
-    harmonic.connect(gain);
+    source.connect(gain);
     gain.connect(this.ctx.destination);
 
-    primary.start(now);
-    harmonic.start(now);
+    source.start(now);
 
-    this.beeBuzzOscillator = primary;
-    this.beeBuzzHarmonic = harmonic;
+    this.beeBuzzSource = source;
     this.beeBuzzGain = gain;
   }
 
   stopBeeBuzz() {
     if (!this.ctx) {
-      this.beeBuzzOscillator = null;
-      this.beeBuzzHarmonic = null;
+      this.beeBuzzSource = null;
       this.beeBuzzGain = null;
       return;
     }
 
     const now = this.ctx.currentTime;
-    const primary = this.beeBuzzOscillator;
-    const harmonic = this.beeBuzzHarmonic;
+    const source = this.beeBuzzSource;
     const gain = this.beeBuzzGain;
 
-    this.beeBuzzOscillator = null;
-    this.beeBuzzHarmonic = null;
+    this.beeBuzzSource = null;
     this.beeBuzzGain = null;
 
     if (gain) {
@@ -373,12 +474,36 @@ class SoundManager {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
     }
 
-    if (primary) {
-      primary.stop(now + 0.07);
+    if (source) {
+      source.stop(now + 0.07);
     }
-    if (harmonic) {
-      harmonic.stop(now + 0.07);
+  }
+
+  private loadBeeBuzzAudio(onLoaded?: () => void) {
+    if (this.beeBuzzBuffer) {
+      onLoaded?.();
+      return;
     }
+    if (this.loadingBeeBuzzAudio) return;
+
+    this.loadingBeeBuzzAudio = true;
+    fetch(beeBuzzAudioUrl)
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.ctx.decodeAudioData(arrayBuffer);
+      })
+      .then((decodedBuffer) => {
+        this.beeBuzzBuffer = decodedBuffer;
+        onLoaded?.();
+      })
+      .catch((error) => {
+        console.error('Error loading bee buzz audio:', error);
+      })
+      .finally(() => {
+        this.loadingBeeBuzzAudio = false;
+      });
   }
 
   playError() {

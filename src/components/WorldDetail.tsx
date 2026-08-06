@@ -1416,7 +1416,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       consumeGuidance('costruiscoTouch');
     }
 
-    sound.playClick();
+    sound.playBalloonPop();
     const timeoutId = costruiscoEscapeTimeoutsRef.current[balloon.id];
     if (timeoutId !== undefined) {
       window.clearTimeout(timeoutId);
@@ -1431,7 +1431,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     // Bomb trap: immediate fail
     if (balloon.isTrap) {
-      sound.playError();
+      sound.playBombTrapFailure();
       speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoBomb);
       setCostruiscoFailReason('wrong-tap');
       setCostruiscoWrongTappedValue(null);
