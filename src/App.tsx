@@ -16,6 +16,7 @@ import WorldDetail from './components/WorldDetail';
 import TrainingHub from './components/TrainingHub';
 import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
+import VoiceSelectorModal from './components/VoiceSelectorModal';
 import DigitsMatchingGameModal from './components/DigitsMatchingGameModal';
 import CurrencyInfoModal from './components/CurrencyInfoModal';
 import { DIGITS_INFO } from './data/digitsData';
@@ -364,6 +365,7 @@ export default function App() {
   } | null>(null);
   const [storyWorldId, setStoryWorldId] = useState<number | null>(null);
   const [lockedWorldMessage, setLockedWorldMessage] = useState<string | null>(null);
+  const [isVoiceSelectorOpen, setIsVoiceSelectorOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!appMonumentModal) return;
@@ -1562,7 +1564,11 @@ export default function App() {
                   {!effectsEnabled && <X className={`absolute -right-1 -bottom-1 stroke-[3.2] ${isPhoneMode ? 'w-1 h-1' : 'w-2 h-2'}`} />}
                 </span>
               </button>
-              <VoiceToggle isPhoneMode={isPhoneMode} />
+              <VoiceToggle
+                isPhoneMode={isPhoneMode}
+                onOpenSelector={() => setIsVoiceSelectorOpen(true)}
+                isSelectorOpen={isVoiceSelectorOpen}
+              />
               {/* Pin/Unpin — blocca header sempre visibile */}
               <button
                 type="button"
@@ -2437,6 +2443,12 @@ export default function App() {
           </motion.div>
         </div>
       )}
+
+      <VoiceSelectorModal
+        isOpen={isVoiceSelectorOpen}
+        onClose={() => setIsVoiceSelectorOpen(false)}
+        isPhoneMode={isPhoneMode}
+      />
 
       {/* Modal Spiegazione Monete / Gocce */}
       <CurrencyInfoModal
