@@ -1052,32 +1052,6 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
             </p>
           </div>
         </div>
-        <div className="mt-3 rounded-xl border border-violet-200/80 bg-white/80 px-2.5 py-2">
-          <div className="mb-1 flex items-center justify-between gap-3">
-            <p className="text-[10px] font-black uppercase tracking-wide text-violet-700">Progresso</p>
-            <span className="rounded-full border border-violet-200 bg-white px-2 py-0.5 text-[10px] font-black text-violet-700">
-              {compactStructureLabel}
-            </span>
-          </div>
-          <div
-            role="progressbar"
-            aria-label={`Progresso mele inserite: ${filledItems} su ${totalItems}`}
-            aria-valuemin={0}
-            aria-valuemax={Math.max(1, totalItems)}
-            aria-valuenow={filledItems}
-            className="h-3 overflow-hidden rounded-full border border-violet-200 bg-violet-100"
-          >
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-fuchsia-400 via-violet-500 to-cyan-400 transition-[width] duration-300 ease-out"
-              style={{ width: `${Math.max(0, Math.min(100, totalProgressPercent))}%` }}
-            />
-          </div>
-          <div className="mt-1.5 flex items-center justify-between gap-3">
-            <p className="text-[10px] font-bold text-slate-700">
-              Mele: {filledItems}/{totalItems} ({Math.round(totalProgressPercent)}%)
-            </p>
-          </div>
-        </div>
       </div>
 
       <div className="mt-4 rounded-[1.7rem] border-2 border-cyan-300 bg-cyan-500 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
@@ -1305,6 +1279,33 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
               );
             })
           )}
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-violet-200/80 bg-white/80 px-2.5 py-2">
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <p className="text-[10px] font-black uppercase tracking-wide text-violet-700">Progresso</p>
+          <span className="rounded-full border border-violet-200 bg-white px-2 py-0.5 text-[10px] font-black text-violet-700">
+            {compactStructureLabel}
+          </span>
+        </div>
+        <div
+          role="progressbar"
+          aria-label={`Progresso mele inserite: ${filledItems} su ${totalItems}`}
+          aria-valuemin={0}
+          aria-valuemax={Math.max(1, totalItems)}
+          aria-valuenow={filledItems}
+          className="h-3 overflow-hidden rounded-full border border-violet-200 bg-violet-100"
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-fuchsia-400 via-violet-500 to-cyan-400 transition-[width] duration-300 ease-out"
+            style={{ width: `${Math.max(0, Math.min(100, totalProgressPercent))}%` }}
+          />
+        </div>
+        <div className="mt-1.5 flex items-center justify-between gap-3">
+          <p className="text-[10px] font-bold text-slate-700">
+            Mele: {filledItems}/{totalItems} ({Math.round(totalProgressPercent)}%)
+          </p>
         </div>
       </div>
 

@@ -26,6 +26,7 @@ import SectionHeader from './components/layout/SectionHeader';
 import SurfaceCard from './components/layout/SurfaceCard';
 import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Map } from 'lucide-react';
 import { getGenderedText, getPlayerGender, PlayerGender } from './utils/playerCopy';
+import { useVoice } from './contexts/VoiceContext';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
@@ -292,6 +293,7 @@ const normalizeProfile = (profile: Partial<ProfileRecord>, fallbackId?: string):
 };
 
 export default function App() {
+  const { speak } = useVoice();
   const [profiles, setProfiles] = useState<ProfileRecord[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'adventure' | 'training' | 'parents'>('adventure');
@@ -361,6 +363,22 @@ export default function App() {
     isErected: boolean;
   } | null>(null);
   const [storyWorldId, setStoryWorldId] = useState<number | null>(null);
+  const [lockedWorldMessage, setLockedWorldMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!appMonumentModal) return;
+    const description = appMonumentModal.monument.description?.trim() ?? '';
+    if (appMonumentModal.isErected) {
+      void speak(description ? `Indizio già sbloccato. ${description}` : 'Indizio già sbloccato.');
+      return;
+    }
+    if (appMonumentModal.canAfford) {
+      const prompt = `Vuoi sbloccare l'indizio ${appMonumentModal.monument.name}?`;
+      void speak(description ? `${prompt} ${description}` : prompt);
+      return;
+    }
+    void speak('Indizio non sbloccabile. Acquisisci le gocce necessarie.');
+  }, [appMonumentModal, speak]);
 
   const activeProfiles = getActiveProfiles(profiles);
   const deletedProfiles = getDeletedProfiles(profiles);
@@ -1821,12 +1839,20 @@ export default function App() {
                                 worldCardRefs.current[world.id] = el;
                               }}
                               onClick={() => {
-                                if (!isUnlocked) return;
+                                if (!isUnlocked) {
+                                  const requiredWorldId = Math.max(2, world.id - 1);
+                                  const message = `🔒 ${world.locationName} è ancora bloccato.\n\nCompleta prima il regno della tabellina del ${requiredWorldId} per sbloccarlo.`;
+                                  sound.playError();
+                                  setLockedWorldMessage(message);
+                                  void speak('Regno bloccato.');
+                                  return;
+                                }
                                 sound.playPowerUp();
+                                void speak(`Preparati alla tabellina del ${world.id}.`);
                                 setSelectedWorldId(world.id);
                                 setIsHeaderVisible(false);
                               }}
-                              disabled={!isUnlocked}
+                              aria-disabled={!isUnlocked}
                               className={`w-full overflow-hidden text-left rounded-3xl border-2 p-3 sm:p-4 shadow-lg transition-all active:scale-[0.98] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
                                 !isUnlocked
                                   ? 'bg-slate-200 border-slate-300 text-slate-600 cursor-not-allowed'
@@ -1875,6 +1901,14 @@ export default function App() {
                                       key={monument.id}
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        if (!isUnlocked) {
+                                          const requiredWorldId = Math.max(2, world.id - 1);
+                                          const message = `🔒 ${world.locationName} è ancora bloccato.\n\nCompleta prima il regno della tabellina del ${requiredWorldId} per sbloccarlo.`;
+                                          sound.playError();
+                                          setLockedWorldMessage(message);
+                                          void speak('Regno bloccato.');
+                                          return;
+                                        }
                                         sound.playClick();
                                         setAppMonumentModal({
                                           world,
@@ -1883,7 +1917,11 @@ export default function App() {
                                           isErected: isBuilt,
                                         });
                                       }}
-                                      className={`rounded-2xl border px-1.5 py-2 text-center sm:px-2 sm:py-2.5 transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+                                      className={`rounded-2xl border px-1.5 py-2 text-center sm:px-2 sm:py-2.5 transition-all ${
+                                        !isUnlocked
+                                          ? 'cursor-not-allowed'
+                                          : 'hover:scale-105 active:scale-95'
+                                      } ${
                                         isBuilt
                                           ? 'bg-gradient-to-br from-amber-100 via-amber-50 to-emerald-100 border-amber-300/90 text-amber-950 shadow-xs ring-1 ring-amber-300/60'
                                           : canAfford
@@ -2313,6 +2351,39 @@ export default function App() {
                 </div>
               </>
             )}
+          </motion.div>
+        </div>
+      )}
+
+      {lockedWorldMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.94, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm rounded-3xl border border-indigo-100 bg-white p-6 text-center shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="locked-world-title"
+          >
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-3xl">
+              🔒
+            </div>
+            <h3 id="locked-world-title" className="mb-2 text-base font-black text-indigo-950">
+              Regno Bloccato
+            </h3>
+            <p className="mb-5 whitespace-pre-line text-sm text-slate-700">
+              {lockedWorldMessage}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setLockedWorldMessage(null);
+              }}
+              className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-black text-white shadow-md transition-colors hover:bg-indigo-700 cursor-pointer"
+            >
+              Ho capito
+            </button>
           </motion.div>
         </div>
       )}

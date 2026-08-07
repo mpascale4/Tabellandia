@@ -254,6 +254,8 @@ const GAMEPLAY_AUDIO_MESSAGES = {
   stepLocked: 'Completa prima tutti i passi precedenti!',
   sfidaLocked: 'Completa prima tutti i passi precedenti per sbloccare la Sfida.',
   notEnoughLightDrops: 'Non hai ancora abbastanza gocce di luce.',
+  monumentDiscovered: 'Ottimo! Hai scoperto un nuovo indizio.',
+  monumentAlreadyDiscovered: 'Hai già scoperto questo indizio. Rileggiamolo insieme.',
 } as const;
 
 const COSTRUISCO_BALLOON_PALETTES = [
@@ -2203,9 +2205,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     updateProfile(p => {
       const worldProg = p.worldProgress[world.id];
       const monuments = [...(worldProg?.rebuiltMonuments || [])];
-      if (!monuments.includes(monId)) {
-        monuments.push(monId);
+      if (monuments.includes(monId)) {
+        return p;
       }
+      monuments.push(monId);
 
       return {
         ...p,
@@ -2245,7 +2248,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const getEffectiveCompletedFactors = (stepKey: 'comprendo' | 'salto' | 'costruisco' | 'trucchi', stateSet: Set<number>) => {
     const saved = worldProg.completedFactors?.[stepKey];
     if (saved && Array.isArray(saved)) {
-      return new Set([...saved, ...stateSet]);
+      // Defensive normalization: old profiles may contain string values (e.g. "2")
+      // that break numeric unlock checks like completed.has(factor - 1).
+      const normalizedSaved = saved
+        .map(value => Number(value))
+        .filter(value => Number.isFinite(value) && ALL_FACTORS.includes(value));
+      return new Set([...normalizedSaved, ...stateSet]);
     }
     if (worldProg.completedSteps.includes(stepKey)) return allFactorsSet;
     return new Set([...stateSet]);
@@ -2396,9 +2404,19 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   }, [showPraticoCongrats, praticoCongratsTarget, targetPraticoStreak, canGoToSfidaFromCoins, hasErectableBlockedMonuments]);
 
   useEffect(() => {
-    if (!monumentModal || monumentModal.isErected || monumentModal.canAfford) return;
-    void speak('Per avere le gocce, completa prima tutti i passi, fai pratica e vinci la Sfida.');
-  }, [monumentModal, speak]);
+    if (!monumentModal) return;
+    const description = monumentModal.monument.description?.trim() ?? '';
+    if (monumentModal.isErected) {
+      void speak(description ? `Indizio già sbloccato. ${description}` : 'Indizio già sbloccato.');
+      return;
+    }
+    if (monumentModal.canAfford) {
+      const prompt = `Vuoi sbloccare l'indizio ${monumentModal.monument.name}?`;
+      void speak(description ? `${prompt} ${description}` : prompt);
+      return;
+    }
+    void speak(`Indizio non sbloccabile. ${sfidaDropsGuidanceMessage}`);
+  }, [monumentModal, sfidaDropsGuidanceMessage, speak]);
 
   useEffect(() => {
     if (!pathLockModalMessage) return;
@@ -2483,7 +2501,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               )}
               {isLocked && (
                 <span
-                  className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 bg-slate-200 text-slate-600 text-[10px] font-black shadow-xs"
+                  className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] shadow-md"
                   aria-hidden="true"
                 >
                   🔒
@@ -2565,7 +2583,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         stars: 0
       };
 
-      const existingFactors = worldProg.completedFactors?.[stepName] || [];
+      const existingFactors = (worldProg.completedFactors?.[stepName] || [])
+        .map(value => Number(value))
+        .filter(value => Number.isFinite(value) && ALL_FACTORS.includes(value));
       const nextFactors = existingFactors.includes(factor) ? existingFactors : [...existingFactors, factor];
       const wasAlreadyCompleted = existingFactors.length >= 10 || worldProg.completedSteps.includes(stepName);
       didReachTenNow = !wasAlreadyCompleted && nextFactors.length >= 10;
@@ -3006,6 +3026,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           return;
                         }
                         sound.playClick();
+                        void speak(`${step.desc}`);
                         if (step.id === 'comprendo') setActiveStep('comprendo');
                         else if (step.id === 'salto') { setSaltoIndex(0); setActiveStep('salto'); }
                         else if (step.id === 'costruisco') { resetCostruisco(); setActiveStep('costruisco'); }
@@ -3083,6 +3104,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         return;
                       }
                       sound.playClick();
+                      void speak('Hai scelto 6. Sfida Finale. Preparati alla prova a tempo.');
                       startSfidaMode();
                     }}
                     className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between text-left transition-all cursor-pointer ${
@@ -4604,7 +4626,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       if (quizInteractionLocked) return;
                       setQuizPressedFeedback({ opt, correct: isCorrectOpt });
                     }}
-                    onPointerUp={() => {
+                    onClick={() => {
                       if (quizInteractionLocked) return;
                       setQuizPressedFeedback({ opt, correct: isCorrectOpt });
                       handleQuizAnswer(opt);
@@ -4716,7 +4738,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       if (sfidaInteractionLocked) return;
                       setSfidaPressedFeedback({ opt, correct: !!isCorrectOpt });
                     }}
-                    onPointerUp={() => {
+                    onClick={() => {
                       if (sfidaInteractionLocked) return;
                       setSfidaPressedFeedback({ opt, correct: !!isCorrectOpt });
                       handleSfidaAnswer(opt);
@@ -5119,17 +5141,20 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
           Tocca una card per aprire l'indizio e segnalarlo come trovato.
         </p>
 
-            {blockedMonuments.length > 0 ? (
+            {world.monuments.length > 0 ? (
               <>
                 <div role="list" className="grid grid-cols-1 gap-2.5 max-h-72 overflow-y-auto pr-1 text-left">
-                  {blockedMonuments.map(monument => {
+                  {world.monuments.map(monument => {
+                    const isErected = worldProg.rebuiltMonuments.includes(monument.id);
                     const canAfford = profile.lightDrops >= monument.cost;
                     return (
                       <div
                         key={monument.id}
                         role="listitem"
                         className={`rounded-2xl border px-3.5 py-3 transition-all ${
-                          canAfford
+                          isErected
+                            ? 'border-emerald-300 bg-emerald-50 shadow-sm'
+                            : canAfford
                             ? 'border-amber-500 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-50 animate-monument-glow shadow-md'
                             : 'border-slate-200 bg-slate-50'
                         }`}
@@ -5140,11 +5165,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             <p className="text-[11px] font-bold text-amber-900">{monument.description}</p>
                           </div>
                           <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                            canAfford
+                            isErected
+                              ? 'bg-emerald-200 text-emerald-900 border border-emerald-300'
+                              : canAfford
                               ? 'bg-amber-300 text-amber-950 border border-amber-400 animate-badge-blink shadow-2xs'
                               : 'bg-slate-200 text-slate-700'
                           }`}>
-                            {canAfford ? '✨ Pronto!' : '🔒 Bloccato'}
+                            {isErected ? '✓ Trovato' : canAfford ? '✨ Pronto!' : '🔒 Bloccato'}
                           </span>
                         </div>
                         <div className="mt-2.5 flex justify-end">
@@ -5157,16 +5184,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               setMonumentModal({
                                 monument,
                                 canAfford,
-                                isErected: false,
+                                isErected,
                               });
                             }}
-                            className={`rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md transition-all cursor-pointer ${
-                              canAfford
+                            className={`rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md transition-all ${
+                              isErected
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                : canAfford
                                 ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 text-white animate-bounce ring-2 ring-amber-300'
                                 : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
                             }`}
                           >
-                            {canAfford ? '🔍 Apri indizio' : 'Dettagli'}
+                            {isErected ? '🔎 Riapri indizio' : canAfford ? '🔍 Apri indizio' : 'Dettagli'}
                           </button>
                         </div>
                       </div>
@@ -5262,24 +5291,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </button>
                   <button
                     type="button"
-                    aria-disabled={!canGoToSfidaFromCoins}
                     onClick={() => {
-                      if (!canGoToSfidaFromCoins) {
-                        sound.playError();
-                        setMonumentModal(null);
-                        setPathLockModalMessage(`🔒 Sfida Bloccata!\n\n${sfidaDropsGuidanceMessage}`);
-                        return;
-                      }
-                      setMonumentModal(null);
-                      initializeSfida();
+                      handleRebuildMonument(monumentModal.monument.id, monumentModal.monument.cost);
+                      setMonumentModal({
+                        monument: monumentModal.monument,
+                        canAfford: true,
+                        isErected: true,
+                      });
                     }}
-                    className={`flex-1 py-2.5 rounded-xl text-white font-black text-xs shadow-md transition-colors ${
-                      canGoToSfidaFromCoins
-                        ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
-                        : 'bg-slate-300 text-slate-600 cursor-not-allowed'
-                    }`}
+                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
                   >
-                    ⚡ Vai alla Sfida
+                    🔍 Segna trovato
                   </button>
                 </div>
               </>
