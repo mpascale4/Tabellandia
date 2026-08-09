@@ -222,6 +222,14 @@ Usa sempre questo pattern:
 
 ---
 
+## Regola CTA cliccabili (Mandatory)
+
+- Se una CTA non è realmente disponibile, deve essere `disabled` (o equivalente semantico) e non deve risultare cliccabile.
+- Il testo del badge/CTA deve riflettere lo stato reale (`Vai alla Sfida` solo se azione disponibile; altrimenti stato bloccato esplicito).
+- Mantieni coerenza tra comportamento, stile e accessibilità (`disabled`/`aria-disabled`, cursore, contrasto testo).
+
+---
+
 ## Session Learnings
 
 - Per download automatici di asset audio da Wikimedia Commons, preferire endpoint `Special:FilePath/<nome-file>` con `User-Agent` esplicito e piccole pause tra richieste per ridurre errori `429 Too many requests`.

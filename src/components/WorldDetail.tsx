@@ -2964,16 +2964,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   type="button"
                   role="listitem"
                   onClick={handleMoneteBadgeClick}
+                  disabled={!canGoToSfidaFromCoins}
+                  aria-disabled={!canGoToSfidaFromCoins}
                   className={`rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-center shadow-sm transition-all ${
-                    shouldHighlightSfidaCta
-                      ? 'cursor-pointer border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
-                      : 'cursor-pointer hover:border-amber-300 hover:bg-amber-100/70'
+                    !canGoToSfidaFromCoins
+                      ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 opacity-70'
+                      : shouldHighlightSfidaCta
+                        ? 'cursor-pointer border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
+                        : 'cursor-pointer hover:border-amber-300 hover:bg-amber-100/70'
                   }`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Monete</p>
                   <p className="text-lg font-black text-amber-800">🪙 {profile.coins}</p>
-                  <p className={`text-[11px] font-black ${shouldHighlightSfidaCta ? 'text-amber-950 animate-badge-blink' : 'text-amber-900'}`}>
-                    {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
+                  <p className={`text-[11px] font-black ${
+                    !canGoToSfidaFromCoins
+                      ? 'text-slate-500'
+                      : shouldHighlightSfidaCta
+                        ? 'text-amber-950 animate-badge-blink'
+                        : 'text-amber-900'
+                  }`}>
+                    {!canGoToSfidaFromCoins ? '🔒 Sfida bloccata' : shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
                   </p>
                 </button>
                 <div
@@ -4903,16 +4913,26 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 type="button"
                 role="listitem"
                 onClick={handleMoneteBadgeClick}
+                disabled={!canGoToSfidaFromCoins}
+                aria-disabled={!canGoToSfidaFromCoins}
                 className={`rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-center shadow-sm transition-all ${
-                  shouldHighlightSfidaCta
-                    ? 'cursor-pointer border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
-                    : 'cursor-pointer hover:border-amber-300 hover:bg-amber-100/70'
+                  !canGoToSfidaFromCoins
+                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 opacity-70'
+                    : shouldHighlightSfidaCta
+                      ? 'cursor-pointer border-amber-500 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 text-amber-950 font-black animate-monument-glow ring-2 ring-amber-400'
+                      : 'cursor-pointer hover:border-amber-300 hover:bg-amber-100/70'
                 }`}
               >
                 <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Monete vinte</p>
                 <p className="text-lg font-black text-amber-800">🪙 +1</p>
-                <p className={`text-[11px] font-black ${shouldHighlightSfidaCta ? 'text-amber-950 animate-badge-blink' : 'text-amber-900'}`}>
-                  {shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
+                <p className={`text-[11px] font-black ${
+                  !canGoToSfidaFromCoins
+                    ? 'text-slate-500'
+                    : shouldHighlightSfidaCta
+                      ? 'text-amber-950 animate-badge-blink'
+                      : 'text-amber-900'
+                }`}>
+                  {!canGoToSfidaFromCoins ? '🔒 Sfida bloccata' : shouldHighlightSfidaCta ? '✨ Vai alla Sfida! ⚔️' : 'Vai alla Sfida'}
                 </p>
               </button>
               <div
@@ -5331,14 +5351,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </button>
                   <button
                     type="button"
+                    disabled={!canGoToSfidaFromCoins}
                     aria-disabled={!canGoToSfidaFromCoins}
                     onClick={() => {
-                      if (!canGoToSfidaFromCoins) {
-                        sound.playError();
-                        setMonumentModal(null);
-                        setPathLockModalMessage(`🔒 Sfida Bloccata!\n\n${sfidaDropsGuidanceMessage}`);
-                        return;
-                      }
                       setMonumentModal(null);
                       initializeSfida();
                     }}
