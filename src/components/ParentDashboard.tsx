@@ -191,13 +191,27 @@ export default function ParentDashboard({
 
   const handleResetCurrencyOnly = () => {
     if (!selectedProfile?.id) return;
-    if (window.confirm('Vuoi azzerare soltanto Monete e Gocce di questo profilo?')) {
+    if (window.confirm('Vuoi azzerare Monete e Gocce di questo profilo per tutti i regni?')) {
       sound.playClick();
-      updateProfileById(selectedProfile.id, p => ({
-        ...p,
-        coins: 0,
-        lightDrops: 0
-      }));
+      updateProfileById(selectedProfile.id, p => {
+        const nextWorldProgress = { ...p.worldProgress };
+        Object.keys(nextWorldProgress).forEach(wId => {
+          const numId = Number(wId);
+          if (nextWorldProgress[numId]) {
+            nextWorldProgress[numId] = {
+              ...nextWorldProgress[numId],
+              devCoins: 0,
+              devLightDrops: 0
+            };
+          }
+        });
+        return {
+          ...p,
+          coins: 0,
+          lightDrops: 0,
+          worldProgress: nextWorldProgress
+        };
+      });
     }
   };
 
@@ -297,7 +311,9 @@ export default function ParentDashboard({
           ...profile.worldProgress,
           [devWorld.id]: {
             ...worldProgress,
+            coins: Math.max(0, nextCoins),
             devCoins: Math.max(0, nextCoins),
+            lightDrops: Math.max(0, nextDrops),
             devLightDrops: Math.max(0, nextDrops)
           }
         }
@@ -911,7 +927,7 @@ export default function ParentDashboard({
                           >
                             <p className="text-sm font-black text-slate-900">{item.name}</p>
                             <p className="text-xs text-slate-600">
-                              Monete: <b>{item.coins}</b> · Gocce: <b>{item.lightDrops}</b>
+                              Livello {item.level} · {item.unlockedWorlds.length} {item.unlockedWorlds.length === 1 ? 'regno sbloccato' : 'regni sbloccati'}
                             </p>
                           </button>
                         );
@@ -927,8 +943,8 @@ export default function ParentDashboard({
                     <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Anteprima</p>
                     <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
                       <p>Profilo selezionato: <b>{selectedProfile?.name || 'Nessuno'}</b></p>
-                      <p className="mt-1">Regno: <b>{devWorld?.name || 'Nessuno'}</b></p>
-                      <p className="mt-1">Monete: <b>{selectedProfile?.coins ?? 0}</b> · Gocce: <b>{selectedProfile?.lightDrops ?? 0}</b></p>
+                      <p className="mt-1">Regno selezionato: <b>{devWorld?.name || 'Nessuno'}</b></p>
+                      <p className="mt-1">Monete del regno: <b>{currentDevWorldProgress?.devCoins ?? 0}</b> · Gocce del regno: <b>{currentDevWorldProgress?.devLightDrops ?? 0}</b></p>
                     </div>
                     {!selectedProfile && (
                       <p className="mt-2 text-xs text-slate-500">Seleziona un profilo per sbloccare le altre schede.</p>

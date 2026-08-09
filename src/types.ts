@@ -30,6 +30,8 @@ export interface WorldProgress {
   sfidaUnlocked?: boolean; // Permanent unlock for Sfida in this world/tabellina
   rebuiltMonuments: string[]; // IDs of monuments rebuilt
   lockedMonuments?: string[]; // Clue IDs blocked by dev tools
+  coins?: number; // Per-world coin counter
+  lightDrops?: number; // Per-world droplet counter
   devCoins?: number; // Dev-only per-world coin counter
   devLightDrops?: number; // Dev-only per-world droplet counter
   creatureEvolution: 'egg' | 'child' | 'adult';
@@ -42,6 +44,19 @@ export interface WorldProgress {
     trucchi?: number[];
   };
 }
+
+export const createDefaultWorldProgress = (worldId: number): WorldProgress => ({
+  worldId,
+  completedSteps: [],
+  rebuiltMonuments: [],
+  coins: 0,
+  lightDrops: 0,
+  devCoins: 0,
+  devLightDrops: 0,
+  creatureEvolution: 'egg',
+  highScore: 0,
+  stars: 0
+});
 
 export interface QuestionAttempt {
   a: number;

@@ -284,7 +284,28 @@ function TrainingSession({
 
     if (isCorrect) {
       sound.playSuccess();
-      updateProfile(p => ({ ...p, coins: p.coins + 1 }));
+      updateProfile(p => {
+        const wp = p.worldProgress[world.id] || {
+          worldId: world.id,
+          completedSteps: [],
+          rebuiltMonuments: [],
+          creatureEvolution: 'egg',
+          highScore: 0,
+          stars: 0
+        };
+        const currentCoins = wp.coins ?? wp.devCoins ?? 0;
+        return {
+          ...p,
+          worldProgress: {
+            ...p.worldProgress,
+            [world.id]: {
+              ...wp,
+              coins: currentCoins + 1,
+              devCoins: currentCoins + 1,
+            }
+          }
+        };
+      });
       setFeedback({
         correct: true,
         message: pickRandom(getMotivationalCorrectMessages(getPlayerGender(profile))),

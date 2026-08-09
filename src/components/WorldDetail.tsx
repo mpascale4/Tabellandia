@@ -5,7 +5,24 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt } from '../types';
+import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt, createDefaultWorldProgress } from '../types';
+import {
+  MONUMENT_CLUE_COST,
+  PRATICO_REWARD_COINS,
+  PRATICO_REWARD_DROPS,
+  SFIDA_UNLOCK_COST,
+  SFIDA_FEEDBACK_HOLD_MS,
+  SFIDA_RECORD_THRESHOLD,
+  SFIDA_DROPS_LOW_THRESHOLD,
+  SFIDA_DROPS_MID_THRESHOLD,
+  SFIDA_DROPS_HIGH_THRESHOLD,
+  SFIDA_DROPS_LOW_REWARD,
+  SFIDA_DROPS_MID_REWARD,
+  SFIDA_DROPS_HIGH_REWARD,
+  GAME_REWARDS_CONFIG,
+  getMonumentCostMissingMessage,
+  getSfidaUnlockMissingCoinsMessage
+} from '../constants/gameRules';
 import { sound } from './SoundManager';
 import { AlertCircle, Award, Timer, Trophy, Compass, RotateCcw } from 'lucide-react';
 import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
@@ -142,10 +159,6 @@ const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
 const TRUCCHI_HAMMER_START_FACTOR = 1;
 const TRUCCHI_HAMMER_TRAVEL_MS = 520;
-const SFIDA_FEEDBACK_HOLD_MS = 120;
-const SFIDA_UNLOCK_COST = 1;
-const SFIDA_RECORD_THRESHOLD = 15;
-const SFIDA_DROPS_WIN_REWARD = 15;
 const COSTRUISCO_BALLOON_SPAWN_MIN_MS = 260;
 const COSTRUISCO_BALLOON_SPAWN_MAX_MS = 650;
 const COSTRUISCO_BALLOON_FLIGHT_MIN_MS = 4500;
@@ -398,6 +411,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const trucchiPyramidCollapsedRef = useRef<boolean>(false);
   const comprendoCompletionOverlayTimeoutRef = useRef<number | null>(null);
   const comprendoBasketGameRef = useRef<ComprendoBasketGameHandle | null>(null);
+  const activeStepCardRef = useRef<HTMLButtonElement | null>(null);
   const COMPRENDO_COMPLETION_OVERLAY_MS = 1200;
 
   const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
@@ -671,7 +685,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoTouch && hasCostruiscoTouchTarget;
   const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoAvoid && hasCostruiscoAvoidTarget;
   const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiTouch && trucchiCorrectValue !== null;
-  const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiAvoid && firstTrucchiWrongIndex >= 0;
+  const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiAvoid;
   const showSfidaStartGuidance = activeStep === 'sfida' && sfidaReady && !sfidaActive && !guidanceSeen.sfidaStart;
 
   useEffect(() => {
@@ -1653,6 +1667,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setQuizStreakJustReset(false);
     quizInteractionLockedRef.current = false;
     setQuizInteractionLocked(false);
+    setQuizPressedFeedback(null);
     setQuizHistory([]);
     setQuizWrongAttempts({});
     generateQuizOptions(questions[0].a, questions[0].b);
@@ -1759,10 +1774,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       // Append attempt to history
       const nextHistory = [...p.history, attempt];
       
+      const currentWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const currentWorldDrops = currentWp.lightDrops ?? currentWp.devLightDrops ?? 0;
+
       // Calculate XP and Light Drops if correct
       let nextXP = p.xp;
-      let nextCoins = p.coins;
-      let nextLightDrops = p.lightDrops;
+      let nextLightDrops = currentWorldDrops;
 
       if (isCorrect) {
         nextXP += 10;
@@ -1780,10 +1797,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       return {
         ...p,
         xp: nextXP,
-        coins: nextCoins,
-        lightDrops: nextLightDrops,
         level: nextLevel,
-        history: nextHistory
+        history: nextHistory,
+        worldProgress: {
+          ...p.worldProgress,
+          [world.id]: {
+            ...currentWp,
+            lightDrops: nextLightDrops,
+            devLightDrops: nextLightDrops,
+          }
+        }
       };
     });
 
@@ -1849,6 +1872,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const proceedQuiz = () => {
     quizInteractionLockedRef.current = false;
     setQuizInteractionLocked(false);
+    setQuizPressedFeedback(null);
     if (currentQuizIdx < quizQuestions.length - 1) {
       const nextIdx = currentQuizIdx + 1;
       setCurrentQuizIdx(nextIdx);
@@ -1884,22 +1908,38 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
 
   const beginSfidaFromUnlockFlow = () => {
-    if (profile.coins < SFIDA_UNLOCK_COST) {
+    const currentWp = profile.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+    const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
+    if (currentWorldCoins < SFIDA_UNLOCK_COST) {
       sound.playError();
       setSfidaUnlockModalMode('insufficient');
       return;
     }
-    updateProfile(p => ({
-      ...p,
-      coins: p.coins - SFIDA_UNLOCK_COST,
-    }));
+    updateProfile(p => {
+      const pWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const cCoins = pWp.coins ?? pWp.devCoins ?? 0;
+      const nCoins = Math.max(0, cCoins - SFIDA_UNLOCK_COST);
+      return {
+        ...p,
+        worldProgress: {
+          ...p.worldProgress,
+          [world.id]: {
+            ...pWp,
+            coins: nCoins,
+            devCoins: nCoins,
+          }
+        }
+      };
+    });
     setSfidaUnlockModalMode(null);
     beginSfidaGame();
   };
 
   const handleSfidaStartClick = () => {
     consumeGuidance('sfidaStart');
-    if (profile.coins < SFIDA_UNLOCK_COST) {
+    const currentWp = profile.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+    const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
+    if (currentWorldCoins < SFIDA_UNLOCK_COST) {
       sound.playError();
       setSfidaUnlockModalMode('insufficient');
       return;
@@ -2034,13 +2074,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const currentHighScore = profile.worldProgress[world.id]?.highScore || 0;
     const hasReachedRecordThresholdBefore = currentHighScore >= SFIDA_RECORD_THRESHOLD;
     const isNewRecord = score > currentHighScore && score >= SFIDA_RECORD_THRESHOLD && hasReachedRecordThresholdBefore;
-    const passedSfida = score >= SFIDA_RECORD_THRESHOLD;
+    const passedSfida = score >= SFIDA_DROPS_LOW_THRESHOLD;
     const currentWorldProgress = profile.worldProgress[world.id];
     const currentCompletedSteps = [...(currentWorldProgress?.completedSteps || [])];
     const nextCompletedSteps = passedSfida && !currentCompletedSteps.includes('sfida')
       ? [...currentCompletedSteps, 'sfida']
       : currentCompletedSteps;
     const didCompleteWorldNow = !currentCompletedSteps.includes('sfida') && nextCompletedSteps.includes('sfida');
+
+    let sfidDropsEarned = 0;
+    if (score >= SFIDA_DROPS_HIGH_THRESHOLD) {
+      sfidDropsEarned = SFIDA_DROPS_HIGH_REWARD;
+    } else if (score >= SFIDA_DROPS_MID_THRESHOLD) {
+      sfidDropsEarned = SFIDA_DROPS_MID_REWARD;
+    } else if (score >= SFIDA_DROPS_LOW_THRESHOLD) {
+      sfidDropsEarned = SFIDA_DROPS_LOW_REWARD;
+    }
+    if (isNewRecord && sfidDropsEarned > 0) {
+      sfidDropsEarned *= 2;
+    }
 
     updateProfile(p => {
       const worldProg = p.worldProgress[world.id] || {
@@ -2076,11 +2128,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         nextUnlocked.push(nextWorldId);
       }
 
-      const sfidaDropsEarned = passedSfida ? SFIDA_DROPS_WIN_REWARD : 0;
-      const nextLightDrops = p.lightDrops + sfidaDropsEarned;
-      const nextCoins = p.coins;
+      const currentWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const currentWorldDrops = currentWp.lightDrops ?? currentWp.devLightDrops ?? 0;
+      const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
+      const nextLightDrops = currentWorldDrops + sfidDropsEarned;
 
-      let evolution = worldProg?.creatureEvolution || 'egg';
+      let evolution = currentWp?.creatureEvolution || 'egg';
       if (completed.length >= 6) {
         evolution = 'adult';
       } else if (completed.length >= 3) {
@@ -2089,16 +2142,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
       return {
         ...p,
-        coins: nextCoins,
-        lightDrops: nextLightDrops,
         unlockedWorlds: nextUnlocked,
         worldProgress: {
           ...p.worldProgress,
           [world.id]: {
-            ...worldProg,
+            ...currentWp,
+            coins: currentWorldCoins,
+            devCoins: currentWorldCoins,
+            lightDrops: nextLightDrops,
+            devLightDrops: nextLightDrops,
             completedSteps: completed,
             highScore: nextMax,
-            stars: Math.max(stars, worldProg?.stars || 0),
+            stars: Math.max(stars, currentWp?.stars || 0),
             creatureEvolution: evolution
           }
         }
@@ -2114,7 +2169,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       isNewRecord,
       previousRecord: currentHighScore,
       passedSfida,
-      dropsEarned: passedSfida ? SFIDA_DROPS_WIN_REWARD : 0,
+      dropsEarned: sfidDropsEarned,
       didCompleteWorldNow
     });
     setShowSfidaResultPopup(true);
@@ -2124,46 +2179,34 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   // Helper to save completed sub-steps offline and evolve creature
   const saveStepCompleted = (stepName: string) => {
     // Rewards based on step
-    const rewardMap: { [key: string]: { coins: number; drops: number } } = {
-      comprendo: { coins: 0, drops: 0 },
-      salto: { coins: 0, drops: 0 },
-      costruisco: { coins: 0, drops: 0 },
-      trucchi: { coins: 0, drops: 0 },
-      pratico: { coins: 1, drops: 0 },
-      sfida: { coins: 0, drops: 0 }
-    };
+    const rewardMap = GAME_REWARDS_CONFIG;
     
-    const reward = rewardMap[stepName] || { coins: 0, drops: 0 };
+    const reward = rewardMap[stepName as keyof typeof GAME_REWARDS_CONFIG] || { coins: 0, drops: 0 };
 
     updateProfile(p => {
-      const worldProg = p.worldProgress[world.id] || {
-        worldId: world.id,
-        completedSteps: [],
-        rebuiltMonuments: [],
-        creatureEvolution: 'egg',
-        highScore: 0,
-        stars: 0
-      };
+      const currentWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const currentWorldCoins = currentWp.coins ?? currentWp.devCoins ?? 0;
+      const currentWorldDrops = currentWp.lightDrops ?? currentWp.devLightDrops ?? 0;
 
-      const completed = [...worldProg.completedSteps];
+      const completed = [...currentWp.completedSteps];
       if (!completed.includes(stepName)) {
         completed.push(stepName);
       }
-      const currentPraticoCycles = worldProg.praticoCyclesCompleted
-        ?? (worldProg.completedSteps.includes('pratico') ? 1 : 0);
+      const currentPraticoCycles = currentWp.praticoCyclesCompleted
+        ?? (currentWp.completedSteps.includes('pratico') ? 1 : 0);
       const nextPraticoCycles = stepName === 'pratico'
         ? currentPraticoCycles + 1
         : currentPraticoCycles;
 
       // XP and Coin rewards for world steps completed! (Gamification)
       let nextXP = p.xp + 50;
-      let nextCoins = p.coins + reward.coins;
-      let nextLightDrops = p.lightDrops + reward.drops;
+      let nextCoins = currentWorldCoins + reward.coins;
+      let nextLightDrops = currentWorldDrops + reward.drops;
       let nextLevel = p.level;
       if (nextXP >= nextLevel * 100) nextLevel += 1;
 
       // Evolve creature depending on step count
-      let evolution = worldProg.creatureEvolution;
+      let evolution = currentWp.creatureEvolution;
       if (completed.length >= 6) {
         evolution = 'adult';
       } else if (completed.length >= 3) {
@@ -2174,13 +2217,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       return {
         ...p,
         xp: nextXP,
-        coins: nextCoins,
-        lightDrops: nextLightDrops,
         level: nextLevel,
         worldProgress: {
           ...p.worldProgress,
           [world.id]: {
-            ...worldProg,
+            ...currentWp,
+            coins: nextCoins,
+            devCoins: nextCoins,
+            lightDrops: nextLightDrops,
+            devLightDrops: nextLightDrops,
             completedSteps: completed,
             praticoCyclesCompleted: nextPraticoCycles,
             creatureEvolution: evolution
@@ -2195,7 +2240,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   };
 
   const handleRebuildMonument = (monId: string, cost: number) => {
-    if (profile.lightDrops < cost) {
+    const activeWp = profile.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+    const activeWorldDrops = activeWp.lightDrops ?? activeWp.devLightDrops ?? 0;
+    if (activeWorldDrops < cost) {
       sound.playError();
       speak(GAMEPLAY_AUDIO_MESSAGES.notEnoughLightDrops);
       return;
@@ -2203,20 +2250,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     sound.playPowerUp();
     updateProfile(p => {
-      const worldProg = p.worldProgress[world.id];
-      const monuments = [...(worldProg?.rebuiltMonuments || [])];
-      if (monuments.includes(monId)) {
-        return p;
+      const pWp = p.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const curDrops = pWp.lightDrops ?? pWp.devLightDrops ?? 0;
+      const monuments = [...(pWp?.rebuiltMonuments || [])];
+      if (!monuments.includes(monId)) {
+        monuments.push(monId);
       }
-      monuments.push(monId);
+      const nextDrops = Math.max(0, curDrops - cost);
 
       return {
         ...p,
-        lightDrops: p.lightDrops - cost,
         worldProgress: {
           ...p.worldProgress,
           [world.id]: {
-            ...worldProg,
+            ...pWp,
+            lightDrops: nextDrops,
+            devLightDrops: nextDrops,
             rebuiltMonuments: monuments
           }
         }
@@ -2241,8 +2290,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     stars: 0
   };
   const worldProg = worldProgBase;
+  const worldCoins = worldProg.coins ?? worldProg.devCoins ?? 0;
+  const worldLightDrops = worldProg.lightDrops ?? worldProg.devLightDrops ?? 0;
   const blockedMonuments = world.monuments.filter(monument => !worldProg.rebuiltMonuments.includes(monument.id));
-  const canSuggestSfidaFromMonuments = blockedMonuments.length === 0 && profile.lightDrops <= 0 && profile.coins >= SFIDA_UNLOCK_COST;
+  const canSuggestSfidaFromMonuments = blockedMonuments.length === 0 && worldLightDrops <= 0 && worldCoins >= SFIDA_UNLOCK_COST;
   const allFactorsSet = new Set<number>(ALL_FACTORS);
 
   const getEffectiveCompletedFactors = (stepKey: 'comprendo' | 'salto' | 'costruisco' | 'trucchi', stateSet: Set<number>) => {
@@ -2287,8 +2338,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             : (areSfidaPrerequisitesDone && !isSfidaDone)
               ? 'sfida'
               : null;
-  const hasErectableBlockedMonuments = blockedMonuments.some(monument => profile.lightDrops >= monument.cost);
-  const canGoToSfidaFromCoins = profile.coins >= SFIDA_UNLOCK_COST && areSfidaPrerequisitesDone;
+  const hasErectableBlockedMonuments = blockedMonuments.some(monument => worldLightDrops >= monument.cost);
+  const canGoToSfidaFromCoins = worldCoins >= SFIDA_UNLOCK_COST && areSfidaPrerequisitesDone;
   const canGoToPratico = nextStepToPlay === 'pratico';
   const praticoLockedMessage = 'Completa prima tutti i passi precedenti per entrare in Pratico (Avventura).';
   const sfidaDropsGuidanceMessage = 'Completa prima tutti i passi, fai pratica e vinci la Sfida per guadagnare gocce.';
@@ -2318,6 +2369,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const allMonumentsErected = rebuiltCount === world.monuments.length;
   const isSfidaPathLocked = !areSfidaPrerequisitesDone;
   const shouldHighlightSfidaCta = canGoToSfidaFromCoins && !isSfidaDone && !isSfidaPathLocked && nextStepToPlay === 'sfida';
+
+  // Auto-scroll allo step attivo/prossimo quando ci si trova nella vista Sentiero ('intro')
+  useEffect(() => {
+    if (activeStep === 'intro' && nextStepToPlay) {
+      const timer = setTimeout(() => {
+        activeStepCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [activeStep, nextStepToPlay]);
+
   const isInPlayableStepView = ALL_STEP_IDS.includes(activeStep);
   const showWorldFooterBack = !(
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
@@ -2354,8 +2416,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       return;
     }
 
-    const reason = profile.coins < SFIDA_UNLOCK_COST
-      ? `Ti servono ancora ${SFIDA_UNLOCK_COST - profile.coins} monete per entrare nella Sfida.`
+    const reason = worldCoins < SFIDA_UNLOCK_COST
+      ? getSfidaUnlockMissingCoinsMessage(worldCoins)
       : sfidaLockedMessage;
     setPathLockModalMessage(`🏁 Sfida non ancora disponibile\n\n${reason}`);
     void speak(reason);
@@ -2975,7 +3037,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   }`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Monete</p>
-                  <p className="text-lg font-black text-amber-800">🪙 {profile.coins}</p>
+                  <p className="text-lg font-black text-amber-800">🪙 {worldCoins}</p>
                   <p className={`text-[11px] font-black ${
                     !canGoToSfidaFromCoins
                       ? 'text-slate-500'
@@ -2995,13 +3057,62 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   }`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">Gocce</p>
-                  <p className="text-lg font-black text-sky-800">💧 {profile.lightDrops}</p>
+                  <p className="text-lg font-black text-sky-800">💧 {worldLightDrops}</p>
                   <p className={`text-[11px] font-black ${hasErectableBlockedMonuments ? 'text-amber-950 animate-badge-blink' : 'text-sky-900'}`}>
                     {hasErectableBlockedMonuments ? '✨ Scopri Indizi! 🧭' : 'Indizi del Regno'}
                   </p>
                 </div>
               </div>
 
+              <div className="mt-3 rounded-2xl border border-indigo-100 bg-white/80 p-2.5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-[11px] font-black text-indigo-900 uppercase tracking-wider font-sans">
+                    Indizi del Regno ({rebuiltCount}/{world.monuments.length})
+                  </h4>
+                </div>
+                <div role="list" className="grid grid-cols-3 gap-1.5 pb-1">
+                  {world.monuments.map(monument => {
+                    const isErected = worldProg.rebuiltMonuments.includes(monument.id);
+                    const canAfford = worldLightDrops >= monument.cost;
+
+                    return (
+                      <button
+                        key={`compact-monument-${monument.id}`}
+                        type="button"
+                        role="listitem"
+                        onClick={() => {
+                          sound.playClick();
+                          setShouldReturnToMonumentsListAfterModal(false);
+                          setMonumentModal({ monument, canAfford, isErected });
+                        }}
+                        className={`rounded-2xl border px-2 py-2 text-left shadow-sm transition-all cursor-pointer min-w-0 ${
+                          isErected
+                            ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-400'
+                            : canAfford
+                              ? 'border-amber-500 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-100 ring-2 ring-amber-300 animate-monument-glow'
+                              : 'border-slate-200 border-dashed bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className={`text-lg leading-none ${isErected ? '' : canAfford ? 'scale-110' : 'grayscale opacity-60'}`}>
+                            {monument.emoji}
+                          </span>
+                          <span className={`text-[10px] font-black ${
+                            isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900' : 'text-slate-600'
+                          }`}>
+                            {isErected ? '✓' : '🧭'}
+                          </span>
+                        </div>
+                        <p className={`mt-0.5 text-xs font-black ${
+                          isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900 animate-badge-blink' : 'text-sky-800'
+                        }`}>
+                          {monument.name}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* PARTE 2: PASSI DIDATTICI (1 - 5) */}
@@ -3015,7 +3126,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   { id: 'salto', title: '2. Salta', desc: 'Salta di sasso in sasso sul ruscello.', icon: '🐸', coins: 0, drops: 0, isFactorBased: true },
                   { id: 'costruisco', title: '3. Scoppia', desc: 'Scoppia il palloncino giusto.', icon: '🎈', coins: 0, drops: 0, isFactorBased: true },
                   { id: 'trucchi', title: '4. Trova', desc: 'Trova il mattone corretto.', icon: '🧱', coins: 0, drops: 0, isFactorBased: true },
-                  { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Sconfiggi la nebbia e raccogli monete per la Sfida.', icon: '🛡️', coins: 1, drops: 0, isFactorBased: false },
+                  { id: 'pratico', title: '5. Pratico (Avventura)', desc: 'Sconfiggi la nebbia e raccogli monete per la Sfida.', icon: '🛡️', coins: PRATICO_REWARD_COINS, drops: PRATICO_REWARD_DROPS, isFactorBased: false },
                 ].map((step, idx) => {
                   const isDone = stepDoneMap[step.id] || false;
                   const prevStepId = idx > 0 ? ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico'][idx - 1] : null;
@@ -3027,6 +3138,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   return (
                     <button
                       key={step.id}
+                      ref={isNext ? activeStepCardRef : null}
                       type="button"
                       onClick={() => {
                         if (isLocked) {
@@ -3105,6 +3217,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                 return (
                   <button
+                    ref={isSfidaNext ? activeStepCardRef : null}
                     type="button"
                     onClick={() => {
                       if (isSfidaLocked) {
@@ -4267,7 +4380,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           ease: 'easeInOut',
                         }}
                       >
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-200 bg-white text-xl shadow-lg">🔨</span>
+                        <div className="relative">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-200 bg-white text-xl shadow-lg">🔨</span>
+                          {showTrucchiAvoidGuidance && (
+                            <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
+                          )}
+                        </div>
                       </motion.div>
                     )}
                     <div className="text-center space-y-2">
@@ -4627,22 +4745,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   ? quizPressedFeedback!.correct
                     ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
                     : 'bg-rose-100 border-rose-400 text-rose-800 scale-95'
-                  : 'bg-white border-slate-100 hover:border-indigo-400 hover:bg-slate-50 text-slate-800';
+                  : 'bg-white border-slate-100 hover:border-indigo-400 hover:bg-slate-50 text-slate-800 active:scale-95';
                 return (
                   <button
                     key={idx}
                     disabled={quizInteractionLocked}
-                    onPointerDown={() => {
-                      if (quizInteractionLocked) return;
-                      setQuizPressedFeedback({ opt, correct: isCorrectOpt });
-                    }}
                     onClick={() => {
                       if (quizInteractionLocked) return;
                       setQuizPressedFeedback({ opt, correct: isCorrectOpt });
                       handleQuizAnswer(opt);
                     }}
-                    onPointerLeave={() => setQuizPressedFeedback(null)}
-                    onPointerCancel={() => setQuizPressedFeedback(null)}
                     className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${quizInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     id={`quiz-opt-${opt}`}
                     aria-label={`Risposta ${opt}`}
@@ -4668,14 +4780,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-left text-xs text-slate-700 font-sans space-y-1">
                 <p className="font-black text-indigo-900">Ogni Sfida costa: {SFIDA_UNLOCK_COST} 🪙 moneta</p>
                 <p>La Sfida non assegna monete: le monete si vincono nel Pratico.</p>
-                <p>Sfida superata: <b>+{SFIDA_DROPS_WIN_REWARD} 💧</b> Gocce di Luce.</p>
+                <p>Vinci fino a <b>45 💧</b> Gocce di Luce (raddoppiate con un nuovo record)!</p>
               </div>
             </div>
 
             <div className="relative w-full">
               {showSfidaStartGuidance && (
-                <div className="pointer-events-none absolute left-1/2 top-0 z-20">
-                  <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+                  <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} placement="center" />
                 </div>
               )}
               <button
@@ -4739,23 +4851,18 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   ? sfidaPressedFeedback!.correct
                     ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
                     : 'bg-rose-100 border-rose-400 text-rose-800 scale-95'
-                  : 'bg-white border-slate-100 hover:border-amber-400 hover:bg-slate-50 text-slate-800';
+                  : 'bg-white border-slate-100 hover:border-amber-400 hover:bg-slate-50 text-slate-800 active:scale-95';
                 return (
                   <button
                     key={idx}
+                    disabled={sfidaInteractionLocked}
                     aria-disabled={sfidaInteractionLocked}
-                    onPointerDown={() => {
-                      if (sfidaInteractionLocked) return;
-                      setSfidaPressedFeedback({ opt, correct: !!isCorrectOpt });
-                    }}
                     onClick={() => {
                       if (sfidaInteractionLocked) return;
                       setSfidaPressedFeedback({ opt, correct: !!isCorrectOpt });
                       handleSfidaAnswer(opt);
                     }}
-                    onPointerLeave={() => setSfidaPressedFeedback(null)}
-                    onPointerCancel={() => setSfidaPressedFeedback(null)}
-                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} cursor-pointer`}
+                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${sfidaInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     id={`sfida-opt-${opt}`}
                     aria-label={`Risposta ${opt}`}
                   >
@@ -5059,7 +5166,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </motion.span>
                 </div>
                 <div className="rounded-xl border border-rose-200 bg-rose-100/90 p-2 text-xs font-medium leading-relaxed text-rose-900">
-                  Hai guadagnato <b>+{sfidaResult.dropsEarned} 💧</b>. Per superare lo step Sfida e sbloccare il prossimo Regno sul Sentiero servono <b>almeno 15 risposte corrette</b>. Ti mancavano {Math.max(1, 15 - sfidaResult.correctAnswers)} risposte!
+                  Hai guadagnato <b>+{sfidaResult.dropsEarned} 💧</b>. Per superare lo step Sfida e sbloccare il prossimo Regno sul Sentiero servono <b>almeno 10 risposte corrette</b>. Ti mancavano {Math.max(1, SFIDA_DROPS_LOW_THRESHOLD - sfidaResult.correctAnswers)} risposte!
                 </div>
               </div>
             )}
@@ -5103,7 +5210,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               Monete insufficienti
             </h3>
             <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-              Ogni Sfida costa <b>{SFIDA_UNLOCK_COST} moneta</b>. Al momento ne hai <b>{profile.coins}</b>.
+              Ogni Sfida costa <b>{SFIDA_UNLOCK_COST} moneta</b>. Al momento ne hai <b>{worldCoins}</b>.
             </p>
             <button
               type="button"
@@ -5154,27 +5261,24 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         <div className="mb-1 flex items-center justify-center gap-2">
           <h3 className="text-base font-black text-indigo-950">Indizi da scoprire</h3>
           <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-black text-sky-800">
-            💧 {profile.lightDrops}
+            💧 {worldLightDrops}
           </span>
         </div>
         <p className="text-xs text-slate-600 mb-4">
           Tocca una card per aprire l'indizio e segnalarlo come trovato.
         </p>
 
-            {world.monuments.length > 0 ? (
+            {blockedMonuments.length > 0 ? (
               <>
                 <div role="list" className="grid grid-cols-1 gap-2.5 max-h-72 overflow-y-auto pr-1 text-left">
-                  {world.monuments.map(monument => {
-                    const isErected = worldProg.rebuiltMonuments.includes(monument.id);
-                    const canAfford = profile.lightDrops >= monument.cost;
+                  {blockedMonuments.map(monument => {
+                    const canAfford = worldLightDrops >= monument.cost;
                     return (
                       <div
                         key={monument.id}
                         role="listitem"
                         className={`rounded-2xl border px-3.5 py-3 transition-all ${
-                          isErected
-                            ? 'border-emerald-300 bg-emerald-50 shadow-sm'
-                            : canAfford
+                          canAfford
                             ? 'border-amber-500 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-50 animate-monument-glow shadow-md'
                             : 'border-slate-200 bg-slate-50'
                         }`}
@@ -5185,13 +5289,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             <p className="text-[11px] font-bold text-amber-900">{monument.description}</p>
                           </div>
                           <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                            isErected
-                              ? 'bg-emerald-200 text-emerald-900 border border-emerald-300'
-                              : canAfford
+                            canAfford
                               ? 'bg-amber-300 text-amber-950 border border-amber-400 animate-badge-blink shadow-2xs'
                               : 'bg-slate-200 text-slate-700'
                           }`}>
-                            {isErected ? '✓ Trovato' : canAfford ? '✨ Pronto!' : '🔒 Bloccato'}
+                            {canAfford ? '✨ Pronto!' : '🔒 Bloccato'}
                           </span>
                         </div>
                         <div className="mt-2.5 flex justify-end">
@@ -5204,25 +5306,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               setMonumentModal({
                                 monument,
                                 canAfford,
-                                isErected,
+                                isErected: false,
                               });
                             }}
-                            className={`rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md transition-all ${
-                              isErected
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                : canAfford
+                            className={`rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md transition-all cursor-pointer ${
+                              canAfford
                                 ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 text-white animate-bounce ring-2 ring-amber-300'
                                 : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
                             }`}
                           >
-                            {isErected ? '🔎 Riapri indizio' : canAfford ? '🔍 Apri indizio' : 'Dettagli'}
+                            {canAfford ? '🔍 Apri indizio' : 'Dettagli'}
                           </button>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-                {profile.lightDrops <= 0 && profile.coins >= SFIDA_UNLOCK_COST && (
+                {worldLightDrops <= 0 && worldCoins >= SFIDA_UNLOCK_COST && (
                   <p className="mt-3 text-xs text-indigo-800 text-left">
                     Suggerimento: al momento non hai gocce, ma hai almeno <b>{SFIDA_UNLOCK_COST} monete</b>. Puoi provare la <b>Sfida</b> per puntare a nuove ricompense.
                   </p>
@@ -5334,10 +5434,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   Indizio Bloccato!
                 </h3>
                 <div className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-200 px-3 py-1 rounded-full mb-3">
-                  Costo indizio: 💧 {monumentModal.monument.cost} (Ne hai {profile.lightDrops})
+                  Costo indizio: 💧 {monumentModal.monument.cost} (Ne hai {worldLightDrops})
                 </div>
                 <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-                  Per aprire <b>{monumentModal.monument.name}</b> ti mancano <b>{monumentModal.monument.cost - profile.lightDrops} Gocce di Luce</b>.
+                  Per aprire <b>{monumentModal.monument.name}</b> ti mancano <b>{monumentModal.monument.cost - worldLightDrops} Gocce di Luce</b>.
                   <br /><br />
                   {sfidaDropsGuidanceMessage}
                 </p>
