@@ -4,6 +4,8 @@ import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
+import OperationPromptCard from './layout/OperationPromptCard';
+import RetryButton from './layout/RetryButton';
 import type { HelperGuidanceKey } from '../types';
 
 type ComprendoGuidanceKey = Extract<HelperGuidanceKey, 'comprendoTouch' | 'comprendoAvoid' | 'comprendoBonus'>;
@@ -272,10 +274,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   const appleBurstIdRef = useRef<number>(0);
 
   const totalItems = a * b;
-  const filledItems = basketCounts.reduce((sum, count) => sum + Math.min(b, Math.max(0, count)), 0);
   const completedBaskets = basketCounts.filter(count => count === b).length;
-  const totalProgressPercent = totalItems === 0 ? 0 : (filledItems / totalItems) * 100;
-  const compactStructureLabel = `${displayA}x${displayB} -> ${a} ceste, ${b} mele`;
   const beeTouchStatusLabel = 'Toccare il calabrone fa perdere la round.';
   const isCompleted = completedBaskets === a;
   const isFailed = beeDefeat;
@@ -1042,17 +1041,19 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   };
 
   return (
-    <div className="w-full rounded-[2rem] border border-cyan-100 bg-white p-4 shadow-[0_18px_40px_rgba(34,211,238,0.24)]">
-      <div className="rounded-[1.6rem] border border-violet-200 bg-gradient-to-b from-violet-50 to-fuchsia-50 px-4 py-3 shadow-[0_8px_18px_rgba(124,58,237,0.10)]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-wide text-fuchsia-700">Raccogli {itemEmoji}</p>
-            <p className="text-xl font-black text-slate-800">
-              {displayA} x {displayB} = {isCompleted ? totalItems : '?'}
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="w-full space-y-4">
+      <OperationPromptCard
+        tone="violet"
+        icon={itemEmoji}
+        eyebrow="Completa questa operazione"
+        operation={`${displayA} × ${displayB} = ${isCompleted ? totalItems : '?'}`}
+        onSpeakOperation={() => {
+          sound.playClick();
+          speak(`${displayA} per ${displayB}`);
+        }}
+        operationAriaLabel={`Ascolta operazione ${displayA} per ${displayB}`}
+        className="rounded-[1.6rem]"
+      />
 
       <div className="mt-4 rounded-[1.7rem] border-2 border-cyan-300 bg-cyan-500 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
         <div
@@ -1171,10 +1172,12 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
             <div className="absolute inset-0 z-40 flex items-center justify-center rounded-[1.35rem] bg-black/40 p-4">
               <div className="w-full max-w-xs rounded-2xl border-2 border-rose-200 bg-white/95 px-5 py-4 text-center shadow-xl">
                 <p className="mt-1 text-xs font-bold text-slate-700">Hai toccato il calabrone.</p>
-                <button
-                  type="button"
+                <RetryButton
+                  tone="rose"
+                  className="mt-3"
                   onClick={() => {
                     sound.playClick();
+                    speak('Riproviamo.');
                     setBeeDefeat(false);
                     setBeeHit(false);
                     lastBasketFillAtRef.current = performance.now();
@@ -1182,10 +1185,7 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
                     setCelebratingBasket(null);
                     setErrorBasket(null);
                   }}
-                  className="mt-3 w-full rounded-xl bg-rose-600 py-2.5 text-xs font-black text-white shadow-md transition-colors hover:bg-rose-700 cursor-pointer"
-                >
-                  Riprova
-                </button>
+                />
               </div>
             </div>
           ) : isCompleted ? (
@@ -1279,33 +1279,6 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
               );
             })
           )}
-        </div>
-      </div>
-
-      <div className="mt-3 rounded-xl border border-violet-200/80 bg-white/80 px-2.5 py-2">
-        <div className="mb-1 flex items-center justify-between gap-3">
-          <p className="text-[10px] font-black uppercase tracking-wide text-violet-700">Progresso</p>
-          <span className="rounded-full border border-violet-200 bg-white px-2 py-0.5 text-[10px] font-black text-violet-700">
-            {compactStructureLabel}
-          </span>
-        </div>
-        <div
-          role="progressbar"
-          aria-label={`Progresso mele inserite: ${filledItems} su ${totalItems}`}
-          aria-valuemin={0}
-          aria-valuemax={Math.max(1, totalItems)}
-          aria-valuenow={filledItems}
-          className="h-3 overflow-hidden rounded-full border border-violet-200 bg-violet-100"
-        >
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-fuchsia-400 via-violet-500 to-cyan-400 transition-[width] duration-300 ease-out"
-            style={{ width: `${Math.max(0, Math.min(100, totalProgressPercent))}%` }}
-          />
-        </div>
-        <div className="mt-1.5 flex items-center justify-between gap-3">
-          <p className="text-[10px] font-bold text-slate-700">
-            Mele: {filledItems}/{totalItems} ({Math.round(totalProgressPercent)}%)
-          </p>
         </div>
       </div>
 

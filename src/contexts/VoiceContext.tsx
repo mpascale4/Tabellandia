@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 
 interface VoiceContextType {
   voiceEnabled: boolean;
@@ -79,7 +79,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     finish();
   };
 
-  const performSpeak = (text: string, voiceURIOverride?: string | null, forcePlayback = false) => {
+  const performSpeak = useCallback((text: string, voiceURIOverride?: string | null, forcePlayback = false) => {
     if ((!voiceEnabled && !forcePlayback) || typeof window === 'undefined' || !window.speechSynthesis) {
       return Promise.resolve();
     }
@@ -122,11 +122,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       window.speechSynthesis.speak(utterance);
     });
-  };
+  }, [availableVoices, selectedVoiceURI, voiceEnabled]);
 
-  const speak = (text: string, number?: number) => performSpeak(text);
+  const speak = useCallback((text: string, number?: number) => performSpeak(text), [performSpeak]);
 
-  const previewVoice = (voiceURI: string | null) => performSpeak('Ciao! Proviamo questa voce di Tabellandia.', voiceURI, true);
+  const previewVoice = useCallback(
+    (voiceURI: string | null) => performSpeak('Ciao! Proviamo questa voce di Tabellandia.', voiceURI, true),
+    [performSpeak]
+  );
 
   const toggleVoice = () => {
     setVoiceEnabled(prev => !prev);

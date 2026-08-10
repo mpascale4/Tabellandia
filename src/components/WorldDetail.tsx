@@ -14,17 +14,12 @@ import {
   SFIDA_FEEDBACK_HOLD_MS,
   SFIDA_RECORD_THRESHOLD,
   SFIDA_DROPS_LOW_THRESHOLD,
-  SFIDA_DROPS_MID_THRESHOLD,
-  SFIDA_DROPS_HIGH_THRESHOLD,
-  SFIDA_DROPS_LOW_REWARD,
-  SFIDA_DROPS_MID_REWARD,
-  SFIDA_DROPS_HIGH_REWARD,
   GAME_REWARDS_CONFIG,
   getMonumentCostMissingMessage,
   getSfidaUnlockMissingCoinsMessage
 } from '../constants/gameRules';
 import { sound } from './SoundManager';
-import { AlertCircle, Award, Timer, Trophy, Compass, RotateCcw } from 'lucide-react';
+import { AlertCircle, Award, Timer, Trophy, Compass } from 'lucide-react';
 import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
 import RewardPopup from './RewardPopup';
 import FireworksOverlay from './FireworksOverlay';
@@ -32,6 +27,8 @@ import InteractionGuidanceHint from './InteractionGuidanceHint';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
+import OperationPromptCard from './layout/OperationPromptCard';
+import RetryButton from './layout/RetryButton';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import { useVoice } from '../contexts/VoiceContext';
 import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
@@ -173,17 +170,12 @@ const COSTRUISCO_SPAWN_SCALE_MIN = 0.45;
 const COSTRUISCO_FLIGHT_SCALE_MIN = 0.5;
 const TRUCCHI_PREVIEW_SCALE_MIN = 0.48;
 const SALTO_OBSTACLE_START_FACTOR = 4;
+const SFIDA_FIXED_DROPS_REWARD = 15;
 const SALTO_ANTAGONISTS = [
   { id: 'snake', label: 'serpente', emoji: '🐍' },
   { id: 'bat', label: 'pipistrello', emoji: '🦇' },
   { id: 'spider', label: 'ragno', emoji: '🕷️' },
   { id: 'scorpion', label: 'scorpione', emoji: '🦂' },
-] as const;
-const OPERATION_CARD_THEMES = [
-  'bg-gradient-to-r from-[#3c358f] to-[#4d46b5]',
-  'bg-gradient-to-r from-[#ff9d08] to-[#ffb11f]',
-  'bg-gradient-to-r from-[#0ea5e9] to-[#22d3ee]',
-  'bg-gradient-to-r from-[#c026d3] to-[#7c3aed]',
 ] as const;
 const INTERACTION_GUIDANCE_VISIBLE_MS = 5000;
 const ITALIAN_NUMBER_WORDS: Record<number, string> = {
@@ -211,6 +203,12 @@ const ITALIAN_NUMBER_WORDS: Record<number, string> = {
 };
 
 const toItalianWord = (value: number): string => ITALIAN_NUMBER_WORDS[value] ?? value.toString();
+const startsWithLoArticle = (word: string): boolean => /^(z|x|y|ps|pn|gn|s[^aeiou])/i.test(word.trim());
+const withItalianArticle = (word: string): string => {
+  const normalized = word.trim();
+  if (!normalized) return "l'ostacolo";
+  return `${startsWithLoArticle(normalized) ? 'lo' : 'il'} ${normalized}`;
+};
 const STEP_MOTIVATION_MESSAGES = {
   male: [
     'Bravissimo! Stai andando alla grande!',
@@ -253,7 +251,6 @@ const STEP_LABELS = {
 const GAMEPLAY_AUDIO_MESSAGES = {
   saltoFall: 'Oh no, la ranocchia e caduta! Riproviamo.',
   saltoObstacleBlocked: "Oh no! Ti ha fermato l'antagonista.",
-  saltoObstacleSuccess: 'Salto perfetto!',
   costruiscoWrong: 'Non questo. Cerca il numero giusto.',
   costruiscoCorrect: 'Bravo, ma scoppia tutti gli altri palloncini.',
   costruiscoTooHigh: 'Oh no il palloncino e volato via.',
@@ -307,7 +304,7 @@ type CostruiscoActiveBalloon = {
 };
 
 export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise }: WorldDetailProps) {
-  const { speak } = useVoice();
+  const { speak, voiceEnabled } = useVoice();
   const playerGender = getPlayerGender(profile);
   const ALL_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'];
   const ALL_FACTORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -374,6 +371,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [saltoOptions, setSaltoOptions] = useState<number[]>([]);
   const [saltoCorrectClicks, setSaltoCorrectClicks] = useState<Set<number>>(new Set());
   const [isFrogSplashing, setIsFrogSplashing] = useState<boolean>(false);
+  const [saltoFailReason, setSaltoFailReason] = useState<'obstacle' | 'fall' | null>(null);
   const [saltoEnemySteps, setSaltoEnemySteps] = useState<number[]>([]);
   const [saltoJumpedEnemySteps, setSaltoJumpedEnemySteps] = useState<Set<number>>(new Set());
   const [saltoAntagonistsByStep, setSaltoAntagonistsByStep] = useState<Record<number, SaltoAntagonist>>({});
@@ -450,14 +448,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     speak(`${unlockedMessage}`);
   };
 
-  const triggerFireworksAndMotivation = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
+    const triggerFireworksAndMotivation = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
     if (fireworksRestartTimeoutRef.current !== null) {
       window.clearTimeout(fireworksRestartTimeoutRef.current);
       fireworksRestartTimeoutRef.current = null;
     }
 
     setShowFireworks(false);
-    
+
     // Delay di 600ms per permettere al suono playLevelUp() di completarsi prima della voce
     window.setTimeout(() => {
       showStepMotivationPopup(stepName);
@@ -467,9 +465,43 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       setShowFireworks(true);
       fireworksRestartTimeoutRef.current = null;
     }, 0);
-  };
+    };
 
-  const getOperationCardTheme = (index: number) => OPERATION_CARD_THEMES[((index % OPERATION_CARD_THEMES.length) + OPERATION_CARD_THEMES.length) % OPERATION_CARD_THEMES.length];
+    const announceWithFallback = useCallback((message: string, fallbackSound: 'none' | 'success' | 'levelUp' = 'none') => {
+      if (announcementClearTimeoutRef.current !== null) {
+        window.clearTimeout(announcementClearTimeoutRef.current);
+        announcementClearTimeoutRef.current = null;
+      }
+
+      setLiveAnnouncement(message);
+      setVisibleAnnouncement(message);
+      announcementClearTimeoutRef.current = window.setTimeout(() => {
+        setLiveAnnouncement('');
+        setVisibleAnnouncement('');
+        announcementClearTimeoutRef.current = null;
+      }, 1800);
+
+      const canUseTts = voiceEnabled && typeof window !== 'undefined' && !!window.speechSynthesis;
+      if (canUseTts) {
+        void speak(message);
+        return;
+      }
+
+      if (fallbackSound === 'success') {
+        sound.playSuccess();
+      } else if (fallbackSound === 'levelUp') {
+        sound.playLevelUp();
+      }
+    }, [speak, voiceEnabled]);
+
+    useEffect(() => {
+      return () => {
+        if (announcementClearTimeoutRef.current !== null) {
+          window.clearTimeout(announcementClearTimeoutRef.current);
+        }
+      };
+    }, []);
+
   const prefersReducedMotion = typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -544,11 +576,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     monument: { id: string; name: string; cost: number; description: string; emoji: string };
     canAfford: boolean;
     isErected: boolean;
+    justUnlocked?: boolean;
   } | null>(null);
   const [showMonumentUnlockList, setShowMonumentUnlockList] = useState<boolean>(false);
   const [shouldReturnToPraticoCongratsAfterMonuments, setShouldReturnToPraticoCongratsAfterMonuments] = useState<boolean>(false);
   const [shouldReturnToMonumentsListAfterModal, setShouldReturnToMonumentsListAfterModal] = useState<boolean>(false);
-  const [showSfidaFromCoinsConfirm, setShowSfidaFromCoinsConfirm] = useState<boolean>(false);
+    const [showSfidaFromCoinsConfirm, setShowSfidaFromCoinsConfirm] = useState<boolean>(false);
+    const [showSfidaMonumentsPrompt, setShowSfidaMonumentsPrompt] = useState<boolean>(false);
+    const [newlyUnlockedWorldId, setNewlyUnlockedWorldId] = useState<number | null>(null);
+    const [liveAnnouncement, setLiveAnnouncement] = useState<string>('');
+    const [visibleAnnouncement, setVisibleAnnouncement] = useState<string>('');
 
   // Sfida (Step 6) state
   const [sfidaActive, setSfidaActive] = useState<boolean>(false);
@@ -572,21 +609,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const praticoAnnouncementTimeoutRef = useRef<number | null>(null);
   const sfidaAnnouncementTimeoutRef = useRef<number | null>(null);
   const sfidaFeedbackTimeoutRef = useRef<number | null>(null);
-  const quizStreakResetTimeoutRef = useRef<number | null>(null);
-  const quizInteractionLockedRef = useRef(false);
-  const praticoCorrectRankTrackerRef = useRef<CorrectRankTracker>(createCorrectRankTracker());
-  const sfidaCorrectRankTrackerRef = useRef<CorrectRankTracker>(createCorrectRankTracker());
-  const lastPraticoAnnouncementKeyRef = useRef<string | null>(null);
-  const touchStartXRef = useRef<number | null>(null);
-  const currentPraticoQuestion = quizQuestions[currentQuizIdx] ?? null;
-  const praticoOperationCardTheme = getOperationCardTheme(currentQuizIdx);
-  const sfidaOperationCardTheme = getOperationCardTheme(sfidaQuestionVersion);
-  const touchStartYRef = useRef<number | null>(null);
-  const saltoStoneRef = useRef<HTMLDivElement | null>(null);
-  const saltoContainerRef = useRef<HTMLDivElement | null>(null);
-  const saltoFinishRef = useRef<HTMLDivElement | null>(null);
-  const guidanceSeen = profile.helperGuidanceSeen ?? {};
-  const guidanceTimeoutsRef = useRef<Partial<Record<HelperGuidanceKey, number>>>({});
+    const quizStreakResetTimeoutRef = useRef<number | null>(null);
+    const celebratedWorldUnlocksRef = useRef<Set<number>>(new Set(profile.unlockedWorlds));
+    const announcementClearTimeoutRef = useRef<number | null>(null);
+    const quizInteractionLockedRef = useRef(false);
+    const sfidaPassedThresholdSoundPlayedRef = useRef(false);
+    const praticoCorrectRankTrackerRef = useRef<CorrectRankTracker>(createCorrectRankTracker());
+    const sfidaCorrectRankTrackerRef = useRef<CorrectRankTracker>(createCorrectRankTracker());
+    const lastPraticoAnnouncementKeyRef = useRef<string | null>(null);
+    const touchStartXRef = useRef<number | null>(null);
+    const currentPraticoQuestion = quizQuestions[currentQuizIdx] ?? null;
+    const touchStartYRef = useRef<number | null>(null);
+    const saltoStoneRef = useRef<HTMLDivElement | null>(null);
+    const saltoContainerRef = useRef<HTMLDivElement | null>(null);
+    const saltoFinishRef = useRef<HTMLDivElement | null>(null);
+    const guidanceSeen = profile.helperGuidanceSeen ?? {};
+    const guidanceTimeoutsRef = useRef<Partial<Record<HelperGuidanceKey, number>>>({});
 
   const consumeGuidance = useCallback((key: HelperGuidanceKey) => {
     if (guidanceSeen[key]) return;
@@ -642,6 +680,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   }, [saltoIndex, saltoFrogPosition, activeStep, saltoFlowStage, isFrogSplashing, saltoGameCompleted]);
 
   const saltoExpectedValue = saltoSelectedFactor !== null ? world.id * (saltoIndex + 1) : null;
+  const saltoCurrentObstacleLabel = withItalianArticle(saltoAntagonistsByStep[saltoIndex + 1]?.label ?? 'ostacolo');
   const saltoObstaclePending = saltoEnemySteps.includes(saltoIndex + 1) && !saltoJumpedEnemySteps.has(saltoIndex + 1);
   const triggerSaltoFrogJump = (fromStep: number) => {
     if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
@@ -654,9 +693,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     if (isJumpWindowOpen) {
       consumeGuidance('saltoAvoid');
       const toStep = currentEnemyStep;
+      const jumpedAntagonist = saltoAntagonistsByStep[currentEnemyStep];
+      const jumpedLabel = withItalianArticle(jumpedAntagonist?.label ?? 'ostacolo');
       const leapMs = prefersReducedMotion ? 140 : 420;
       setSaltoLeap({ from: fromStep, to: toStep });
-      speak(GAMEPLAY_AUDIO_MESSAGES.saltoObstacleSuccess);
+      speak(`Ottimo! Hai saltato ${jumpedLabel}.`);
       window.setTimeout(() => {
         setSaltoJumpedEnemySteps(prev => new Set(prev).add(currentEnemyStep));
         setSaltoFrogPosition(toStep);
@@ -906,17 +947,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
 
     sound.stopPraticoAmbience?.();
-  }, [activeStep]);
-
-  useEffect(() => {
-    if (activeStep === 'sfida') {
-      sound.startSfidaAmbience?.();
-      return () => {
-        sound.stopSfidaAmbience?.();
-      };
-    }
-
-    sound.stopSfidaAmbience?.();
   }, [activeStep]);
 
   useEffect(() => {
@@ -1624,6 +1654,50 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     };
   }, [activeStep, sfidaActive, sfidaQuestion, sfidaQuestionVersion]);
 
+  const didacticEntryAnnouncementRef = useRef<string | null>(null);
+  useEffect(() => {
+    let announcementKey: string | null = null;
+    let operation: { a: number; b: number } | null = null;
+
+    if (activeStep === 'comprendo' && comprendoSelectedFactor !== null && comprendoFlowStage === 'game') {
+      announcementKey = `comprendo-${world.id}-${comprendoSelectedFactor}`;
+      operation = { a: world.id, b: comprendoSelectedFactor };
+    } else if (activeStep === 'salto' && saltoSelectedFactor !== null && saltoFlowStage === 'game') {
+      announcementKey = `salto-${world.id}-${saltoSelectedFactor}`;
+      operation = { a: world.id, b: saltoSelectedFactor };
+    } else if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null && costruiscoFlowStage === 'game') {
+      announcementKey = `costruisco-${world.id}-${costruiscoSelectedFactor}`;
+      operation = { a: world.id, b: costruiscoSelectedFactor };
+    } else if (activeStep === 'trucchi' && trucchiSelectedFactor !== null && trucchiFlowStage === 'game') {
+      announcementKey = `trucchi-${world.id}-${trucchiSelectedFactor}`;
+      operation = { a: world.id, b: trucchiSelectedFactor };
+    }
+
+    if (!announcementKey || !operation) {
+      didacticEntryAnnouncementRef.current = null;
+      return;
+    }
+
+    if (didacticEntryAnnouncementRef.current === announcementKey) {
+      return;
+    }
+
+    didacticEntryAnnouncementRef.current = announcementKey;
+    void speakPraticoOperation(operation.a, operation.b);
+  }, [
+    activeStep,
+    comprendoFlowStage,
+    comprendoSelectedFactor,
+    costruiscoFlowStage,
+    costruiscoSelectedFactor,
+    saltoFlowStage,
+    saltoSelectedFactor,
+    speakPraticoOperation,
+    trucchiFlowStage,
+    trucchiSelectedFactor,
+    world.id,
+  ]);
+
   useEffect(() => {
     if (activeStep !== 'pratico') {
       quizInteractionLockedRef.current = false;
@@ -1905,6 +1979,35 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const closeSfidaResultPopup = () => {
     sound.playClick();
     setShowSfidaResultPopup(false);
+    if (!shouldPromptSfidaMonumentsAfterWin) return;
+    setShowSfidaMonumentsPrompt(true);
+    void speak('Hai indizi sbloccabili. Vuoi aprire ora la schermata indizi?');
+  };
+
+  const confirmSfidaMonumentsPrompt = () => {
+    sound.playClick();
+    setShowSfidaMonumentsPrompt(false);
+    setActiveStep('intro');
+    setShowMonumentUnlockList(false);
+    void speak('Perfetto, torniamo alla mappa.');
+  };
+
+  const cancelSfidaMonumentsPrompt = () => {
+    sound.playClick();
+    setShowSfidaMonumentsPrompt(false);
+  };
+
+  const goToPraticoFromSfidaInsufficient = () => {
+    sound.playClick();
+    setSfidaUnlockModalMode(null);
+    void speak('Perfetto. Andiamo in Pratico per guadagnare monete.');
+    startQuizMode();
+  };
+
+  const stayOnSfidaFromInsufficientCoins = () => {
+    sound.playClick();
+    setSfidaUnlockModalMode(null);
+    void speak('Va bene, restiamo qui.');
   };
 
   const beginSfidaFromUnlockFlow = () => {
@@ -1913,6 +2016,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     if (currentWorldCoins < SFIDA_UNLOCK_COST) {
       sound.playError();
       setSfidaUnlockModalMode('insufficient');
+      void speak('Non hai abbastanza monete per la Sfida. Vuoi andare in Pratico per guadagnarne?');
       return;
     }
     updateProfile(p => {
@@ -1942,6 +2046,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     if (currentWorldCoins < SFIDA_UNLOCK_COST) {
       sound.playError();
       setSfidaUnlockModalMode('insufficient');
+      void speak('Non hai abbastanza monete per la Sfida. Vuoi andare in Pratico per guadagnarne?');
       return;
     }
     sound.playClick();
@@ -1960,6 +2065,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSfidaQuestion(null);
     setSfidaQuestionVersion(0);
     setSfidaOptions([]);
+    sfidaPassedThresholdSoundPlayedRef.current = false;
+    setShowSfidaMonumentsPrompt(false);
     setShowSfidaResultPopup(false);
     setSfidaUnlockModalMode(null);
     setActiveStep('sfida');
@@ -1976,6 +2083,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     setSfidaScore(0);
     setSfidaTimer(30);
     setSfidaResult(null);
+    sfidaPassedThresholdSoundPlayedRef.current = false;
+    setShowSfidaMonumentsPrompt(false);
     setShowSfidaResultPopup(false);
     setSfidaUnlockModalMode(null);
     generateSfidaQuestion();
@@ -2048,7 +2157,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
     if (isCorrect) {
       sound.playSuccess();
-      setSfidaScore(prev => prev + 1);
+      setSfidaScore(prev => {
+        const nextScore = prev + 1;
+        if (!sfidaPassedThresholdSoundPlayedRef.current && nextScore === SFIDA_DROPS_LOW_THRESHOLD) {
+          sound.playLevelUp();
+          sfidaPassedThresholdSoundPlayedRef.current = true;
+        }
+        return nextScore;
+      });
     } else {
       sound.playError();
       speak(GAMEPLAY_AUDIO_MESSAGES.sfidaWrong);
@@ -2082,17 +2198,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       : currentCompletedSteps;
     const didCompleteWorldNow = !currentCompletedSteps.includes('sfida') && nextCompletedSteps.includes('sfida');
 
-    let sfidDropsEarned = 0;
-    if (score >= SFIDA_DROPS_HIGH_THRESHOLD) {
-      sfidDropsEarned = SFIDA_DROPS_HIGH_REWARD;
-    } else if (score >= SFIDA_DROPS_MID_THRESHOLD) {
-      sfidDropsEarned = SFIDA_DROPS_MID_REWARD;
-    } else if (score >= SFIDA_DROPS_LOW_THRESHOLD) {
-      sfidDropsEarned = SFIDA_DROPS_LOW_REWARD;
-    }
-    if (isNewRecord && sfidDropsEarned > 0) {
-      sfidDropsEarned *= 2;
-    }
+    const sfidDropsEarned = passedSfida ? SFIDA_FIXED_DROPS_REWARD : 0;
 
     updateProfile(p => {
       const worldProg = p.worldProgress[world.id] || {
@@ -2239,13 +2345,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
   };
 
-  const handleRebuildMonument = (monId: string, cost: number) => {
+    const handleRebuildMonument = (monId: string, cost: number): boolean => {
     const activeWp = profile.worldProgress[world.id] || createDefaultWorldProgress(world.id);
     const activeWorldDrops = activeWp.lightDrops ?? activeWp.devLightDrops ?? 0;
     if (activeWorldDrops < cost) {
       sound.playError();
       speak(GAMEPLAY_AUDIO_MESSAGES.notEnoughLightDrops);
-      return;
+      return false;
     }
 
     sound.playPowerUp();
@@ -2271,7 +2377,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         }
       };
     });
-  };
+
+    return true;
+    };
 
   const closeMotivationPopup = () => {
     sound.playClick();
@@ -2293,6 +2401,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const worldCoins = worldProg.coins ?? worldProg.devCoins ?? 0;
   const worldLightDrops = worldProg.lightDrops ?? worldProg.devLightDrops ?? 0;
   const blockedMonuments = world.monuments.filter(monument => !worldProg.rebuiltMonuments.includes(monument.id));
+  const unlockableMonumentsCount = blockedMonuments.filter(monument => worldLightDrops >= monument.cost).length;
+  const shouldPromptSfidaMonumentsAfterWin = !!(
+    sfidaResult
+    && sfidaResult.passedSfida
+    && sfidaResult.dropsEarned === SFIDA_FIXED_DROPS_REWARD
+    && unlockableMonumentsCount > 0
+  );
   const canSuggestSfidaFromMonuments = blockedMonuments.length === 0 && worldLightDrops <= 0 && worldCoins >= SFIDA_UNLOCK_COST;
   const allFactorsSet = new Set<number>(ALL_FACTORS);
 
@@ -2385,7 +2500,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null) ||
     (activeStep === 'salto' && saltoSelectedFactor !== null) ||
     (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) ||
-    (activeStep === 'trucchi' && trucchiSelectedFactor !== null)
+    (activeStep === 'trucchi' && trucchiSelectedFactor !== null) ||
+    (activeStep === 'pratico' && currentPraticoQuestion !== null) ||
+    (activeStep === 'sfida' && sfidaActive)
   );
   const shouldShowWorldFooterContinue =
     (activeStep === 'comprendo' && comprendoSelectedFactor === null && effectiveComprendoCompleted.size >= 10) ||
@@ -2395,6 +2512,53 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const isKingdomCompleted = allMonumentsErected && isComprendoDone && isSaltoDone && isCostruiscoDone && isTrucchiDone && isPraticoDone && isSfidaDone;
   const shouldShowWorldFooterCompletedContinue = activeStep === 'intro' && isKingdomCompleted;
   const shouldShowWorldFooterAnyContinue = shouldShowWorldFooterContinue || shouldShowWorldFooterCompletedContinue;
+
+  // Keep world unlocks in sync even when the final monument is erected after Sfida was already passed.
+    useEffect(() => {
+    const nextWorldId = world.id + 1;
+    if (nextWorldId > 9) return;
+    if (!allMonumentsErected || !isComprendoDone || !isSaltoDone || !isCostruiscoDone || !isTrucchiDone || !isPraticoDone || !isSfidaDone) return;
+    if (profile.unlockedWorlds.includes(nextWorldId)) return;
+
+    updateProfile((currentProfile) => {
+      if (currentProfile.unlockedWorlds.includes(nextWorldId)) return currentProfile;
+      return {
+        ...currentProfile,
+        unlockedWorlds: [...currentProfile.unlockedWorlds, nextWorldId],
+      };
+    });
+    }, [
+    allMonumentsErected,
+    isComprendoDone,
+    isCostruiscoDone,
+    isPraticoDone,
+    isSaltoDone,
+    isSfidaDone,
+    isTrucchiDone,
+    profile.unlockedWorlds,
+    updateProfile,
+    world.id,
+    ]);
+
+    useEffect(() => {
+    const nextWorldId = world.id + 1;
+    if (nextWorldId > 9) return;
+    if (!isKingdomCompleted) return;
+    if (!profile.unlockedWorlds.includes(nextWorldId)) return;
+    if (celebratedWorldUnlocksRef.current.has(nextWorldId)) return;
+
+    celebratedWorldUnlocksRef.current.add(nextWorldId);
+    setShowFireworks(true);
+    setNewlyUnlockedWorldId(nextWorldId);
+
+    const announceTimer = window.setTimeout(() => {
+      announceWithFallback(`Fantastico! Hai completato questo regno e hai sbloccato il prossimo: tabellina del ${nextWorldId}.`, 'levelUp');
+    }, 350);
+
+    return () => {
+      window.clearTimeout(announceTimer);
+    };
+    }, [announceWithFallback, isKingdomCompleted, profile.unlockedWorlds, world.id]);
 
   const explainPraticoRewardAndPossibilities = () => {
     const sfidaPart = canGoToSfidaFromCoins
@@ -2465,20 +2629,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
   }, [showPraticoCongrats, praticoCongratsTarget, targetPraticoStreak, canGoToSfidaFromCoins, hasErectableBlockedMonuments]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!monumentModal) return;
     const description = monumentModal.monument.description?.trim() ?? '';
     if (monumentModal.isErected) {
-      void speak(description ? `Indizio già sbloccato. ${description}` : 'Indizio già sbloccato.');
+      const baseMessage = monumentModal.justUnlocked ? 'Indizio sbloccato.' : 'Indizio già sbloccato.';
+      announceWithFallback(description ? `${baseMessage} ${description}` : baseMessage, 'success');
       return;
     }
     if (monumentModal.canAfford) {
       const prompt = `Vuoi sbloccare l'indizio ${monumentModal.monument.name}?`;
-      void speak(description ? `${prompt} ${description}` : prompt);
+      announceWithFallback(description ? `${prompt} ${description}` : prompt);
       return;
     }
-    void speak(`Indizio non sbloccabile. ${sfidaDropsGuidanceMessage}`);
-  }, [monumentModal, sfidaDropsGuidanceMessage, speak]);
+    announceWithFallback(`Indizio non sbloccabile. ${sfidaDropsGuidanceMessage}`);
+    }, [announceWithFallback, monumentModal, sfidaDropsGuidanceMessage]);
 
   useEffect(() => {
     if (!pathLockModalMessage) return;
@@ -2811,15 +2976,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelTrucchiExercise();
   };
 
-  // Temporary debug shortcut: simulates completing the currently selected table for each step.
-  // Raccogli → triggers the in-game star bonus (fills all baskets, user still presses Continua).
-  // Other steps → call the same complete*Exercise() the real game uses, completing only the active factor.
-  const completeStepTemporarily = (stepName: 'comprendo' | 'salto' | 'costruisco' | 'trucchi') => {
-    if (stepName === 'comprendo') { comprendoBasketGameRef.current?.triggerStarBonus(); return; }
-    if (stepName === 'salto')     { completeSaltoExercise();     return; }
-    if (stepName === 'costruisco') { completeCostruiscoExercise(); return; }
-    if (stepName === 'trucchi')   { completeTrucchiExercise();   return; }
-  };
 
   const goBackFromWorldContent = () => {
     if (activeStep === 'sfida' && sfidaActive) {
@@ -3074,6 +3230,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   {world.monuments.map(monument => {
                     const isErected = worldProg.rebuiltMonuments.includes(monument.id);
                     const canAfford = worldLightDrops >= monument.cost;
+                    const missingDrops = Math.max(monument.cost - worldLightDrops, 0);
 
                     return (
                       <button
@@ -3083,7 +3240,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         onClick={() => {
                           sound.playClick();
                           setShouldReturnToMonumentsListAfterModal(false);
-                          setMonumentModal({ monument, canAfford, isErected });
+                          setMonumentModal({ monument, canAfford, isErected, justUnlocked: false });
                         }}
                         className={`rounded-2xl border px-2 py-2 text-left shadow-sm transition-all cursor-pointer min-w-0 ${
                           isErected
@@ -3107,6 +3264,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                           isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900 animate-badge-blink' : 'text-sky-800'
                         }`}>
                           {monument.name}
+                        </p>
+                        <p className={`mt-0.5 text-[10px] font-bold ${
+                          isErected ? 'text-emerald-700' : canAfford ? 'text-amber-900' : 'text-slate-700'
+                        }`}>
+                          {isErected
+                            ? 'Sbloccato'
+                            : canAfford
+                              ? `Costo: ${monument.cost} gocce`
+                              : `Servono ancora ${missingDrops} gocce`}
                         </p>
                       </button>
                     );
@@ -3292,7 +3458,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 1: COMPRENDO - Game interface for selected combination */}
         {activeStep === 'comprendo' && comprendoSelectedFactor !== null && (
-           <div className="flex-1 flex flex-col overflow-hidden">
+           <div className="flex-1 flex flex-col overflow-hidden bg-white">
              <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
                <div className={`${comprendoFlowStage === 'game' ? 'max-w-2xl' : 'max-w-xl'} mx-auto w-full space-y-6`}>
                  {comprendoFlowStage === 'objective' && (
@@ -3379,47 +3545,35 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                </div>
              </div>
 
-             <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
+             <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
                <div className={`${comprendoFlowStage === 'game' ? 'max-w-2xl' : 'max-w-xl'} mx-auto w-full`}>
                   {comprendoFlowStage === 'game' ? (
-                    comprendoGameCompleted && !showComprendoCompletionEffect ? (
-                     <button
-                       onClick={() => {
-                         sound.playClick();
-                         completeComprendoExercise();
-                       }}
-                       className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
-                     >
-                       Continua
-                     </button>
-                   ) : (
-                     <ActionGrid columns={2}>
-                       <button
-                         onClick={() => {
-                           sound.playClick();
-                           cancelComprendoExercise();
-                         }}
-                         className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
-                       >
-                         Annulla
-                       </button>
-                       <button
-                         onClick={() => {
-                           sound.playClick();
-                           if (!comprendoGameCompleted) return;
-                           completeComprendoExercise();
-                         }}
-                         disabled={!comprendoGameCompleted}
-                         className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors motion-safe:animate-pulse ${
-                           comprendoGameCompleted
-                             ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
-                             : 'bg-indigo-300 cursor-not-allowed opacity-70'
-                         }`}
-                       >
-                         Continua
-                       </button>
-                     </ActionGrid>
-                   )
+                    <ActionGrid columns={2}>
+                      <button
+                        onClick={() => {
+                          sound.playClick();
+                          cancelComprendoExercise();
+                        }}
+                        className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        onClick={() => {
+                          sound.playClick();
+                          if (!comprendoGameCompleted || showComprendoCompletionEffect) return;
+                          completeComprendoExercise();
+                        }}
+                        disabled={!comprendoGameCompleted || showComprendoCompletionEffect}
+                        className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors motion-safe:animate-pulse ${
+                          comprendoGameCompleted && !showComprendoCompletionEffect
+                            ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
+                            : 'bg-indigo-300 cursor-not-allowed opacity-70'
+                        }`}
+                      >
+                        Continua
+                      </button>
+                    </ActionGrid>
                  ) : (
                    <div className="space-y-2">
                      <button
@@ -3442,18 +3596,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      </button>
                    </div>
                  )}
-                  {comprendoFlowStage === 'game' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        completeStepTemporarily('comprendo');
-                      }}
-                      className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
-                      id="comprendo-debug-complete-btn"
-                    >
-                      Termina step (temporaneo)
-                    </button>
-                  )}
                </div>
              </div>
             </div>
@@ -3478,6 +3620,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setSaltoGameCompleted(false);
               setShowSaltoCompletionEffect(false);
               setIsFrogSplashing(false);
+              setSaltoFailReason(null);
               setSaltoEnemySteps(enemyLayout.steps);
               setSaltoJumpedEnemySteps(new Set());
               setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
@@ -3501,7 +3644,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 2: SALTO - GAME VIEW */}
         {activeStep === 'salto' && saltoSelectedFactor !== null && (
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden bg-white">
             <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
               <div className="max-w-xl mx-auto w-full space-y-5">
                 {saltoFlowStage === 'objective' && saltoSelectedFactor !== 1 && (
@@ -3551,24 +3694,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                 {saltoFlowStage === 'game' && (
                   <div className={`relative bg-white rounded-3xl border border-purple-100 shadow-xl ${compactLayout ? 'p-3 space-y-3' : 'p-5 space-y-5'}`}>
-                    <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-indigo-50 p-3 rounded-2xl border border-purple-200 shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => speak(`${world.id} per ${saltoSelectedFactor}`)}
-                        className="flex items-center gap-2 text-left cursor-pointer hover:scale-[1.02] transition-transform"
-                        title="Tocca per ascoltare l'operazione"
-                      >
-                        <span className="text-xl">🐸</span>
-                        <div>
-                          <p className="text-[10px] font-bold text-purple-600 uppercase font-sans">
-                            Salta {saltoIndex + 1} di {saltoSelectedFactor}
-                          </p>
-                          <p className="text-base font-black text-indigo-950 font-mono">
-                            {world.id} × {saltoSelectedFactor} = {saltoGameCompleted ? world.id * saltoSelectedFactor : '?'}
-                          </p>
-                        </div>
-                      </button>
-                    </div>
+                    <OperationPromptCard
+                      tone="purple"
+                      icon="🐸"
+                      eyebrow="Completa questa operazione"
+                      operation={`${world.id} × ${saltoSelectedFactor} = ${saltoGameCompleted ? world.id * saltoSelectedFactor : '?'}`}
+                      onSpeakOperation={() => speakOperationOnly(world.id, saltoSelectedFactor)}
+                      operationAriaLabel={`Ascolta operazione ${world.id} per ${saltoSelectedFactor}`}
+                    />
 
                     {/* River Stream with Stepping Stones & Frog */}
                     <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between">
@@ -3776,30 +3909,38 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                       {/* Options Grid or Splash Retry Button */}
                       {isFrogSplashing ? (
-                        <motion.button
-                          type="button"
+                        <motion.div
                           initial={{ scale: 0.95, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          onClick={() => {
-                            sound.playClick();
-                            setIsFrogSplashing(false);
-                            setSaltoIndex(0);
-                            setSaltoCorrectClicks(new Set());
-                            setSaltoFrogPosition(0);
-                            setSaltoLeap(null);
-                            setSaltoTapHop(null);
-                            if (saltoSelectedFactor !== null) {
-                              const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
-                              setSaltoEnemySteps(enemyLayout.steps);
-                              setSaltoJumpedEnemySteps(new Set());
-                              setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
-                            }
-                          }}
-                          className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm text-center py-3.5 px-4 rounded-2xl border-2 border-rose-300 shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 font-sans"
+                          className="w-full rounded-2xl border-2 border-rose-200 bg-white/95 px-4 py-4 text-center shadow-lg"
                         >
-                          <span className="text-lg sm:text-xl">💦</span>
-                          <span>Riprova</span>
-                        </motion.button>
+                          <p className="text-sm font-black text-rose-700">
+                            {saltoFailReason === 'obstacle'
+                              ? `Oh no! Ti ha fermato ${saltoCurrentObstacleLabel}.`
+                              : 'Oh no, la ranocchia e caduta!'}
+                          </p>
+                          <RetryButton
+                            tone="rose"
+                            className="mt-3"
+                            onClick={() => {
+                              sound.playClick();
+                              void speak('Riproviamo.');
+                              setIsFrogSplashing(false);
+                              setSaltoFailReason(null);
+                              setSaltoIndex(0);
+                              setSaltoCorrectClicks(new Set());
+                              setSaltoFrogPosition(0);
+                              setSaltoLeap(null);
+                              setSaltoTapHop(null);
+                              if (saltoSelectedFactor !== null) {
+                                const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
+                                setSaltoEnemySteps(enemyLayout.steps);
+                                setSaltoJumpedEnemySteps(new Set());
+                                setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
+                              }
+                            }}
+                          />
+                        </motion.div>
                       ) : (
                         <div className="w-full space-y-2.5">
                           <div className="grid grid-cols-4 gap-2 sm:gap-3">
@@ -3827,8 +3968,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                   consumeGuidance('saltoAvoid');
                                   sound.playError();
                                   const blockingAntagonist = saltoAntagonistsByStep[saltoIndex + 1];
-                                  const blockingLabel = blockingAntagonist?.label ?? "l'antagonista";
-                                  speak(`Oh no! Ti ha fermato il ${blockingLabel}.`);
+                                  const blockingLabel = withItalianArticle(blockingAntagonist?.label ?? 'ostacolo');
+                                  speak(`Oh no! Ti ha fermato ${blockingLabel}.`);
+                                  setSaltoFailReason('obstacle');
                                   setIsFrogSplashing(true);
                                   return;
                                 }
@@ -3849,20 +3991,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 } else {
                                   sound.playError();
                                   speak(GAMEPLAY_AUDIO_MESSAGES.saltoFall);
+                                  setSaltoFailReason('fall');
                                   setIsFrogSplashing(true);
                                 }
                               }}
                                 className={`py-3 sm:py-3.5 text-base sm:text-xl font-black font-mono w-full px-1 rounded-2xl border-2 bg-white shadow-sm transition-all ${
                                 isSelected
-                                  ? 'border-emerald-400 bg-emerald-100 text-emerald-800 ring-4 ring-emerald-200 shadow-md scale-105 cursor-default'
+                                  ? 'border-emerald-700 bg-emerald-200 text-emerald-950 ring-4 ring-emerald-300 shadow-lg scale-105 cursor-default'
                                   : isCorrectlyClicked
-                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm cursor-pointer'
+                                    ? 'border-emerald-700 bg-emerald-100 text-emerald-950 ring-2 ring-emerald-300 shadow-md cursor-pointer'
                                   : saltoGameCompleted
                                     ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed opacity-60'
                                     : 'border-purple-100 hover:border-purple-400 text-purple-950 hover:bg-purple-50 cursor-pointer shadow-xs active:scale-95'
                               } relative`}
                                 id={`salto-opt-${opt}`}
                               >
+                                {isCorrectlyClicked && (
+                                  <span
+                                    className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
+                                    aria-hidden="true"
+                                  >
+                                    ✓
+                                  </span>
+                                )}
                                 {opt}
                               </button>
                             </div>
@@ -3885,39 +4036,36 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </div>
             </div>
 
-            <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
-              <div className="max-w-xl mx-auto w-full">
+            <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+              <div className="max-w-2xl mx-auto w-full">
                 {saltoFlowStage === 'game' ? (
-                  saltoGameCompleted ? (
+                  <ActionGrid columns={2}>
                     <button
                       onClick={() => {
                         sound.playClick();
+                        cancelSaltoExercise();
+                      }}
+                      className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    >
+                      Annulla
+                    </button>
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        if (!saltoGameCompleted) return;
                         completeSaltoExercise();
                       }}
-                      className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
+                      disabled={!saltoGameCompleted}
+                      className={`w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all motion-safe:animate-pulse ${
+                        saltoGameCompleted
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}
+                      id="salto-continue-btn"
                     >
                       Continua
                     </button>
-                  ) : (
-                    <ActionGrid columns={2}>
-                      <button
-                        onClick={() => {
-                          sound.playClick();
-                          cancelSaltoExercise();
-                        }}
-                        className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
-                      >
-                        Annulla
-                      </button>
-                      <button
-                        disabled
-                        className="w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all bg-slate-100 text-slate-400 cursor-not-allowed motion-safe:animate-pulse"
-                        id="trick-done-btn"
-                      >
-                        Continua
-                      </button>
-                    </ActionGrid>
-                  )
+                  </ActionGrid>
                 ) : (
                   <div className="space-y-2">
                     <button
@@ -3940,17 +4088,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </button>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    completeStepTemporarily('salto');
-                  }}
-                  className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
-                  id="salto-debug-complete-btn"
-                >
-                  Termina step (temporaneo)
-                </button>
               </div>
             </div>
           </div>
@@ -3993,8 +4130,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 3: COSTRUISCO (Build the Table) - GAME VIEW */}
         {activeStep === 'costruisco' && costruiscoSelectedFactor !== null && (
-          <div className="flex-1 flex flex-col overflow-hidden">
-           <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden bg-white">
+           <div className="flex-1 flex flex-col overflow-hidden bg-white">
              <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
                <div className="max-w-2xl mx-auto w-full space-y-6">
                  {costruiscoFlowStage === 'objective' && (
@@ -4050,29 +4187,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                  {costruiscoFlowStage === 'game' && (
                    <div className="relative bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-6">
-                     <div className="text-center bg-emerald-100 rounded-2xl p-5 border-2 border-emerald-300">
-                       <p className="text-xs text-emerald-700 font-bold uppercase">Completa questa operazione</p>
-                        <button
-                          type="button"
-                          onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
-                          className="mt-2 cursor-pointer rounded px-2 py-1 text-3xl font-black text-emerald-900 font-mono focus-visible:outline-2 focus-visible:outline-emerald-500"
-                          aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
-                        >
-                          {world.id} × {costruiscoSelectedFactor} = ?
-                        </button>
-                     </div>
+                     <OperationPromptCard
+                       tone="emerald"
+                       icon="🎈"
+                       eyebrow="Completa questa operazione"
+                       operation={`${world.id} × ${costruiscoSelectedFactor} = ?`}
+                       onSpeakOperation={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                       operationAriaLabel={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
+                     />
 
                      <div>
-                       <h4 className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide text-center">
-                         Palloncini in volo
-                       </h4>
                        <div className="relative mx-auto w-full max-w-md h-64 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50 via-cyan-50 to-sky-100 flex items-center justify-center">
                          {costruiscoFailed ? (
                            <div className="text-center p-4 bg-white/95 backdrop-blur-xs rounded-2xl border border-rose-200 shadow-xl mx-4 space-y-2">
                              <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-2xl">
                                💥
                              </div>
-                             <h3 className="text-base font-black text-rose-800">Fallimento!</h3>
                              <p className="text-xs text-slate-600 leading-relaxed">
                                {costruiscoFailReason === 'wrong-tap' ? (
                                  costruiscoWrongTappedValue === null ? (
@@ -4084,19 +4214,17 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                    </>
                                  )
                                ) : (
-                                 <>
-                                   Oh no il palloncino e volato via!<br />
-                                   Riprova a prenderlo prima che arrivi ai 3/4 dell arena.
-                                 </>
+                                  <>Oh no il palloncino è volato via!</>
                                )}
                              </p>
-                             <button
-                               type="button"
-                               onClick={handleCostruiscoRetry}
-                               className="mt-2 py-2.5 px-5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 mx-auto"
-                             >
-                               <RotateCcw className="w-4 h-4" /> Riprova
-                             </button>
+                              <RetryButton
+                                tone="rose"
+                                className="mt-2"
+                                onClick={() => {
+                                  void speak('Riproviamo.');
+                                  handleCostruiscoRetry();
+                                }}
+                              />
                            </div>
                          ) : costruiscoGameCompleted ? (
                            <div className="text-center p-4 bg-white/95 backdrop-blur-xs rounded-2xl border border-emerald-200 shadow-xl mx-4 space-y-2">
@@ -4135,7 +4263,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                              {costruiscoActiveBalloons.map((balloon) => (
                                <div
                                  key={`multi-balloon-${balloon.id}`}
-                                 className="absolute bottom-2 -translate-x-1/2"
+                                  className={`absolute bottom-2 -translate-x-1/2 ${balloon.isCorrect && !balloon.isTrap ? 'z-40' : balloon.isTrap ? 'z-20' : 'z-10'}`}
                                  style={{ left: `${balloon.lane}%` }}
                                >
                                  {showCostruiscoTouchGuidance && balloon.isCorrect && !balloon.isTrap && (
@@ -4150,7 +4278,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                  animate={prefersReducedMotion ? { y: 0, opacity: 1 } : { y: [80, COSTRUISCO_BALLOON_EXIT_Y], opacity: [1, 1, 0.95] }}
                                  transition={prefersReducedMotion ? { duration: 0.1 } : { duration: balloon.flightMs / 1000, ease: "linear" }}
                                  onClick={() => handleCostruiscoSingleBalloonTap(balloon)}
-                                 className={`${compactLayout ? "w-16 h-20 text-base" : "w-20 h-24 text-lg"} rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-lg border select-none pb-2 pt-1 transition-all cursor-pointer relative ${balloon.isCorrect ? 'z-20' : 'z-10'} ${balloon.palette.body}`}
+                                  className={`${compactLayout ? "w-16 h-20 text-base" : "w-20 h-24 text-lg"} rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-lg border select-none pb-2 pt-1 transition-all cursor-pointer relative ${balloon.palette.body}`}
                                  id={`balloon-single-${balloon.id}`}
                                  aria-label={balloon.isTrap ? 'Palloncino bomba — non toccare!' : `Palloncino ${balloon.value}`}
                                >
@@ -4199,20 +4327,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                </div>
              </div>
 
-             <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
+             <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
                <div className="max-w-2xl mx-auto w-full">
                  {costruiscoFlowStage === 'game' ? (
-                   costruiscoGameCompleted ? (
-                     <button
-                       onClick={() => {
-                         sound.playClick();
-                         completeCostruiscoExercise();
-                       }}
-                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
-                     >
-                       Continua
-                     </button>
-                   ) : (
                      <ActionGrid columns={2}>
                        <button
                          onClick={() => {
@@ -4239,7 +4356,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                          Continua
                        </button>
                      </ActionGrid>
-                   )
                  ) : (
                    <div className="space-y-2">
                      <button
@@ -4262,17 +4378,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                      </button>
                    </div>
                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sound.playClick();
-                      completeStepTemporarily('costruisco');
-                    }}
-                    className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
-                    id="costruisco-debug-complete-btn"
-                  >
-                    Termina step (temporaneo)
-                  </button>
                </div>
              </div>
             </div>
@@ -4311,7 +4416,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 4: TRUCCHI (Interactive strategies and associate rules) - GAME VIEW */}
         {activeStep === 'trucchi' && trucchiSelectedFactor !== null && (
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden bg-white">
             <div className={`flex-1 overflow-hidden ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
               <div className="max-w-xl mx-auto w-full space-y-5">
                 {trucchiFlowStage === 'objective' && (
@@ -4388,29 +4493,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         </div>
                       </motion.div>
                     )}
-                    <div className="text-center space-y-2">
-                      <h4 className="text-sm font-bold text-amber-900">
-                        Quanto fa{' '}
-                        <strong>
-                          <button
-                            type="button"
-                            onClick={() => speakOperationOnly(world.id, trucchiSelectedFactor)}
-                            className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-amber-500"
-                            aria-label={`Ascolta operazione ${world.id} per ${trucchiSelectedFactor}`}
-                          >
-                            {world.id} × {trucchiSelectedFactor}
-                          </button>
-                        </strong>
-                        ?
-                      </h4>
-                      <p className="text-xs text-amber-800 font-sans">
-                        {trucchiPreviewActive
-                          ? 'Guarda bene i risultati nascosti: tra un attimo i mattoni si richiudono.'
-                          : 'Tocca un mattone e scopri se nasconde il risultato giusto.'}
-                      </p>
-                      <p className="text-[11px] font-black uppercase tracking-wide text-amber-600">
-                        Equilibrio rimasto: {Math.max(0, 3 - trucchiWrongChoices)}/3
-                      </p>
+                    <div className="space-y-2">
+                      <OperationPromptCard
+                        tone="amber"
+                        icon="🧱"
+                        eyebrow="Completa questa operazione"
+                        operation={`${world.id} × ${trucchiSelectedFactor} = ?`}
+                        onSpeakOperation={() => speakOperationOnly(world.id, trucchiSelectedFactor)}
+                        operationAriaLabel={`Ascolta operazione ${world.id} per ${trucchiSelectedFactor}`}
+                      />
                     </div>
 
                     {(() => {
@@ -4585,16 +4676,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               ? 'Il martello ha colpito il mattone giusto!'
                               : 'La piramide e caduta!'}
                           </p>
-                          <button
-                            type="button"
+                          <RetryButton
+                            tone="amber"
+                            className="mt-3"
                             onClick={() => {
                               sound.playClick();
+                              void speak('Riproviamo.');
                               resetTrucchiRound();
                             }}
-                            className="mt-3 rounded-2xl bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-md transition-colors hover:bg-amber-700"
-                          >
-                            Riprova
-                          </button>
+                          />
                         </div>
                       </motion.div>
                     )}
@@ -4611,40 +4701,36 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </div>
             </div>
 
-            <div className={`flex-shrink-0 border-t border-white/20 ${compactLayout ? 'p-3' : 'p-4 md:p-6'} bg-gradient-to-t from-white/10 to-transparent`}>
+            <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
               <div className="max-w-xl mx-auto w-full">
                 {trucchiFlowStage === 'game' ? (
-                  trucchiQuestionSolved ? (
+                  <ActionGrid columns={2}>
                     <button
                       onClick={() => {
                         sound.playClick();
+                        cancelTrucchiExercise();
+                      }}
+                      className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                    >
+                      Annulla
+                    </button>
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        if (!trucchiQuestionSolved) return;
                         completeTrucchiExercise();
                       }}
-                      className="w-full py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md cursor-pointer transition-colors motion-safe:animate-pulse"
+                      disabled={!trucchiQuestionSolved}
+                      className={`w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all motion-safe:animate-pulse ${
+                        trucchiQuestionSolved
+                          ? 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}
                       id="trick-done-btn"
                     >
                       Continua
                     </button>
-                  ) : (
-                    <ActionGrid columns={2}>
-                      <button
-                        onClick={() => {
-                          sound.playClick();
-                          cancelTrucchiExercise();
-                        }}
-                        className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
-                      >
-                        Annulla
-                      </button>
-                      <button
-                        disabled
-                        className="w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all bg-slate-100 text-slate-400 cursor-not-allowed motion-safe:animate-pulse"
-                        id="trick-done-btn"
-                      >
-                        Continua
-                      </button>
-                    </ActionGrid>
-                  )
+                  </ActionGrid>
                 ) : (
                   <div className="space-y-2">
                     <button
@@ -4667,17 +4753,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     </button>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    completeStepTemporarily('trucchi');
-                  }}
-                  className="mt-2 w-full rounded-2xl border border-amber-300 bg-amber-50 py-2.5 text-xs font-black text-amber-900 shadow-sm transition-colors hover:bg-amber-100 cursor-pointer"
-                  id="trucchi-debug-complete-btn"
-                >
-                  Termina step (temporaneo)
-                </button>
               </div>
             </div>
           </div>
@@ -4685,7 +4760,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 5: PRATICO (QUIZ MODE with ADAPTIVE assistance) */}
         {activeStep === 'pratico' && currentPraticoQuestion && (
-          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
+          <div className="flex-1 flex flex-col overflow-hidden bg-white">
+            <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+              <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
             {/* Progress and help button */}
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs">
               <div aria-hidden="true" />
@@ -4721,20 +4798,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="flex justify-end" />
             </div>
 
-            {/* Quiz question card */}
-            <motion.div
-              key={`pratico-card-${currentQuizIdx}-${currentPraticoQuestion.a}-${currentPraticoQuestion.b}`}
-              initial={{ opacity: 0.8, scale: 0.97, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.28, ease: 'easeOut' }}
-              className={`${praticoOperationCardTheme} relative overflow-hidden rounded-3xl p-6 text-center text-white shadow-xl`}
-            >
-              <div className="absolute left-0 top-0 h-24 w-24 -translate-x-10 -translate-y-10 rounded-full bg-white/10 blur-lg" />
-              <div className="absolute right-0 bottom-0 h-20 w-20 translate-x-8 translate-y-8 rounded-full bg-black/10 blur-xl" />
-              <h2 className="relative text-5xl font-black font-mono tracking-wide">
-                {currentPraticoQuestion.a} x {currentPraticoQuestion.b}
-              </h2>
-            </motion.div>
+                <OperationPromptCard
+                  tone="indigo"
+                  icon="🛡️"
+                  eyebrow="Completa questa operazione"
+                  operation={`${currentPraticoQuestion.a} × ${currentPraticoQuestion.b} = ?`}
+                  operationClassName="text-xl sm:text-2xl tracking-wide"
+                  onSpeakOperation={() => speakOperationOnly(currentPraticoQuestion.a, currentPraticoQuestion.b)}
+                  operationAriaLabel={`Ascolta operazione ${currentPraticoQuestion.a} per ${currentPraticoQuestion.b}`}
+                />
 
             {/* Question options */}
             <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
@@ -4765,6 +4837,33 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               })}
             </div>
 
+              </div>
+            </div>
+
+            <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+              <div className="max-w-xl mx-auto w-full">
+                <ActionGrid columns={2}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      goBackFromWorldContent();
+                    }}
+                    className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    className="w-full py-3 rounded-2xl bg-slate-100 text-slate-400 font-bold text-sm shadow-md cursor-not-allowed"
+                  >
+                    Continua
+                  </button>
+                </ActionGrid>
+              </div>
+            </div>
           </div>
         )}
 
@@ -4780,7 +4879,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-left text-xs text-slate-700 font-sans space-y-1">
                 <p className="font-black text-indigo-900">Ogni Sfida costa: {SFIDA_UNLOCK_COST} 🪙 moneta</p>
                 <p>La Sfida non assegna monete: le monete si vincono nel Pratico.</p>
-                <p>Vinci fino a <b>45 💧</b> Gocce di Luce (raddoppiate con un nuovo record)!</p>
+                <p>Se superi la soglia, vinci sempre <b>{SFIDA_FIXED_DROPS_REWARD} 💧</b> Gocce di Luce.</p>
               </div>
             </div>
 
@@ -4814,7 +4913,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
         {/* STEP 6: SFIDA (Timed challenge) */}
         {activeStep === 'sfida' && sfidaActive && sfidaQuestion && (
-          <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
+          <div className="flex-1 flex flex-col overflow-hidden bg-white">
+            <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+              <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
             <div className="flex justify-between items-center">
               {/* Countdown */}
               <div className="flex items-center gap-1.5 text-rose-600 font-bold font-mono bg-rose-50 px-3 py-1 rounded-full text-sm">
@@ -4829,18 +4930,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               </div>
             </div>
 
-            {/* Large formula */}
-            <motion.div
-              key={`sfida-card-${sfidaQuestionVersion}-${sfidaQuestion.a}-${sfidaQuestion.b}`}
-              initial={{ opacity: 0.8, scale: 0.97, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.24, ease: 'easeOut' }}
-              className={`${sfidaOperationCardTheme} relative overflow-hidden rounded-3xl p-6 text-center text-white shadow-lg`}
-            >
-              <div className="absolute left-0 top-0 h-24 w-24 -translate-x-10 -translate-y-10 rounded-full bg-white/10 blur-lg" />
-              <div className="absolute right-0 bottom-0 h-20 w-20 translate-x-8 translate-y-8 rounded-full bg-black/10 blur-xl" />
-              <h2 className="relative text-5xl font-black font-mono">{sfidaQuestion.a} x {sfidaQuestion.b}</h2>
-            </motion.div>
+                <OperationPromptCard
+                  tone="violet"
+                  icon="⚡"
+                  eyebrow="Completa questa operazione"
+                  operation={`${sfidaQuestion.a} × ${sfidaQuestion.b} = ?`}
+                  operationClassName="text-xl sm:text-2xl tracking-wide"
+                  onSpeakOperation={() => speakOperationOnly(sfidaQuestion.a, sfidaQuestion.b)}
+                  operationAriaLabel={`Ascolta operazione ${sfidaQuestion.a} per ${sfidaQuestion.b}`}
+                />
 
             {/* Answers options */}
             <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
@@ -4870,6 +4968,34 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   </button>
                 );
               })}
+            </div>
+
+              </div>
+            </div>
+
+            <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+              <div className="max-w-xl mx-auto w-full">
+                <ActionGrid columns={2}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      goBackFromWorldContent();
+                    }}
+                    className="w-full py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm shadow-md cursor-pointer transition-colors"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    className="w-full py-3 rounded-2xl bg-slate-100 text-slate-400 font-bold text-sm shadow-md cursor-not-allowed"
+                  >
+                    Continua
+                  </button>
+                </ActionGrid>
+              </div>
             </div>
 
           </div>
@@ -4915,6 +5041,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               {shouldShowWorldFooterAnyContinue ? 'Continua' : 'Indietro'}
             </button>
           </div>
+        </div>
+      )}
+
+      <p aria-live="assertive" aria-atomic="true" className="sr-only">{liveAnnouncement}</p>
+      {visibleAnnouncement && (
+        <div className="pointer-events-none fixed left-1/2 top-3 z-[80] w-[min(92vw,30rem)] -translate-x-1/2 rounded-xl border border-emerald-200 bg-white/95 px-4 py-2 text-center text-sm font-black text-emerald-900 shadow-lg">
+          {visibleAnnouncement}
         </div>
       )}
         </React.Fragment>
@@ -5114,6 +5247,45 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         </div>
       )}
 
+      {showSfidaMonumentsPrompt && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.94, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm rounded-3xl border border-sky-200 bg-white p-6 text-center shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sfida-monuments-prompt-title"
+          >
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-3xl">
+              🧭
+            </div>
+            <h3 id="sfida-monuments-prompt-title" className="mb-2 text-base font-black text-sky-900">
+              Indizi sbloccabili disponibili
+            </h3>
+            <p className="mb-5 text-sm text-slate-700">
+              Hai vinto {SFIDA_FIXED_DROPS_REWARD} 💧 e ora puoi sbloccare {unlockableMonumentsCount} indizi. Vuoi aprire la schermata indizi?
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={cancelSfidaMonumentsPrompt}
+                className="w-full rounded-xl bg-slate-200 py-2.5 text-sm font-black text-slate-800 shadow-sm transition-colors hover:bg-slate-300 cursor-pointer"
+              >
+                Dopo
+              </button>
+              <button
+                type="button"
+                onClick={confirmSfidaMonumentsPrompt}
+                className="w-full rounded-xl bg-sky-600 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-sky-700 cursor-pointer"
+              >
+                Apri indizi
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {showSfidaResultPopup && sfidaResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
           <motion.div
@@ -5188,6 +5360,39 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         </div>
       )}
 
+      {newlyUnlockedWorldId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.96, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm rounded-3xl border-2 border-emerald-300 bg-white p-6 text-center shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kingdom-unlocked-title"
+          >
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-3xl" aria-hidden="true">
+              🔓
+            </div>
+            <h3 id="kingdom-unlocked-title" className="mb-2 text-base font-black text-emerald-900">
+              Nuovo Regno sbloccato!
+            </h3>
+            <p className="mb-5 text-sm text-slate-700">
+              Hai completato il regno corrente. Ora puoi entrare nella tabellina del <b>{newlyUnlockedWorldId}</b>.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setNewlyUnlockedWorldId(null);
+              }}
+              className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-black text-white shadow-md transition-colors hover:bg-emerald-700 cursor-pointer"
+            >
+              Continua
+            </button>
+          </motion.div>
+        </div>
+      )}
+
       {/* Fuochi d'artificio: overlay celebrativo per 10/10, record e completamento regno */}
       {showFireworks && (
         <FireworksOverlay onDone={() => setShowFireworks(false)} />
@@ -5211,17 +5416,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             </h3>
             <p className="text-xs text-slate-600 mb-5 leading-relaxed">
               Ogni Sfida costa <b>{SFIDA_UNLOCK_COST} moneta</b>. Al momento ne hai <b>{worldCoins}</b>.
+              <br />
+              Vuoi andare in <b>Pratico</b> per guadagnare monete?
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                sound.playClick();
-                setSfidaUnlockModalMode(null);
-              }}
-              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
-            >
-              Ho capito
-            </button>
+            <ActionGrid columns={2}>
+              <button
+                type="button"
+                onClick={stayOnSfidaFromInsufficientCoins}
+                className="w-full py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-black text-xs shadow-md cursor-pointer transition-colors"
+              >
+                Resta qui
+              </button>
+              <button
+                type="button"
+                onClick={goToPraticoFromSfidaInsufficient}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+              >
+                Vai a Pratico
+              </button>
+            </ActionGrid>
           </motion.div>
         </div>
       )}
@@ -5307,6 +5520,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 monument,
                                 canAfford,
                                 isErected: false,
+                                justUnlocked: false,
                               });
                             }}
                             className={`rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md transition-all cursor-pointer ${
@@ -5412,11 +5626,15 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <button
                     type="button"
                     onClick={() => {
-                      handleRebuildMonument(monumentModal.monument.id, monumentModal.monument.cost);
+                      const didUnlockMonument = handleRebuildMonument(monumentModal.monument.id, monumentModal.monument.cost);
+                      if (!didUnlockMonument) {
+                        return;
+                      }
                       setMonumentModal({
                         monument: monumentModal.monument,
                         canAfford: true,
                         isErected: true,
+                        justUnlocked: true,
                       });
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"

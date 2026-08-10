@@ -4,16 +4,16 @@
  */
 
 import frogAudioUrl from '../data/frog.mp3';
-import snakeAudioUrl from '../data/animal-sounds/snake-rattlesnake.ogg';
-import batAudioUrl from '../data/animal-sounds/bat-feeding-buzz.wav';
-import beeBuzzAudioUrl from '../data/animal-sounds/bee-buzzing.opus';
-import scorpionAudioUrl from '../data/animal-sounds/scorpion-night-insects.wav';
-import saltoAmbienceAudioUrl from '../data/animal-sounds/wood-frogs-calling-in-spring.ogg';
-import raccogliBirdsAmbienceAudioUrl from '../data/animal-sounds/raccogli-birds-spain.wav';
-import costruiscoLaughingAmbienceAudioUrl from '../data/animal-sounds/costruisco-laughing-commons.wav';
-import trovaPneumaticpickhammerAmbienceAudioUrl from '../data/animal-sounds/trova-pneumaticpickhammer.ogg';
+import snakeAudioUrl from '../data/animal-sounds/snake.mp3';
+import batAudioUrl from '../data/animal-sounds/bat.mp3';
+import beeBuzzAudioUrl from '../data/animal-sounds/bee-buzzing.mp3';
+import scorpionAudioUrl from '../data/animal-sounds/scorpion.mp3';
+import spiderAudioUrl from '../data/animal-sounds/spider.mp3';
+import saltoAmbienceAudioUrl from '../data/animal-sounds/frogs-ambiente.mp3';
+import raccogliBirdsAmbienceAudioUrl from '../data/animal-sounds/birds.mp3';
+import costruiscoLaughingAmbienceAudioUrl from '../data/animal-sounds/wind.mp3';
+import trovaPneumaticpickhammerAmbienceAudioUrl from '../data/animal-sounds/jackhammer.mp3';
 import praticoNietzscheMusicAmbienceAudioUrl from '../data/animal-sounds/pratico-nietzsche-music.ogg';
-import sfidaTickingAmbienceAudioUrl from '../data/animal-sounds/sfida-ticking-commons.ogg';
 
 type SaltoAntagonistAudioId = 'snake' | 'bat' | 'spider' | 'scorpion';
 const MAX_AUDIO_PLAY_SECONDS = 2;
@@ -47,10 +47,6 @@ class SoundManager {
   private loadingPraticoAmbienceAudio = false;
   private praticoAmbienceSource: AudioBufferSourceNode | null = null;
   private praticoAmbienceGain: GainNode | null = null;
-  private sfidaAmbienceBuffer: AudioBuffer | null = null;
-  private loadingSfidaAmbienceAudio = false;
-  private sfidaAmbienceSource: AudioBufferSourceNode | null = null;
-  private sfidaAmbienceGain: GainNode | null = null;
   private saltoAmbienceBuffer: AudioBuffer | null = null;
   private loadingSaltoAmbienceAudio = false;
   private saltoAmbienceSource: AudioBufferSourceNode | null = null;
@@ -58,8 +54,7 @@ class SoundManager {
   private readonly antagonistsAudioUrls: Record<SaltoAntagonistAudioId, string> = {
     snake: snakeAudioUrl,
     bat: batAudioUrl,
-    // Evita la traccia precedente con cani: per il ragno usiamo una traccia insetti neutra.
-    spider: scorpionAudioUrl,
+    spider: spiderAudioUrl,
     scorpion: scorpionAudioUrl,
   };
   private readonly antagonistsAudioBuffers: Partial<Record<SaltoAntagonistAudioId, AudioBuffer>> = {};
@@ -109,7 +104,6 @@ class SoundManager {
       this.stopTrucchiAmbience();
       this.stopPraticoAmbience();
       this.stopSaltoAmbience();
-      this.stopSfidaAmbience();
     }
   }
 
@@ -126,7 +120,6 @@ class SoundManager {
       this.stopTrucchiAmbience();
       this.stopPraticoAmbience();
       this.stopSaltoAmbience();
-      this.stopSfidaAmbience();
     }
   }
 
@@ -816,62 +809,6 @@ class SoundManager {
     }
   }
 
-  startSfidaAmbience() {
-    if (!this.effectsEnabled) return;
-    this.initContext();
-    if (!this.ctx || this.sfidaAmbienceSource || this.sfidaAmbienceGain) return;
-
-    if (!this.sfidaAmbienceBuffer) {
-      this.loadSfidaAmbienceAudio(() => {
-        this.startSfidaAmbience();
-      });
-      return;
-    }
-
-    const now = this.ctx.currentTime;
-    const source = this.ctx.createBufferSource();
-    const gain = this.ctx.createGain();
-
-    source.buffer = this.sfidaAmbienceBuffer;
-    source.loop = true;
-
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.032, now + 0.14);
-
-    source.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    source.start(now);
-
-    this.sfidaAmbienceSource = source;
-    this.sfidaAmbienceGain = gain;
-  }
-
-  stopSfidaAmbience() {
-    if (!this.ctx) {
-      this.sfidaAmbienceSource = null;
-      this.sfidaAmbienceGain = null;
-      return;
-    }
-
-    const now = this.ctx.currentTime;
-    const source = this.sfidaAmbienceSource;
-    const gain = this.sfidaAmbienceGain;
-
-    this.sfidaAmbienceSource = null;
-    this.sfidaAmbienceGain = null;
-
-    if (gain) {
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.setValueAtTime(Math.max(0.001, gain.gain.value), now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-    }
-
-    if (source) {
-      source.stop(now + 0.09);
-    }
-  }
-
   startSaltoAmbience() {
     if (!this.effectsEnabled) return;
     this.initContext();
@@ -1066,33 +1003,6 @@ class SoundManager {
     }
 
     return buffer;
-  }
-
-  private loadSfidaAmbienceAudio(onLoaded?: () => void) {
-    if (this.sfidaAmbienceBuffer) {
-      onLoaded?.();
-      return;
-    }
-    if (this.loadingSfidaAmbienceAudio) return;
-
-    this.loadingSfidaAmbienceAudio = true;
-    fetch(sfidaTickingAmbienceAudioUrl)
-      .then((response) => response.arrayBuffer())
-      .then((arrayBuffer) => {
-        this.initContext();
-        if (!this.ctx) throw new Error('AudioContext not available');
-        return this.ctx.decodeAudioData(arrayBuffer);
-      })
-      .then((decodedBuffer) => {
-        this.sfidaAmbienceBuffer = decodedBuffer;
-        onLoaded?.();
-      })
-      .catch((error) => {
-        console.error('Error loading Sfida ambience audio:', error);
-      })
-      .finally(() => {
-        this.loadingSfidaAmbienceAudio = false;
-      });
   }
 
   private loadRaccogliBirdsAmbienceAudio(onLoaded?: () => void) {

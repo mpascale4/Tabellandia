@@ -233,4 +233,4 @@ Usa sempre questo pattern:
 ## Session Learnings
 
 - Per download automatici di asset audio da Wikimedia Commons, preferire endpoint `Special:FilePath/<nome-file>` con `User-Agent` esplicito e piccole pause tra richieste per ridurre errori `429 Too many requests`.
-
+- Per notifiche vocali critiche (es. sblocco indizi/regno), mantenere `speak` stabile (`useCallback` nel context), emettere l'annuncio da `useEffect` legato allo stato del modal (con breve delay), e aggiungere fallback accessibile con `aria-live` per garantire feedback anche quando TTS non disponibile o disattivata.

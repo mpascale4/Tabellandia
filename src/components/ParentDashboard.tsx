@@ -15,6 +15,8 @@ import SurfaceCard from './layout/SurfaceCard';
 import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
 
 const WORLD_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi', 'pratico', 'sfida'] as const;
+const FACTOR_STEP_IDS = ['comprendo', 'salto', 'costruisco', 'trucchi'] as const;
+const ALL_FACTORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 const createDefaultWorldProgress = (worldId: number): WorldProgress => ({
   worldId,
@@ -366,13 +368,47 @@ export default function ParentDashboard({
     sound.playClick();
     updateDevProfile(profile => {
       const worldProgress = profile.worldProgress[devWorld.id] || createDefaultWorldProgress(devWorld.id);
+      const stepIndex = WORLD_STEP_IDS.indexOf(stepId as (typeof WORLD_STEP_IDS)[number]);
+      const completedStepsSet = new Set(worldProgress.completedSteps);
+      const lockedStepsSet = new Set(worldProgress.lockedSteps || []);
+      const completedFactors = {
+        ...(worldProgress.completedFactors || {}),
+      } as NonNullable<WorldProgress['completedFactors']>;
+
+      const isFactorStep = FACTOR_STEP_IDS.includes(stepId as (typeof FACTOR_STEP_IDS)[number]);
+      const currentStepDone = isFactorStep
+        ? (completedFactors[stepId as keyof typeof completedFactors]?.length || 0) >= 10 || completedStepsSet.has(stepId)
+        : completedStepsSet.has(stepId);
+      const prevStepId = stepIndex > 0 ? WORLD_STEP_IDS[stepIndex - 1] : null;
+      const prevStepDone = !prevStepId || completedStepsSet.has(prevStepId);
+      const currentStepLockedByDev = lockedStepsSet.has(stepId);
+      const isEffectivelyLocked = currentStepLockedByDev || !prevStepDone;
+
+      if (isEffectivelyLocked) {
+        // Unlock user-side: satisfy prerequisite chain and remove explicit lock.
+        for (let i = 0; i < stepIndex; i++) {
+          const prevId = WORLD_STEP_IDS[i];
+          completedStepsSet.add(prevId);
+          if (FACTOR_STEP_IDS.includes(prevId as (typeof FACTOR_STEP_IDS)[number])) {
+            completedFactors[prevId as keyof typeof completedFactors] = [...ALL_FACTORS];
+          }
+          lockedStepsSet.delete(prevId);
+        }
+        lockedStepsSet.delete(stepId);
+      } else {
+        // Manual lock from dev panel.
+        lockedStepsSet.add(stepId);
+      }
+
       return {
         ...profile,
         worldProgress: {
           ...profile.worldProgress,
           [devWorld.id]: {
             ...worldProgress,
-            lockedSteps: toggleLockedValue(worldProgress.lockedSteps, stepId)
+            completedSteps: Array.from(completedStepsSet),
+            completedFactors,
+            lockedSteps: Array.from(lockedStepsSet)
           }
         }
       };
@@ -1077,10 +1113,26 @@ export default function ParentDashboard({
                         {currentDevWorldProgress?.completedSteps.length ?? 0}/{WORLD_STEP_IDS.length}
                       </p>
                     </div>
+                    <p className="mt-2 text-xs text-slate-600">
+                      Stato reale utente: se un passo precedente non e completato, il passo resta bloccato anche senza lock dev.
+                    </p>
                     <div role="list" className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
                       {WORLD_STEP_IDS.map(stepId => {
-                        const isLocked = currentDevWorldProgress?.lockedSteps?.includes(stepId) ?? false;
-                        const isDone = currentDevWorldProgress?.completedSteps.includes(stepId) ?? false;
+                        const stepIndex = WORLD_STEP_IDS.indexOf(stepId as (typeof WORLD_STEP_IDS)[number]);
+                        const prevStepId = stepIndex > 0 ? WORLD_STEP_IDS[stepIndex - 1] : null;
+                        const completedStepsSet = new Set(currentDevWorldProgress?.completedSteps || []);
+                        const completedFactors = currentDevWorldProgress?.completedFactors || {};
+                        const isDone = FACTOR_STEP_IDS.includes(stepId as (typeof FACTOR_STEP_IDS)[number])
+                          ? (completedFactors[stepId as keyof typeof completedFactors]?.length || 0) >= 10 || completedStepsSet.has(stepId)
+                          : completedStepsSet.has(stepId);
+                        const prevStepDone = !prevStepId || completedStepsSet.has(prevStepId);
+                        const isLockedByDev = currentDevWorldProgress?.lockedSteps?.includes(stepId) ?? false;
+                        const isLocked = isLockedByDev || !prevStepDone;
+                        const statusLabel = isLocked
+                          ? (!prevStepDone ? 'Bloccato (passo precedente incompleto)' : 'Bloccato (lock dev)')
+                          : isDone
+                            ? 'Sbloccato e completato'
+                            : 'Sbloccato';
                         return (
                           <button
                             key={stepId}
@@ -1098,7 +1150,7 @@ export default function ParentDashboard({
                           >
                             <p className="text-sm font-black">{devStepLabels[stepId] || stepId}</p>
                             <p className="text-[11px] text-slate-600 mt-1">
-                              Stato: <b>{isLocked ? 'Bloccato' : isDone ? 'Sbloccato e completato' : 'Sbloccato'}</b>
+                              Stato: <b>{statusLabel}</b>
                             </p>
                           </button>
                         );
