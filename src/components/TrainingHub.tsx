@@ -255,11 +255,13 @@ function TrainingSession({
   profile,
   updateProfile,
   onBack,
+  compactLayout,
 }: {
   world: WorldConfig;
   profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onBack: () => void;
+  compactLayout?: boolean;
 }) {
   // Deck nello state con init lazy: evita primo render vuoto ed e piu leggibile.
   const [deck, setDeck] = useState<Question[]>(() => buildQuestionDeck(world.id));
@@ -360,8 +362,13 @@ function TrainingSession({
   const { multiplier, worldId, answer, options } = currentQuestion;
 
   // Annuncia vocalmente la nuova operazione all'ingresso di ogni domanda.
+  // Piccolo ritardo per non troncare l'annuncio precedente (es. "Tabellina del N"
+  // pronunciato al momento della selezione, appena prima che questo componente monti).
   useEffect(() => {
-    void speak(`${multiplier} per ${worldId}`);
+    const announceTimeout = window.setTimeout(() => {
+      void speak(`${multiplier} per ${worldId}`);
+    }, 900);
+    return () => window.clearTimeout(announceTimeout);
   }, [multiplier, worldId, speak]);
 
   const speakCurrentOperation = useCallback(() => {
@@ -369,7 +376,8 @@ function TrainingSession({
   }, [multiplier, worldId, speak]);
 
   return (
-    <div className="flex w-full flex-col gap-4 relative">
+    <div className="flex w-full h-full flex-col">
+      <div className={`flex-1 overflow-y-auto flex flex-col gap-4 ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
 
       {/* Domanda */}
       <SurfaceCard
@@ -465,16 +473,21 @@ function TrainingSession({
           {feedback.correct && <span className="ml-1" aria-hidden="true">+1 🪙</span>}
         </div>
       )}
+      </div>
 
-      <button
-        type="button"
-        onClick={onBack}
-        className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
-                   focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-        aria-label="Torna alla lista delle tabelline"
-      >
-        Indietro
-      </button>
+      <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+        <div className="max-w-xl mx-auto w-full">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
+                       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+            aria-label="Torna alla lista delle tabelline"
+          >
+            Indietro
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -572,6 +585,7 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
         profile={profile}
         updateProfile={updateProfile}
         onBack={() => setSelectedId(null)}
+        compactLayout={compactLayout}
       />
     );
   }
