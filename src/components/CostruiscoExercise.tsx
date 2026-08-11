@@ -109,6 +109,8 @@ export default function CostruiscoExercise({
   const [costruiscoFailed, setCostruiscoFailed] = useState<boolean>(false);
   const [costruiscoFailReason, setCostruiscoFailReason] = useState<'wrong-tap' | 'correct-escaped' | null>(null);
   const [costruiscoWrongTappedValue, setCostruiscoWrongTappedValue] = useState<number | null>(null);
+  const [costruiscoBlinkBonusRoundActive, setCostruiscoBlinkBonusRoundActive] = useState<boolean>(false);
+  const [costruiscoBlinkOn, setCostruiscoBlinkOn] = useState<boolean>(false);
   const prefersReducedMotion = usePrefersReducedMotion();
 
   const costruiscoBalloonTokenRef = useRef<number>(0);
@@ -119,6 +121,7 @@ export default function CostruiscoExercise({
   const costruiscoBalloonPoolRef = useRef<number[]>([]);
   const costruiscoFailedRef = useRef<boolean>(false);
   const costruiscoGameCompletedRef = useRef<boolean>(false);
+  const costruiscoBlinkTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     costruiscoActiveBalloonsRef.current = costruiscoActiveBalloons;
@@ -162,6 +165,13 @@ export default function CostruiscoExercise({
       window.clearTimeout(timeoutId);
     });
     costruiscoEscapeTimeoutsRef.current = {};
+  };
+
+  const clearCostruiscoBlinkTimeout = () => {
+    if (costruiscoBlinkTimeoutRef.current !== null) {
+      window.clearTimeout(costruiscoBlinkTimeoutRef.current);
+      costruiscoBlinkTimeoutRef.current = null;
+    }
   };
 
   const speakMultiplicationSuccess = (a: number, b: number, result: number) => {
@@ -319,6 +329,9 @@ export default function CostruiscoExercise({
     setShowCostruiscoCompletionEffect(false);
     setCostruiscoPopBursts([]);
     setCostruiscoActiveBalloons([]);
+    clearCostruiscoBlinkTimeout();
+    setCostruiscoBlinkOn(false);
+    setCostruiscoBlinkBonusRoundActive(Math.random() < 0.5);
 
     const pool = generateCostruiscoBalloonPool(worldId, currentFactor);
     costruiscoBalloonPoolRef.current = pool;
@@ -383,6 +396,38 @@ export default function CostruiscoExercise({
     sound.playClick();
     startCostruiscoSingleBalloonGame(factor);
   };
+
+  const hasCostruiscoCorrectBalloonOnScreen = costruiscoActiveBalloons.some(balloon => balloon.isCorrect && !balloon.isTrap);
+
+  // Random-blink bonus: when active for this round, periodically flash the
+  // correct balloon's outline at unpredictable intervals (purely visual aid).
+  useEffect(() => {
+    const shouldSchedule =
+      costruiscoBlinkBonusRoundActive &&
+      hasCostruiscoCorrectBalloonOnScreen &&
+      !costruiscoFailed &&
+      !costruiscoGameCompleted &&
+      !prefersReducedMotion;
+
+    if (!shouldSchedule) {
+      clearCostruiscoBlinkTimeout();
+      return;
+    }
+
+    const scheduleNextBlink = () => {
+      const delay = 900 + Math.random() * 2600;
+      costruiscoBlinkTimeoutRef.current = window.setTimeout(() => {
+        setCostruiscoBlinkOn(true);
+        window.setTimeout(() => setCostruiscoBlinkOn(false), 350);
+        scheduleNextBlink();
+      }, delay);
+    };
+    scheduleNextBlink();
+
+    return () => {
+      clearCostruiscoBlinkTimeout();
+    };
+  }, [costruiscoBlinkBonusRoundActive, hasCostruiscoCorrectBalloonOnScreen, costruiscoFailed, costruiscoGameCompleted, prefersReducedMotion]);
 
   const hasCostruiscoTouchTarget = costruiscoActiveBalloons.some(balloon => balloon.isCorrect && !balloon.isTrap);
   const hasCostruiscoAvoidTarget = costruiscoActiveBalloons.some(balloon => balloon.isTrap);
@@ -487,7 +532,7 @@ export default function CostruiscoExercise({
                     animate={prefersReducedMotion ? { y: 0, opacity: 1 } : { y: [80, COSTRUISCO_BALLOON_EXIT_Y], opacity: [1, 1, 0.95] }}
                     transition={prefersReducedMotion ? { duration: 0.1 } : { duration: balloon.flightMs / 1000, ease: 'linear' }}
                     onClick={() => handleCostruiscoSingleBalloonTap(balloon)}
-                    className={`${compactLayout ? 'h-20 w-16 text-base' : 'h-24 w-20 text-lg'} relative cursor-pointer select-none rounded-[999px] border pb-2 pt-1 font-mono font-extrabold shadow-lg transition-all ${balloon.palette.body}`}
+                    className={`${compactLayout ? 'h-20 w-16 text-base' : 'h-24 w-20 text-lg'} relative cursor-pointer select-none rounded-[999px] border pb-2 pt-1 font-mono font-extrabold shadow-lg transition-all ${balloon.palette.body} ${costruiscoBlinkOn && balloon.isCorrect && !balloon.isTrap ? 'ring-4 ring-amber-300 ring-offset-2' : ''}`}
                     id={`balloon-single-${balloon.id}`}
                     aria-label={balloon.isTrap ? 'Palloncino bomba — non toccare!' : `Palloncino ${balloon.value}`}
                   >
