@@ -25,6 +25,7 @@ import { sound } from './SoundManager';
 import { AlertCircle, Award, Timer, Trophy, Compass } from 'lucide-react';
 import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
 import SaltoExercise from './SaltoExercise';
+import CostruiscoExercise from './CostruiscoExercise';
 import RewardPopup from './RewardPopup';
 import FireworksOverlay from './FireworksOverlay';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
@@ -150,18 +151,6 @@ const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
 const TRUCCHI_HAMMER_START_FACTOR = 1;
 const TRUCCHI_HAMMER_TRAVEL_MS = 520;
-const COSTRUISCO_BALLOON_SPAWN_MIN_MS = 260;
-const COSTRUISCO_BALLOON_SPAWN_MAX_MS = 650;
-const COSTRUISCO_BALLOON_FLIGHT_MIN_MS = 4500;
-const COSTRUISCO_BALLOON_FLIGHT_MAX_MS = 6500;
-const COSTRUISCO_BALLOON_MAX_ACTIVE = 5;
-const COSTRUISCO_BALLOON_EXIT_Y = -340;
-const COSTRUISCO_CORRECT_FAIL_PROGRESS = 0.75;
-const COSTRUISCO_BOMB_START_FACTOR = 1;
-const DIFFICULTY_FACTOR_MIN = 1;
-const DIFFICULTY_FACTOR_MAX = 10;
-const COSTRUISCO_SPAWN_SCALE_MIN = 0.45;
-const COSTRUISCO_FLIGHT_SCALE_MIN = 0.5;
 const TRUCCHI_PREVIEW_SCALE_MIN = 0.48;
 const SFIDA_FIXED_DROPS_REWARD = 15;
 const INTERACTION_GUIDANCE_VISIBLE_MS = 5000;
@@ -207,10 +196,6 @@ const STEP_LABELS = {
 const GAMEPLAY_AUDIO_MESSAGES = {
   saltoFall: 'Oh no, la ranocchia e caduta! Riproviamo.',
   saltoObstacleBlocked: "Oh no! Ti ha fermato l'antagonista.",
-  costruiscoWrong: 'Non questo. Cerca il numero giusto.',
-  costruiscoCorrect: 'Bravo, ma scoppia tutti gli altri palloncini.',
-  costruiscoTooHigh: 'Oh no il palloncino e volato via.',
-  costruiscoBomb: 'Trappola! Il numero era giusto ma era una bomba. Cerca il palloncino colorato!',
   quizWrong: 'Quasi. Riprova con calma.',
   sfidaWrong: 'Ops, risposta sbagliata.',
   trucchiWrong: 'Riprova. Prova un altro numero.',
@@ -223,40 +208,6 @@ const GAMEPLAY_AUDIO_MESSAGES = {
   monumentDiscovered: 'Ottimo! Hai scoperto un nuovo indizio.',
   monumentAlreadyDiscovered: 'Hai già scoperto questo indizio. Rileggiamolo insieme.',
 } as const;
-
-const COSTRUISCO_BALLOON_PALETTES = [
-  {
-    body: 'bg-gradient-to-b from-sky-300 to-sky-500 text-white border-white hover:from-sky-400 hover:to-sky-600',
-    knot: 'bg-sky-600',
-    string: 'bg-sky-300',
-  },
-  {
-    body: 'bg-gradient-to-b from-fuchsia-300 to-fuchsia-500 text-white border-white hover:from-fuchsia-400 hover:to-fuchsia-600',
-    knot: 'bg-fuchsia-600',
-    string: 'bg-fuchsia-300',
-  },
-  {
-    body: 'bg-gradient-to-b from-amber-300 to-orange-500 text-white border-white hover:from-amber-400 hover:to-orange-600',
-    knot: 'bg-orange-600',
-    string: 'bg-amber-300',
-  },
-  {
-    body: 'bg-gradient-to-b from-violet-300 to-violet-500 text-white border-white hover:from-violet-400 hover:to-violet-600',
-    knot: 'bg-violet-600',
-    string: 'bg-violet-300',
-  },
-] as const;
-
-type CostruiscoBalloonPalette = typeof COSTRUISCO_BALLOON_PALETTES[number];
-type CostruiscoActiveBalloon = {
-  id: number;
-  value: number;
-  lane: number;
-  flightMs: number;
-  palette: CostruiscoBalloonPalette;
-  isCorrect: boolean;
-  isTrap?: boolean;
-};
 
 export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise }: WorldDetailProps) {
   const { speak, voiceEnabled } = useVoice();
@@ -323,22 +274,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   // Note: Salto's in-round mechanics (frog position, options, obstacles, fly cheat) live in SaltoExercise.tsx
 
   // Costruisco (Step 3) state
-  const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
-  const [costruiscoBalloonPool, setCostruiscoBalloonPool] = useState<number[]>([]);
-  const [costruiscoActiveBalloons, setCostruiscoActiveBalloons] = useState<CostruiscoActiveBalloon[]>([]);
-  const [costruiscoPopBursts, setCostruiscoPopBursts] = useState<{ id: number; lane: number }[]>([]);
-  const [costruiscoFailed, setCostruiscoFailed] = useState<boolean>(false);
-  const [costruiscoFailReason, setCostruiscoFailReason] = useState<'wrong-tap' | 'correct-escaped' | null>(null);
-  const [costruiscoWrongTappedValue, setCostruiscoWrongTappedValue] = useState<number | null>(null);
   const [completedMonuments, setCompletedMonuments] = useState<string[]>([]); // Track completed monuments
-  const costruiscoBalloonTokenRef = useRef<number>(0);
-  const costruiscoSpawnTimeoutRef = useRef<number | null>(null);
-  const costruiscoBombTimeoutRef = useRef<number | null>(null);
-  const costruiscoEscapeTimeoutsRef = useRef<Record<number, number>>({});
-  const costruiscoActiveBalloonsRef = useRef<CostruiscoActiveBalloon[]>([]);
-  const costruiscoBalloonPoolRef = useRef<number[]>([]);
-  const costruiscoFailedRef = useRef<boolean>(false);
-  const costruiscoGameCompletedRef = useRef<boolean>(false);
   const trucchiPreviewTimeoutRef = useRef<number | null>(null);
   const trucchiRevealTimeoutRef = useRef<number | null>(null);
   const trucchiCollapseTimeoutRef = useRef<number | null>(null);
@@ -445,26 +381,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       };
     }, []);
 
-  const prefersReducedMotion = typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  useEffect(() => {
-    costruiscoActiveBalloonsRef.current = costruiscoActiveBalloons;
-  }, [costruiscoActiveBalloons]);
-
-  useEffect(() => {
-    costruiscoBalloonPoolRef.current = costruiscoBalloonPool;
-  }, [costruiscoBalloonPool]);
-
-  useEffect(() => {
-    costruiscoFailedRef.current = costruiscoFailed;
-  }, [costruiscoFailed]);
-
-  useEffect(() => {
-    costruiscoGameCompletedRef.current = costruiscoGameCompleted;
-  }, [costruiscoGameCompleted]);
-
   // Trucchi (Step 4) state
   const [trucchiQuestionSolved, setTrucchiQuestionSolved] = useState<boolean>(false);
   const [trucchiAnswer, setTrucchiAnswer] = useState<string>("");
@@ -565,6 +481,20 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const touchStartYRef = useRef<number | null>(null);
     const guidanceSeen = profile.helperGuidanceSeen ?? {};
     const guidanceTimeoutsRef = useRef<Partial<Record<HelperGuidanceKey, number>>>({});
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const getFactorProgress = (factor: number) => {
+    const clamped = Math.max(1, Math.min(10, factor));
+    return (clamped - 1) / 9;
+  };
+
+  const scaleDurationByFactor = (baseMs: number, factor: number, minScale: number) => {
+    const progress = getFactorProgress(factor);
+    const scale = 1 - ((1 - minScale) * progress);
+    return Math.max(140, Math.floor(baseMs * scale));
+  };
 
   const consumeGuidance = useCallback((key: HelperGuidanceKey) => {
     if (guidanceSeen[key]) return;
@@ -592,8 +522,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const isCostruiscoFactorOne = costruiscoSelectedFactor === 1;
   const isTrucchiFactorOne = trucchiSelectedFactor === 1;
   // Note: Salto frog-jump mechanics (triggerSaltoFrogJump, obstacle detection) now live inside SaltoExercise.tsx
-  const hasCostruiscoTouchTarget = costruiscoActiveBalloons.some(balloon => balloon.isCorrect && !balloon.isTrap);
-  const hasCostruiscoAvoidTarget = costruiscoActiveBalloons.some(balloon => balloon.isTrap);
   const trucchiCorrectValue = trucchiSelectedFactor !== null ? world.id * trucchiSelectedFactor : null;
   const firstTrucchiWrongIndex = trucchiBrickValues.findIndex((value, index) => {
     const isRemoved = trucchiRemovedBricks.has(index);
@@ -601,8 +529,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   });
   const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoTouch);
   const showSaltoAvoidGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoAvoid);
-  const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoTouch) && hasCostruiscoTouchTarget;
-  const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoAvoid) && hasCostruiscoAvoidTarget;
+  const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoTouch);
+  const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoAvoid);
   const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && (isTrucchiFactorOne || !guidanceSeen.trucchiTouch) && trucchiCorrectValue !== null;
   const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !isTrucchiFactorOne && !guidanceSeen.trucchiAvoid;
   const showSfidaStartGuidance = activeStep === 'sfida' && sfidaReady && !sfidaActive && !guidanceSeen.sfidaStart;
@@ -802,7 +730,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   useEffect(() => {
     setCostruiscoGameCompleted(false);
-    clearCostruiscoFlightTimeout();
   }, [costruiscoSelectedFactor]);
 
   useEffect(() => {
@@ -1096,119 +1023,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     resetTrucchiRound(trucchiSelectedFactor);
   }, [trucchiSelectedFactor, world.id]);
 
-  // Helper to generate candidate balloon numbers pool (1 correct answer + many distractors)
-  const generateCostruiscoBalloonPool = (worldId: number, factor: number): number[] => {
-    const correct = worldId * factor;
-    const distractors = new Set<number>();
-    const targetDistractorsCount = 9;
-
-    // Add close multiples and nearby numbers
-    if (factor > 1) distractors.add(worldId * (factor - 1));
-    distractors.add(worldId * (factor + 1));
-    if (factor > 2) distractors.add(worldId * (factor - 2));
-    distractors.add(worldId * (factor + 2));
-    if (factor > 3) distractors.add(worldId * (factor - 3));
-    distractors.add(worldId * (factor + 3));
-
-    distractors.add(correct + 1);
-    if (correct > 1) distractors.add(correct - 1);
-    distractors.add(correct + 2);
-    if (correct > 2) distractors.add(correct - 2);
-    distractors.add(correct + 3);
-    if (correct > 3) distractors.add(correct - 3);
-    distractors.add(correct + worldId);
-    if (correct - worldId > 0) distractors.add(correct - worldId);
-
-    distractors.delete(correct);
-
-    let fillerStep = 1;
-    while (distractors.size < targetDistractorsCount) {
-      const high = correct + fillerStep;
-      const low = correct - fillerStep;
-      if (high !== correct) distractors.add(high);
-      if (low > 0 && low !== correct) distractors.add(low);
-      fillerStep++;
-    }
-
-    const shuffledDistractors = shuffleArray(Array.from(distractors)).slice(0, targetDistractorsCount);
-    return shuffleArray([correct, ...shuffledDistractors]);
-  };
-
-  const clearCostruiscoFlightTimeout = () => {
-    if (costruiscoSpawnTimeoutRef.current !== null) {
-      window.clearTimeout(costruiscoSpawnTimeoutRef.current);
-      costruiscoSpawnTimeoutRef.current = null;
-    }
-    if (costruiscoBombTimeoutRef.current !== null) {
-      window.clearTimeout(costruiscoBombTimeoutRef.current);
-      costruiscoBombTimeoutRef.current = null;
-    }
-    (Object.values(costruiscoEscapeTimeoutsRef.current) as number[]).forEach(timeoutId => {
-      window.clearTimeout(timeoutId);
-    });
-    costruiscoEscapeTimeoutsRef.current = {};
-  };
-
-  const getBombCountForFactor = (factor: number): number => {
-    if (factor < COSTRUISCO_BOMB_START_FACTOR) return 0;
-    if (factor >= 10) return 4;
-    if (factor >= 8) return 3;
-    if (factor >= 6) return 2;
-    return 1;
-  };
-
-  const getBombSpawnDelayMs = (factor: number): [number, number] => {
-    if (factor >= 10) return [600, 1200];
-    if (factor >= 8) return [900, 1800];
-    if (factor >= 6) return [1400, 2800];
-    return [2000, 4000];
-  };
-
-  const queueCostruiscoBombSpawn = (factor: number, bombsLeft: number) => {
-    if (bombsLeft <= 0) return;
-    if (costruiscoBombTimeoutRef.current !== null) return;
-    const [minDelay, maxDelay] = getBombSpawnDelayMs(factor);
-    const delayMs = randomInRange(minDelay, maxDelay);
-    costruiscoBombTimeoutRef.current = window.setTimeout(() => {
-      costruiscoBombTimeoutRef.current = null;
-      if (costruiscoFailedRef.current || costruiscoGameCompletedRef.current) return;
-      const bombId = ++costruiscoBalloonTokenRef.current;
-      const flightMs = randomInRange(
-        scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MIN_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
-        scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MAX_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
-      );
-      const bomb: CostruiscoActiveBalloon = {
-        id: bombId,
-        value: world.id * factor,
-        lane: randomInRange(8, 92),
-        flightMs,
-        palette: COSTRUISCO_BALLOON_PALETTES[Math.floor(Math.random() * COSTRUISCO_BALLOON_PALETTES.length)],
-        isCorrect: false,
-        isTrap: true,
-      };
-      setCostruiscoActiveBalloons(prev => [...prev, bomb]);
-      const escapeMs = Math.floor(flightMs * COSTRUISCO_CORRECT_FAIL_PROGRESS);
-      costruiscoEscapeTimeoutsRef.current[bombId] = window.setTimeout(() => {
-        delete costruiscoEscapeTimeoutsRef.current[bombId];
-        setCostruiscoActiveBalloons(prev => prev.filter(b => b.id !== bombId));
-        if (!bomb.isCorrect || costruiscoFailedRef.current || costruiscoGameCompletedRef.current) {
-          return;
-        }
-        sound.playError();
-        speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoTooHigh);
-        setCostruiscoFailReason('correct-escaped');
-        setCostruiscoWrongTappedValue(null);
-        setCostruiscoFailed(true);
-        setCostruiscoGameCompleted(false);
-        clearCostruiscoFlightTimeout();
-      }, escapeMs);
-
-      // Continue scheduling bomb balloons until the requested quota is exhausted.
-      if (bombsLeft > 1) {
-        queueCostruiscoBombSpawn(factor, bombsLeft - 1);
-      }
-    }, delayMs);
-  };
 
   const clearSfidaFeedbackTimeout = () => {
     if (sfidaFeedbackTimeoutRef.current !== null) {
@@ -1221,183 +1035,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
-  const getFactorProgress = (factor: number) => {
-    const clamped = Math.max(DIFFICULTY_FACTOR_MIN, Math.min(DIFFICULTY_FACTOR_MAX, factor));
-    return (clamped - DIFFICULTY_FACTOR_MIN) / (DIFFICULTY_FACTOR_MAX - DIFFICULTY_FACTOR_MIN);
-  };
-
-  const scaleDurationByFactor = (baseMs: number, factor: number, minScale: number) => {
-    const progress = getFactorProgress(factor);
-    const scale = 1 - ((1 - minScale) * progress);
-    return Math.max(140, Math.floor(baseMs * scale));
-  };
-
-  const queueCostruiscoSpawn = (factor: number) => {
-    if (costruiscoSpawnTimeoutRef.current !== null) return;
-    const spawnMinMs = scaleDurationByFactor(COSTRUISCO_BALLOON_SPAWN_MIN_MS, factor, COSTRUISCO_SPAWN_SCALE_MIN);
-    const spawnMaxMs = scaleDurationByFactor(COSTRUISCO_BALLOON_SPAWN_MAX_MS, factor, COSTRUISCO_SPAWN_SCALE_MIN);
-    const delayMs = randomInRange(spawnMinMs, spawnMaxMs);
-    costruiscoSpawnTimeoutRef.current = window.setTimeout(() => {
-      costruiscoSpawnTimeoutRef.current = null;
-
-      if (costruiscoFailedRef.current || costruiscoGameCompletedRef.current) return;
-      if (costruiscoBalloonPoolRef.current.length === 0) return;
-
-      if (costruiscoActiveBalloonsRef.current.length >= COSTRUISCO_BALLOON_MAX_ACTIVE) {
-        queueCostruiscoSpawn(factor);
-        return;
-      }
-
-      const [nextVal, ...remainingPool] = costruiscoBalloonPoolRef.current;
-      costruiscoBalloonPoolRef.current = remainingPool;
-      setCostruiscoBalloonPool(remainingPool);
-
-      const balloonId = ++costruiscoBalloonTokenRef.current;
-      const balloon: CostruiscoActiveBalloon = {
-        id: balloonId,
-        value: nextVal,
-        lane: randomInRange(8, 92),
-        flightMs: randomInRange(
-          scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MIN_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
-          scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MAX_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
-        ),
-        palette: COSTRUISCO_BALLOON_PALETTES[Math.floor(Math.random() * COSTRUISCO_BALLOON_PALETTES.length)],
-        isCorrect: nextVal === world.id * factor,
-      };
-
-      setCostruiscoActiveBalloons(prev => [...prev, balloon]);
-
-      const correctFailTimeoutMs = Math.floor(balloon.flightMs * COSTRUISCO_CORRECT_FAIL_PROGRESS);
-      costruiscoEscapeTimeoutsRef.current[balloon.id] = window.setTimeout(() => {
-        delete costruiscoEscapeTimeoutsRef.current[balloon.id];
-        setCostruiscoActiveBalloons(prev => prev.filter(active => active.id !== balloon.id));
-        if (!balloon.isCorrect || costruiscoFailedRef.current || costruiscoGameCompletedRef.current) {
-          return;
-        }
-        sound.playError();
-        speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoTooHigh);
-        setCostruiscoFailReason('correct-escaped');
-        setCostruiscoWrongTappedValue(null);
-        setCostruiscoFailed(true);
-        setCostruiscoGameCompleted(false);
-        clearCostruiscoFlightTimeout();
-      }, correctFailTimeoutMs);
-
-      if (remainingPool.length > 0) {
-        queueCostruiscoSpawn(factor);
-      }
-    }, delayMs);
-  };
-
-  const startCostruiscoSingleBalloonGame = (factor?: number) => {
-    const activeFactor = factor ?? costruiscoSelectedFactor ?? 1;
-    clearCostruiscoFlightTimeout();
-    setCostruiscoFlowStage('game');
-    setCostruiscoGameCompleted(false);
-    setCostruiscoFailed(false);
-    setCostruiscoFailReason(null);
-    setCostruiscoWrongTappedValue(null);
-    setShowCostruiscoCompletionEffect(false);
-    setCostruiscoPopBursts([]);
-    setCostruiscoActiveBalloons([]);
-
-    const pool = generateCostruiscoBalloonPool(world.id, activeFactor);
-    costruiscoBalloonPoolRef.current = pool;
-    setCostruiscoBalloonPool(pool);
-
-    queueCostruiscoSpawn(activeFactor);
-    queueCostruiscoBombSpawn(activeFactor, getBombCountForFactor(activeFactor));
-  };
-
-  const handleCostruiscoSingleBalloonTap = (balloon: CostruiscoActiveBalloon) => {
-    if (costruiscoGameCompleted || costruiscoFailed) return;
-    if (balloon.isTrap) {
-      consumeGuidance('costruiscoAvoid');
-    } else if (balloon.isCorrect) {
-      consumeGuidance('costruiscoTouch');
-    }
-
-    sound.playBalloonPop();
-    const timeoutId = costruiscoEscapeTimeoutsRef.current[balloon.id];
-    if (timeoutId !== undefined) {
-      window.clearTimeout(timeoutId);
-      delete costruiscoEscapeTimeoutsRef.current[balloon.id];
-    }
-
-    setCostruiscoActiveBalloons(prev => prev.filter(active => active.id !== balloon.id));
-    setCostruiscoPopBursts(prev => [...prev, { id: balloon.id, lane: balloon.lane }]);
-    window.setTimeout(() => {
-      setCostruiscoPopBursts(prev => prev.filter(burst => burst.id !== balloon.id));
-    }, 380);
-
-    // Bomb trap: immediate fail
-    if (balloon.isTrap) {
-      sound.playBombTrapFailure();
-      speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoBomb);
-      setCostruiscoFailReason('wrong-tap');
-      setCostruiscoWrongTappedValue(null);
-      setCostruiscoFailed(true);
-      setCostruiscoGameCompleted(false);
-      clearCostruiscoFlightTimeout();
-      return;
-    }
-
-    const factor = costruiscoSelectedFactor || 1;
-    const expected = world.id * factor;
-
-    if (balloon.isCorrect) {
-      clearCostruiscoFlightTimeout();
-      sound.playSuccess();
-      speakMultiplicationSuccess(world.id, factor, expected);
-      setCostruiscoGameCompleted(true);
-      setCostruiscoFailed(false);
-      setShowCostruiscoCompletionEffect(true);
-      return;
-    }
-
-    sound.playError();
-    speak('Ops, numero sbagliato! Riprova da capo.');
-    setCostruiscoFailReason('wrong-tap');
-    setCostruiscoWrongTappedValue(balloon.value);
-    setCostruiscoFailed(true);
-    setCostruiscoGameCompleted(false);
-    clearCostruiscoFlightTimeout();
-  };
-
-  const handleCostruiscoRetry = () => {
-    sound.playClick();
-    if (costruiscoSelectedFactor !== null) {
-      startCostruiscoSingleBalloonGame(costruiscoSelectedFactor);
-    }
-  };
-
-  // Initialize Costruisco balloons when a factor is selected or stage changes
-  useEffect(() => {
-    if (activeStep !== 'costruisco' || costruiscoSelectedFactor === null) {
-      clearCostruiscoFlightTimeout();
-      return;
-    }
-    if (costruiscoFlowStage === 'game') {
-      if (!costruiscoGameCompleted && !costruiscoFailed && costruiscoActiveBalloons.length === 0 && costruiscoBalloonPool.length === 0) {
-        startCostruiscoSingleBalloonGame(costruiscoSelectedFactor);
-      }
-      return;
-    }
-    clearCostruiscoFlightTimeout();
-    setCostruiscoActiveBalloons([]);
-    setCostruiscoBalloonPool([]);
-    setCostruiscoPopBursts([]);
-    setCostruiscoFailed(false);
-    setCostruiscoFailReason(null);
-    setCostruiscoWrongTappedValue(null);
-    setCostruiscoGameCompleted(false);
-  }, [costruiscoSelectedFactor, activeStep, world.id, costruiscoFlowStage, costruiscoActiveBalloons.length, costruiscoBalloonPool.length, costruiscoFailed, costruiscoGameCompleted]);
-
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       clearTrucchiRoundTimeouts();
-      clearCostruiscoFlightTimeout();
       clearSfidaFeedbackTimeout();
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -1602,18 +1243,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Reset Costruisco (Step 3)
   const resetCostruisco = () => {
-    const emptyProgress: { [key: number]: null } = {};
-    for (let i = 1; i <= 10; i++) {
-      emptyProgress[i] = null;
-    }
-    setCostruiscoProgress(emptyProgress);
-    clearCostruiscoFlightTimeout();
-    setCostruiscoBalloonPool([]);
-    setCostruiscoActiveBalloons([]);
-    setCostruiscoPopBursts([]);
-    setCostruiscoFailed(false);
-    setCostruiscoFailReason(null);
-    setCostruiscoWrongTappedValue(null);
     setCostruiscoGameCompleted(false);
     setShowCostruiscoCompletionEffect(false);
     setCostruiscoFlowStage('objective');
@@ -2752,16 +2381,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelSaltoExercise();
   };
   const cancelCostruiscoExercise = () => {
-    clearCostruiscoFlightTimeout();
     setCostruiscoFlowStage('objective');
     setCostruiscoGameCompleted(false);
     setShowCostruiscoCompletionEffect(false);
-    setCostruiscoBalloonPool([]);
-    setCostruiscoActiveBalloons([]);
-    setCostruiscoPopBursts([]);
-    setCostruiscoFailed(false);
-    setCostruiscoFailReason(null);
-    setCostruiscoWrongTappedValue(null);
     setCostruiscoSelectedFactor(null);
   };
   const completeCostruiscoExercise = () => {
@@ -2933,7 +2555,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) {
       if (costruiscoFlowStage === 'objective') {
         setCostruiscoFlowStage('game');
-        startCostruiscoSingleBalloonGame();
       } else if (costruiscoFlowStage === 'game' && costruiscoGameCompleted) {
         completeCostruiscoExercise();
       }
@@ -3594,16 +3215,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               completed: effectiveCostruiscoCompleted,
               onSelect: (factor) => {
                 sound.playClick();
-              setCostruiscoSelectedFactor(factor);
-              setCostruiscoBalloonPool([]);
-              setCostruiscoActiveBalloons([]);
-              setCostruiscoPopBursts([]);
-              setCostruiscoFailed(false);
-              setCostruiscoFailReason(null);
-              setCostruiscoWrongTappedValue(null);
-              setCostruiscoFlowStage('game');
-              setCostruiscoGameCompleted(false);
-              setShowCostruiscoCompletionEffect(false);
+                setCostruiscoSelectedFactor(factor);
+                setCostruiscoFlowStage('game');
+                setCostruiscoGameCompleted(false);
+                setShowCostruiscoCompletionEffect(false);
             },
             theme: {
               panel: 'bg-emerald-50 border-emerald-200',
@@ -3676,144 +3291,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    </div>
                  )}
 
-                 {costruiscoFlowStage === 'game' && (
-                   <div className="relative bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-6">
-                     <OperationPromptCard
-                       tone="emerald"
-                       icon="🎈"
-                       eyebrow="Completa questa operazione"
-                       operation={`${world.id} × ${costruiscoSelectedFactor} = ?`}
-                       onSpeakOperation={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
-                       operationAriaLabel={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
-                     />
-
-                     <div>
-                       <div className="relative mx-auto w-full max-w-md h-64 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50 via-cyan-50 to-sky-100 flex items-center justify-center">
-                         {costruiscoFailed ? (
-                           <div className="text-center p-4 bg-white/95 backdrop-blur-xs rounded-2xl border border-rose-200 shadow-xl mx-4 space-y-2">
-                             <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-2xl">
-                               💥
-                             </div>
-                             <p className="text-xs text-slate-600 leading-relaxed">
-                               {costruiscoFailReason === 'wrong-tap' ? (
-                                 costruiscoWrongTappedValue === null ? (
-                                   <>💣 Palloncino trappola! Il numero era giusto, ma era una bomba.<br />Il palloncino vero aveva lo stesso numero ma era colorato!</>
-                                 ) : (
-                                   <>
-                                     Hai scoppiato il palloncino sbagliato (<b>{costruiscoWrongTappedValue}</b>)!<br />
-                                     Per <b>{world.id} × {costruiscoSelectedFactor}</b> il risultato era un altro.
-                                   </>
-                                 )
-                               ) : (
-                                  <>Oh no il palloncino è volato via!</>
-                               )}
-                             </p>
-                              <RetryButton
-                                tone="rose"
-                                className="mt-2"
-                                onClick={() => {
-                                  void speak('Riproviamo.');
-                                  handleCostruiscoRetry();
-                                }}
-                              />
-                           </div>
-                         ) : costruiscoGameCompleted ? (
-                           <div className="text-center p-4 bg-white/95 backdrop-blur-xs rounded-2xl border border-emerald-200 shadow-xl mx-4 space-y-2">
-                             <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl">
-                               🎉
-                             </div>
-                             <h3 className="text-base font-black text-emerald-800">Successo!</h3>
-                             <p className="text-xs text-slate-600">
-                               {getGenderedText(playerGender, 'Bravo! Risposta esatta:', 'Brava! Risposta esatta:')}<br />
-                                <b className="text-sm text-emerald-900 font-mono">
-                                  <button
-                                    type="button"
-                                    onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor || 1)}
-                                    className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-emerald-500"
-                                    aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor || 1}`}
-                                  >
-                                    {world.id} × {costruiscoSelectedFactor} = {world.id * (costruiscoSelectedFactor || 1)}
-                                  </button>
-                                </b>
-                             </p>
-                           </div>
-                         ) : (
-                           <>
-                             {costruiscoPopBursts.map((burst) => (
-                               <motion.div
-                                 key={`pop-${burst.id}`}
-                                 initial={{ scale: 1, opacity: 1 }}
-                                 animate={{ scale: [1, 1.6, 0], opacity: [1, 1, 0] }}
-                                 transition={{ duration: 0.35, ease: "easeOut" }}
-                                 className="absolute bottom-2 -translate-x-1/2 text-5xl select-none pointer-events-none"
-                                 style={{ left: `${burst.lane}%` }}
-                               >
-                                 💥
-                               </motion.div>
-                             ))}
-                             {costruiscoActiveBalloons.map((balloon) => (
-                               <div
-                                 key={`multi-balloon-${balloon.id}`}
-                                  className={`absolute bottom-2 -translate-x-1/2 ${balloon.isCorrect && !balloon.isTrap ? 'z-40' : balloon.isTrap ? 'z-20' : 'z-10'}`}
-                                 style={{ left: `${balloon.lane}%` }}
-                               >
-                                 {showCostruiscoTouchGuidance && balloon.isCorrect && !balloon.isTrap && (
-                                   <div className="pointer-events-none absolute left-1/2 top-0 z-30">
-                                     <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
-                                   </div>
-                                 )}
-                                 <motion.button
-                                 whileHover={{ scale: 1.1 }}
-                                 whileTap={{ scale: 0.95 }}
-                                 initial={{ y: 80, opacity: 1 }}
-                                 animate={prefersReducedMotion ? { y: 0, opacity: 1 } : { y: [80, COSTRUISCO_BALLOON_EXIT_Y], opacity: [1, 1, 0.95] }}
-                                 transition={prefersReducedMotion ? { duration: 0.1 } : { duration: balloon.flightMs / 1000, ease: "linear" }}
-                                 onClick={() => handleCostruiscoSingleBalloonTap(balloon)}
-                                  className={`${compactLayout ? "w-16 h-20 text-base" : "w-20 h-24 text-lg"} rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-lg border select-none pb-2 pt-1 transition-all cursor-pointer relative ${balloon.palette.body}`}
-                                 id={`balloon-single-${balloon.id}`}
-                                 aria-label={balloon.isTrap ? 'Palloncino bomba — non toccare!' : `Palloncino ${balloon.value}`}
-                               >
-                                 {showCostruiscoAvoidGuidance && balloon.isTrap && (
-                                   <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
-                                 )}
-                                 {balloon.isTrap ? (
-                                   <>
-                                     <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
-                                     <span className="text-xl font-black">{balloon.value}</span>
-                                     <span
-                                       className="absolute top-1.5 right-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-white text-[13px] shadow-lg"
-                                       aria-hidden="true"
-                                     >💣</span>
-                                   </>
-                                 ) : (
-                                   <>
-                                     <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
-                                     <span className="text-xl font-black">{balloon.value}</span>
-                                   </>
-                                 )}
-                                 <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rotate-45 rounded-[2px] ${balloon.palette.knot}`} />
-                                 <span className={`absolute -bottom-3 left-1/2 -translate-x-1/2 w-[2px] h-3 rounded-full ${balloon.palette.string}`} />
-                                 </motion.button>
-                               </div>
-                             ))}
-                             {costruiscoActiveBalloons.length === 0 && costruiscoPopBursts.length === 0 && (
-                               <p className="text-[11px] font-bold text-sky-700 bg-white/75 border border-sky-200 rounded-full px-3 py-1">
-                                 Nuovo palloncino in arrivo...
-                               </p>
-                             )}
-                           </>
-                         )}
-                       </div>
-                     </div>
-
-                     {showCostruiscoCompletionEffect && (
-                       <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
-                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
-                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                         </div>
-                       </div>
-                     )}
-                   </div>
+                 {costruiscoFlowStage === 'game' && costruiscoSelectedFactor !== null && (
+                   <CostruiscoExercise
+                     key={costruiscoSelectedFactor}
+                     worldId={world.id}
+                     factor={costruiscoSelectedFactor}
+                     playerGender={playerGender}
+                     compactLayout={compactLayout}
+                     costruiscoGameCompleted={costruiscoGameCompleted}
+                     showCostruiscoCompletionEffect={showCostruiscoCompletionEffect}
+                     showCostruiscoTouchGuidance={(isCostruiscoFactorOne || !guidanceSeen.costruiscoTouch)}
+                     showCostruiscoAvoidGuidance={(isCostruiscoFactorOne || !guidanceSeen.costruiscoAvoid)}
+                     onConsumeTouchGuidance={() => consumeGuidance('costruiscoTouch')}
+                     onConsumeAvoidGuidance={() => consumeGuidance('costruiscoAvoid')}
+                     onAnnounce={announceWithFallback}
+                     onSpeakOperation={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                     setCostruiscoGameCompleted={setCostruiscoGameCompleted}
+                     setShowCostruiscoCompletionEffect={setShowCostruiscoCompletionEffect}
+                     setCostruiscoCompleted={setCostruiscoCompleted}
+                   />
                  )}
                </div>
              </div>
