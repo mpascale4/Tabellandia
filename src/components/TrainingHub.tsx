@@ -11,7 +11,6 @@ import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 import { getStoryDraftForEquation } from '../utils/storyMarkdown';
-import { getGenderedText, getPlayerGender, PlayerGender } from '../utils/playerCopy';
 import { useVoice } from '../contexts/VoiceContext';
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
@@ -128,20 +127,6 @@ const RANDOM_WORLD: WorldConfig = {
   itemsToCount: '🎲',
   monuments: [],
 };
-
-const MOTIVATIONAL_WRONG = [
-  'Quasi! Riprova! 💪', 'Non mollare! 🌟', 'Ci puoi riuscire! ✨',
-  'Sbagliando si impara! 🧠', 'La prossima ce la fai! 🚀',
-];
-
-const getMotivationalCorrectMessages = (gender: PlayerGender) => [
-  'Fantastico! 🎉',
-  getGenderedText(gender, 'Bravo! 🌟', 'Brava! 🌟'),
-  'Perfetto! ✨',
-  'Esatto! 🏆',
-  getGenderedText(gender, 'Sei fortissimo! 🚀', 'Sei fortissima! 🚀'),
-  'Continua così! 🌈',
-];
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -295,7 +280,7 @@ function WorldCard({ world, stars, isWeak, onSelect, compactLayout }: {
 
 // ─── Sessione di allenamento ──────────────────────────────────────────────────
 
-type FeedbackState = { correct: boolean; message: string; optionIndex: number } | null;
+type FeedbackState = { correct: boolean; optionIndex: number } | null;
 
 function TrainingSession({
   world,
@@ -317,6 +302,10 @@ function TrainingSession({
   const [deckIndex, setDeckIndex] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [sessionComplete, setSessionComplete] = useState(false);
+  // Conteggio errori della sessione corrente, per operazione (chiave "m x w"),
+  // usato per mostrare a fine sessione il numero totale di errori e le
+  // operazioni sbagliate più spesso.
+  const [sessionMistakes, setSessionMistakes] = useState<Record<string, { multiplier: number; worldId: number; count: number }>>({});
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { speak } = useVoice();
 
@@ -327,6 +316,7 @@ function TrainingSession({
     setDeckIndex(0);
     setFeedback(null);
     setSessionComplete(false);
+    setSessionMistakes({});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- il deck va rigenerato solo al cambio mondo, non ad ogni variazione di profile.history
   }, [world.id]);
 
@@ -335,6 +325,7 @@ function TrainingSession({
     setDeckIndex(0);
     setFeedback(null);
     setSessionComplete(false);
+    setSessionMistakes({});
   }, [profile, world.id]);
 
   const currentQuestion: Question | undefined = sessionComplete ? undefined : deck[deckIndex];
@@ -382,14 +373,24 @@ function TrainingSession({
       });
       setFeedback({
         correct: true,
-        message: pickRandom(getMotivationalCorrectMessages(getPlayerGender(profile))),
         optionIndex: optIndex,
       });
     } else {
       sound.playError();
+      setSessionMistakes(prev => {
+        const key = `${currentQuestion.multiplier}x${currentQuestion.worldId}`;
+        const existing = prev[key];
+        return {
+          ...prev,
+          [key]: {
+            multiplier: currentQuestion.multiplier,
+            worldId: currentQuestion.worldId,
+            count: (existing?.count ?? 0) + 1,
+          },
+        };
+      });
       setFeedback({
         correct: false,
-        message: pickRandom(MOTIVATIONAL_WRONG),
         optionIndex: optIndex,
       });
       // Resta sulla stessa domanda finche non viene data la risposta corretta (clear feedback breve dopo 350ms).
@@ -440,35 +441,69 @@ function TrainingSession({
 
   if (!currentQuestion) {
     if (sessionComplete) {
+      type Mistake = { multiplier: number; worldId: number; count: number };
+      const mistakesList: Mistake[] = Object.values(sessionMistakes);
+      mistakesList.sort((a, b) => b.count - a.count);
+      const totalCorrect = deck.length - mistakesList.reduce((sum, m) => sum + m.count, 0);
+      const noMistakes = mistakesList.length === 0;
       return (
-        <div className="flex w-full flex-col gap-4">
-          <SurfaceCard
-            aria-live="polite"
-            tone="soft"
-            padding="lg"
-            className="min-h-65 w-full flex flex-col items-center justify-center gap-2 text-center"
-          >
-            <p className="text-2xl" aria-hidden="true">🎉</p>
-            <p className="text-sm font-bold text-sky-900">Sessione completata! Hai risposto a 10 operazioni.</p>
-          </SurfaceCard>
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={startNewSession}
-              className="w-full rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-600 cursor-pointer
-                         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-              aria-label="Inizia un'altra sessione di 10 operazioni"
+        <div className="flex w-full min-h-full flex-col gap-4">
+          <div className="flex flex-1 flex-col justify-center gap-3">
+            <SurfaceCard
+              aria-live="polite"
+              tone="soft"
+              padding="md"
+              className="w-full flex flex-row items-center justify-center gap-2 text-center"
             >
-              Altre 10
-            </button>
+              <span className="text-2xl" aria-hidden="true">🎉</span>
+              <p className="text-sm font-bold text-sky-900">
+                {noMistakes
+                  ? `Bravissimo! ${totalCorrect} su ${deck.length} 🌟`
+                  : 'Sessione completata!'}
+              </p>
+            </SurfaceCard>
+            {mistakesList.length > 0 && (
+              <SurfaceCard tone="soft" padding="md" className="w-full text-left">
+                <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest mb-2">
+                  Operazioni da rivedere
+                </p>
+                <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-1.5">
+                  {mistakesList.map(m => (
+                    <div
+                      key={`${m.multiplier}x${m.worldId}`}
+                      role="listitem"
+                      className="flex flex-col items-center justify-center gap-0.5 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-center"
+                    >
+                      <span className="text-sm font-black text-red-700">
+                        {m.multiplier} × {m.worldId} = {m.multiplier * m.worldId}
+                      </span>
+                      <span className="text-xs font-bold text-red-600">
+                        {m.count} {m.count === 1 ? 'errore' : 'errori'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </SurfaceCard>
+            )}
+          </div>
+          <div className="flex flex-row gap-2">
             <button
               type="button"
               onClick={onBack}
-              className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
+              className="flex-1 rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
                          focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
               aria-label="Torna alla lista delle tabelline"
             >
               Indietro
+            </button>
+            <button
+              type="button"
+              onClick={startNewSession}
+              className="flex-1 rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-600 cursor-pointer
+                         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+              aria-label="Inizia un'altra sessione di 10 operazioni"
+            >
+              Altre 10
             </button>
           </div>
         </div>
@@ -489,7 +524,8 @@ function TrainingSession({
   const { multiplier, worldId, answer, options } = currentQuestion;
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex w-full min-h-full flex-col gap-4">
+      <div className="flex flex-1 flex-col gap-4">
 
       {/* Domanda */}
       <SurfaceCard
@@ -517,16 +553,16 @@ function TrainingSession({
         </button>
 
         {/* Equazione visiva con mnemotecnica (es. 🦢 × 🦢 = 🪑) */}
-        <div className="w-full max-w-sm rounded-2xl border border-sky-200/90 bg-sky-50 px-4 py-2.5 text-center text-sky-900 shadow-xs flex items-center justify-center gap-2.5 sm:gap-3.5 mt-0.5">
-          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Mnemotecnico ${multiplier}`}>
+        <div className="w-full max-w-sm rounded-2xl border border-sky-200/90 bg-sky-50 px-3 py-2.5 text-center text-sky-900 shadow-xs flex flex-nowrap items-center justify-center gap-1.5 sm:gap-2.5 mt-0.5 overflow-hidden">
+          <span className="shrink-0 text-2xl sm:text-3xl drop-shadow-xs" aria-label={`Mnemotecnico ${multiplier}`}>
             {DIGIT_EMOJI[multiplier] ?? multiplier}
           </span>
-          <span className="text-2xl sm:text-3xl font-black font-sans text-sky-600 select-none">×</span>
-          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Mnemotecnico ${worldId}`}>
+          <span className="shrink-0 text-lg sm:text-xl font-black font-sans text-sky-600 select-none">×</span>
+          <span className="shrink-0 text-2xl sm:text-3xl drop-shadow-xs" aria-label={`Mnemotecnico ${worldId}`}>
             {DIGIT_EMOJI[worldId] ?? worldId}
           </span>
-          <span className="text-2xl sm:text-3xl font-black font-sans text-sky-600 select-none">=</span>
-          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Risultato mnemotecnico ${answer}`}>
+          <span className="shrink-0 text-lg sm:text-xl font-black font-sans text-sky-600 select-none">=</span>
+          <span className="shrink-0 text-2xl sm:text-3xl drop-shadow-xs" aria-label={`Risultato mnemotecnico ${answer}`}>
             {getMnemonicResult(answer)}
           </span>
         </div>
@@ -570,21 +606,7 @@ function TrainingSession({
           );
         })}
       </ActionGrid>
-
-      {/* Feedback motivazionale */}
-      {feedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`w-full text-center rounded-2xl py-3 px-4 font-black text-sm transition-all
-            ${feedback.correct
-              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-              : 'bg-red-50 text-red-700 border border-red-200'}`}
-        >
-          {feedback.message}
-          {feedback.correct && <span className="ml-1" aria-hidden="true">+1 🪙</span>}
-        </div>
-      )}
+      </div>
 
       <button
         type="button"
