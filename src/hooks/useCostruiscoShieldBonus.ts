@@ -53,11 +53,19 @@ export function useCostruiscoShieldBonus({ isGameActive, prefersReducedMotion }:
   }, []);
 
   // Resets all shield state for a brand-new round (called by the exercise's
-  // own round-start logic).
+  // own round-start logic) and schedules the shield to appear exactly
+  // SHIELD_SPAWN_DELAY_MS after the round starts.
   const resetShieldForNewRound = useCallback(() => {
     hideShield();
     setIsShieldArmed(false);
     setShieldUsedThisRound(false);
+
+    clearSpawnTimer();
+    spawnTimeoutRef.current = window.setTimeout(() => {
+      setShieldLane(Math.floor(Math.random() * 3));
+      setShieldDirection(Math.random() < 0.5 ? 'leftToRight' : 'rightToLeft');
+      setIsShieldVisible(true);
+    }, SHIELD_SPAWN_DELAY_MS);
   }, [hideShield]);
 
   const armShield = useCallback(() => {
@@ -83,30 +91,12 @@ export function useCostruiscoShieldBonus({ isGameActive, prefersReducedMotion }:
     };
   }, [hideShield]);
 
-  // Spawn the shield after a period of inactivity, once per round
+  // Hide/cleanup the shield if the game becomes inactive (failed/completed).
   useEffect(() => {
-    const shouldManageShield = isGameActive && !isShieldArmed && !shieldUsedThisRound;
-
-    if (!shouldManageShield) {
+    if (!isGameActive) {
       hideShield();
-      return;
     }
-
-    if (isShieldVisible) {
-      return;
-    }
-
-    clearSpawnTimer();
-    spawnTimeoutRef.current = window.setTimeout(() => {
-      setShieldLane(Math.floor(Math.random() * 3));
-      setShieldDirection(Math.random() < 0.5 ? 'leftToRight' : 'rightToLeft');
-      setIsShieldVisible(true);
-    }, SHIELD_SPAWN_DELAY_MS);
-
-    return () => {
-      clearSpawnTimer();
-    };
-  }, [hideShield, isGameActive, isShieldArmed, isShieldVisible, shieldUsedThisRound]);
+  }, [hideShield, isGameActive]);
 
   // Make the shield travel across the play area and disappear if untouched
   useEffect(() => {
