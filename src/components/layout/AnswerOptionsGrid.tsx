@@ -55,7 +55,7 @@ export default function AnswerOptionsGrid({
               if (interactionLocked) return;
               onAnswerSelect(opt);
             }}
-            className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${interactionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-lg sm:text-xl' : 'min-h-14 py-4 px-4 text-xl sm:text-2xl'} ${feedbackClass} ${interactionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
             id={`${idPrefix}-${opt}`}
             aria-label={`Risposta ${opt}`}
           >
