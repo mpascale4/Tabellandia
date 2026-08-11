@@ -385,7 +385,7 @@ export default function TrucchiExercise({
       const delay = 900 + Math.random() * 2600;
       trucchiMiniRevealTimeoutRef.current = window.setTimeout(() => {
         setTrucchiMiniRevealOn(true);
-        window.setTimeout(() => setTrucchiMiniRevealOn(false), 350);
+        window.setTimeout(() => setTrucchiMiniRevealOn(false), 1000);
         scheduleNextMiniReveal();
       }, delay);
     };
@@ -435,7 +435,7 @@ export default function TrucchiExercise({
           }}
         >
           <div className="relative">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-200 bg-white text-xl shadow-lg">??</span>
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-200 bg-white text-xl shadow-lg">🔨</span>
             {shouldShowAvoidGuidance && <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />}
           </div>
         </motion.div>
@@ -443,9 +443,9 @@ export default function TrucchiExercise({
 
       <OperationPromptCard
         tone="amber"
-        icon="??"
+        icon="🔨"
         eyebrow="Completa questa operazione"
-        operation={`${worldId} � ${factor} = ?`}
+        operation={`${worldId} × ${factor} = ?`}
         onSpeakOperation={onSpeakOperation}
         operationAriaLabel={`Ascolta operazione ${worldId} per ${factor}`}
       />
@@ -628,7 +628,7 @@ export default function TrucchiExercise({
       {showTrucchiCompletionEffect && (
         <div className="pointer-events-auto absolute inset-0 flex items-center justify-center rounded-3xl bg-black/30 backdrop-blur-[1px]">
           <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
-            <p className="text-sm font-black text-emerald-700">?? Ottimo lavoro!</p>
+            <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
           </div>
         </div>
       )}
