@@ -265,19 +265,23 @@ export default function SaltoExercise({
                   }
                 : {
                     opacity: 1,
+                    // Erratic, non-monotonic path (small backward darts included) so the
+                    // fly feels like it's darting around rather than gliding in a straight line.
                     x: saltoFlyDirection === 'leftToRight'
-                      ? [-44, 8, 54, 100, 146, 192, 238, 284, 316]
-                      : [316, 264, 218, 172, 126, 80, 34, -12, -44],
-                    y: [0, -3, 2, -4, 2, -3, 2, -2, 0],
-                    rotate: [0, -4, 3, -5, 3, -4, 2, -3, 0],
+                      ? [-44, 18, 2, 62, 40, 118, 96, 176, 150, 224, 260, 236, 316]
+                      : [316, 254, 270, 210, 232, 154, 176, 96, 122, 42, 6, 30, -44],
+                    y: [0, -14, 6, -8, 12, -18, 4, -10, 14, -6, 8, -12, 0],
+                    rotate: [0, -12, 8, -15, 10, -14, 6, -10, 12, -8, 10, -6, 0],
                   }}
               exit={{ opacity: 0 }}
               transition={prefersReducedMotion
                 ? { duration: 1.4, ease: 'linear' }
                 : {
                     duration: SALTO_FLY_TRAVEL_MS / 1000,
-                    ease: 'linear',
-                    times: [0, 0.12, 0.24, 0.36, 0.5, 0.64, 0.78, 0.9, 1],
+                    // Uneven timing + alternating ease creates bursts of speed followed by
+                    // brief hovers/darts, instead of one constant linear glide.
+                    ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn', 'easeOut', 'easeIn', 'easeOut', 'easeIn', 'easeOut', 'easeIn', 'easeOut', 'easeIn'],
+                    times: [0, 0.06, 0.14, 0.22, 0.28, 0.38, 0.44, 0.54, 0.62, 0.72, 0.8, 0.9, 1],
                   }}
               onClick={triggerFlyAutoJumpCheat}
               className="absolute z-40 inline-flex h-10 w-10 items-center justify-center border-0 bg-transparent text-3xl transition hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-100"
