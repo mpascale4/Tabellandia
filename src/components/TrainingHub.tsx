@@ -302,6 +302,10 @@ function TrainingSession({
   const [deckIndex, setDeckIndex] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [sessionComplete, setSessionComplete] = useState(false);
+  // Conteggio errori della sessione corrente, per operazione (chiave "m x w"),
+  // usato per mostrare a fine sessione il numero totale di errori e le
+  // operazioni sbagliate più spesso.
+  const [sessionMistakes, setSessionMistakes] = useState<Record<string, { multiplier: number; worldId: number; count: number }>>({});
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { speak } = useVoice();
 
@@ -312,6 +316,7 @@ function TrainingSession({
     setDeckIndex(0);
     setFeedback(null);
     setSessionComplete(false);
+    setSessionMistakes({});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- il deck va rigenerato solo al cambio mondo, non ad ogni variazione di profile.history
   }, [world.id]);
 
@@ -320,6 +325,7 @@ function TrainingSession({
     setDeckIndex(0);
     setFeedback(null);
     setSessionComplete(false);
+    setSessionMistakes({});
   }, [profile, world.id]);
 
   const currentQuestion: Question | undefined = sessionComplete ? undefined : deck[deckIndex];
@@ -371,6 +377,18 @@ function TrainingSession({
       });
     } else {
       sound.playError();
+      setSessionMistakes(prev => {
+        const key = `${currentQuestion.multiplier}x${currentQuestion.worldId}`;
+        const existing = prev[key];
+        return {
+          ...prev,
+          [key]: {
+            multiplier: currentQuestion.multiplier,
+            worldId: currentQuestion.worldId,
+            count: (existing?.count ?? 0) + 1,
+          },
+        };
+      });
       setFeedback({
         correct: false,
         optionIndex: optIndex,
@@ -423,9 +441,14 @@ function TrainingSession({
 
   if (!currentQuestion) {
     if (sessionComplete) {
+      type Mistake = { multiplier: number; worldId: number; count: number };
+      const mistakesList: Mistake[] = Object.values(sessionMistakes);
+      mistakesList.sort((a, b) => b.count - a.count);
+      const totalMistakes = mistakesList.reduce((sum, m) => sum + m.count, 0);
+      const topMistakes = mistakesList.slice(0, 3);
       return (
         <div className="flex w-full min-h-full flex-col gap-4">
-          <div className="flex flex-1 flex-col justify-center">
+          <div className="flex flex-1 flex-col justify-center gap-3">
             <SurfaceCard
               aria-live="polite"
               tone="soft"
@@ -434,18 +457,35 @@ function TrainingSession({
             >
               <p className="text-2xl" aria-hidden="true">🎉</p>
               <p className="text-sm font-bold text-sky-900">Sessione completata! Hai risposto a 10 operazioni.</p>
+              <p className="text-sm font-bold text-sky-900">
+                {totalMistakes === 0
+                  ? 'Nessun errore, complimenti! 🌟'
+                  : `Errori totali: ${totalMistakes}`}
+              </p>
             </SurfaceCard>
+            {topMistakes.length > 0 && (
+              <SurfaceCard tone="soft" padding="md" className="w-full text-left">
+                <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest mb-2">
+                  Operazioni da rivedere
+                </p>
+                <div role="list" className="grid grid-cols-1 gap-1.5">
+                  {topMistakes.map(m => (
+                    <div
+                      key={`${m.multiplier}x${m.worldId}`}
+                      role="listitem"
+                      className="flex items-center justify-between rounded-xl bg-red-50 border border-red-200 px-3 py-1.5"
+                    >
+                      <span className="text-sm font-black text-red-700">{m.multiplier} × {m.worldId}</span>
+                      <span className="text-xs font-bold text-red-600">
+                        {m.count} {m.count === 1 ? 'errore' : 'errori'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </SurfaceCard>
+            )}
           </div>
           <div className="flex flex-row gap-2">
-            <button
-              type="button"
-              onClick={startNewSession}
-              className="flex-1 rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-600 cursor-pointer
-                         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-              aria-label="Inizia un'altra sessione di 10 operazioni"
-            >
-              Altre 10
-            </button>
             <button
               type="button"
               onClick={onBack}
@@ -454,6 +494,15 @@ function TrainingSession({
               aria-label="Torna alla lista delle tabelline"
             >
               Indietro
+            </button>
+            <button
+              type="button"
+              onClick={startNewSession}
+              className="flex-1 rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-600 cursor-pointer
+                         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+              aria-label="Inizia un'altra sessione di 10 operazioni"
+            >
+              Altre 10
             </button>
           </div>
         </div>
