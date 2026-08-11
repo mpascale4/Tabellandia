@@ -569,7 +569,7 @@ export default function TrucchiExercise({
                             )}
                             {isRevealed ? (
                               <>
-                                {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">??</span>}
+                                {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">💥</span>}
                                 <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/60" aria-hidden="true" />
                                 <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/80" aria-hidden="true" />
                                 <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
@@ -579,7 +579,7 @@ export default function TrucchiExercise({
                               </>
                             ) : (
                               <>
-                                {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">??</span>}
+                                {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">💥</span>}
                                 <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/25" aria-hidden="true" />
                                 <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/50" aria-hidden="true" />
                                 <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
