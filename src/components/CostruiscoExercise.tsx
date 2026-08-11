@@ -331,7 +331,7 @@ export default function CostruiscoExercise({
     setCostruiscoActiveBalloons([]);
     clearCostruiscoBlinkTimeout();
     setCostruiscoBlinkOn(false);
-    setCostruiscoBlinkBonusRoundActive(Math.random() < 0.3);
+    setCostruiscoBlinkBonusRoundActive(Math.random() < 0.5);
 
     const pool = generateCostruiscoBalloonPool(worldId, currentFactor);
     costruiscoBalloonPoolRef.current = pool;

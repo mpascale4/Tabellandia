@@ -1,9 +1,28 @@
 # GitHub Copilot – Istruzioni per il progetto
 
-- When the user's message starts with the prefix `interview:` or `i:`, force plan mode: do not take any action (no code/file/command changes) on the text after the prefix until requirements are gathered. Instead, interview the user one question at a time (via `ask_user`, preferring multiple choice) to clarify goal, scope, affected files/tests, edge cases, and acceptance criteria. Only after the user confirms the gathered requirements, propose a plan and ask for explicit confirmation before executing.
-- The `interview:`/`i:` flow requires autopilot mode to be off (autopilot is a CLI-level session mode toggled by the user with `/autopilot` in the terminal - it cannot be switched programmatically from within a conversation/instruction). Before starting the interview, ask the user to confirm autopilot is currently disabled; if they indicate it is on, ask them to run `/autopilot` to turn it off before continuing.
-- When the user's message starts with the prefix `f:` or `feature:`, analyze the text after the prefix and share the analysis with the user. Once the analysis is shared, ask the user (via `ask_user`) whether to open a new feature branch for it. If confirmed, create a branch named `feature/<short-slug-of-the-request>` off the current `develop` HEAD, switch to it, and do all subsequent work for that request on that branch — committing and pushing to the feature branch after every change (not to `develop`), until a `c:`/`close:` command is received for it.
-- When the user's message starts with the prefix `c:` or `close:`, close out the currently active feature branch: commit any pending changes on it if needed, push the branch, then merge it into `develop` (prefer `--no-ff` to preserve feature history), push `develop`, and finally delete the feature branch both locally and on the remote. After this, resume working directly on `develop` for subsequent requests (per the standing `develop`-first workflow), until a new `f:`/`feature:` opens another branch.
+- When the user's message starts with the prefix `:interview` (alias `:i`), force plan mode: do not take any action (no code/file/command changes) on the text after the prefix until requirements are gathered. Instead, interview the user one question at a time (via `ask_user`, preferring multiple choice) to clarify goal, scope, affected files/tests, edge cases, and acceptance criteria. Only after the user confirms the gathered requirements, propose a plan and ask for explicit confirmation before executing.
+- The `:interview`/`:i` flow requires autopilot mode to be off (autopilot is a CLI-level session mode toggled by the user with `/autopilot` in the terminal - it cannot be switched programmatically from within a conversation/instruction). Before starting the interview, ask the user to confirm autopilot is currently disabled; if they indicate it is on, ask them to run `/autopilot` to turn it off before continuing.
+- When the user's message starts with the prefix `f:` or `feature:`, run this flow on the text after the prefix: (1) analyze it and propose a clear problem description, ask the user (`ask_user`) to confirm it; (2) once confirmed, propose a solution — using one-question-at-a-time interview clarifications if needed — and ask the user to confirm it; (3) once confirmed, `git checkout develop`, `git pull origin develop`, create a branch named `feature/<short-slug-of-the-request>` off that updated `develop`, switch to it, and start implementing the confirmed solution on that branch.
+- When the user's message starts with the prefix `:push`: if currently on a feature branch, ask the user (`ask_user`) whether to finish the feature now. If confirmed: merge the current branch into `develop` with `--no-ff`, push `origin develop`, then delete the feature branch locally, and ask the user whether to also delete it on the remote if it exists there. If currently on `develop` (no active feature branch), just run `git push origin develop` directly, without asking anything.
+- When the user's message starts with the prefix `c:` or `:close`: first commit all pending in-scope work (for any changed files that appear unrelated/out-of-scope for the feature described by the originating `f:`/`feature:` request, summarize them and ask the user for confirmation before including them in the commit). Then run the exact same finishing flow as `:push` (merge current branch into `develop` with `--no-ff`, push `origin develop`, delete the feature branch locally, ask whether to also delete the remote branch).
+- When the user's message starts with the prefix `:h`, `:?`, or `:help`, print the same shortcut recap table described in the "Copilot Session-Start Shortcut Recap" section below, then wait for the next request.
+
+## 🤖 Copilot Session-Start Shortcut Recap
+
+At the start of every new interactive session in this repository, Copilot must proactively print a short recap table of the project's configured shortkeys/prefixes (list all shortcuts actually defined in this repo's instructions/skills, including `:h`/`:?`/`:help` for listing shortcuts). Keep the recap brief (one line per shortcut). Do not repeat this recap again later in the same session.
+
+This is automated via a `sessionStart` prompt hook (`.github/hooks/session-start.json`), which auto-submits a request for this recap as the first turn of every new interactive session — the user does not need to type anything (e.g. `:h`) to trigger it. Note: hooks fire only for new interactive sessions, not on `/resume` or non-interactive (`-p`) runs; if a session starts without the hook firing for any reason, Copilot must still print the recap unconditionally before addressing the user's actual first request, regardless of that request's content.
+
+Current shortcuts defined in this repo (keep this list in sync whenever a shortcut is added/renamed/removed):
+
+| Shortcut | Cosa fa |
+|---|---|
+| `:interview` (alias `:i`) | Forza modalità piano: raccoglie i requisiti a domande (una alla volta) prima di agire; richiede autopilot off. |
+| `f:` / `feature:` | Analizza la richiesta → conferma problema → propone soluzione (con eventuale interview) → conferma → crea branch `feature/<slug>` da `develop` aggiornato e inizia l'implementazione. |
+| `:push` | Se su feature branch: chiede conferma, poi merge `--no-ff` su `develop`, push, elimina branch locale (chiede per il remoto). Se già su `develop`: push diretto senza chiedere. |
+| `c:` / `:close` | Committa il lavoro in-scope (chiede conferma su modifiche fuori-scope), poi esegue lo stesso flusso di `:push`. |
+| `:pull` | `git pull` su `develop`, `main` e sul branch corrente (se presente). |
+| `:h` / `:?` / `:help` | Stampa questa tabella riassuntiva degli shortcut. |
 
 ## Accessibility Quick Rules
 
@@ -21,7 +40,7 @@ Quando generi o modifichi codice:
 
 ## Comandi personalizzati
 
-Quando l'utente scrive `/pull` o `#pull`, esegui immediatamente i seguenti comandi nell'ordine indicato, senza chiedere conferma:
+Quando l'utente scrive `:pull`, esegui immediatamente i seguenti comandi nell'ordine indicato, senza chiedere conferma:
 
 ```powershell
 git pull origin develop
