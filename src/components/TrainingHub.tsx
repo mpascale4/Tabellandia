@@ -415,6 +415,29 @@ function TrainingSession({
   // Cleanup timeout on unmount
   useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
 
+  // Annuncia vocalmente la nuova operazione all'ingresso di ogni domanda.
+  // Attende prima che l'eventuale annuncio "Tabellina del N" / "Allenamento
+  // casuale" (pronunciato al momento della selezione) sia completato, cosi
+  // da non troncarlo con la successiva chiamata a speak() (che cancella
+  // sempre l'utterance in corso). Va dichiarato prima di ogni return
+  // condizionale per non violare le regole degli hook (ordine stabile).
+  useEffect(() => {
+    if (!currentQuestion) return;
+    let cancelled = false;
+    const announce = () => {
+      if (!cancelled) void speak(`${currentQuestion.multiplier} per ${currentQuestion.worldId}`);
+    };
+    Promise.resolve(pendingAnnouncement).then(announce, announce);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentQuestion, speak, pendingAnnouncement]);
+
+  const speakCurrentOperation = useCallback(() => {
+    if (!currentQuestion) return;
+    void speak(`${currentQuestion.multiplier} per ${currentQuestion.worldId}`);
+  }, [currentQuestion, speak]);
+
   if (!currentQuestion) {
     if (sessionComplete) {
       return (
@@ -464,26 +487,6 @@ function TrainingSession({
   }
 
   const { multiplier, worldId, answer, options } = currentQuestion;
-
-  // Annuncia vocalmente la nuova operazione all'ingresso di ogni domanda.
-  // Attende prima che l'eventuale annuncio "Tabellina del N" / "Allenamento
-  // casuale" (pronunciato al momento della selezione) sia completato, cosi
-  // da non troncarlo con la successiva chiamata a speak() (che cancella
-  // sempre l'utterance in corso).
-  useEffect(() => {
-    let cancelled = false;
-    const announce = () => {
-      if (!cancelled) void speak(`${multiplier} per ${worldId}`);
-    };
-    Promise.resolve(pendingAnnouncement).then(announce, announce);
-    return () => {
-      cancelled = true;
-    };
-  }, [multiplier, worldId, speak, pendingAnnouncement]);
-
-  const speakCurrentOperation = useCallback(() => {
-    void speak(`${multiplier} per ${worldId}`);
-  }, [multiplier, worldId, speak]);
 
   return (
     <div className="flex w-full flex-col gap-4">
