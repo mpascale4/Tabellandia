@@ -20,6 +20,7 @@ const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
 const TRUCCHI_HAMMER_START_FACTOR = 1;
 const TRUCCHI_HAMMER_TRAVEL_MS = 520;
+const TRUCCHI_MINI_REVEAL_STRIKE_THRESHOLD = 3;
 const TRUCCHI_PREVIEW_SCALE_MIN = 0.48;
 const DIFFICULTY_FACTOR_MIN = 1;
 const DIFFICULTY_FACTOR_MAX = 10;
@@ -84,7 +85,7 @@ export default function TrucchiExercise({
   });
   const [trucchiCollapseReason, setTrucchiCollapseReason] = useState<'wrong' | 'hammer' | null>(null);
   const [trucchiQuestionSolved, setTrucchiQuestionSolved] = useState<boolean>(false);
-  const [trucchiMiniRevealBonusRoundActive, setTrucchiMiniRevealBonusRoundActive] = useState<boolean>(false);
+  const [trucchiHammerSurvivedStrikes, setTrucchiHammerSurvivedStrikes] = useState<number>(0);
   const [trucchiMiniRevealOn, setTrucchiMiniRevealOn] = useState<boolean>(false);
 
   const trucchiPreviewTimeoutRef = useRef<number | null>(null);
@@ -223,7 +224,7 @@ export default function TrucchiExercise({
     setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
     setTrucchiCollapseReason(null);
     setTrucchiMiniRevealOn(false);
-    setTrucchiMiniRevealBonusRoundActive(Math.random() < 0.5);
+    setTrucchiHammerSurvivedStrikes(0);
 
     const previewDurationMs = scaleDurationByFactor(TRUCCHI_PREVIEW_MS, currentFactor, TRUCCHI_PREVIEW_SCALE_MIN);
     trucchiPreviewTimeoutRef.current = window.setTimeout(() => {
@@ -282,6 +283,7 @@ export default function TrucchiExercise({
       next.add(targetIndex);
       return next;
     });
+    setTrucchiHammerSurvivedStrikes(prev => prev + 1);
     setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: trucchiHammerActiveRef.current, striking: false });
   }, [getTrucchiHammerStartPoint, speak, setTrucchiGameCompleted, trucchiBrickValues, worldId]);
 
@@ -359,12 +361,13 @@ export default function TrucchiExercise({
     };
   }, [factor, strikeTrucchiHammer, trucchiHammerActive, trucchiHammerHasStruck, trucchiHammerTraveling, trucchiPreviewActive, trucchiPyramidCollapsed, trucchiQuestionSolved, trucchiRemovedBricks, trucchiRevealedBrickIndex]);
 
-  // Random mini-reveal bonus: when active for this round, periodically flash
-  // the values of all remaining bricks for a short instant (purely visual aid,
-  // independent from the hammer state).
+  // Mini-reveal bonus: guaranteed once the hammer has survived
+  // TRUCCHI_MINI_REVEAL_STRIKE_THRESHOLD strikes without hitting the correct
+  // brick; periodically flashes the values of all remaining bricks for a
+  // short instant (purely visual aid, independent from the hammer state).
   useEffect(() => {
     const shouldSchedule =
-      trucchiMiniRevealBonusRoundActive
+      trucchiHammerSurvivedStrikes >= TRUCCHI_MINI_REVEAL_STRIKE_THRESHOLD
       && !trucchiPreviewActive
       && !trucchiQuestionSolved
       && !trucchiPyramidCollapsed
@@ -394,7 +397,7 @@ export default function TrucchiExercise({
         trucchiMiniRevealTimeoutRef.current = null;
       }
     };
-  }, [trucchiMiniRevealBonusRoundActive, trucchiPreviewActive, trucchiQuestionSolved, trucchiPyramidCollapsed, prefersReducedMotion]);
+  }, [trucchiHammerSurvivedStrikes, trucchiPreviewActive, trucchiQuestionSolved, trucchiPyramidCollapsed, prefersReducedMotion]);
 
   useEffect(() => {
     resetTrucchiRound(factor);
