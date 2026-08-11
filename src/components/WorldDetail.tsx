@@ -6,6 +6,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSaltoFlyCheat } from '../hooks/useSaltoFlyCheat';
+import { shuffleArray, toAscendingOptions } from '../utils/arrayHelpers';
+import { toItalianWord, withItalianArticle } from '../utils/italianWords';
+import { SaltoAntagonist, buildSaltoEnemyLayout } from '../utils/saltoAntagonists';
 import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt, createDefaultWorldProgress } from '../types';
 import {
   MONUMENT_CLUE_COST,
@@ -44,17 +47,6 @@ interface WorldDetailProps {
   initialExercise?: string | null;
 }
 
-// Helper function to shuffle an array randomly (Fisher-Yates)
-const shuffleArray = <T,>(arr: T[]): T[] => {
-  const result = [...arr];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-};
-
-const toAscendingOptions = (values: number[]): number[] => [...values].sort((a, b) => a - b);
 type CorrectRankTracker = {
   counts: [number, number, number, number];
   lastRank: number | null;
@@ -171,46 +163,8 @@ const DIFFICULTY_FACTOR_MAX = 10;
 const COSTRUISCO_SPAWN_SCALE_MIN = 0.45;
 const COSTRUISCO_FLIGHT_SCALE_MIN = 0.5;
 const TRUCCHI_PREVIEW_SCALE_MIN = 0.48;
-const SALTO_OBSTACLE_START_FACTOR = 1;
 const SFIDA_FIXED_DROPS_REWARD = 15;
-const SALTO_ANTAGONISTS = [
-  { id: 'snake', label: 'serpente', emoji: '🐍' },
-  { id: 'bat', label: 'pipistrello', emoji: '🦇' },
-  { id: 'spider', label: 'ragno', emoji: '🕷️' },
-  { id: 'scorpion', label: 'scorpione', emoji: '🦂' },
-] as const;
 const INTERACTION_GUIDANCE_VISIBLE_MS = 5000;
-const ITALIAN_NUMBER_WORDS: Record<number, string> = {
-  0: 'zero',
-  1: 'uno',
-  2: 'due',
-  3: 'tre',
-  4: 'quattro',
-  5: 'cinque',
-  6: 'sei',
-  7: 'sette',
-  8: 'otto',
-  9: 'nove',
-  10: 'dieci',
-  11: 'undici',
-  12: 'dodici',
-  13: 'tredici',
-  14: 'quattordici',
-  15: 'quindici',
-  16: 'sedici',
-  17: 'diciassette',
-  18: 'diciotto',
-  19: 'diciannove',
-  20: 'venti',
-};
-
-const toItalianWord = (value: number): string => ITALIAN_NUMBER_WORDS[value] ?? value.toString();
-const startsWithLoArticle = (word: string): boolean => /^(z|x|y|ps|pn|gn|s[^aeiou])/i.test(word.trim());
-const withItalianArticle = (word: string): string => {
-  const normalized = word.trim();
-  if (!normalized) return "l'ostacolo";
-  return `${startsWithLoArticle(normalized) ? 'lo' : 'il'} ${normalized}`;
-};
 const STEP_MOTIVATION_MESSAGES = {
   male: [
     'Bravissimo! Stai andando alla grande!',
@@ -294,7 +248,6 @@ const COSTRUISCO_BALLOON_PALETTES = [
 ] as const;
 
 type CostruiscoBalloonPalette = typeof COSTRUISCO_BALLOON_PALETTES[number];
-type SaltoAntagonist = typeof SALTO_ANTAGONISTS[number];
 type CostruiscoActiveBalloon = {
   id: number;
   value: number;
@@ -914,36 +867,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
 
     setSaltoOptions(shuffleArray(Array.from(optionsSet)));
-  };
-
-  const pickRandomSaltoAntagonist = (): SaltoAntagonist => {
-    const index = Math.floor(Math.random() * SALTO_ANTAGONISTS.length);
-    return SALTO_ANTAGONISTS[index];
-  };
-
-  const buildSaltoEnemyLayout = (factor: number): { steps: number[]; antagonistsByStep: Record<number, SaltoAntagonist> } => {
-    if (factor < SALTO_OBSTACLE_START_FACTOR) {
-      return { steps: [], antagonistsByStep: {} };
-    }
-    if (factor === 1) {
-      const antagonist = pickRandomSaltoAntagonist();
-      return { steps: [1], antagonistsByStep: { 1: antagonist } };
-    }
-    const enemyCountTarget =
-      factor >= 8
-        ? 3
-        : factor >= 6
-          ? 2
-          : 1;
-    const availableSteps = Array.from({ length: Math.max(0, factor - 2) }).map((_, idx) => idx + 2);
-    const selectedSteps = shuffleArray(availableSteps)
-      .slice(0, Math.min(enemyCountTarget, availableSteps.length))
-      .sort((a, b) => a - b);
-    const antagonistsByStep: Record<number, SaltoAntagonist> = {};
-    selectedSteps.forEach((step) => {
-      antagonistsByStep[step] = pickRandomSaltoAntagonist();
-    });
-    return { steps: selectedSteps, antagonistsByStep };
   };
 
   useEffect(() => {
