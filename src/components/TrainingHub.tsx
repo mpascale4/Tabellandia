@@ -416,8 +416,7 @@ function TrainingSession({
   }, [multiplier, worldId, speak]);
 
   return (
-    <div className="flex w-full h-full flex-col">
-      <div className={`flex-1 overflow-y-auto flex flex-col gap-4 ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
+    <div className="flex w-full flex-col gap-4">
 
       {/* Domanda */}
       <SurfaceCard
@@ -513,21 +512,16 @@ function TrainingSession({
           {feedback.correct && <span className="ml-1" aria-hidden="true">+1 🪙</span>}
         </div>
       )}
-      </div>
 
-      <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
-        <div className="max-w-xl mx-auto w-full">
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
-                       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-            aria-label="Torna alla lista delle tabelline"
-          >
-            Indietro
-          </button>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
+                   focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+        aria-label="Torna alla lista delle tabelline"
+      >
+        Indietro
+      </button>
     </div>
   );
 }
