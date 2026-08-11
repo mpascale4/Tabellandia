@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { UserProfile, WorldConfig } from '../types';
+import { UserProfile, WorldConfig, QuestionAttempt } from '../types';
 import { WORLDS_DATA } from '../data';
 import { sound } from './SoundManager';
 import ActionGrid from './layout/ActionGrid';
@@ -209,10 +209,22 @@ function getStars(profile: UserProfile, worldId: number): number {
   return profile.worldProgress?.[worldId]?.stars ?? 0;
 }
 
+// Soglie per considerare una tabellina "da rinforzare": servono almeno alcuni
+// tentativi storici per evitare falsi positivi su dati troppo scarsi.
+const WEAK_TABLE_MIN_ATTEMPTS = 4;
+const WEAK_TABLE_ACCURACY_THRESHOLD = 0.6;
+
+function isWeakWorld(profile: UserProfile, worldId: number): boolean {
+  const attempts = profile.history.filter(a => a.a === worldId || a.b === worldId);
+  if (attempts.length < WEAK_TABLE_MIN_ATTEMPTS) return false;
+  const correctCount = attempts.filter(a => a.correct).length;
+  return correctCount / attempts.length < WEAK_TABLE_ACCURACY_THRESHOLD;
+}
+
 // ─── Card singola tabellina ───────────────────────────────────────────────────
 
-function WorldCard({ world, stars, onSelect, compactLayout }: {
-  world: WorldConfig; stars: number; onSelect: (id: number) => void; compactLayout?: boolean;
+function WorldCard({ world, stars, isWeak, onSelect, compactLayout }: {
+  world: WorldConfig; stars: number; isWeak: boolean; onSelect: (id: number) => void; compactLayout?: boolean;
 }) {
   const isTrained = stars > 0;
   const worldIcon = TRAINING_WORLD_ICON[world.id] ?? '🦁';
@@ -221,11 +233,11 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
       <button
         type="button"
         onClick={() => onSelect(world.id)}
-        className={`training-home-card w-full h-full min-h-[7.5rem] sm:min-h-[9rem] rounded-2xl border-2 sm:border-3 border-indigo-300/80 bg-gradient-to-b from-indigo-50 to-indigo-100/90 shadow-sm
+        className={`training-home-card w-full h-full min-h-[7.5rem] sm:min-h-[9rem] rounded-2xl border-2 sm:border-3 ${isWeak ? 'border-amber-400/90' : 'border-indigo-300/80'} bg-gradient-to-b from-indigo-50 to-indigo-100/90 shadow-sm
                    hover:shadow-md hover:border-indigo-400 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer
                    focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                    flex flex-col items-center justify-center p-2 sm:p-3 gap-1 min-w-0`}
-        aria-label={`Allena tabellina del ${world.id}: ${world.name}${isTrained ? ', già allenata' : ''}`}
+        aria-label={`Allena tabellina del ${world.id}: ${world.name}${isTrained ? ', già allenata' : ''}${isWeak ? ', da rinforzare' : ''}`}
       >
         {isTrained && (
           <span
@@ -233,6 +245,15 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
             aria-hidden="true"
           >
             ✓
+          </span>
+        )}
+        {isWeak && (
+          <span
+            className="absolute top-1 left-1 inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border border-white bg-amber-500 text-white text-[10px] sm:text-xs font-black shadow-md z-10"
+            aria-hidden="true"
+            title="Tabellina da rinforzare"
+          >
+            💪
           </span>
         )}
         <span className={`training-card-icon ${compactLayout ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'} leading-none drop-shadow-xs shrink-0`} aria-hidden="true">{worldIcon}</span>
@@ -281,6 +302,17 @@ function TrainingSession({
     if (!currentQuestion) return;
 
     const isCorrect = opt === currentQuestion.answer;
+
+    // Registra il tentativo in profile.history, cosi anche le risposte date
+    // in Allenamento libero contribuiscono al calcolo delle tabelline piu deboli.
+    const attempt: QuestionAttempt = {
+      a: currentQuestion.multiplier,
+      b: currentQuestion.worldId,
+      correct: isCorrect,
+      responseTimeMs: 0,
+      timestamp: new Date().toISOString(),
+    };
+    updateProfile(p => ({ ...p, history: [...p.history, attempt] }));
 
     if (isCorrect) {
       sound.playSuccess();
@@ -479,7 +511,7 @@ function TrainingHome({
         <SectionHeader
           eyebrow="Allenamento libero"
           title="Quale tabellina vuoi allenare?"
-          description="Scegli una tabellina da allenare o affidati al caso 🎲"
+          description="Scegli una tabellina da allenare o affidati al caso 🎲 · 💪 = tabellina da rinforzare"
         />
       </SurfaceCard>
 
@@ -515,6 +547,7 @@ function TrainingHome({
             <WorldCard
               world={world}
               stars={getStars(profile, world.id)}
+              isWeak={isWeakWorld(profile, world.id)}
               onSelect={onSelect}
               compactLayout={compactLayout}
             />
