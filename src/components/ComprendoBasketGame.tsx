@@ -67,7 +67,7 @@ interface AppleBurst {
 }
 
 const BASKET_SIZE = 84;
-const BEE_START_FACTOR = 4;
+const BEE_START_FACTOR = 1;
 const BEE_SIZE = 52;
 const BEE_IDLE_INNER_PADDING_RATIO = 0.3;
 const BEE_IDLE_CENTER_PULL = 140;
@@ -274,14 +274,15 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   const appleBurstIdRef = useRef<number>(0);
 
   const totalItems = a * b;
+  const isFactorOne = displayB === 1;
   const completedBaskets = basketCounts.filter(count => count === b).length;
   const beeTouchStatusLabel = 'Toccare il calabrone fa perdere la round.';
   const isCompleted = completedBaskets === a;
   const isFailed = beeDefeat;
   const firstIncompleteBasketIndex = basketCounts.findIndex(count => count < b);
-  const showBasketGuidance = !basketGuidanceSeen && !isCompleted && !isFailed && firstIncompleteBasketIndex >= 0;
-  const showBeeGuidance = !beeGuidanceSeen && !isCompleted && !isFailed && displayB >= BEE_START_FACTOR && beePositions.length > 0;
-  const showHelperBonusGuidance = !helperBonusGuidanceSeen && !isCompleted && !isFailed && helperBonuses.length > 0;
+  const showBasketGuidance = (isFactorOne || !basketGuidanceSeen) && !isCompleted && !isFailed && firstIncompleteBasketIndex >= 0;
+  const showBeeGuidance = (isFactorOne || !beeGuidanceSeen) && !isCompleted && !isFailed && displayB >= BEE_START_FACTOR && beePositions.length > 0;
+  const showHelperBonusGuidance = (isFactorOne || !helperBonusGuidanceSeen) && !isCompleted && !isFailed && helperBonuses.length > 0;
   const basketGuidanceAnchor = showBasketGuidance && firstIncompleteBasketIndex >= 0
     ? positions[firstIncompleteBasketIndex] ?? null
     : null;
@@ -552,28 +553,31 @@ const ComprendoBasketGame = forwardRef<ComprendoBasketGameHandle, ComprendoBaske
   }, []);
 
   useEffect(() => {
+    if (isFactorOne) return;
     if (!showBasketGuidance || basketGuidanceTimeoutRef.current !== null) return;
     basketGuidanceTimeoutRef.current = window.setTimeout(() => {
       consumeGuidance('comprendoTouch');
       basketGuidanceTimeoutRef.current = null;
     }, INTERACTION_GUIDANCE_VISIBLE_MS);
-  }, [showBasketGuidance]);
+  }, [isFactorOne, showBasketGuidance]);
 
   useEffect(() => {
+    if (isFactorOne) return;
     if (!showBeeGuidance || beeGuidanceTimeoutRef.current !== null) return;
     beeGuidanceTimeoutRef.current = window.setTimeout(() => {
       consumeGuidance('comprendoAvoid');
       beeGuidanceTimeoutRef.current = null;
     }, INTERACTION_GUIDANCE_VISIBLE_MS);
-  }, [showBeeGuidance]);
+  }, [isFactorOne, showBeeGuidance]);
 
   useEffect(() => {
+    if (isFactorOne) return;
     if (!showHelperBonusGuidance || helperBonusGuidanceTimeoutRef.current !== null) return;
     helperBonusGuidanceTimeoutRef.current = window.setTimeout(() => {
       consumeGuidance('comprendoBonus');
       helperBonusGuidanceTimeoutRef.current = null;
     }, Math.min(INTERACTION_GUIDANCE_VISIBLE_MS, HELPER_BONUS_VISIBLE_MS));
-  }, [showHelperBonusGuidance]);
+  }, [isFactorOne, showHelperBonusGuidance]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;

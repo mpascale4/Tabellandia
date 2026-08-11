@@ -1,5 +1,7 @@
 # GitHub Copilot – Istruzioni per il progetto
 
+- When the user's message starts with the prefix `interview:`, force plan mode: do not take any action (no code/file/command changes) on the text after the prefix until requirements are gathered. Instead, interview the user one question at a time (via `ask_user`, preferring multiple choice) to clarify goal, scope, affected files/tests, edge cases, and acceptance criteria. Only after the user confirms the gathered requirements, propose a plan and ask for explicit confirmation before executing.
+
 ## Accessibility Quick Rules
 
 Quando generi o modifichi codice:
@@ -234,3 +236,5 @@ Usa sempre questo pattern:
 
 - Per download automatici di asset audio da Wikimedia Commons, preferire endpoint `Special:FilePath/<nome-file>` con `User-Agent` esplicito e piccole pause tra richieste per ridurre errori `429 Too many requests`.
 - Per notifiche vocali critiche (es. sblocco indizi/regno), mantenere `speak` stabile (`useCallback` nel context), emettere l'annuncio da `useEffect` legato allo stato del modal (con breve delay), e aggiungere fallback accessibile con `aria-live` per garantire feedback anche quando TTS non disponibile o disattivata.
+- Nei mini-game con helper contestuali (es. mosca in Salto), preferire comparsa solo dopo inattivita (es. 6s), rendering icon-only ma focusabile da tastiera, movimento continuo leggibile (attraversamento lato-lato con zig-zag leggero) e disattivare audio helper se confligge con feedback numerico/TTS primario.
+- Nei casi `×1`, mantenere i badge guida persistenti (senza auto-consumo timeout) nei mini-game dove richiesto e rendere disponibili helper/pericoli necessari alla guida visuale gia da `×1` (es. calabrone in Raccogli, ostacolo in Salto, trappola in Costruisco), rispettando le eccezioni definite per step (es. in Trucchi `×1` solo `touch` sul target corretto).

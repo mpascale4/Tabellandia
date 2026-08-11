@@ -164,13 +164,13 @@ const COSTRUISCO_BALLOON_FLIGHT_MAX_MS = 6500;
 const COSTRUISCO_BALLOON_MAX_ACTIVE = 5;
 const COSTRUISCO_BALLOON_EXIT_Y = -340;
 const COSTRUISCO_CORRECT_FAIL_PROGRESS = 0.75;
-const COSTRUISCO_BOMB_START_FACTOR = 4;
+const COSTRUISCO_BOMB_START_FACTOR = 1;
 const DIFFICULTY_FACTOR_MIN = 1;
 const DIFFICULTY_FACTOR_MAX = 10;
 const COSTRUISCO_SPAWN_SCALE_MIN = 0.45;
 const COSTRUISCO_FLIGHT_SCALE_MIN = 0.5;
 const TRUCCHI_PREVIEW_SCALE_MIN = 0.48;
-const SALTO_OBSTACLE_START_FACTOR = 4;
+const SALTO_OBSTACLE_START_FACTOR = 1;
 const SFIDA_FIXED_DROPS_REWARD = 15;
 const SALTO_ANTAGONISTS = [
   { id: 'snake', label: 'serpente', emoji: '🐍' },
@@ -380,7 +380,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [saltoLeap, setSaltoLeap] = useState<{ from: number; to: number } | null>(null);
   const [saltoTapHop, setSaltoTapHop] = useState<{ step: number; token: number } | null>(null);
   const [isFlyAutoJumping, setIsFlyAutoJumping] = useState<boolean>(false);
+  const [saltoFlyVisible, setSaltoFlyVisible] = useState<boolean>(false);
+  const [saltoFlyLane, setSaltoFlyLane] = useState<number>(0);
+  const [saltoFlyDirection, setSaltoFlyDirection] = useState<'leftToRight' | 'rightToLeft'>('leftToRight');
+  const [saltoFlyUsedThisRound, setSaltoFlyUsedThisRound] = useState<boolean>(false);
   const flyAutoJumpIntervalRef = useRef<number | null>(null);
+  const saltoFlySpawnTimeoutRef = useRef<number | null>(null);
+  const saltoFlyTravelTimeoutRef = useRef<number | null>(null);
+  const SALTO_FLY_TRAVEL_MS = 5800;
 
   // Costruisco (Step 3) state
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
@@ -423,59 +430,34 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     return speakMultiplicationSuccess(a, b, result);
   };
 
-  const clearFlyAutoJump = () => {
+  const clearSaltoFlySpawnTimer = () => {
+    if (saltoFlySpawnTimeoutRef.current !== null) {
+      window.clearTimeout(saltoFlySpawnTimeoutRef.current);
+      saltoFlySpawnTimeoutRef.current = null;
+    }
+  };
+
+  const clearSaltoFlyTravelTimer = () => {
+    if (saltoFlyTravelTimeoutRef.current !== null) {
+      window.clearTimeout(saltoFlyTravelTimeoutRef.current);
+      saltoFlyTravelTimeoutRef.current = null;
+    }
+  };
+
+  const hideSaltoFly = useCallback(() => {
+    clearSaltoFlySpawnTimer();
+    clearSaltoFlyTravelTimer();
+    setSaltoFlyVisible(false);
+  }, []);
+
+  const clearFlyAutoJump = useCallback(() => {
     if (flyAutoJumpIntervalRef.current !== null) {
-      window.clearInterval(flyAutoJumpIntervalRef.current);
+      window.clearTimeout(flyAutoJumpIntervalRef.current);
       flyAutoJumpIntervalRef.current = null;
     }
     setIsFlyAutoJumping(false);
-  };
-
-  const triggerFlyAutoJumpCheat = () => {
-    if (saltoGameCompleted || isFrogSplashing || isFlyAutoJumping || saltoSelectedFactor === null) return;
-
-    sound.playFrogCroak();
-    sound.playSuccess();
-    speak("Mosca cheat! La ranocchia vola verso il traguardo!");
-    setIsFlyAutoJumping(true);
-
-    if (flyAutoJumpIntervalRef.current !== null) {
-      window.clearInterval(flyAutoJumpIntervalRef.current);
-    }
-
-    let currentStep = saltoIndex;
-    const totalSteps = saltoSelectedFactor;
-
-    flyAutoJumpIntervalRef.current = window.setInterval(() => {
-      const nextStep = currentStep + 1;
-
-      // Auto bypass/jump obstacles if any
-      if (saltoEnemySteps.includes(nextStep)) {
-        setSaltoJumpedEnemySteps(prev => new Set(prev).add(nextStep));
-      }
-
-      const expectedVal = world.id * nextStep;
-      sound.playFrogCroak();
-      setSaltoCorrectClicks(prev => new Set([...prev, expectedVal]));
-      setSaltoFrogPosition(nextStep);
-      setSaltoLeap(null);
-
-      if (nextStep >= totalSteps) {
-        if (flyAutoJumpIntervalRef.current !== null) {
-          window.clearInterval(flyAutoJumpIntervalRef.current);
-          flyAutoJumpIntervalRef.current = null;
-        }
-        setIsFlyAutoJumping(false);
-        speakSaltoSuccess(world.id, totalSteps, expectedVal);
-        setSaltoGameCompleted(true);
-        setShowSaltoCompletionEffect(true);
-        setSaltoCompleted(prev => new Set([...prev, totalSteps]));
-      } else {
-        currentStep = nextStep;
-        setSaltoIndex(currentStep);
-      }
-    }, 380);
-  };
+    setSaltoLeap(null);
+  }, []);
 
   const speakOperationOnly = (a: number, b: number) => {
     sound.playClick();
@@ -562,6 +544,77 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const prefersReducedMotion = typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const triggerFlyAutoJumpCheat = useCallback(() => {
+    if (
+      saltoGameCompleted
+      || isFrogSplashing
+      || isFlyAutoJumping
+      || saltoSelectedFactor === null
+      || !saltoFlyVisible
+    ) {
+      return;
+    }
+
+    hideSaltoFly();
+    sound.playSuccess();
+    setSaltoFlyUsedThisRound(true);
+    setIsFlyAutoJumping(true);
+
+    const totalSteps = saltoSelectedFactor;
+    let currentStep = saltoFrogPosition;
+
+    const runNextFlyJump = () => {
+      const nextStep = currentStep + 1;
+      if (nextStep > totalSteps) {
+        clearFlyAutoJump();
+        return;
+      }
+
+      if (saltoEnemySteps.includes(nextStep)) {
+        setSaltoJumpedEnemySteps(prev => new Set(prev).add(nextStep));
+      }
+
+      sound.playFrogCroak();
+      setSaltoLeap({ from: currentStep, to: nextStep });
+
+      const leapMs = prefersReducedMotion ? 160 : 520;
+      flyAutoJumpIntervalRef.current = window.setTimeout(() => {
+        const expectedVal = world.id * nextStep;
+        setSaltoCorrectClicks(prev => new Set(prev).add(expectedVal));
+        setSaltoFrogPosition(nextStep);
+        setSaltoLeap(null);
+        setSaltoIndex(nextStep);
+        announceWithFallback(expectedVal.toString());
+
+        if (nextStep >= totalSteps) {
+          clearFlyAutoJump();
+          setSaltoGameCompleted(true);
+          setShowSaltoCompletionEffect(true);
+          setSaltoCompleted(prev => new Set([...prev, totalSteps]));
+          return;
+        }
+
+        currentStep = nextStep;
+        flyAutoJumpIntervalRef.current = window.setTimeout(runNextFlyJump, prefersReducedMotion ? 140 : 220);
+      }, leapMs);
+    };
+
+    runNextFlyJump();
+  }, [
+    announceWithFallback,
+    clearFlyAutoJump,
+    hideSaltoFly,
+    isFlyAutoJumping,
+    isFrogSplashing,
+    prefersReducedMotion,
+    saltoEnemySteps,
+    saltoFlyVisible,
+    saltoFrogPosition,
+    saltoGameCompleted,
+    saltoSelectedFactor,
+    world.id,
+  ]);
 
   useEffect(() => {
     costruiscoActiveBalloonsRef.current = costruiscoActiveBalloons;
@@ -739,6 +792,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const saltoExpectedValue = saltoSelectedFactor !== null ? world.id * (saltoIndex + 1) : null;
   const saltoCurrentObstacleLabel = withItalianArticle(saltoAntagonistsByStep[saltoIndex + 1]?.label ?? 'ostacolo');
   const saltoObstaclePending = saltoEnemySteps.includes(saltoIndex + 1) && !saltoJumpedEnemySteps.has(saltoIndex + 1);
+  const isComprendoFactorOne = comprendoSelectedFactor === 1;
+  const isSaltoFactorOne = saltoSelectedFactor === 1;
+  const isCostruiscoFactorOne = costruiscoSelectedFactor === 1;
+  const isTrucchiFactorOne = trucchiSelectedFactor === 1;
   const triggerSaltoFrogJump = (fromStep: number) => {
     if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null || isFlyAutoJumping) return;
     sound.playFrogCroak();
@@ -777,24 +834,82 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const isRemoved = trucchiRemovedBricks.has(index);
     return !isRemoved && value !== trucchiCorrectValue;
   });
-  const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && !guidanceSeen.saltoTouch && saltoExpectedValue !== null;
-  const showSaltoAvoidGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && !guidanceSeen.saltoAvoid && saltoObstaclePending;
+  const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoTouch) && saltoExpectedValue !== null;
+  const showSaltoAvoidGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoAvoid) && saltoObstaclePending;
   const showSaltoFrogTouchGuidance = showSaltoAvoidGuidance;
-  const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoTouch && hasCostruiscoTouchTarget;
-  const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && !guidanceSeen.costruiscoAvoid && hasCostruiscoAvoidTarget;
-  const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiTouch && trucchiCorrectValue !== null;
-  const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !guidanceSeen.trucchiAvoid;
+  const showSaltoFlyTouchGuidance = isSaltoFactorOne && saltoFlyVisible && !saltoGameCompleted && !isFrogSplashing;
+  const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoTouch) && hasCostruiscoTouchTarget;
+  const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoAvoid) && hasCostruiscoAvoidTarget;
+  const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && (isTrucchiFactorOne || !guidanceSeen.trucchiTouch) && trucchiCorrectValue !== null;
+  const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !isTrucchiFactorOne && !guidanceSeen.trucchiAvoid;
   const showSfidaStartGuidance = activeStep === 'sfida' && sfidaReady && !sfidaActive && !guidanceSeen.sfidaStart;
 
   useEffect(() => {
     return () => {
       clearFlyAutoJump();
+      hideSaltoFly();
       (Object.values(guidanceTimeoutsRef.current) as Array<number | undefined>).forEach((timeoutId) => {
         if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       });
       guidanceTimeoutsRef.current = {};
     };
-  }, []);
+  }, [clearFlyAutoJump, hideSaltoFly]);
+
+  useEffect(() => {
+    const shouldManageFly =
+      activeStep === 'salto'
+      && saltoFlowStage === 'game'
+      && saltoSelectedFactor !== null
+      && !saltoGameCompleted
+      && !isFrogSplashing
+      && !isFlyAutoJumping
+      && !saltoFlyUsedThisRound;
+
+    if (!shouldManageFly) {
+      hideSaltoFly();
+      return;
+    }
+
+    if (saltoFlyVisible) {
+      return;
+    }
+
+    clearSaltoFlySpawnTimer();
+    saltoFlySpawnTimeoutRef.current = window.setTimeout(() => {
+      setSaltoFlyLane(Math.floor(Math.random() * 3));
+      setSaltoFlyDirection(Math.random() < 0.5 ? 'leftToRight' : 'rightToLeft');
+      setSaltoFlyVisible(true);
+    }, 6000);
+
+    return () => {
+      clearSaltoFlySpawnTimer();
+    };
+  }, [
+    activeStep,
+    hideSaltoFly,
+    isFlyAutoJumping,
+    isFrogSplashing,
+    saltoFlyUsedThisRound,
+    saltoFlyVisible,
+    saltoFlowStage,
+    saltoFrogPosition,
+    saltoGameCompleted,
+    saltoIndex,
+    saltoSelectedFactor,
+  ]);
+
+  useEffect(() => {
+    if (!saltoFlyVisible || isFlyAutoJumping) return;
+    clearSaltoFlyTravelTimer();
+    saltoFlyTravelTimeoutRef.current = window.setTimeout(() => {
+      setSaltoFlyUsedThisRound(true);
+      hideSaltoFly();
+    }, prefersReducedMotion ? 1400 : SALTO_FLY_TRAVEL_MS);
+
+    return () => {
+      clearSaltoFlyTravelTimer();
+    };
+  }, [hideSaltoFly, isFlyAutoJumping, prefersReducedMotion, saltoFlyVisible, SALTO_FLY_TRAVEL_MS]);
 
   useEffect(() => {
     const rules: Array<{ key: HelperGuidanceKey; show: boolean }> = [
@@ -816,6 +931,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         }
         return;
       }
+      if ((isSaltoFactorOne && (key === 'saltoTouch' || key === 'saltoAvoid'))
+        || (isCostruiscoFactorOne && (key === 'costruiscoTouch' || key === 'costruiscoAvoid'))
+        || (isTrucchiFactorOne && key === 'trucchiTouch')) {
+        return;
+      }
       if (existing !== undefined) return;
       guidanceTimeoutsRef.current[key] = window.setTimeout(() => {
         consumeGuidance(key);
@@ -830,6 +950,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     showTrucchiTouchGuidance,
     showTrucchiAvoidGuidance,
     showSfidaStartGuidance,
+    isSaltoFactorOne,
+    isCostruiscoFactorOne,
+    isTrucchiFactorOne,
   ]);
 
   // Reset scroll in alto ad ogni cambio di step o sotto-schermata
@@ -933,6 +1056,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const buildSaltoEnemyLayout = (factor: number): { steps: number[]; antagonistsByStep: Record<number, SaltoAntagonist> } => {
     if (factor < SALTO_OBSTACLE_START_FACTOR) {
       return { steps: [], antagonistsByStep: {} };
+    }
+    if (factor === 1) {
+      const antagonist = pickRandomSaltoAntagonist();
+      return { steps: [1], antagonistsByStep: { 1: antagonist } };
     }
     const enemyCountTarget =
       factor >= 8
@@ -3701,6 +3828,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             completed: effectiveSaltoCompleted,
             onSelect: (factor) => {
               sound.playClick();
+              clearFlyAutoJump();
+              hideSaltoFly();
               const enemyLayout = buildSaltoEnemyLayout(factor);
               setSaltoSelectedFactor(factor);
               setSaltoIndex(0);
@@ -3717,6 +3846,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setSaltoFrogPosition(0);
               setSaltoLeap(null);
               setSaltoTapHop(null);
+              setSaltoFlyUsedThisRound(false);
             },
             theme: {
               panel: 'bg-purple-50 border-purple-200',
@@ -3795,40 +3925,54 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
                      {/* River Stream with Stepping Stones & Frog */}
                     <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between overflow-hidden">
-                      {/* Flying Fly (Mosca Cheat) */}
-                      {!saltoGameCompleted && !isFrogSplashing && (
-                        <motion.button
-                          type="button"
-                          onClick={triggerFlyAutoJumpCheat}
-                          disabled={isFlyAutoJumping}
-                          animate={
-                            isFlyAutoJumping
-                              ? { scale: [1, 1.2, 1], rotate: [0, 20, -20, 0], y: [0, -4, 0] }
-                              : {
-                                  y: [0, -8, 2, -6, 0],
-                                  x: [0, 8, -6, 4, 0],
-                                  rotate: [0, -6, 6, -3, 0],
+                      <AnimatePresence>
+                        {saltoFlyVisible && !saltoGameCompleted && !isFrogSplashing && (
+                          <motion.button
+                            type="button"
+                            key={`salto-fly-${saltoFlyLane}-${saltoFlyDirection}`}
+                            initial={{
+                              opacity: 0,
+                              scale: 0.95,
+                              x: saltoFlyDirection === 'leftToRight' ? -44 : 316,
+                              y: 0,
+                            }}
+                            animate={prefersReducedMotion
+                              ? {
+                                  opacity: 1,
+                                  x: saltoFlyDirection === 'leftToRight' ? 316 : -44,
+                                  y: 0,
                                 }
-                          }
-                          transition={{
-                            repeat: Infinity,
-                            duration: isFlyAutoJumping ? 0.4 : 3.2,
-                            ease: "easeInOut",
-                          }}
-                          className={`absolute top-2 right-2 z-40 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black shadow-lg border cursor-pointer backdrop-blur-md transition-all active:scale-95 ${
-                            isFlyAutoJumping
-                              ? 'bg-emerald-400 border-emerald-300 text-emerald-950 ring-4 ring-emerald-300/80 animate-pulse'
-                              : 'bg-amber-300 hover:bg-amber-400 border-amber-400 text-amber-950 hover:scale-105'
-                          }`}
-                          title="Tocca la Mosca Cheat per far saltare la rana automaticamente al traguardo!"
-                        >
-                          <span className="text-xl leading-none select-none">🪰</span>
-                          <span className="text-[10px] font-black font-sans uppercase tracking-tight">
-                            {isFlyAutoJumping ? 'Volo Mosca...' : 'Mosca Cheat'}
-                          </span>
-                          <span className="text-xs">⚡</span>
-                        </motion.button>
-                      )}
+                              : {
+                                  opacity: 1,
+                                  x: saltoFlyDirection === 'leftToRight'
+                                    ? [-44, 8, 54, 100, 146, 192, 238, 284, 316]
+                                    : [316, 264, 218, 172, 126, 80, 34, -12, -44],
+                                  y: [0, -3, 2, -4, 2, -3, 2, -2, 0],
+                                  rotate: [0, -4, 3, -5, 3, -4, 2, -3, 0],
+                                }}
+                            exit={{ opacity: 0 }}
+                            transition={prefersReducedMotion
+                              ? { duration: 1.4, ease: 'linear' }
+                              : {
+                                  duration: SALTO_FLY_TRAVEL_MS / 1000,
+                                  ease: 'linear',
+                                  times: [0, 0.12, 0.24, 0.36, 0.5, 0.64, 0.78, 0.9, 1],
+                                }}
+                            onClick={triggerFlyAutoJumpCheat}
+                            className="absolute z-40 inline-flex h-10 w-10 items-center justify-center border-0 bg-transparent text-3xl transition hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-100"
+                            style={{ top: `${18 + saltoFlyLane * 28}px`, left: 0 }}
+                            aria-label="Tocca la mosca per aiutare la rana a completare tutti i salti rimanenti"
+                            title="Tocca la mosca"
+                          >
+                            {showSaltoFlyTouchGuidance && (
+                              <div className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2">
+                                <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                              </div>
+                            )}
+                            <span aria-hidden="true" className="select-none">🪰</span>
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
 
                       {/* Water sparkles background */}
                       <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:16px_16px]" />
@@ -3949,7 +4093,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                         isFrogSplashing
                                           ? { y: [0, 28, 72], rotate: [0, 12, 20], scale: [1, 1.06, 0.96], opacity: [1, 1, 0] }
                                           : saltoLeap?.from === stoneStep
-                                            ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
+                                            ? isFlyAutoJumping
+                                              ? { x: [0, 26, 58], y: [0, -34, -12, 0], rotate: [0, -12, 10, 0], scale: [1, 1.08, 1.12, 1], opacity: [1, 1, 1, 0] }
+                                              : { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
                                             : saltoTapHop?.step === stoneStep
                                               ? { y: [0, -16, 0], scale: [1, 1.08, 1] }
                                               : { y: [0, -6, 0], scale: 1 }
@@ -3958,7 +4104,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                         isFrogSplashing
                                           ? { duration: prefersReducedMotion ? 0.2 : 0.42, ease: "easeIn" }
                                           : saltoLeap?.from === stoneStep
-                                            ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
+                                            ? { duration: prefersReducedMotion ? 0.18 : isFlyAutoJumping ? 0.52 : 0.42, ease: "easeInOut" }
                                             : saltoTapHop?.step === stoneStep
                                               ? { duration: prefersReducedMotion ? 0.12 : 0.26, ease: "easeOut" }
                                               : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
@@ -4050,11 +4196,13 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             onClick={() => {
                               sound.playClick();
                               clearFlyAutoJump();
+                              hideSaltoFly();
                               void speak('Riproviamo.');
                               setIsFrogSplashing(false);
                               setSaltoFailReason(null);
                               setSaltoIndex(0);
                               setSaltoCorrectClicks(new Set());
+                              setSaltoFlyUsedThisRound(false);
                               setSaltoFrogPosition(0);
                               setSaltoLeap(null);
                               setSaltoTapHop(null);
@@ -4106,8 +4254,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                   setSaltoCorrectClicks(prev => new Set([...prev, opt]));
                                   setSaltoFrogPosition(saltoIndex + 1);
                                   setSaltoLeap(null);
+                                  const landedNumberSpeech = opt.toString();
+                                  announceWithFallback(landedNumberSpeech);
                                   if (saltoIndex + 1 >= saltoSelectedFactor) {
-                                    speakSaltoSuccess(world.id, saltoSelectedFactor, opt);
+                                    window.setTimeout(() => {
+                                      speakSaltoSuccess(world.id, saltoSelectedFactor, opt);
+                                    }, 320);
                                     setSaltoGameCompleted(true);
                                     setShowSaltoCompletionEffect(true);
                                     setSaltoCompleted(prev => new Set([...prev, saltoSelectedFactor]));
@@ -4755,7 +4907,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                       >
                                         {showTrucchiTouchGuidance && isCorrectBrick && (
                                           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
+                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} placement="center" />
                                           </div>
                                         )}
                                         {isRevealed ? (
