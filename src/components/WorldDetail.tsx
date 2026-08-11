@@ -22,18 +22,19 @@ import {
   getSfidaUnlockMissingCoinsMessage
 } from '../constants/gameRules';
 import { sound } from './SoundManager';
-import { AlertCircle, Award, Timer, Trophy, Compass } from 'lucide-react';
+import { AlertCircle, Award, Compass } from 'lucide-react';
 import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
 import SaltoExercise from './SaltoExercise';
 import CostruiscoExercise from './CostruiscoExercise';
 import TrucchiExercise from './TrucchiExercise';
+import PraticoQuizCard from './PraticoQuizCard';
+import SfidaQuizCard from './SfidaQuizCard';
 import RewardPopup from './RewardPopup';
 import FireworksOverlay from './FireworksOverlay';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
-import OperationPromptCard from './layout/OperationPromptCard';
 import RetryButton from './layout/RetryButton';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import { useVoice } from '../contexts/VoiceContext';
@@ -3197,82 +3198,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'pratico' && currentPraticoQuestion && (
           <div className="flex-1 flex flex-col overflow-hidden bg-white">
             <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
-              <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            {/* Progress and help button */}
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs">
-              <div aria-hidden="true" />
-              <div className="w-36 text-center">
-                <motion.div
-                  key={`quiz-streak-${quizCorrectStreak}-${quizStreakJustReset ? 'reset' : 'steady'}`}
-                  initial={quizStreakJustReset ? { scale: 0.92, y: -4 } : false}
-                  animate={quizStreakJustReset ? { scale: [0.92, 1.08, 1], y: [-4, 0, 0] } : { scale: 1, y: 0 }}
-                  transition={{ duration: 0.35, ease: 'easeOut' }}
-                  className={`mb-1 text-lg font-black font-mono leading-none ${
-                    quizStreakJustReset ? 'text-rose-600' : 'text-emerald-600'
-                  }`}
-                  aria-live="polite"
-                >
-                  {quizCorrectStreak}/{targetPraticoStreak}
-                </motion.div>
-                <div
-                  className="h-2 overflow-hidden rounded-full bg-slate-200"
-                  role="progressbar"
-                  aria-label="Progresso pratico"
-                  aria-valuemin={0}
-                  aria-valuemax={targetPraticoStreak}
-                  aria-valuenow={quizCorrectStreak}
-                >
-                  <div
-                    className={`h-full rounded-full transition-[width] duration-300 ${
-                      quizStreakJustReset ? 'bg-rose-500' : 'bg-emerald-500'
-                    }`}
-                    style={{ width: `${Math.min(100, Math.max(0, (quizCorrectStreak / Math.max(1, targetPraticoStreak)) * 100))}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end" />
-            </div>
-
-                <OperationPromptCard
-                  tone="indigo"
-                  icon="🛡️"
-                  eyebrow="Completa questa operazione"
-                  operation={`${currentPraticoQuestion.a} × ${currentPraticoQuestion.b} = ?`}
-                  operationClassName="text-xl sm:text-2xl tracking-wide"
-                  onSpeakOperation={() => speakOperationOnly(currentPraticoQuestion.a, currentPraticoQuestion.b)}
-                  operationAriaLabel={`Ascolta operazione ${currentPraticoQuestion.a} per ${currentPraticoQuestion.b}`}
-                />
-
-            {/* Question options */}
-            <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
-              {quizOptions.map((opt, idx) => {
-                const pressed = quizPressedFeedback?.opt === opt;
-                const isCorrectOpt = opt === currentPraticoQuestion.a * currentPraticoQuestion.b;
-                const feedbackClass = pressed
-                  ? quizPressedFeedback!.correct
-                    ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
-                    : 'bg-rose-100 border-rose-400 text-rose-800 scale-95'
-                  : 'bg-white border-slate-100 hover:border-indigo-400 hover:bg-slate-50 text-slate-800 active:scale-95';
-                return (
-                  <button
-                    key={idx}
-                    disabled={quizInteractionLocked}
-                    onClick={() => {
-                      if (quizInteractionLocked) return;
-                      setQuizPressedFeedback({ opt, correct: isCorrectOpt });
-                      handleQuizAnswer(opt);
-                    }}
-                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${quizInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                    id={`quiz-opt-${opt}`}
-                    aria-label={`Risposta ${opt}`}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-
-              </div>
+              <PraticoQuizCard
+                currentQuestion={currentPraticoQuestion}
+                quizOptions={quizOptions}
+                quizCorrectStreak={quizCorrectStreak}
+                targetPraticoStreak={targetPraticoStreak}
+                quizStreakJustReset={quizStreakJustReset}
+                quizPressedFeedback={quizPressedFeedback}
+                quizInteractionLocked={quizInteractionLocked}
+                compactLayout={compactLayout}
+                onSpeakOperation={() => speakOperationOnly(currentPraticoQuestion.a, currentPraticoQuestion.b)}
+                onAnswerSelect={(opt) => {
+                  if (quizInteractionLocked) return;
+                  setQuizPressedFeedback({ opt, correct: opt === currentPraticoQuestion.a * currentPraticoQuestion.b });
+                  handleQuizAnswer(opt);
+                }}
+              />
             </div>
 
             <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
@@ -3350,62 +3291,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'sfida' && sfidaActive && sfidaQuestion && (
           <div className="flex-1 flex flex-col overflow-hidden bg-white">
             <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
-              <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            <div className="flex justify-between items-center">
-              {/* Countdown */}
-              <div className="flex items-center gap-1.5 text-rose-600 font-bold font-mono bg-rose-50 px-3 py-1 rounded-full text-sm">
-                <Timer className="w-4 h-4 animate-spin" />
-                Tempo: {sfidaTimer}s
-              </div>
-
-              {/* Score */}
-              <div className="flex items-center gap-1.5 text-amber-600 font-bold font-mono bg-amber-50 px-3 py-1 rounded-full text-sm">
-                <Trophy className="w-4 h-4" />
-                Punti: {sfidaScore}
-              </div>
-            </div>
-
-                <OperationPromptCard
-                  tone="violet"
-                  icon="⚡"
-                  eyebrow="Completa questa operazione"
-                  operation={`${sfidaQuestion.a} × ${sfidaQuestion.b} = ?`}
-                  operationClassName="text-xl sm:text-2xl tracking-wide"
-                  onSpeakOperation={() => speakOperationOnly(sfidaQuestion.a, sfidaQuestion.b)}
-                  operationAriaLabel={`Ascolta operazione ${sfidaQuestion.a} per ${sfidaQuestion.b}`}
-                />
-
-            {/* Answers options */}
-            <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
-              {sfidaOptions.map((opt, idx) => {
-                const pressed = sfidaPressedFeedback?.opt === opt;
-                const isCorrectOpt = sfidaQuestion && opt === sfidaQuestion.a * sfidaQuestion.b;
-                const feedbackClass = pressed
-                  ? sfidaPressedFeedback!.correct
-                    ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
-                    : 'bg-rose-100 border-rose-400 text-rose-800 scale-95'
-                  : 'bg-white border-slate-100 hover:border-amber-400 hover:bg-slate-50 text-slate-800 active:scale-95';
-                return (
-                  <button
-                    key={idx}
-                    disabled={sfidaInteractionLocked}
-                    aria-disabled={sfidaInteractionLocked}
-                    onClick={() => {
-                      if (sfidaInteractionLocked) return;
-                      setSfidaPressedFeedback({ opt, correct: !!isCorrectOpt });
-                      handleSfidaAnswer(opt);
-                    }}
-                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${sfidaInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                    id={`sfida-opt-${opt}`}
-                    aria-label={`Risposta ${opt}`}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-
-              </div>
+              <SfidaQuizCard
+                sfidaQuestion={sfidaQuestion}
+                sfidaOptions={sfidaOptions}
+                sfidaTimer={sfidaTimer}
+                sfidaScore={sfidaScore}
+                sfidaPressedFeedback={sfidaPressedFeedback}
+                sfidaInteractionLocked={sfidaInteractionLocked}
+                compactLayout={compactLayout}
+                onSpeakOperation={() => speakOperationOnly(sfidaQuestion.a, sfidaQuestion.b)}
+                onAnswerSelect={(opt) => {
+                  if (sfidaInteractionLocked) return;
+                  setSfidaPressedFeedback({ opt, correct: opt === sfidaQuestion.a * sfidaQuestion.b });
+                  handleSfidaAnswer(opt);
+                }}
+              />
             </div>
 
             <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
