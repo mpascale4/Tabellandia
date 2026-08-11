@@ -256,12 +256,14 @@ function TrainingSession({
   updateProfile,
   onBack,
   compactLayout,
+  pendingAnnouncement,
 }: {
   world: WorldConfig;
   profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
   onBack: () => void;
   compactLayout?: boolean;
+  pendingAnnouncement?: Promise<void> | null;
 }) {
   // Deck nello state con init lazy: evita primo render vuoto ed e piu leggibile.
   const [deck, setDeck] = useState<Question[]>(() => buildQuestionDeck(world.id));
@@ -362,14 +364,20 @@ function TrainingSession({
   const { multiplier, worldId, answer, options } = currentQuestion;
 
   // Annuncia vocalmente la nuova operazione all'ingresso di ogni domanda.
-  // Piccolo ritardo per non troncare l'annuncio precedente (es. "Tabellina del N"
-  // pronunciato al momento della selezione, appena prima che questo componente monti).
+  // Attende prima che l'eventuale annuncio "Tabellina del N" / "Allenamento
+  // casuale" (pronunciato al momento della selezione) sia completato, cosi
+  // da non troncarlo con la successiva chiamata a speak() (che cancella
+  // sempre l'utterance in corso).
   useEffect(() => {
-    const announceTimeout = window.setTimeout(() => {
-      void speak(`${multiplier} per ${worldId}`);
-    }, 900);
-    return () => window.clearTimeout(announceTimeout);
-  }, [multiplier, worldId, speak]);
+    let cancelled = false;
+    const announce = () => {
+      if (!cancelled) void speak(`${multiplier} per ${worldId}`);
+    };
+    Promise.resolve(pendingAnnouncement).then(announce, announce);
+    return () => {
+      cancelled = true;
+    };
+  }, [multiplier, worldId, speak, pendingAnnouncement]);
 
   const speakCurrentOperation = useCallback(() => {
     void speak(`${multiplier} per ${worldId}`);
@@ -573,9 +581,11 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
     ? (selectedId === 0 ? RANDOM_WORLD : WORLDS_DATA.find(w => w.id === selectedId) ?? null)
     : null;
 
+  const selectAnnouncementRef = useRef<Promise<void> | null>(null);
+
   const handleSelectWorld = useCallback((id: number) => {
     setSelectedId(id);
-    void speak(id === 0 ? 'Allenamento casuale' : `Tabellina del ${id}`);
+    selectAnnouncementRef.current = speak(id === 0 ? 'Allenamento casuale' : `Tabellina del ${id}`);
   }, [speak]);
 
   if (selectedWorld) {
@@ -586,6 +596,7 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
         updateProfile={updateProfile}
         onBack={() => setSelectedId(null)}
         compactLayout={compactLayout}
+        pendingAnnouncement={selectAnnouncementRef.current}
       />
     );
   }
