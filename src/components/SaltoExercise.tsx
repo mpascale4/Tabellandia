@@ -284,7 +284,7 @@ export default function SaltoExercise({
                     times: [0, 0.06, 0.14, 0.22, 0.28, 0.38, 0.44, 0.54, 0.62, 0.72, 0.8, 0.9, 1],
                   }}
               onClick={triggerFlyAutoJumpCheat}
-              className="absolute z-40 inline-flex h-10 w-10 items-center justify-center border-0 bg-transparent text-3xl transition hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-100"
+              className="absolute z-40 inline-flex h-10 w-10 items-center justify-center border-0 bg-transparent text-3xl transition-shadow hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-100"
               style={{ top: `${18 + saltoFlyLane * 28}px`, left: 0 }}
               aria-label="Tocca la mosca per aiutare la rana a completare tutti i salti rimanenti"
               title="Tocca la mosca"

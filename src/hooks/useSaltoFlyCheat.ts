@@ -124,7 +124,6 @@ export function useSaltoFlyCheat({
 
     const totalSteps = saltoSelectedFactor;
     let currentStep = saltoFrogPosition;
-
     const runNextFlyJump = () => {
       const nextStep = currentStep + 1;
       if (nextStep > totalSteps) {
@@ -169,7 +168,13 @@ export function useSaltoFlyCheat({
     };
 
     flyRunTokenRef.current += 1;
-    runNextFlyJump();
+    const runToken = flyRunTokenRef.current;
+    // Delay the first jump slightly so the fly-tap "success" chime is clearly
+    // audible before the (louder, real-audio) frog croak plays.
+    flyAutoJumpIntervalRef.current = window.setTimeout(() => {
+      if (flyRunTokenRef.current !== runToken) return;
+      runNextFlyJump();
+    }, 200);
   }, [
     announceWithFallback,
     clearFlyAutoJump,
