@@ -444,20 +444,23 @@ function TrainingSession({
       type Mistake = { multiplier: number; worldId: number; count: number };
       const mistakesList: Mistake[] = Object.values(sessionMistakes);
       mistakesList.sort((a, b) => b.count - a.count);
+      const totalCorrect = deck.length - mistakesList.reduce((sum, m) => sum + m.count, 0);
+      const noMistakes = mistakesList.length === 0;
       return (
         <div className="flex w-full min-h-full flex-col gap-4">
           <div className="flex flex-1 flex-col justify-center gap-3">
             <SurfaceCard
               aria-live="polite"
               tone="soft"
-              padding="lg"
-              className="min-h-65 w-full flex flex-col items-center justify-center gap-2 text-center"
+              padding="md"
+              className="w-full flex flex-row items-center justify-center gap-2 text-center"
             >
-              <p className="text-2xl" aria-hidden="true">🎉</p>
-              <p className="text-sm font-bold text-sky-900">Sessione completata! Hai risposto a 10 operazioni.</p>
-              {mistakesList.length === 0 && (
-                <p className="text-sm font-bold text-sky-900">Nessun errore, complimenti! 🌟</p>
-              )}
+              <span className="text-2xl" aria-hidden="true">🎉</span>
+              <p className="text-sm font-bold text-sky-900">
+                {noMistakes
+                  ? `Bravissimo! ${totalCorrect} su ${deck.length} 🌟`
+                  : `Sessione completata! ${totalCorrect} su ${deck.length} corrette.`}
+              </p>
             </SurfaceCard>
             {mistakesList.length > 0 && (
               <SurfaceCard tone="soft" padding="md" className="w-full text-left">
