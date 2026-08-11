@@ -834,7 +834,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const isRemoved = trucchiRemovedBricks.has(index);
     return !isRemoved && value !== trucchiCorrectValue;
   });
-  const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoTouch) && saltoExpectedValue !== null;
+  const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoTouch) && saltoExpectedValue !== null && !saltoObstaclePending;
   const showSaltoAvoidGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoAvoid) && saltoObstaclePending;
   const showSaltoFrogTouchGuidance = showSaltoAvoidGuidance;
   const showSaltoFlyTouchGuidance = isSaltoFactorOne && saltoFlyVisible && !saltoGameCompleted && !isFrogSplashing;
@@ -4068,9 +4068,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                       } relative`}
                                       aria-label={enemyForStep ? `Step antagonista ${enemyForStep.label}` : 'Step antagonista'}
                                     >
-                                      {showSaltoAvoidGuidance && isEnemyStepPending && (
-                                        <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
-                                      )}
                                       <span className="text-base leading-none" role="img" aria-hidden="true">
                                         {enemyForStep ? enemyForStep.emoji : '👾'}
                                       </span>
