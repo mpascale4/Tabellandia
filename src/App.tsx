@@ -181,9 +181,9 @@ const PROFILE_AVATAR_SECTIONS = [
   { id: 'girl', label: 'Bambine' },
 ] as const;
 const APP_SIDEBAR_TABS = [
-  { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600', label: 'Mappa' },
-  { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600', label: 'Allenamento' },
-  { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600', label: 'Genitori' },
+  { id: 'adventure', emoji: '🗺️', color: 'bg-yellow-400 border-yellow-600', label: 'Mappa', voiceLabel: 'Mappa di Tabellandia' },
+  { id: 'training', emoji: '🎒', color: 'bg-orange-400 border-orange-600', label: 'Allenamento', voiceLabel: 'Allenamento' },
+  { id: 'parents', emoji: '🔐', color: 'bg-rose-400 border-rose-600', label: 'Genitori', voiceLabel: 'Area genitori' },
 ] as const;
 const DEFAULT_HELPER_GUIDANCE_SEEN: HelperGuidanceState = {
   comprendoTouch: false,
@@ -1397,6 +1397,7 @@ export default function App() {
                         handleAccessParentArea();
                       } else {
                         setActiveTab(tab.id as any);
+                        void speak(tab.voiceLabel);
                       }
                     }}
                     className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-110 active:scale-95 transition-all ${
@@ -1813,6 +1814,7 @@ export default function App() {
                       handleAccessParentArea();
                     } else {
                       setActiveTab(tab.id as any);
+                      void speak(tab.voiceLabel);
                     }
                   }}
                   className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all cursor-pointer ${
