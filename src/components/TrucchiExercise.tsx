@@ -20,6 +20,7 @@ const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
 const TRUCCHI_HAMMER_START_FACTOR = 1;
 const TRUCCHI_HAMMER_TRAVEL_MS = 520;
+const TRUCCHI_MINI_REVEAL_STRIKE_THRESHOLD = 3;
 const TRUCCHI_PREVIEW_SCALE_MIN = 0.48;
 const DIFFICULTY_FACTOR_MIN = 1;
 const DIFFICULTY_FACTOR_MAX = 10;
@@ -84,6 +85,8 @@ export default function TrucchiExercise({
   });
   const [trucchiCollapseReason, setTrucchiCollapseReason] = useState<'wrong' | 'hammer' | null>(null);
   const [trucchiQuestionSolved, setTrucchiQuestionSolved] = useState<boolean>(false);
+  const [trucchiHammerSurvivedStrikes, setTrucchiHammerSurvivedStrikes] = useState<number>(0);
+  const [trucchiMiniRevealOn, setTrucchiMiniRevealOn] = useState<boolean>(false);
 
   const trucchiPreviewTimeoutRef = useRef<number | null>(null);
   const trucchiRevealTimeoutRef = useRef<number | null>(null);
@@ -91,6 +94,7 @@ export default function TrucchiExercise({
   const trucchiHammerStrikeTimeoutRef = useRef<number | null>(null);
   const trucchiHammerHitClearTimeoutRef = useRef<number | null>(null);
   const trucchiHammerResolveTimeoutRef = useRef<number | null>(null);
+  const trucchiMiniRevealTimeoutRef = useRef<number | null>(null);
   const trucchiArenaRef = useRef<HTMLDivElement | null>(null);
   const trucchiBrickRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const trucchiHammerActiveRef = useRef<boolean>(false);
@@ -146,6 +150,10 @@ export default function TrucchiExercise({
     if (trucchiHammerResolveTimeoutRef.current !== null) {
       window.clearTimeout(trucchiHammerResolveTimeoutRef.current);
       trucchiHammerResolveTimeoutRef.current = null;
+    }
+    if (trucchiMiniRevealTimeoutRef.current !== null) {
+      window.clearTimeout(trucchiMiniRevealTimeoutRef.current);
+      trucchiMiniRevealTimeoutRef.current = null;
     }
   };
 
@@ -215,6 +223,8 @@ export default function TrucchiExercise({
     setTrucchiHammerHasStruck(false);
     setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
     setTrucchiCollapseReason(null);
+    setTrucchiMiniRevealOn(false);
+    setTrucchiHammerSurvivedStrikes(0);
 
     const previewDurationMs = scaleDurationByFactor(TRUCCHI_PREVIEW_MS, currentFactor, TRUCCHI_PREVIEW_SCALE_MIN);
     trucchiPreviewTimeoutRef.current = window.setTimeout(() => {
@@ -273,6 +283,7 @@ export default function TrucchiExercise({
       next.add(targetIndex);
       return next;
     });
+    setTrucchiHammerSurvivedStrikes(prev => prev + 1);
     setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: trucchiHammerActiveRef.current, striking: false });
   }, [getTrucchiHammerStartPoint, speak, setTrucchiGameCompleted, trucchiBrickValues, worldId]);
 
@@ -350,6 +361,44 @@ export default function TrucchiExercise({
     };
   }, [factor, strikeTrucchiHammer, trucchiHammerActive, trucchiHammerHasStruck, trucchiHammerTraveling, trucchiPreviewActive, trucchiPyramidCollapsed, trucchiQuestionSolved, trucchiRemovedBricks, trucchiRevealedBrickIndex]);
 
+  // Mini-reveal bonus: guaranteed once the hammer has survived
+  // TRUCCHI_MINI_REVEAL_STRIKE_THRESHOLD strikes without hitting the correct
+  // brick; periodically flashes the values of all remaining bricks for a
+  // short instant (purely visual aid, independent from the hammer state).
+  useEffect(() => {
+    const shouldSchedule =
+      trucchiHammerSurvivedStrikes >= TRUCCHI_MINI_REVEAL_STRIKE_THRESHOLD
+      && !trucchiPreviewActive
+      && !trucchiQuestionSolved
+      && !trucchiPyramidCollapsed
+      && !prefersReducedMotion;
+
+    if (!shouldSchedule) {
+      if (trucchiMiniRevealTimeoutRef.current !== null) {
+        window.clearTimeout(trucchiMiniRevealTimeoutRef.current);
+        trucchiMiniRevealTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    const scheduleNextMiniReveal = () => {
+      const delay = 900 + Math.random() * 2600;
+      trucchiMiniRevealTimeoutRef.current = window.setTimeout(() => {
+        setTrucchiMiniRevealOn(true);
+        window.setTimeout(() => setTrucchiMiniRevealOn(false), 1000);
+        scheduleNextMiniReveal();
+      }, delay);
+    };
+    scheduleNextMiniReveal();
+
+    return () => {
+      if (trucchiMiniRevealTimeoutRef.current !== null) {
+        window.clearTimeout(trucchiMiniRevealTimeoutRef.current);
+        trucchiMiniRevealTimeoutRef.current = null;
+      }
+    };
+  }, [trucchiHammerSurvivedStrikes, trucchiPreviewActive, trucchiQuestionSolved, trucchiPyramidCollapsed, prefersReducedMotion]);
+
   useEffect(() => {
     resetTrucchiRound(factor);
     return () => {
@@ -421,7 +470,7 @@ export default function TrucchiExercise({
                       if (hiddenValue === undefined || isRemoved) return null;
 
                       const isCorrectBrick = hiddenValue === correctValue;
-                      const isRevealed = trucchiPreviewActive || trucchiRevealedBrickIndex === globalIndex || (trucchiQuestionSolved && isCorrectBrick);
+                      const isRevealed = trucchiPreviewActive || trucchiRevealedBrickIndex === globalIndex || (trucchiQuestionSolved && isCorrectBrick) || trucchiMiniRevealOn;
                       const isBrickLocked = trucchiPreviewActive || trucchiQuestionSolved || trucchiPyramidCollapsed || trucchiRevealedBrickIndex !== null;
                       const isHammerHit = trucchiHammerHitBricks.has(globalIndex);
                       const isHammerTarget = trucchiHammerTargetIndex === globalIndex;
@@ -523,7 +572,7 @@ export default function TrucchiExercise({
                             )}
                             {isRevealed ? (
                               <>
-                                {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">??</span>}
+                                {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">💥</span>}
                                 <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/60" aria-hidden="true" />
                                 <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/80" aria-hidden="true" />
                                 <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
@@ -533,7 +582,7 @@ export default function TrucchiExercise({
                               </>
                             ) : (
                               <>
-                                {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">??</span>}
+                                {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">💥</span>}
                                 <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/25" aria-hidden="true" />
                                 <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/50" aria-hidden="true" />
                                 <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
