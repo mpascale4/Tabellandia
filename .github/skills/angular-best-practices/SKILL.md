@@ -1,12 +1,19 @@
 ---
-applyTo: "**/*.ts,**/*.html,**/*.scss"
-description: "Best practice per lo sviluppo di progetti Angular (Angular 17+)"
+name: angular-best-practices
+description: Skill per applicare best practice Angular (17+) quando si scrive o rivede codice Angular (standalone components, Signals, nuovo control flow, RxJS, testing, accessibilità). Usare SOLO quando il task riguarda esplicitamente un progetto/codice Angular (.ts/.html/.scss di un'app Angular) — NON applicabile a Tabellandia, che è un progetto React/Vite. Invocare quando l'utente menziona Angular, componenti standalone, Signals, NgRx, o chiede una code review/refactor su codice Angular.
 ---
 
-# Copilot Instructions – Angular Best Practices
+# Angular Best Practices
 
 > Riferimento di partenza: Angular Style Guide ufficiale + convenzioni community
 > (awesome-copilot, ai-codingrules.com). Adatta i punti a strict/eslint del progetto reale.
+
+## Quando usare questa skill
+
+Solo per progetti/file Angular (`.ts`, `.html`, `.scss` di un'app Angular). **Non applicare
+queste regole a Tabellandia** (React/Vite) o ad altri progetti non-Angular: i pattern qui
+descritti (standalone components, `@if`/`@for`, Signals, NgRx) sono specifici del framework
+Angular e non hanno equivalente diretto/valido in React.
 
 ## 1. Architettura & Componenti
 
@@ -113,5 +120,5 @@ export class UserCardComponent {
 
 **Fonti di riferimento**: Angular Style Guide ufficiale, awesome-copilot.github.com,
 ai-codingrules.com/rules/copilot/angular. Adatta e riduci queste regole in base allo
-stack effettivo (NgRx vs Signal Store, Jest vs Jasmine) del progetto reale in cui questo
-file viene copiato.
+stack effettivo (NgRx vs Signal Store, Jest vs Jasmine) del progetto reale in cui questa
+skill viene copiata/riutilizzata.
