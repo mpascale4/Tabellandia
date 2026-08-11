@@ -315,7 +315,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }, 0);
     };
 
-    const announceWithFallback = useCallback((message: string, fallbackSound: 'none' | 'success' | 'levelUp' = 'none') => {
+    const announceWithFallback = useCallback((message: string, fallbackSound: 'none' | 'success' | 'levelUp' = 'none'): Promise<void> => {
       if (announcementClearTimeoutRef.current !== null) {
         window.clearTimeout(announcementClearTimeoutRef.current);
         announcementClearTimeoutRef.current = null;
@@ -331,8 +331,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
       const canUseTts = voiceEnabled && typeof window !== 'undefined' && !!window.speechSynthesis;
       if (canUseTts) {
-        void speak(message);
-        return;
+        return speak(message);
       }
 
       if (fallbackSound === 'success') {
@@ -340,6 +339,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       } else if (fallbackSound === 'levelUp') {
         sound.playLevelUp();
       }
+      return Promise.resolve();
     }, [speak, voiceEnabled]);
 
     useEffect(() => {

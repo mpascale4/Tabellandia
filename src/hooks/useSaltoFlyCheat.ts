@@ -27,7 +27,7 @@ interface UseSaltoFlyCheatParams {
   saltoEnemySteps: number[];
   worldId: number;
   prefersReducedMotion: boolean;
-  announceWithFallback: (message: string) => void;
+  announceWithFallback: (message: string) => Promise<void> | void;
   setSaltoJumpedEnemySteps: Dispatch<SetStateAction<Set<number>>>;
   setSaltoLeap: Dispatch<SetStateAction<{ from: number; to: number } | null>>;
   setSaltoCorrectClicks: Dispatch<SetStateAction<Set<number>>>;
@@ -67,6 +67,10 @@ export function useSaltoFlyCheat({
   const flyAutoJumpIntervalRef = useRef<number | null>(null);
   const saltoFlySpawnTimeoutRef = useRef<number | null>(null);
   const saltoFlyTravelTimeoutRef = useRef<number | null>(null);
+  // Incremented every time a fly auto-jump run starts or is cancelled, so a
+  // pending "wait for announcement to finish" promise from a stale run can
+  // detect it's obsolete and avoid scheduling a jump that shouldn't happen.
+  const flyRunTokenRef = useRef<number>(0);
 
   const clearSaltoFlySpawnTimer = () => {
     if (saltoFlySpawnTimeoutRef.current !== null) {
@@ -89,6 +93,7 @@ export function useSaltoFlyCheat({
   }, []);
 
   const clearFlyAutoJump = useCallback(() => {
+    flyRunTokenRef.current += 1;
     if (flyAutoJumpIntervalRef.current !== null) {
       window.clearTimeout(flyAutoJumpIntervalRef.current);
       flyAutoJumpIntervalRef.current = null;
@@ -141,9 +146,9 @@ export function useSaltoFlyCheat({
         setSaltoFrogPosition(nextStep);
         setSaltoLeap(null);
         setSaltoIndex(nextStep);
-        announceWithFallback(expectedVal.toString());
 
         if (nextStep >= totalSteps) {
+          void announceWithFallback(expectedVal.toString());
           clearFlyAutoJump();
           setSaltoGameCompleted(true);
           setShowSaltoCompletionEffect(true);
@@ -152,10 +157,18 @@ export function useSaltoFlyCheat({
         }
 
         currentStep = nextStep;
-        flyAutoJumpIntervalRef.current = window.setTimeout(runNextFlyJump, prefersReducedMotion ? 140 : 220);
+        const runToken = flyRunTokenRef.current;
+        // Wait for the number announcement to fully finish speaking before
+        // triggering the next jump, so consecutive numbers are never cut off
+        // mid-word by the following one.
+        Promise.resolve(announceWithFallback(expectedVal.toString())).then(() => {
+          if (flyRunTokenRef.current !== runToken) return; // cancelled/reset meanwhile
+          flyAutoJumpIntervalRef.current = window.setTimeout(runNextFlyJump, prefersReducedMotion ? 140 : 180);
+        });
       }, leapMs);
     };
 
+    flyRunTokenRef.current += 1;
     runNextFlyJump();
   }, [
     announceWithFallback,
