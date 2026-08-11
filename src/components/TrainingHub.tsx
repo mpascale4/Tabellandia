@@ -424,21 +424,23 @@ function TrainingSession({
   if (!currentQuestion) {
     if (sessionComplete) {
       return (
-        <div className="flex w-full flex-col gap-4">
-          <SurfaceCard
-            aria-live="polite"
-            tone="soft"
-            padding="lg"
-            className="min-h-65 w-full flex flex-col items-center justify-center gap-2 text-center"
-          >
-            <p className="text-2xl" aria-hidden="true">🎉</p>
-            <p className="text-sm font-bold text-sky-900">Sessione completata! Hai risposto a 10 operazioni.</p>
-          </SurfaceCard>
-          <div className="flex flex-col gap-2">
+        <div className="flex w-full min-h-full flex-col gap-4">
+          <div className="flex flex-1 flex-col justify-center">
+            <SurfaceCard
+              aria-live="polite"
+              tone="soft"
+              padding="lg"
+              className="min-h-65 w-full flex flex-col items-center justify-center gap-2 text-center"
+            >
+              <p className="text-2xl" aria-hidden="true">🎉</p>
+              <p className="text-sm font-bold text-sky-900">Sessione completata! Hai risposto a 10 operazioni.</p>
+            </SurfaceCard>
+          </div>
+          <div className="flex flex-row gap-2">
             <button
               type="button"
               onClick={startNewSession}
-              className="w-full rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-600 cursor-pointer
+              className="flex-1 rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-600 cursor-pointer
                          focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
               aria-label="Inizia un'altra sessione di 10 operazioni"
             >
@@ -447,7 +449,7 @@ function TrainingSession({
             <button
               type="button"
               onClick={onBack}
-              className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
+              className="flex-1 rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
                          focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
               aria-label="Torna alla lista delle tabelline"
             >
