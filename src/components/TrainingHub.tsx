@@ -501,16 +501,16 @@ function TrainingSession({
         </button>
 
         {/* Equazione visiva con mnemotecnica (es. 🦢 × 🦢 = 🪑) */}
-        <div className="w-full max-w-sm rounded-2xl border border-sky-200/90 bg-sky-50 px-4 py-2.5 text-center text-sky-900 shadow-xs flex items-center justify-center gap-2.5 sm:gap-3.5 mt-0.5">
-          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Mnemotecnico ${multiplier}`}>
+        <div className="w-full max-w-sm rounded-2xl border border-sky-200/90 bg-sky-50 px-3 py-2.5 text-center text-sky-900 shadow-xs flex flex-nowrap items-center justify-center gap-1.5 sm:gap-2.5 mt-0.5 overflow-hidden">
+          <span className="shrink-0 text-2xl sm:text-3xl drop-shadow-xs" aria-label={`Mnemotecnico ${multiplier}`}>
             {DIGIT_EMOJI[multiplier] ?? multiplier}
           </span>
-          <span className="text-2xl sm:text-3xl font-black font-sans text-sky-600 select-none">×</span>
-          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Mnemotecnico ${worldId}`}>
+          <span className="shrink-0 text-lg sm:text-xl font-black font-sans text-sky-600 select-none">×</span>
+          <span className="shrink-0 text-2xl sm:text-3xl drop-shadow-xs" aria-label={`Mnemotecnico ${worldId}`}>
             {DIGIT_EMOJI[worldId] ?? worldId}
           </span>
-          <span className="text-2xl sm:text-3xl font-black font-sans text-sky-600 select-none">=</span>
-          <span className="text-4xl sm:text-5xl drop-shadow-xs" aria-label={`Risultato mnemotecnico ${answer}`}>
+          <span className="shrink-0 text-lg sm:text-xl font-black font-sans text-sky-600 select-none">=</span>
+          <span className="shrink-0 text-2xl sm:text-3xl drop-shadow-xs" aria-label={`Risultato mnemotecnico ${answer}`}>
             {getMnemonicResult(answer)}
           </span>
         </div>
