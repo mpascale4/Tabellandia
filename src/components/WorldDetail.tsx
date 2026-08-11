@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useSaltoFlyCheat } from '../hooks/useSaltoFlyCheat';
 import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt, createDefaultWorldProgress } from '../types';
 import {
   MONUMENT_CLUE_COST,
@@ -379,15 +380,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [saltoFrogPosition, setSaltoFrogPosition] = useState<number>(0);
   const [saltoLeap, setSaltoLeap] = useState<{ from: number; to: number } | null>(null);
   const [saltoTapHop, setSaltoTapHop] = useState<{ step: number; token: number } | null>(null);
-  const [isFlyAutoJumping, setIsFlyAutoJumping] = useState<boolean>(false);
-  const [saltoFlyVisible, setSaltoFlyVisible] = useState<boolean>(false);
-  const [saltoFlyLane, setSaltoFlyLane] = useState<number>(0);
-  const [saltoFlyDirection, setSaltoFlyDirection] = useState<'leftToRight' | 'rightToLeft'>('leftToRight');
-  const [saltoFlyUsedThisRound, setSaltoFlyUsedThisRound] = useState<boolean>(false);
-  const flyAutoJumpIntervalRef = useRef<number | null>(null);
-  const saltoFlySpawnTimeoutRef = useRef<number | null>(null);
-  const saltoFlyTravelTimeoutRef = useRef<number | null>(null);
-  const SALTO_FLY_TRAVEL_MS = 5800;
+  // Note: fly auto-jump ("Mosca Cheat") state/refs/logic live in useSaltoFlyCheat (src/hooks)
 
   // Costruisco (Step 3) state
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
@@ -429,35 +422,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const speakSaltoSuccess = (a: number, b: number, result: number) => {
     return speakMultiplicationSuccess(a, b, result);
   };
-
-  const clearSaltoFlySpawnTimer = () => {
-    if (saltoFlySpawnTimeoutRef.current !== null) {
-      window.clearTimeout(saltoFlySpawnTimeoutRef.current);
-      saltoFlySpawnTimeoutRef.current = null;
-    }
-  };
-
-  const clearSaltoFlyTravelTimer = () => {
-    if (saltoFlyTravelTimeoutRef.current !== null) {
-      window.clearTimeout(saltoFlyTravelTimeoutRef.current);
-      saltoFlyTravelTimeoutRef.current = null;
-    }
-  };
-
-  const hideSaltoFly = useCallback(() => {
-    clearSaltoFlySpawnTimer();
-    clearSaltoFlyTravelTimer();
-    setSaltoFlyVisible(false);
-  }, []);
-
-  const clearFlyAutoJump = useCallback(() => {
-    if (flyAutoJumpIntervalRef.current !== null) {
-      window.clearTimeout(flyAutoJumpIntervalRef.current);
-      flyAutoJumpIntervalRef.current = null;
-    }
-    setIsFlyAutoJumping(false);
-    setSaltoLeap(null);
-  }, []);
 
   const speakOperationOnly = (a: number, b: number) => {
     sound.playClick();
@@ -545,76 +509,38 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const triggerFlyAutoJumpCheat = useCallback(() => {
-    if (
-      saltoGameCompleted
-      || isFrogSplashing
-      || isFlyAutoJumping
-      || saltoSelectedFactor === null
-      || !saltoFlyVisible
-    ) {
-      return;
-    }
-
-    hideSaltoFly();
-    sound.playSuccess();
-    setSaltoFlyUsedThisRound(true);
-    setIsFlyAutoJumping(true);
-
-    const totalSteps = saltoSelectedFactor;
-    let currentStep = saltoFrogPosition;
-
-    const runNextFlyJump = () => {
-      const nextStep = currentStep + 1;
-      if (nextStep > totalSteps) {
-        clearFlyAutoJump();
-        return;
-      }
-
-      if (saltoEnemySteps.includes(nextStep)) {
-        setSaltoJumpedEnemySteps(prev => new Set(prev).add(nextStep));
-      }
-
-      sound.playFrogCroak();
-      setSaltoLeap({ from: currentStep, to: nextStep });
-
-      const leapMs = prefersReducedMotion ? 160 : 520;
-      flyAutoJumpIntervalRef.current = window.setTimeout(() => {
-        const expectedVal = world.id * nextStep;
-        setSaltoCorrectClicks(prev => new Set(prev).add(expectedVal));
-        setSaltoFrogPosition(nextStep);
-        setSaltoLeap(null);
-        setSaltoIndex(nextStep);
-        announceWithFallback(expectedVal.toString());
-
-        if (nextStep >= totalSteps) {
-          clearFlyAutoJump();
-          setSaltoGameCompleted(true);
-          setShowSaltoCompletionEffect(true);
-          setSaltoCompleted(prev => new Set([...prev, totalSteps]));
-          return;
-        }
-
-        currentStep = nextStep;
-        flyAutoJumpIntervalRef.current = window.setTimeout(runNextFlyJump, prefersReducedMotion ? 140 : 220);
-      }, leapMs);
-    };
-
-    runNextFlyJump();
-  }, [
-    announceWithFallback,
+  const {
+    isFlyAutoJumping,
+    saltoFlyVisible,
+    saltoFlyLane,
+    saltoFlyDirection,
+    saltoFlyUsedThisRound,
+    triggerFlyAutoJumpCheat,
     clearFlyAutoJump,
     hideSaltoFly,
-    isFlyAutoJumping,
-    isFrogSplashing,
-    prefersReducedMotion,
-    saltoEnemySteps,
-    saltoFlyVisible,
-    saltoFrogPosition,
-    saltoGameCompleted,
+    resetFlyUsage: resetSaltoFlyUsage,
+    SALTO_FLY_TRAVEL_MS,
+  } = useSaltoFlyCheat({
+    activeStep,
+    saltoFlowStage,
     saltoSelectedFactor,
-    world.id,
-  ]);
+    saltoGameCompleted,
+    isFrogSplashing,
+    saltoFrogPosition,
+    saltoIndex,
+    saltoEnemySteps,
+    worldId: world.id,
+    prefersReducedMotion,
+    announceWithFallback,
+    setSaltoJumpedEnemySteps,
+    setSaltoLeap,
+    setSaltoCorrectClicks,
+    setSaltoFrogPosition,
+    setSaltoIndex,
+    setSaltoGameCompleted,
+    setShowSaltoCompletionEffect,
+    setSaltoCompleted,
+  });
 
   useEffect(() => {
     costruiscoActiveBalloonsRef.current = costruiscoActiveBalloons;
@@ -846,70 +772,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   useEffect(() => {
     return () => {
-      clearFlyAutoJump();
-      hideSaltoFly();
       (Object.values(guidanceTimeoutsRef.current) as Array<number | undefined>).forEach((timeoutId) => {
         if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       });
       guidanceTimeoutsRef.current = {};
     };
-  }, [clearFlyAutoJump, hideSaltoFly]);
-
-  useEffect(() => {
-    const shouldManageFly =
-      activeStep === 'salto'
-      && saltoFlowStage === 'game'
-      && saltoSelectedFactor !== null
-      && !saltoGameCompleted
-      && !isFrogSplashing
-      && !isFlyAutoJumping
-      && !saltoFlyUsedThisRound;
-
-    if (!shouldManageFly) {
-      hideSaltoFly();
-      return;
-    }
-
-    if (saltoFlyVisible) {
-      return;
-    }
-
-    clearSaltoFlySpawnTimer();
-    saltoFlySpawnTimeoutRef.current = window.setTimeout(() => {
-      setSaltoFlyLane(Math.floor(Math.random() * 3));
-      setSaltoFlyDirection(Math.random() < 0.5 ? 'leftToRight' : 'rightToLeft');
-      setSaltoFlyVisible(true);
-    }, 6000);
-
-    return () => {
-      clearSaltoFlySpawnTimer();
-    };
-  }, [
-    activeStep,
-    hideSaltoFly,
-    isFlyAutoJumping,
-    isFrogSplashing,
-    saltoFlyUsedThisRound,
-    saltoFlyVisible,
-    saltoFlowStage,
-    saltoFrogPosition,
-    saltoGameCompleted,
-    saltoIndex,
-    saltoSelectedFactor,
-  ]);
-
-  useEffect(() => {
-    if (!saltoFlyVisible || isFlyAutoJumping) return;
-    clearSaltoFlyTravelTimer();
-    saltoFlyTravelTimeoutRef.current = window.setTimeout(() => {
-      setSaltoFlyUsedThisRound(true);
-      hideSaltoFly();
-    }, prefersReducedMotion ? 1400 : SALTO_FLY_TRAVEL_MS);
-
-    return () => {
-      clearSaltoFlyTravelTimer();
-    };
-  }, [hideSaltoFly, isFlyAutoJumping, prefersReducedMotion, saltoFlyVisible, SALTO_FLY_TRAVEL_MS]);
+  }, []);
 
   useEffect(() => {
     const rules: Array<{ key: HelperGuidanceKey; show: boolean }> = [
@@ -3846,7 +3714,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               setSaltoFrogPosition(0);
               setSaltoLeap(null);
               setSaltoTapHop(null);
-              setSaltoFlyUsedThisRound(false);
+              resetSaltoFlyUsage();
             },
             theme: {
               panel: 'bg-purple-50 border-purple-200',
@@ -4199,7 +4067,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               setSaltoFailReason(null);
                               setSaltoIndex(0);
                               setSaltoCorrectClicks(new Set());
-                              setSaltoFlyUsedThisRound(false);
+                              resetSaltoFlyUsage();
                               setSaltoFrogPosition(0);
                               setSaltoLeap(null);
                               setSaltoTapHop(null);
