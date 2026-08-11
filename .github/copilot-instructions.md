@@ -1,6 +1,7 @@
 # GitHub Copilot – Istruzioni per il progetto
 
 - When the user's message starts with the prefix `interview:`, force plan mode: do not take any action (no code/file/command changes) on the text after the prefix until requirements are gathered. Instead, interview the user one question at a time (via `ask_user`, preferring multiple choice) to clarify goal, scope, affected files/tests, edge cases, and acceptance criteria. Only after the user confirms the gathered requirements, propose a plan and ask for explicit confirmation before executing.
+- The `interview:` flow requires autopilot mode to be off (autopilot is a CLI-level session mode toggled by the user with `/autopilot` in the terminal - it cannot be switched programmatically from within a conversation/instruction). Before starting the interview, ask the user to confirm autopilot is currently disabled; if they indicate it is on, ask them to run `/autopilot` to turn it off before continuing.
 
 ## Accessibility Quick Rules
 
