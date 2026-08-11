@@ -83,12 +83,12 @@ export default function OperationPromptCard({
                 type="button"
                 onClick={onSpeakOperation}
                 aria-label={operationAriaLabel}
-                className={`mt-0.5 rounded px-1 text-left text-lg font-black font-mono focus-visible:outline-2 ${classes.operation} ${operationClassName} cursor-pointer`}
+                className={`mt-0.5 rounded px-1 text-left text-2xl font-black font-mono focus-visible:outline-2 ${classes.operation} ${operationClassName} cursor-pointer`}
               >
                 {operation}
               </button>
             ) : (
-              <p className={`mt-0.5 px-1 text-lg font-black font-mono ${classes.operation} ${operationClassName}`}>
+              <p className={`mt-0.5 px-1 text-2xl font-black font-mono ${classes.operation} ${operationClassName}`}>
                 {operation}
               </p>
             )}
