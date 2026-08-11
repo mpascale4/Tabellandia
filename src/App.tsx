@@ -20,7 +20,7 @@ import VoiceSelectorModal from './components/VoiceSelectorModal';
 import DigitsMatchingGameModal from './components/DigitsMatchingGameModal';
 import CurrencyInfoModal from './components/CurrencyInfoModal';
 import { DIGITS_INFO } from './data/digitsData';
-import NumericKeypad from './components/NumericKeypad';
+import ParentPinModal, { ChangePinModal } from './components/ParentPinModal';
 import ActionGrid from './components/layout/ActionGrid';
 import ResponsiveGrid from './components/layout/ResponsiveGrid';
 import SectionHeader from './components/layout/SectionHeader';
@@ -28,12 +28,11 @@ import SurfaceCard from './components/layout/SurfaceCard';
 import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Map } from 'lucide-react';
 import { getGenderedText, getPlayerGender, PlayerGender } from './utils/playerCopy';
 import { useVoice } from './contexts/VoiceContext';
+import { useParentPinAuth } from './hooks/useParentPinAuth';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
 const AUDIO_SETTINGS_KEY = "tabellandia_audio_settings_v1";
-const PARENT_PIN_DEFAULT = '1111';
-const DEV_PIN_DEFAULT = '2222';
 const PROFILE_PANEL_VISIBLE_KEY = "tabellandia_profile_panel_visible_v1";
 const HEADER_PINNED_KEY = "tabellandia_header_pinned_v1";
 const HEADER_REVEAL_MOUSE_ZONE_PX = 24;
@@ -344,18 +343,8 @@ export default function App() {
   const [newProfileBirthYear, setNewProfileBirthYear] = useState<number>(CURRENT_YEAR - 8);
   const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
 
-  // Parent PIN State
-  const [showPINModal, setShowPINModal] = useState<boolean>(false);
-  const [pinInput, setPinInput] = useState<string>("");
-  const [isSettingPIN, setIsSettingPIN] = useState<boolean>(false);
   const [parentAuthenticated, setParentAuthenticated] = useState<boolean>(false);
-  const [pinAccessTarget, setPinAccessTarget] = useState<'parent' | 'dev'>('parent');
   const [devAreaOpen, setDevAreaOpen] = useState<boolean>(false);
-  const [pinError, setPinError] = useState<string>("");
-  const [showChangePINForm, setShowChangePINForm] = useState<boolean>(false);
-  const [newPINInput, setNewPINInput] = useState<string>("");
-  const [confirmPINInput, setConfirmPINInput] = useState<string>("");
-  const [changePINStage, setChangePINStage] = useState<'new' | 'confirm'>('new');
 
   const [appMonumentModal, setAppMonumentModal] = useState<{
     world: typeof WORLDS_DATA[0];
@@ -514,6 +503,43 @@ export default function App() {
 
     return fragments;
   };
+  const {
+    showPINModal,
+    pinInput,
+    setPinInput,
+    isSettingPIN,
+    pinAccessTarget,
+    pinError,
+    showChangePINForm,
+    newPINInput,
+    setNewPINInput,
+    confirmPINInput,
+    setConfirmPINInput,
+    changePINStage,
+    handleAccessParentArea,
+    handleAccessDevArea,
+    handlePINSubmit,
+    handleClosePINModal,
+    handleStartChangePIN,
+    handleChangePINInput,
+    handleSaveNewPIN,
+    handleCloseChangePINModal,
+  } = useParentPinAuth({
+    onParentAuthenticated: () => {
+      setParentAuthenticated(true);
+      setShowProfilePicker(false);
+      setActiveProfileId(null);
+      setActiveTab('parents');
+    },
+    onDevAuthenticated: () => {
+      setDevAreaOpen(true);
+    },
+    onParentModalClosed: () => {
+      setParentAuthenticated(false);
+      setActiveTab('adventure');
+    },
+  });
+
   const isParentModeActive = parentAuthenticated && activeTab === 'parents';
   const activeAdventureWorldId = (() => {
     if (!profile || selectedWorldId !== null) return null;
@@ -874,106 +900,6 @@ export default function App() {
     }
   };
 
-  const handleAccessParentArea = () => {
-    let storedPIN = localStorage.getItem('tabellandia_parent_pin');
-    setPinAccessTarget('parent');
-    if (!storedPIN) {
-      // First time - apply default parent PIN.
-      localStorage.setItem('tabellandia_parent_pin', PARENT_PIN_DEFAULT);
-      storedPIN = PARENT_PIN_DEFAULT;
-      setIsSettingPIN(false);
-    } else {
-      // Already has PIN - ask to enter
-      setIsSettingPIN(false);
-    }
-    setShowPINModal(true);
-    setPinInput("");
-  };
-
-  const handleAccessDevArea = () => {
-    setPinAccessTarget('dev');
-    setIsSettingPIN(false);
-    setShowChangePINForm(false);
-    setShowPINModal(true);
-    setPinInput("");
-    setPinError("");
-  };
-
-  const handlePINSubmit = (pinValue?: string) => {
-    const pin = pinValue || pinInput;
-    sound.playClick();
-    setPinError("");
-
-    const storedPIN = localStorage.getItem('tabellandia_parent_pin') || PARENT_PIN_DEFAULT;
-    const storedDevPIN = localStorage.getItem('tabellandia_dev_pin') || DEV_PIN_DEFAULT;
-    
-    if (pinAccessTarget === 'dev') {
-      if (pin === storedDevPIN || pin === DEV_PIN_DEFAULT) {
-        sound.playPowerUp();
-        setShowPINModal(false);
-        setPinInput("");
-        setPinError("");
-        setDevAreaOpen(true);
-      } else {
-        sound.playError();
-        setPinError("PIN errato! Riprova.");
-        setTimeout(() => {
-          setPinInput("");
-          setPinError("");
-        }, 1500);
-      }
-      return;
-    }
-
-    if (isSettingPIN || !storedPIN) {
-      if (pin.length === 4) {
-        localStorage.setItem('tabellandia_parent_pin', pin);
-        sound.playPowerUp();
-        setParentAuthenticated(true);
-        setShowPINModal(false);
-        setShowProfilePicker(false);
-        setActiveProfileId(null);
-        setActiveTab('parents');
-        setPinInput("");
-        setPinError("");
-      }
-    } else {
-      // Verifying existing PIN
-      if (pin === storedPIN || pin === PARENT_PIN_DEFAULT) {
-        sound.playPowerUp();
-        setParentAuthenticated(true);
-        setShowPINModal(false);
-        setShowProfilePicker(false);
-        setActiveProfileId(null);
-        setActiveTab('parents');
-        setPinInput("");
-        setPinError("");
-      } else {
-        sound.playError();
-        setPinError("PIN errato! Riprova.");
-        setTimeout(() => {
-          setPinInput("");
-          setPinError("");
-        }, 1500);
-      }
-    }
-  };
-
-  const handleClosePINModal = () => {
-    sound.playClick();
-    setShowPINModal(false);
-    setPinInput("");
-    setPinError("");
-    setShowChangePINForm(false);
-    setNewPINInput("");
-    setConfirmPINInput("");
-    setPinAccessTarget('parent');
-    if (pinAccessTarget === 'parent') {
-      setParentAuthenticated(false);
-      setActiveTab('adventure');
-    }
-  };
-
   const handleExitParentArea = () => {
     sound.playClick();
     setParentAuthenticated(false);
@@ -982,217 +908,6 @@ export default function App() {
     setActiveProfileId(null);
     setShowProfilePicker(true);
   };
-
-  const handleStartChangePIN = () => {
-    sound.playClick();
-    setShowChangePINForm(true);
-    setNewPINInput("");
-    setConfirmPINInput("");
-    setPinError("");
-    setChangePINStage('new');
-  };
-
-  const handleChangePINInput = (value: string) => {
-    if (changePINStage === 'new') {
-      setNewPINInput(value);
-      // Auto-advance to confirm stage when 4 digits entered
-      if (value.length === 4) {
-        setChangePINStage('confirm');
-      }
-    } else {
-      setConfirmPINInput(value);
-      // Check confirmation when 4 digits entered
-      if (value.length === 4) {
-        if (value === newPINInput) {
-          // PINs match - save
-          sound.playPowerUp();
-          localStorage.setItem('tabellandia_parent_pin', value);
-          setShowChangePINForm(false);
-          setNewPINInput("");
-          setConfirmPINInput("");
-          setPinError("");
-          setChangePINStage('new');
-        } else {
-          // PINs don't match - reset and show error
-          sound.playError();
-          setPinError("I PIN non corrispondono!");
-          setTimeout(() => {
-            setNewPINInput("");
-            setConfirmPINInput("");
-            setPinError("");
-            setChangePINStage('new');
-          }, 1500);
-        }
-      }
-    }
-  };
-
-  const handleSaveNewPIN = () => {
-    sound.playClick();
-    
-    // Validate inputs
-    if (newPINInput.length !== 4 || !newPINInput.match(/^\d+$/)) {
-      setPinError("Nuovo PIN deve essere 4 cifre!");
-      return;
-    }
-    
-    if (newPINInput !== confirmPINInput) {
-      setPinError("I PIN non corrispondono!");
-      return;
-    }
-    
-    // Save new PIN
-    localStorage.setItem('tabellandia_parent_pin', newPINInput);
-    sound.playPowerUp();
-    setShowChangePINForm(false);
-    setNewPINInput("");
-    setConfirmPINInput("");
-    setPinError("");
-    setChangePINStage('new');
-  };
-
-  const pinAuthenticationModal = (
-    <AnimatePresence>
-      {showPINModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={handleClosePINModal}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="text-center mb-4">
-              <div className="text-4xl mb-2">🔐⚡</div>
-              <h2 className="text-xl font-black text-indigo-950">{pinAccessTarget === 'dev' ? 'Area Dev' : 'Area di Controllo'}</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                {showChangePINForm
-                  ? "Imposta un nuovo PIN"
-                  : pinAccessTarget === 'dev'
-                    ? 'Inserisci il PIN di 4 cifre per aprire l’Area Dev'
-                    : isSettingPIN
-                      ? "Crea un PIN a 4 cifre"
-                      : "Inserisci il PIN di 4 cifre per accedere"}
-              </p>
-            </div>
-
-            {showChangePINForm && pinAccessTarget === 'parent' ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-indigo-700 block mb-2">Nuovo PIN (4 cifre)</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={newPINInput}
-                    onChange={e => setNewPINInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-center text-2xl font-black tracking-widest focus:outline-none focus:border-indigo-600"
-                    placeholder="••••"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-indigo-700 block mb-2">Conferma PIN</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={confirmPINInput}
-                    onChange={e => setConfirmPINInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-center text-2xl font-black tracking-widest focus:outline-none focus:border-indigo-600"
-                    placeholder="••••"
-                  />
-                </div>
-
-                {pinError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
-                  >
-                    {pinError}
-                  </motion.div>
-                )}
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowChangePINForm(false);
-                      setNewPINInput("");
-                      setConfirmPINInput("");
-                      setPinError("");
-                      setPinInput("");
-                    }}
-                    className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black rounded-lg transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    onClick={handleSaveNewPIN}
-                    disabled={newPINInput.length !== 4 || confirmPINInput.length !== 4}
-                    className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Salva
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-center gap-2 mb-6">
-                  {[0, 1, 2, 3].map(i => (
-                    <motion.div
-                      key={i}
-                      animate={pinError ? { x: [-5, 5, -5, 0] } : {}}
-                      transition={{ duration: 0.3 }}
-                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-lg transition-all ${
-                        pinError
-                          ? 'bg-red-100 border-red-400 text-red-600'
-                          : 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                      }`}
-                    >
-                      {pinInput[i] ? '●' : '-'}
-                    </motion.div>
-                  ))}
-                </div>
-
-                {pinError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center mb-4 text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
-                  >
-                    {pinError}
-                  </motion.div>
-                )}
-
-                <NumericKeypad
-                  value={pinInput}
-                  onChange={v => setPinInput(v.slice(0, 4))}
-                  onSubmit={handlePINSubmit}
-                  maxDigits={4}
-                />
-              </>
-            )}
-
-            {!showChangePINForm && (
-              <button
-                onClick={handleClosePINModal}
-                className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
-              >
-                Annulla
-              </button>
-            )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
 
   if (!isLoaded) {
     return (
@@ -1293,7 +1008,23 @@ export default function App() {
             </div>
           </SurfaceCard>
         </motion.div>
-        {pinAuthenticationModal}
+        <ParentPinModal
+          showPINModal={showPINModal}
+          pinInput={pinInput}
+          setPinInput={setPinInput}
+          isSettingPIN={isSettingPIN}
+          pinAccessTarget={pinAccessTarget}
+          pinError={pinError}
+          showChangePINForm={showChangePINForm}
+          newPINInput={newPINInput}
+          setNewPINInput={setNewPINInput}
+          confirmPINInput={confirmPINInput}
+          setConfirmPINInput={setConfirmPINInput}
+          changePINStage={changePINStage}
+          handlePINSubmit={handlePINSubmit}
+          handleClosePINModal={handleClosePINModal}
+          handleSaveNewPIN={handleSaveNewPIN}
+        />
       </div>
     );
   }
@@ -1621,94 +1352,33 @@ export default function App() {
         >
           <div className={`w-10 h-1 rounded-full transition-all duration-300 ${isHeaderVisible ? 'bg-transparent' : 'bg-white/60'}`} />
         </div>
-        {pinAuthenticationModal}
+        <ParentPinModal
+          showPINModal={showPINModal}
+          pinInput={pinInput}
+          setPinInput={setPinInput}
+          isSettingPIN={isSettingPIN}
+          pinAccessTarget={pinAccessTarget}
+          pinError={pinError}
+          showChangePINForm={showChangePINForm}
+          newPINInput={newPINInput}
+          setNewPINInput={setNewPINInput}
+          confirmPINInput={confirmPINInput}
+          setConfirmPINInput={setConfirmPINInput}
+          changePINStage={changePINStage}
+          handlePINSubmit={handlePINSubmit}
+          handleClosePINModal={handleClosePINModal}
+          handleSaveNewPIN={handleSaveNewPIN}
+        />
 
-        {/* Change PIN Modal (from Parent Dashboard) */}
-        <AnimatePresence>
-          {showChangePINForm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              onClick={() => {
-                setShowChangePINForm(false);
-                setNewPINInput("");
-                setConfirmPINInput("");
-                setPinError("");
-              }}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="text-center mb-6">
-                  <div className="text-4xl mb-2">🔑</div>
-                  <h2 className="text-xl font-black text-indigo-950">Modifica PIN</h2>
-                  <p className="text-xs text-slate-500 mt-2">
-                    {changePINStage === 'new' ? 'Inserisci il nuovo PIN (4 cifre)' : 'Conferma il PIN'}
-                  </p>
-                </div>
-
-                {/* PIN Display */}
-                <div className="flex justify-center gap-2 mb-6">
-                  {[0, 1, 2, 3].map(i => {
-                    const currentValue = changePINStage === 'new' ? newPINInput : confirmPINInput;
-                    return (
-                      <motion.div
-                        key={i}
-                        animate={pinError ? { x: [-5, 5, -5, 0] } : {}}
-                        transition={{ duration: 0.3 }}
-                        className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-lg transition-all ${
-                          pinError
-                            ? 'bg-red-100 border-red-400 text-red-600'
-                            : 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                        }`}
-                      >
-                        {currentValue[i] ? '●' : '-'}
-                      </motion.div>
-                    );
-                  })}
-                </div>
-
-                {/* Error Message */}
-                {pinError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center mb-4 text-sm font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg"
-                  >
-                    {pinError}
-                  </motion.div>
-                )}
-
-                {/* Numeric Keypad */}
-                <NumericKeypad
-                  value={changePINStage === 'new' ? newPINInput : confirmPINInput}
-                  onChange={handleChangePINInput}
-                  onSubmit={() => {}}
-                  maxDigits={4}
-                />
-
-                <button
-                  onClick={() => {
-                    setShowChangePINForm(false);
-                    setNewPINInput("");
-                    setConfirmPINInput("");
-                    setPinError("");
-                    setChangePINStage('new');
-                  }}
-                  className="w-full mt-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
-                >
-                  Annulla
-                </button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <ChangePinModal
+          showChangePINForm={showChangePINForm}
+          newPINInput={newPINInput}
+          confirmPINInput={confirmPINInput}
+          changePINStage={changePINStage}
+          pinError={pinError}
+          handleChangePINInput={handleChangePINInput}
+          handleClose={handleCloseChangePINModal}
+        />
 
         {/* Content Panel Area */}
         <div className={`flex-1 overflow-hidden flex relative z-10 ${isPhoneMode ? 'flex-col' : 'flex-row'}`}>
