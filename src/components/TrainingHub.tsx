@@ -139,7 +139,6 @@ const getMotivationalCorrectMessages = (gender: PlayerGender) => [
   getGenderedText(gender, 'Bravo! 🌟', 'Brava! 🌟'),
   'Perfetto! ✨',
   'Esatto! 🏆',
-  'Ottimo lavoro! 💪',
   getGenderedText(gender, 'Sei fortissimo! 🚀', 'Sei fortissima! 🚀'),
   'Continua così! 🌈',
 ];
@@ -176,32 +175,59 @@ function generateOptions(correct: number): number[] {
   return Array.from(set).sort(() => Math.random() - 0.5);
 }
 
-function buildRandomQuestionDeck(count = 12): Question[] {
-  const deck: Question[] = [];
-  const usedKeys = new Set<string>();
-  while (deck.length < count) {
-    const m = Math.floor(Math.random() * 9) + 1; // 1..9
-    const w = Math.floor(Math.random() * 8) + 2; // 2..9
-    const key = `${m}x${w}`;
-    if (!usedKeys.has(key)) {
-      usedKeys.add(key);
-      const answer = m * w;
-      deck.push({ multiplier: m, worldId: w, answer, options: generateOptions(answer) });
-    }
-  }
-  return deck;
+const TRAINING_SESSION_LENGTH = 10;
+// Servono almeno alcuni tentativi storici su una specifica operazione prima di
+// considerarla "debole" e darle un peso maggiore nell'estrazione casuale.
+const WEAK_COMBO_MIN_ATTEMPTS = 3;
+const WEAK_COMBO_MAX_WEIGHT_BOOST = 4; // un'operazione con 0% di accuratezza pesa fino a 5x rispetto a una piena
+
+// Calcola il peso di un'operazione m×w per l'estrazione casuale: più bassa è
+// l'accuratezza storica su quella combinazione, più alto è il peso (quindi più
+// probabile che venga riproposta), pur lasciando sempre una probabilità base
+// a tutte le combinazioni.
+function weightForCombo(profile: UserProfile, m: number, w: number): number {
+  const attempts = profile.history.filter(
+    a => (a.a === m && a.b === w) || (a.a === w && a.b === m)
+  );
+  if (attempts.length < WEAK_COMBO_MIN_ATTEMPTS) return 1;
+  const accuracy = attempts.filter(a => a.correct).length / attempts.length;
+  return 1 + (1 - accuracy) * WEAK_COMBO_MAX_WEIGHT_BOOST;
 }
 
-function buildQuestionDeck(worldId: number): Question[] {
+function pickWeighted<T>(items: T[], weights: number[]): T {
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  let roll = Math.random() * total;
+  for (let i = 0; i < items.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return items[i];
+  }
+  return items[items.length - 1];
+}
+
+// Costruisce una sessione di allenamento di TRAINING_SESSION_LENGTH domande,
+// pescate con ripetizione e peso maggiore per le combinazioni più deboli.
+function buildQuestionDeck(profile: UserProfile, worldId: number): Question[] {
+  const candidates: Array<{ m: number; w: number }> = [];
   if (worldId === 0) {
-    return buildRandomQuestionDeck(12);
+    for (let m = 1; m <= 9; m++) {
+      for (let w = 2; w <= 9; w++) {
+        candidates.push({ m, w });
+      }
+    }
+  } else {
+    for (let m = 1; m <= 9; m++) {
+      candidates.push({ m, w: worldId });
+    }
   }
+  const weights = candidates.map(({ m, w }) => weightForCombo(profile, m, w));
+
   const deck: Question[] = [];
-  for (let m = 1; m <= 9; m++) {
-    const answer = m * worldId;
-    deck.push({ multiplier: m, worldId, answer, options: generateOptions(answer) });
+  for (let i = 0; i < TRAINING_SESSION_LENGTH; i++) {
+    const { m, w } = pickWeighted(candidates, weights);
+    const answer = m * w;
+    deck.push({ multiplier: m, worldId: w, answer, options: generateOptions(answer) });
   }
-  return deck.sort(() => Math.random() - 0.5);
+  return deck;
 }
 
 // ─── Helper: stelle per mondo ─────────────────────────────────────────────────
@@ -287,21 +313,31 @@ function TrainingSession({
   pendingAnnouncement?: Promise<void> | null;
 }) {
   // Deck nello state con init lazy: evita primo render vuoto ed e piu leggibile.
-  const [deck, setDeck] = useState<Question[]>(() => buildQuestionDeck(world.id));
+  const [deck, setDeck] = useState<Question[]>(() => buildQuestionDeck(profile, world.id));
   const [deckIndex, setDeckIndex] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const [sessionComplete, setSessionComplete] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { speak } = useVoice();
 
   // Inizializza il mazzo al montaggio o cambio mondo
   useEffect(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setDeck(buildQuestionDeck(world.id));
+    setDeck(buildQuestionDeck(profile, world.id));
     setDeckIndex(0);
     setFeedback(null);
+    setSessionComplete(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- il deck va rigenerato solo al cambio mondo, non ad ogni variazione di profile.history
   }, [world.id]);
 
-  const currentQuestion: Question | undefined = deck[deckIndex];
+  const startNewSession = useCallback(() => {
+    setDeck(buildQuestionDeck(profile, world.id));
+    setDeckIndex(0);
+    setFeedback(null);
+    setSessionComplete(false);
+  }, [profile, world.id]);
+
+  const currentQuestion: Question | undefined = sessionComplete ? undefined : deck[deckIndex];
 
   const handleAnswer = useCallback((opt: number, optIndex: number) => {
     if (feedback) return; // blocca doppio click durante feedback
@@ -368,9 +404,8 @@ function TrainingSession({
       setFeedback(null);
       const nextIndex = deckIndex + 1;
       if (nextIndex >= deck.length) {
-        // Rimescola e riparte da capo
-        setDeck(buildQuestionDeck(world.id));
-        setDeckIndex(0);
+        // Sessione di TRAINING_SESSION_LENGTH domande completata
+        setSessionComplete(true);
       } else {
         setDeckIndex(nextIndex);
       }
@@ -380,7 +415,65 @@ function TrainingSession({
   // Cleanup timeout on unmount
   useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
 
+  // Annuncia vocalmente la nuova operazione all'ingresso di ogni domanda.
+  // Attende prima che l'eventuale annuncio "Tabellina del N" / "Allenamento
+  // casuale" (pronunciato al momento della selezione) sia completato, cosi
+  // da non troncarlo con la successiva chiamata a speak() (che cancella
+  // sempre l'utterance in corso). Va dichiarato prima di ogni return
+  // condizionale per non violare le regole degli hook (ordine stabile).
+  useEffect(() => {
+    if (!currentQuestion) return;
+    let cancelled = false;
+    const announce = () => {
+      if (!cancelled) void speak(`${currentQuestion.multiplier} per ${currentQuestion.worldId}`);
+    };
+    Promise.resolve(pendingAnnouncement).then(announce, announce);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentQuestion, speak, pendingAnnouncement]);
+
+  const speakCurrentOperation = useCallback(() => {
+    if (!currentQuestion) return;
+    void speak(`${currentQuestion.multiplier} per ${currentQuestion.worldId}`);
+  }, [currentQuestion, speak]);
+
   if (!currentQuestion) {
+    if (sessionComplete) {
+      return (
+        <div className="flex w-full flex-col gap-4">
+          <SurfaceCard
+            aria-live="polite"
+            tone="soft"
+            padding="lg"
+            className="min-h-65 w-full flex flex-col items-center justify-center gap-2 text-center"
+          >
+            <p className="text-2xl" aria-hidden="true">🎉</p>
+            <p className="text-sm font-bold text-sky-900">Sessione completata! Hai risposto a 10 operazioni.</p>
+          </SurfaceCard>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={startNewSession}
+              className="w-full rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-600 cursor-pointer
+                         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+              aria-label="Inizia un'altra sessione di 10 operazioni"
+            >
+              Altre 10
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-bold text-slate-800 shadow-md transition-colors hover:bg-slate-300 cursor-pointer
+                         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+              aria-label="Torna alla lista delle tabelline"
+            >
+              Indietro
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <SurfaceCard
         aria-live="polite"
@@ -394,26 +487,6 @@ function TrainingSession({
   }
 
   const { multiplier, worldId, answer, options } = currentQuestion;
-
-  // Annuncia vocalmente la nuova operazione all'ingresso di ogni domanda.
-  // Attende prima che l'eventuale annuncio "Tabellina del N" / "Allenamento
-  // casuale" (pronunciato al momento della selezione) sia completato, cosi
-  // da non troncarlo con la successiva chiamata a speak() (che cancella
-  // sempre l'utterance in corso).
-  useEffect(() => {
-    let cancelled = false;
-    const announce = () => {
-      if (!cancelled) void speak(`${multiplier} per ${worldId}`);
-    };
-    Promise.resolve(pendingAnnouncement).then(announce, announce);
-    return () => {
-      cancelled = true;
-    };
-  }, [multiplier, worldId, speak, pendingAnnouncement]);
-
-  const speakCurrentOperation = useCallback(() => {
-    void speak(`${multiplier} per ${worldId}`);
-  }, [multiplier, worldId, speak]);
 
   return (
     <div className="flex w-full flex-col gap-4">
