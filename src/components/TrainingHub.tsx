@@ -12,6 +12,7 @@ import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 import { getStoryDraftForEquation } from '../utils/storyMarkdown';
 import { getGenderedText, getPlayerGender, PlayerGender } from '../utils/playerCopy';
+import { useVoice } from '../contexts/VoiceContext';
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
 // 0 🥚 Uovo      → ovale chiuso
@@ -265,6 +266,7 @@ function TrainingSession({
   const [deckIndex, setDeckIndex] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { speak } = useVoice();
 
   // Inizializza il mazzo al montaggio o cambio mondo
   useEffect(() => {
@@ -357,6 +359,15 @@ function TrainingSession({
 
   const { multiplier, worldId, answer, options } = currentQuestion;
 
+  // Annuncia vocalmente la nuova operazione all'ingresso di ogni domanda.
+  useEffect(() => {
+    void speak(`${multiplier} per ${worldId}`);
+  }, [multiplier, worldId, speak]);
+
+  const speakCurrentOperation = useCallback(() => {
+    void speak(`${multiplier} per ${worldId}`);
+  }, [multiplier, worldId, speak]);
+
   return (
     <div className="flex w-full flex-col gap-4 relative">
 
@@ -374,10 +385,16 @@ function TrainingSession({
             : withTableIcon(worldId, `Tabellina del ${worldId}`)}
         </p>
 
-        {/* Equazione numerica */}
-        <p id="question-label" className="text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.22em] text-center my-0.5">
+        {/* Equazione numerica (cliccabile per riascoltare l'operazione) */}
+        <button
+          type="button"
+          id="question-label"
+          onClick={speakCurrentOperation}
+          aria-label={`Ascolta operazione ${multiplier} per ${worldId}`}
+          className="rounded px-1 text-3xl sm:text-4xl font-black text-sky-800/85 font-mono leading-none tracking-[0.22em] text-center my-0.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-sky-500"
+        >
           {multiplier} × {worldId} = ?
-        </p>
+        </button>
 
         {/* Equazione visiva con mnemotecnica (es. 🦢 × 🦢 = 🪑) */}
         <div className="w-full max-w-sm rounded-2xl border border-sky-200/90 bg-sky-50 px-4 py-2.5 text-center text-sky-900 shadow-xs flex items-center justify-center gap-2.5 sm:gap-3.5 mt-0.5">
@@ -529,6 +546,7 @@ function TrainingHome({
 
 export default function TrainingHub({ profile, updateProfile, compactLayout }: TrainingHubProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const { speak } = useVoice();
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -541,6 +559,11 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
   const selectedWorld = selectedId !== null
     ? (selectedId === 0 ? RANDOM_WORLD : WORLDS_DATA.find(w => w.id === selectedId) ?? null)
     : null;
+
+  const handleSelectWorld = useCallback((id: number) => {
+    setSelectedId(id);
+    void speak(id === 0 ? 'Allenamento casuale' : `Tabellina del ${id}`);
+  }, [speak]);
 
   if (selectedWorld) {
     return (
@@ -557,7 +580,7 @@ export default function TrainingHub({ profile, updateProfile, compactLayout }: T
     <TrainingHome
       profile={profile}
       compactLayout={compactLayout}
-      onSelect={setSelectedId}
+      onSelect={handleSelectWorld}
     />
   );
 }
