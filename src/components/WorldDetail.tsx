@@ -2173,7 +2173,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const canSwipeRightContinue =
     (activeStep === 'comprendo' && comprendoSelectedFactor !== null && (
       comprendoFlowStage === 'objective' ||
-      (comprendoFlowStage === 'game' && comprendoGameCompleted && !showComprendoCompletionEffect)
+      (comprendoFlowStage === 'game' && comprendoGameCompleted)
     )) ||
     (activeStep === 'salto' && saltoSelectedFactor !== null && (
       saltoFlowStage === 'objective' ||
@@ -2661,12 +2661,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       <button
                         onClick={() => {
                           sound.playClick();
-                          if (!comprendoGameCompleted || showComprendoCompletionEffect) return;
+                          if (!comprendoGameCompleted) return;
                           completeComprendoExercise();
                         }}
-                        disabled={!comprendoGameCompleted || showComprendoCompletionEffect}
+                        disabled={!comprendoGameCompleted}
                         className={`w-full py-3 rounded-2xl text-white font-bold text-sm shadow-md transition-colors motion-safe:animate-pulse ${
-                          comprendoGameCompleted && !showComprendoCompletionEffect
+                          comprendoGameCompleted
                             ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
                             : 'bg-indigo-300 cursor-not-allowed opacity-70'
                         }`}
