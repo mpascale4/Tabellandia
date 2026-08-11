@@ -217,11 +217,11 @@ function WorldCard({ world, stars, onSelect, compactLayout }: {
   const isTrained = stars > 0;
   const worldIcon = TRAINING_WORLD_ICON[world.id] ?? '🦁';
   return (
-    <div className="relative w-full aspect-square">
+    <div className="relative w-full">
       <button
         type="button"
         onClick={() => onSelect(world.id)}
-        className={`training-home-card w-full h-full rounded-2xl border-2 sm:border-3 border-indigo-300/80 bg-gradient-to-b from-indigo-50 to-indigo-100/90 shadow-sm
+        className={`training-home-card w-full h-full min-h-[7.5rem] sm:min-h-[9rem] rounded-2xl border-2 sm:border-3 border-indigo-300/80 bg-gradient-to-b from-indigo-50 to-indigo-100/90 shadow-sm
                    hover:shadow-md hover:border-indigo-400 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer
                    focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500
                    flex flex-col items-center justify-center p-2 sm:p-3 gap-1 min-w-0`}
