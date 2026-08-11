@@ -4,10 +4,11 @@
  */
 
 import React, { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { useCostruiscoShieldBonus } from '../hooks/useCostruiscoShieldBonus';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
 import OperationPromptCard from './layout/OperationPromptCard';
 import RetryButton from './layout/RetryButton';
@@ -109,7 +110,22 @@ export default function CostruiscoExercise({
   const [costruiscoFailed, setCostruiscoFailed] = useState<boolean>(false);
   const [costruiscoFailReason, setCostruiscoFailReason] = useState<'wrong-tap' | 'correct-escaped' | null>(null);
   const [costruiscoWrongTappedValue, setCostruiscoWrongTappedValue] = useState<number | null>(null);
+  const [costruiscoWonViaShield, setCostruiscoWonViaShield] = useState<boolean>(false);
   const prefersReducedMotion = usePrefersReducedMotion();
+
+  const {
+    isShieldVisible,
+    isShieldArmed,
+    shieldLane,
+    shieldDirection,
+    armShield,
+    consumeShield,
+    resetShieldForNewRound,
+    SHIELD_TRAVEL_MS,
+  } = useCostruiscoShieldBonus({
+    isGameActive: !costruiscoFailed && !costruiscoGameCompleted,
+    prefersReducedMotion,
+  });
 
   const costruiscoBalloonTokenRef = useRef<number>(0);
   const costruiscoSpawnTimeoutRef = useRef<number | null>(null);
@@ -316,9 +332,11 @@ export default function CostruiscoExercise({
     setCostruiscoFailed(false);
     setCostruiscoFailReason(null);
     setCostruiscoWrongTappedValue(null);
+    setCostruiscoWonViaShield(false);
     setShowCostruiscoCompletionEffect(false);
     setCostruiscoPopBursts([]);
     setCostruiscoActiveBalloons([]);
+    resetShieldForNewRound();
 
     const pool = generateCostruiscoBalloonPool(worldId, currentFactor);
     costruiscoBalloonPoolRef.current = pool;
@@ -347,6 +365,20 @@ export default function CostruiscoExercise({
     }, 380);
 
     if (balloon.isTrap) {
+      const expected = worldId * factor;
+      if (consumeShield()) {
+        clearCostruiscoFlightTimeout();
+        sound.playSuccess();
+        void speak(`Lo scudo ti ha protetto! ${buildMultiplicationResultSpeech(worldId, factor, expected)}`);
+        setCostruiscoGameCompleted(true);
+        setCostruiscoFailed(false);
+        setCostruiscoWonViaShield(true);
+        setShowCostruiscoCompletionEffect(true);
+        setCostruiscoCompleted(prev => new Set(prev).add(factor));
+        onAnnounce(`Lo scudo ti ha aiutato! ${worldId} per ${factor} fa ${expected}.`);
+        return;
+      }
+
       sound.playBombTrapFailure();
       speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoBomb);
       setCostruiscoFailReason('wrong-tap');
@@ -440,6 +472,9 @@ export default function CostruiscoExercise({
             <div className="mx-4 space-y-2 rounded-2xl border border-emerald-200 bg-white/95 p-4 text-center shadow-xl backdrop-blur-xs">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-600">🎉</div>
               <h3 className="text-base font-black text-emerald-800">Successo!</h3>
+              {costruiscoWonViaShield && (
+                <p className="text-xs font-bold text-sky-700">🛡️ Lo scudo ti ha protetto dalla bomba!</p>
+              )}
               <p className="text-xs text-slate-600">
                 {getGenderedText(playerGender, 'Bravo! Risposta esatta:', 'Brava! Risposta esatta:')}<br />
                 <b className="text-sm font-mono text-emerald-900">
@@ -456,6 +491,48 @@ export default function CostruiscoExercise({
             </div>
           ) : (
             <>
+              {isShieldArmed && (
+                <div
+                  className="absolute right-2 top-2 z-50 inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-sky-500 text-base shadow-lg"
+                  role="status"
+                  aria-label="Scudo anti-bomba attivo: la prossima bomba non ti farà perdere"
+                  title="Scudo attivo"
+                >
+                  🛡️
+                </div>
+              )}
+              <AnimatePresence>
+                {isShieldVisible && (
+                  <motion.button
+                    type="button"
+                    key={`shield-bonus-${shieldLane}-${shieldDirection}`}
+                    initial={{
+                      opacity: 0,
+                      x: shieldDirection === 'leftToRight' ? -40 : 300,
+                      y: 0,
+                    }}
+                    animate={prefersReducedMotion
+                      ? { opacity: 1, x: shieldDirection === 'leftToRight' ? 300 : -40, y: 0 }
+                      : {
+                          opacity: 1,
+                          x: shieldDirection === 'leftToRight'
+                            ? [-40, 20, 60, 140, 220, 300]
+                            : [300, 240, 160, 80, 20, -40],
+                          y: [0, -10, 6, -8, 4, 0],
+                        }}
+                    exit={{ opacity: 0 }}
+                    transition={prefersReducedMotion
+                      ? { duration: 1.4, ease: 'linear' }
+                      : { duration: SHIELD_TRAVEL_MS / 1000, ease: 'linear', times: [0, 0.2, 0.4, 0.6, 0.8, 1] }}
+                    onClick={armShield}
+                    className="absolute top-4 z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border-0 bg-transparent text-3xl transition-shadow hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-100"
+                    aria-label="Tocca lo scudo per proteggerti dalla prossima bomba"
+                    title="Tocca lo scudo"
+                  >
+                    <span aria-hidden="true" className="select-none">🛡️</span>
+                  </motion.button>
+                )}
+              </AnimatePresence>
               {costruiscoPopBursts.map((burst) => (
                 <motion.div
                   key={`pop-${burst.id}`}
