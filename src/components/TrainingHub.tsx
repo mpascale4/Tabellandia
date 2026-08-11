@@ -11,7 +11,6 @@ import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 import { getStoryDraftForEquation } from '../utils/storyMarkdown';
-import { getGenderedText, getPlayerGender, PlayerGender } from '../utils/playerCopy';
 import { useVoice } from '../contexts/VoiceContext';
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
@@ -128,20 +127,6 @@ const RANDOM_WORLD: WorldConfig = {
   itemsToCount: '🎲',
   monuments: [],
 };
-
-const MOTIVATIONAL_WRONG = [
-  'Quasi! Riprova! 💪', 'Non mollare! 🌟', 'Ci puoi riuscire! ✨',
-  'Sbagliando si impara! 🧠', 'La prossima ce la fai! 🚀',
-];
-
-const getMotivationalCorrectMessages = (gender: PlayerGender) => [
-  'Fantastico! 🎉',
-  getGenderedText(gender, 'Bravo! 🌟', 'Brava! 🌟'),
-  'Perfetto! ✨',
-  'Esatto! 🏆',
-  getGenderedText(gender, 'Sei fortissimo! 🚀', 'Sei fortissima! 🚀'),
-  'Continua così! 🌈',
-];
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -295,7 +280,7 @@ function WorldCard({ world, stars, isWeak, onSelect, compactLayout }: {
 
 // ─── Sessione di allenamento ──────────────────────────────────────────────────
 
-type FeedbackState = { correct: boolean; message: string; optionIndex: number } | null;
+type FeedbackState = { correct: boolean; optionIndex: number } | null;
 
 function TrainingSession({
   world,
@@ -382,14 +367,12 @@ function TrainingSession({
       });
       setFeedback({
         correct: true,
-        message: pickRandom(getMotivationalCorrectMessages(getPlayerGender(profile))),
         optionIndex: optIndex,
       });
     } else {
       sound.playError();
       setFeedback({
         correct: false,
-        message: pickRandom(MOTIVATIONAL_WRONG),
         optionIndex: optIndex,
       });
       // Resta sulla stessa domanda finche non viene data la risposta corretta (clear feedback breve dopo 350ms).
@@ -489,7 +472,8 @@ function TrainingSession({
   const { multiplier, worldId, answer, options } = currentQuestion;
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex w-full min-h-full flex-col gap-4">
+      <div className="flex flex-1 flex-col gap-4">
 
       {/* Domanda */}
       <SurfaceCard
@@ -570,21 +554,7 @@ function TrainingSession({
           );
         })}
       </ActionGrid>
-
-      {/* Feedback motivazionale */}
-      {feedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`w-full text-center rounded-2xl py-3 px-4 font-black text-sm transition-all
-            ${feedback.correct
-              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-              : 'bg-red-50 text-red-700 border border-red-200'}`}
-        >
-          {feedback.message}
-          {feedback.correct && <span className="ml-1" aria-hidden="true">+1 🪙</span>}
-        </div>
-      )}
+      </div>
 
       <button
         type="button"
