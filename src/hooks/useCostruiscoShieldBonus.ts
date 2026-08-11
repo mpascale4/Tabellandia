@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sound } from '../components/SoundManager';
 
-const SHIELD_SPAWN_DELAY_MS = 7000;
+const SHIELD_SPAWN_DELAY_MS = 2000;
 const SHIELD_TRAVEL_MS = 5200;
 const SHIELD_TRAVEL_MS_REDUCED_MOTION = 1400;
 
