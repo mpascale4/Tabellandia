@@ -459,7 +459,7 @@ function TrainingSession({
               <p className="text-sm font-bold text-sky-900">
                 {noMistakes
                   ? `Bravissimo! ${totalCorrect} su ${deck.length} 🌟`
-                  : `Sessione completata! ${totalCorrect} su ${deck.length} corrette.`}
+                  : 'Sessione completata!'}
               </p>
             </SurfaceCard>
             {mistakesList.length > 0 && (
