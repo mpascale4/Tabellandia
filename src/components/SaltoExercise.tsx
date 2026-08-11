@@ -17,6 +17,7 @@ import React, { useEffect, useRef, useState, type Dispatch, type SetStateAction 
 import { AnimatePresence, motion } from 'motion/react';
 import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
 import OperationPromptCard from './layout/OperationPromptCard';
 import RetryButton from './layout/RetryButton';
@@ -78,20 +79,11 @@ export default function SaltoExercise({
   const [saltoFrogPosition, setSaltoFrogPosition] = useState<number>(0);
   const [saltoLeap, setSaltoLeap] = useState<{ from: number; to: number } | null>(null);
   const [saltoTapHop, setSaltoTapHop] = useState<{ step: number; token: number } | null>(null);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   const saltoStoneRef = useRef<HTMLDivElement | null>(null);
   const saltoContainerRef = useRef<HTMLDivElement | null>(null);
   const saltoFinishRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
-    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   const generateSaltoOptions = (currentFactor: number) => {
     const optionsSet = new Set<number>();

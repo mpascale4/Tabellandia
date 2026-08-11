@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSaltoFlyCheat } from '../hooks/useSaltoFlyCheat';
-import { shuffleArray, toAscendingOptions } from '../utils/arrayHelpers';
+import { shuffleArray, toAscendingOptions, takeRandom } from '../utils/arrayHelpers';
 import { toItalianWord } from '../utils/italianWords';
 import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt, createDefaultWorldProgress } from '../types';
 import {
@@ -61,11 +61,6 @@ const createCorrectRankTracker = (): CorrectRankTracker => ({
   lastRank: null,
   repeatCount: 0,
 });
-
-const takeRandom = (source: number[], count: number): number[] => {
-  if (count <= 0) return [];
-  return shuffleArray(source).slice(0, count);
-};
 
 const buildAscendingOptionsWithBalancedRank = (
   correct: number,
@@ -725,18 +720,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Start Sfida when entering sfida step (for training mode)
   useEffect(() => {
-    console.log('[Sfida Init] activeStep:', activeStep, 'sfidaActive:', sfidaActive);
     if (activeStep === 'sfida' && !sfidaActive) {
-      console.log('[Sfida Init] Starting Sfida mode...');
       startSfidaMode();
     }
   }, [activeStep]);
 
   // Generate initial Sfida question when sfidaActive is set
   useEffect(() => {
-    console.log('[Sfida Question] sfidaActive:', sfidaActive, 'sfidaQuestion:', sfidaQuestion);
     if (sfidaActive && !sfidaQuestion) {
-      console.log('[Sfida Question] Generating question...');
       generateSfidaQuestion();
     }
   }, [sfidaActive]);

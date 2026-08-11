@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HelperGuidanceState, UserProfile, createDefaultWorldProgress } from './types';
 import { WORLDS_DATA, AVATARS } from './data';
@@ -11,9 +11,9 @@ import { getTableIcon, withTableIcon } from './utils/tableLabels';
 import { getStoryEntriesForTable } from './utils/storyMarkdown';
 import { sound } from './components/SoundManager';
 import FireworksOverlay from './components/FireworksOverlay';
-import ParentDashboard from './components/ParentDashboard';
-import WorldDetail from './components/WorldDetail';
-import TrainingHub from './components/TrainingHub';
+const ParentDashboard = lazy(() => import('./components/ParentDashboard'));
+const WorldDetail = lazy(() => import('./components/WorldDetail'));
+const TrainingHub = lazy(() => import('./components/TrainingHub'));
 import FontSizeControl from './components/FontSizeControl';
 import VoiceToggle from './components/VoiceToggle';
 import VoiceSelectorModal from './components/VoiceSelectorModal';
@@ -1426,19 +1426,21 @@ export default function App() {
                     exit={{ opacity: 0, x: -20 }}
                     className="w-full h-full"
                   >
-                    <WorldDetail
-                      world={WORLDS_DATA.find(w => w.id === selectedWorldId)!}
-                      profile={profile}
-                      updateProfile={handleUpdateProfile}
-                      compactLayout={isPhoneMode}
-                      onBack={(targetWorldId?: number) => {
-                        sound.playClick();
-                        setSelectedWorldId(null);
-                        if (targetWorldId) {
-                          setFocusedWorldId(targetWorldId);
-                        }
-                      }}
-                    />
+                    <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-bold">Caricamento…</div>}>
+                      <WorldDetail
+                        world={WORLDS_DATA.find(w => w.id === selectedWorldId)!}
+                        profile={profile}
+                        updateProfile={handleUpdateProfile}
+                        compactLayout={isPhoneMode}
+                        onBack={(targetWorldId?: number) => {
+                          sound.playClick();
+                          setSelectedWorldId(null);
+                          if (targetWorldId) {
+                            setFocusedWorldId(targetWorldId);
+                          }
+                        }}
+                      />
+                    </Suspense>
                   </motion.div>
                 ) : null
               ) : (
@@ -1698,12 +1700,15 @@ export default function App() {
 
                   {/* TAB 2: ALLENAMENTO */}
                   {activeTab === 'training' && (
-                    <TrainingHub profile={profile} updateProfile={handleUpdateProfile} compactLayout={isPhoneMode} />
+                    <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-bold">Caricamento…</div>}>
+                      <TrainingHub profile={profile} updateProfile={handleUpdateProfile} compactLayout={isPhoneMode} />
+                    </Suspense>
                   )}
 
                   {/* TAB 4: PARENT AREA */}
                   {activeTab === 'parents' && parentAuthenticated && (
-                    <ParentDashboard
+                    <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-bold">Caricamento…</div>}>
+                      <ParentDashboard
                       activeProfiles={activeProfiles}
                       deletedProfiles={deletedProfiles}
                       updateProfileById={handleUpdateProfileById}
@@ -1717,6 +1722,7 @@ export default function App() {
                       onCloseDevArea={() => setDevAreaOpen(false)}
                       onClose={handleExitParentArea}
                     />
+                    </Suspense>
                   )}
 
                 </motion.div>

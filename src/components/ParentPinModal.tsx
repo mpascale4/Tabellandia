@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import type { Dispatch, SetStateAction } from 'react';
 import NumericKeypad from './NumericKeypad';
+import ModalShell from './layout/ModalShell';
 
 type PinAccessTarget = 'parent' | 'dev';
 type ChangePinStage = 'new' | 'confirm';
@@ -56,23 +57,8 @@ export default function ParentPinModal({
   handleSaveNewPIN,
 }: ParentPinModalProps) {
   return (
-    <AnimatePresence>
-      {showPINModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={handleClosePINModal}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="text-center mb-4">
+    <ModalShell isOpen={showPINModal} onBackdropClick={handleClosePINModal}>
+      <div className="text-center mb-4">
               <div className="text-4xl mb-2">🔐⚡</div>
               <h2 className="text-xl font-black text-indigo-950">{pinAccessTarget === 'dev' ? 'Area Dev' : 'Area di Controllo'}</h2>
               <p className="text-xs text-slate-500 mt-1">
@@ -84,7 +70,7 @@ export default function ParentPinModal({
                       ? 'Crea un PIN a 4 cifre'
                       : 'Inserisci il PIN di 4 cifre per accedere'}
               </p>
-            </div>
+      </div>
 
             {showChangePINForm && pinAccessTarget === 'parent' ? (
               <div className="space-y-4">
@@ -186,10 +172,7 @@ export default function ParentPinModal({
                 Annulla
               </button>
             )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </ModalShell>
   );
 }
 
@@ -203,29 +186,14 @@ export function ChangePinModal({
   handleClose,
 }: ChangePinModalProps) {
   return (
-    <AnimatePresence>
-      {showChangePINForm && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={handleClose}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-indigo-200"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="text-center mb-6">
+    <ModalShell isOpen={showChangePINForm} onBackdropClick={handleClose}>
+      <div className="text-center mb-6">
               <div className="text-4xl mb-2">🔑</div>
               <h2 className="text-xl font-black text-indigo-950">Modifica PIN</h2>
               <p className="text-xs text-slate-500 mt-2">
                 {changePINStage === 'new' ? 'Inserisci il nuovo PIN (4 cifre)' : 'Conferma il PIN'}
               </p>
-            </div>
+      </div>
 
             <div className="flex justify-center gap-2 mb-6">
               {[0, 1, 2, 3].map(i => {
@@ -270,9 +238,6 @@ export function ChangePinModal({
             >
               Annulla
             </button>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </ModalShell>
   );
 }

@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useRef, useState, type Dispatch, type Se
 import { AnimatePresence, motion } from 'motion/react';
 import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
 import OperationPromptCard from './layout/OperationPromptCard';
 import RetryButton from './layout/RetryButton';
@@ -63,7 +64,7 @@ export default function TrucchiExercise({
   setTrucchiCompleted,
 }: TrucchiExerciseProps) {
   const { speak } = useVoice();
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [trucchiBrickValues, setTrucchiBrickValues] = useState<number[]>([]);
   const [trucchiRemovedBricks, setTrucchiRemovedBricks] = useState<Set<number>>(new Set());
   const [trucchiWrongChoices, setTrucchiWrongChoices] = useState<number>(0);
@@ -95,15 +96,6 @@ export default function TrucchiExercise({
   const trucchiHammerActiveRef = useRef<boolean>(false);
   const trucchiQuestionSolvedRef = useRef<boolean>(false);
   const trucchiPyramidCollapsedRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
-    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   useEffect(() => {
     trucchiHammerActiveRef.current = trucchiHammerActive;
@@ -404,7 +396,7 @@ export default function TrucchiExercise({
         tone="amber"
         icon="??"
         eyebrow="Completa questa operazione"
-        operation={`${worldId} × ${factor} = ?`}
+        operation={`${worldId} ï¿½ ${factor} = ?`}
         onSpeakOperation={onSpeakOperation}
         operationAriaLabel={`Ascolta operazione ${worldId} per ${factor}`}
       />

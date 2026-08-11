@@ -14,3 +14,9 @@ export const shuffleArray = <T,>(arr: T[]): T[] => {
 };
 
 export const toAscendingOptions = (values: number[]): number[] => [...values].sort((a, b) => a - b);
+
+// Picks up to `count` random, non-repeating elements from `source` via shuffle.
+export const takeRandom = (source: number[], count: number): number[] => {
+  if (count <= 0) return [];
+  return shuffleArray(source).slice(0, count);
+};

@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState, type Dispatch, type SetStateAction 
 import { motion } from 'motion/react';
 import { sound } from './SoundManager';
 import { useVoice } from '../contexts/VoiceContext';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
 import OperationPromptCard from './layout/OperationPromptCard';
 import RetryButton from './layout/RetryButton';
@@ -108,7 +109,7 @@ export default function CostruiscoExercise({
   const [costruiscoFailed, setCostruiscoFailed] = useState<boolean>(false);
   const [costruiscoFailReason, setCostruiscoFailReason] = useState<'wrong-tap' | 'correct-escaped' | null>(null);
   const [costruiscoWrongTappedValue, setCostruiscoWrongTappedValue] = useState<number | null>(null);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   const costruiscoBalloonTokenRef = useRef<number>(0);
   const costruiscoSpawnTimeoutRef = useRef<number | null>(null);
@@ -118,15 +119,6 @@ export default function CostruiscoExercise({
   const costruiscoBalloonPoolRef = useRef<number[]>([]);
   const costruiscoFailedRef = useRef<boolean>(false);
   const costruiscoGameCompletedRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
-    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   useEffect(() => {
     costruiscoActiveBalloonsRef.current = costruiscoActiveBalloons;
