@@ -444,8 +444,6 @@ function TrainingSession({
       type Mistake = { multiplier: number; worldId: number; count: number };
       const mistakesList: Mistake[] = Object.values(sessionMistakes);
       mistakesList.sort((a, b) => b.count - a.count);
-      const totalMistakes = mistakesList.reduce((sum, m) => sum + m.count, 0);
-      const topMistakes = mistakesList.slice(0, 3);
       return (
         <div className="flex w-full min-h-full flex-col gap-4">
           <div className="flex flex-1 flex-col justify-center gap-3">
@@ -457,25 +455,25 @@ function TrainingSession({
             >
               <p className="text-2xl" aria-hidden="true">🎉</p>
               <p className="text-sm font-bold text-sky-900">Sessione completata! Hai risposto a 10 operazioni.</p>
-              <p className="text-sm font-bold text-sky-900">
-                {totalMistakes === 0
-                  ? 'Nessun errore, complimenti! 🌟'
-                  : `Errori totali: ${totalMistakes}`}
-              </p>
+              {mistakesList.length === 0 && (
+                <p className="text-sm font-bold text-sky-900">Nessun errore, complimenti! 🌟</p>
+              )}
             </SurfaceCard>
-            {topMistakes.length > 0 && (
+            {mistakesList.length > 0 && (
               <SurfaceCard tone="soft" padding="md" className="w-full text-left">
                 <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest mb-2">
                   Operazioni da rivedere
                 </p>
-                <div role="list" className="grid grid-cols-1 gap-1.5">
-                  {topMistakes.map(m => (
+                <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-1.5">
+                  {mistakesList.map(m => (
                     <div
                       key={`${m.multiplier}x${m.worldId}`}
                       role="listitem"
-                      className="flex items-center justify-between rounded-xl bg-red-50 border border-red-200 px-3 py-1.5"
+                      className="flex flex-col items-center justify-center gap-0.5 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-center"
                     >
-                      <span className="text-sm font-black text-red-700">{m.multiplier} × {m.worldId}</span>
+                      <span className="text-sm font-black text-red-700">
+                        {m.multiplier} × {m.worldId} = {m.multiplier * m.worldId}
+                      </span>
                       <span className="text-xs font-bold text-red-600">
                         {m.count} {m.count === 1 ? 'errore' : 'errori'}
                       </span>
