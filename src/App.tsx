@@ -362,14 +362,43 @@ export default function App() {
     monument: typeof WORLDS_DATA[0]['monuments'][0];
     canAfford: boolean;
     isErected: boolean;
+    isJustUnlocked?: boolean;
   } | null>(null);
   const [storyWorldId, setStoryWorldId] = useState<number | null>(null);
+  const [focusedWorldId, setFocusedWorldId] = useState<number | null>(null);
   const [lockedWorldMessage, setLockedWorldMessage] = useState<string | null>(null);
   const [isVoiceSelectorOpen, setIsVoiceSelectorOpen] = useState<boolean>(false);
+
+  const activeProfiles = getActiveProfiles(profiles);
+  const deletedProfiles = getDeletedProfiles(profiles);
+  const profile = activeProfileId ? activeProfiles.find(p => p.id === activeProfileId) || null : null;
 
   useEffect(() => {
     if (!appMonumentModal) return;
     const description = appMonumentModal.monument.description?.trim() ?? '';
+
+    if (appMonumentModal.isJustUnlocked) {
+      const worldProg = profile?.worldProgress[appMonumentModal.world.id] || createDefaultWorldProgress(appMonumentModal.world.id);
+      const rebuiltCount = worldProg.rebuiltMonuments.length;
+      const isLastClue = rebuiltCount >= appMonumentModal.world.monuments.length;
+      const nextWorld = WORLDS_DATA.find(w => w.id === appMonumentModal.world.id + 1);
+      const nextWorldName = nextWorld ? (nextWorld.locationName || nextWorld.name) : '';
+
+      const clueText = description
+        ? `Indizio sbloccato! ${appMonumentModal.monument.name}. ${description}`
+        : `Indizio sbloccato! ${appMonumentModal.monument.name}.`;
+
+      const realmText = isLastClue
+        ? (nextWorldName
+            ? ` Complimenti! Hai sbloccato tutti e 3 gli indizi! È stato sbloccato il nuovo regno: ${nextWorldName}!`
+            : ' Complimenti! Hai sbloccato tutti e 3 gli indizi del regno!')
+        : '';
+
+      const fullMessage = `${clueText}${realmText}`;
+      void speak(fullMessage);
+      return;
+    }
+
     if (appMonumentModal.isErected) {
       void speak(description ? `Indizio già sbloccato. ${description}` : 'Indizio già sbloccato.');
       return;
@@ -380,11 +409,7 @@ export default function App() {
       return;
     }
     void speak('Indizio non sbloccabile. Acquisisci le gocce necessarie.');
-  }, [appMonumentModal, speak]);
-
-  const activeProfiles = getActiveProfiles(profiles);
-  const deletedProfiles = getDeletedProfiles(profiles);
-  const profile = activeProfileId ? activeProfiles.find(p => p.id === activeProfileId) || null : null;
+  }, [appMonumentModal, profile?.worldProgress, speak]);
   const storyEntries = storyWorldId !== null ? getStoryEntriesForTable(storyWorldId) : [];
   const renderMnemonicToken = (digit: number, key: string) => {
     const meta = DIGIT_META_MAP[digit];
@@ -603,11 +628,13 @@ export default function App() {
   }, [activeTab, selectedWorldId, showProfilePicker, wizardStep, activeProfileId, isParentModeActive]);
 
   useEffect(() => {
-    if (activeTab !== 'adventure' || selectedWorldId !== null || activeAdventureWorldId === null) return;
-    const activeCard = worldCardRefs.current[activeAdventureWorldId];
+    if (activeTab !== 'adventure' || selectedWorldId !== null) return;
+    const targetId = focusedWorldId ?? activeAdventureWorldId;
+    if (targetId === null) return;
+    const activeCard = worldCardRefs.current[targetId];
     if (!activeCard) return;
     activeCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-  }, [activeTab, selectedWorldId, activeAdventureWorldId]);
+  }, [activeTab, selectedWorldId, activeAdventureWorldId, focusedWorldId]);
 
   useEffect(() => {
     isHeaderPinnedRef.current = isHeaderPinned;
@@ -1734,9 +1761,12 @@ export default function App() {
                       profile={profile}
                       updateProfile={handleUpdateProfile}
                       compactLayout={isPhoneMode}
-                      onBack={() => {
+                      onBack={(targetWorldId?: number) => {
                         sound.playClick();
                         setSelectedWorldId(null);
+                        if (targetWorldId) {
+                          setFocusedWorldId(targetWorldId);
+                        }
                       }}
                     />
                   </motion.div>
@@ -1834,7 +1864,8 @@ export default function App() {
                           const stepsCount = worldProg.completedSteps.length;
                           const rebuiltCount = worldProg.rebuiltMonuments.length;
                           const isCompleted = stepsCount === ALL_STEP_IDS.length && rebuiltCount === world.monuments.length;
-                          const isActiveWorld = isUnlocked && !isCompleted && world.id === activeAdventureWorldId;
+                          const targetHighlightWorldId = focusedWorldId ?? activeAdventureWorldId;
+                          const isActiveWorld = isUnlocked && !isCompleted && world.id === targetHighlightWorldId;
                           const statusLabel = !isUnlocked ? 'Bloccato' : isCompleted ? 'Completato' : 'Entra';
 
                           return (
@@ -2248,18 +2279,67 @@ export default function App() {
                   {appMonumentModal.monument.name}
                 </h3>
                 <span className="inline-block text-[10px] font-black text-amber-900 bg-amber-200 px-3 py-1 rounded-full mb-3">
-                  🏛️ ERETTO CON SUCCESSO ✓
+                  🔍 INDIZIO TROVATO ✓
                 </span>
-                <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                <p className="text-xs text-slate-600 mb-3 leading-relaxed">
                   {appMonumentModal.monument.description}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setAppMonumentModal(null)}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
-                >
-                  Chiudi
-                </button>
+                {(() => {
+                  const targetWId = appMonumentModal.world.id;
+                  const targetWp = profile?.worldProgress[targetWId] || createDefaultWorldProgress(targetWId);
+                  const isAllClues = targetWp.rebuiltMonuments.length >= appMonumentModal.world.monuments.length;
+                  const nextWorld = WORLDS_DATA.find(w => w.id === targetWId + 1);
+                  if (!isAllClues) return null;
+                  return (
+                    <div className="mb-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shadow-sm animate-bounce">
+                      🎉 Hai trovato tutti i 3 indizi!
+                      {nextWorld ? (
+                        <div className="mt-1 text-emerald-700 font-extrabold">
+                          ✨ Nuovo regno sbloccato: {nextWorld.locationName || nextWorld.name}!
+                        </div>
+                      ) : (
+                        <div className="mt-1 text-emerald-700 font-extrabold">
+                          🏆 Hai completato tutti gli indizi dell'ultimo regno!
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const targetWId = appMonumentModal.world.id;
+                  const targetWp = profile?.worldProgress[targetWId] || createDefaultWorldProgress(targetWId);
+                  const isAllClues = targetWp.rebuiltMonuments.length >= appMonumentModal.world.monuments.length;
+                  const nextWorldId = Math.min(9, targetWId + 1);
+
+                  if (isAllClues) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sound.playClick();
+                          setAppMonumentModal(null);
+                          setSelectedWorldId(null);
+                          setActiveTab('adventure');
+                          setFocusedWorldId(nextWorldId);
+                        }}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <span>Continua</span>
+                        <span className="text-base">➔</span>
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setAppMonumentModal(null)}
+                      className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                    >
+                      Chiudi
+                    </button>
+                  );
+                })()}
               </>
             ) : (() => {
                 const targetWId = appMonumentModal.world.id;
@@ -2299,8 +2379,17 @@ export default function App() {
                               monuments.push(appMonumentModal.monument.id);
                             }
                             const nextDrops = Math.max(0, curDrops - appMonumentModal.monument.cost);
+
+                            const isAllMonumentsDone = monuments.length >= appMonumentModal.world.monuments.length;
+                            const nextUnlocked = [...p.unlockedWorlds];
+                            const nextWId = targetWId + 1;
+                            if (isAllMonumentsDone && nextWId <= 9 && !nextUnlocked.includes(nextWId)) {
+                              nextUnlocked.push(nextWId);
+                            }
+
                             return {
                               ...p,
+                              unlockedWorlds: nextUnlocked,
                               worldProgress: {
                                 ...p.worldProgress,
                                 [targetWId]: {
@@ -2312,7 +2401,11 @@ export default function App() {
                               }
                             };
                           });
-                          setAppMonumentModal(null);
+                          setAppMonumentModal({
+                            ...appMonumentModal,
+                            isErected: true,
+                            isJustUnlocked: true,
+                          });
                         }}
                         className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md cursor-pointer transition-colors active:scale-95"
                       >

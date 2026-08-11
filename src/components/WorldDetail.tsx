@@ -32,12 +32,13 @@ import RetryButton from './layout/RetryButton';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import { useVoice } from '../contexts/VoiceContext';
 import { getGenderedText, getPlayerGender } from '../utils/playerCopy';
+import { WORLDS_DATA } from '../data';
 
 interface WorldDetailProps {
   world: WorldConfig;
   profile: UserProfile;
   updateProfile: (updater: (p: UserProfile) => UserProfile) => void;
-  onBack: () => void;
+  onBack: (targetWorldId?: number) => void;
   compactLayout?: boolean;
   initialExercise?: string | null;
 }
@@ -378,6 +379,8 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [saltoFrogPosition, setSaltoFrogPosition] = useState<number>(0);
   const [saltoLeap, setSaltoLeap] = useState<{ from: number; to: number } | null>(null);
   const [saltoTapHop, setSaltoTapHop] = useState<{ step: number; token: number } | null>(null);
+  const [isFlyAutoJumping, setIsFlyAutoJumping] = useState<boolean>(false);
+  const flyAutoJumpIntervalRef = useRef<number | null>(null);
 
   // Costruisco (Step 3) state
   const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
@@ -418,6 +421,60 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   const speakSaltoSuccess = (a: number, b: number, result: number) => {
     return speakMultiplicationSuccess(a, b, result);
+  };
+
+  const clearFlyAutoJump = () => {
+    if (flyAutoJumpIntervalRef.current !== null) {
+      window.clearInterval(flyAutoJumpIntervalRef.current);
+      flyAutoJumpIntervalRef.current = null;
+    }
+    setIsFlyAutoJumping(false);
+  };
+
+  const triggerFlyAutoJumpCheat = () => {
+    if (saltoGameCompleted || isFrogSplashing || isFlyAutoJumping || saltoSelectedFactor === null) return;
+
+    sound.playFrogCroak();
+    sound.playSuccess();
+    speak("Mosca cheat! La ranocchia vola verso il traguardo!");
+    setIsFlyAutoJumping(true);
+
+    if (flyAutoJumpIntervalRef.current !== null) {
+      window.clearInterval(flyAutoJumpIntervalRef.current);
+    }
+
+    let currentStep = saltoIndex;
+    const totalSteps = saltoSelectedFactor;
+
+    flyAutoJumpIntervalRef.current = window.setInterval(() => {
+      const nextStep = currentStep + 1;
+
+      // Auto bypass/jump obstacles if any
+      if (saltoEnemySteps.includes(nextStep)) {
+        setSaltoJumpedEnemySteps(prev => new Set(prev).add(nextStep));
+      }
+
+      const expectedVal = world.id * nextStep;
+      sound.playFrogCroak();
+      setSaltoCorrectClicks(prev => new Set([...prev, expectedVal]));
+      setSaltoFrogPosition(nextStep);
+      setSaltoLeap(null);
+
+      if (nextStep >= totalSteps) {
+        if (flyAutoJumpIntervalRef.current !== null) {
+          window.clearInterval(flyAutoJumpIntervalRef.current);
+          flyAutoJumpIntervalRef.current = null;
+        }
+        setIsFlyAutoJumping(false);
+        speakSaltoSuccess(world.id, totalSteps, expectedVal);
+        setSaltoGameCompleted(true);
+        setShowSaltoCompletionEffect(true);
+        setSaltoCompleted(prev => new Set([...prev, totalSteps]));
+      } else {
+        currentStep = nextStep;
+        setSaltoIndex(currentStep);
+      }
+    }, 380);
   };
 
   const speakOperationOnly = (a: number, b: number) => {
@@ -683,7 +740,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const saltoCurrentObstacleLabel = withItalianArticle(saltoAntagonistsByStep[saltoIndex + 1]?.label ?? 'ostacolo');
   const saltoObstaclePending = saltoEnemySteps.includes(saltoIndex + 1) && !saltoJumpedEnemySteps.has(saltoIndex + 1);
   const triggerSaltoFrogJump = (fromStep: number) => {
-    if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
+    if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null || isFlyAutoJumping) return;
     sound.playFrogCroak();
     const currentEnemyStep = saltoIndex + 1;
     const isJumpWindowOpen =
@@ -731,6 +788,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   useEffect(() => {
     return () => {
+      clearFlyAutoJump();
       (Object.values(guidanceTimeoutsRef.current) as Array<number | undefined>).forEach((timeoutId) => {
         if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       });
@@ -2364,8 +2422,16 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       }
       const nextDrops = Math.max(0, curDrops - cost);
 
+      const nextUnlocked = [...p.unlockedWorlds];
+      const nextWorldId = world.id + 1;
+      const isAllMonumentsDone = monuments.length >= world.monuments.length;
+      if (isAllMonumentsDone && nextWorldId <= 9 && !nextUnlocked.includes(nextWorldId)) {
+        nextUnlocked.push(nextWorldId);
+      }
+
       return {
         ...p,
+        unlockedWorlds: nextUnlocked,
         worldProgress: {
           ...p.worldProgress,
           [world.id]: {
@@ -2632,6 +2698,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     useEffect(() => {
     if (!monumentModal) return;
     const description = monumentModal.monument.description?.trim() ?? '';
+
+    if (monumentModal.isJustUnlocked) {
+      const pWp = profile.worldProgress[world.id] || createDefaultWorldProgress(world.id);
+      const rebuiltCount = pWp.rebuiltMonuments.length;
+      const isLastClue = rebuiltCount >= world.monuments.length;
+      const nextWorld = WORLDS_DATA.find(w => w.id === world.id + 1);
+      const nextWorldName = nextWorld ? (nextWorld.locationName || nextWorld.name) : '';
+
+      const clueText = description
+        ? `Indizio sbloccato! ${monumentModal.monument.name}. ${description}`
+        : `Indizio sbloccato! ${monumentModal.monument.name}.`;
+
+      const realmText = isLastClue
+        ? (nextWorldName
+            ? ` Complimenti! Hai sbloccato tutti e 3 gli indizi! È stato sbloccato il nuovo regno: ${nextWorldName}!`
+            : ' Complimenti! Hai sbloccato tutti e 3 gli indizi del regno!')
+        : '';
+
+      const fullMessage = `${clueText}${realmText}`;
+      void speak(fullMessage);
+      return;
+    }
+
     if (monumentModal.isErected) {
       const baseMessage = monumentModal.justUnlocked ? 'Indizio sbloccato.' : 'Indizio già sbloccato.';
       announceWithFallback(description ? `${baseMessage} ${description}` : baseMessage, 'success');
@@ -2643,7 +2732,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       return;
     }
     announceWithFallback(`Indizio non sbloccabile. ${sfidaDropsGuidanceMessage}`);
-    }, [announceWithFallback, monumentModal, sfidaDropsGuidanceMessage]);
+  }, [announceWithFallback, monumentModal, sfidaDropsGuidanceMessage]);
 
   useEffect(() => {
     if (!pathLockModalMessage) return;
@@ -2903,6 +2992,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelComprendoExercise();
   };
   const cancelSaltoExercise = () => {
+    clearFlyAutoJump();
     setSaltoFlowStage('objective');
     setSaltoIndex(0);
     setSaltoOptions([]);
@@ -3703,8 +3793,43 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       operationAriaLabel={`Ascolta operazione ${world.id} per ${saltoSelectedFactor}`}
                     />
 
-                    {/* River Stream with Stepping Stones & Frog */}
-                    <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between">
+                     {/* River Stream with Stepping Stones & Frog */}
+                    <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between overflow-hidden">
+                      {/* Flying Fly (Mosca Cheat) */}
+                      {!saltoGameCompleted && !isFrogSplashing && (
+                        <motion.button
+                          type="button"
+                          onClick={triggerFlyAutoJumpCheat}
+                          disabled={isFlyAutoJumping}
+                          animate={
+                            isFlyAutoJumping
+                              ? { scale: [1, 1.2, 1], rotate: [0, 20, -20, 0], y: [0, -4, 0] }
+                              : {
+                                  y: [0, -8, 2, -6, 0],
+                                  x: [0, 8, -6, 4, 0],
+                                  rotate: [0, -6, 6, -3, 0],
+                                }
+                          }
+                          transition={{
+                            repeat: Infinity,
+                            duration: isFlyAutoJumping ? 0.4 : 3.2,
+                            ease: "easeInOut",
+                          }}
+                          className={`absolute top-2 right-2 z-40 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black shadow-lg border cursor-pointer backdrop-blur-md transition-all active:scale-95 ${
+                            isFlyAutoJumping
+                              ? 'bg-emerald-400 border-emerald-300 text-emerald-950 ring-4 ring-emerald-300/80 animate-pulse'
+                              : 'bg-amber-300 hover:bg-amber-400 border-amber-400 text-amber-950 hover:scale-105'
+                          }`}
+                          title="Tocca la Mosca Cheat per far saltare la rana automaticamente al traguardo!"
+                        >
+                          <span className="text-xl leading-none select-none">🪰</span>
+                          <span className="text-[10px] font-black font-sans uppercase tracking-tight">
+                            {isFlyAutoJumping ? 'Volo Mosca...' : 'Mosca Cheat'}
+                          </span>
+                          <span className="text-xs">⚡</span>
+                        </motion.button>
+                      )}
+
                       {/* Water sparkles background */}
                       <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:16px_16px]" />
                       {/* Removed separate frog button: jump now uses the moving frog on riva/stone */}
@@ -3924,6 +4049,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             className="mt-3"
                             onClick={() => {
                               sound.playClick();
+                              clearFlyAutoJump();
                               void speak('Riproviamo.');
                               setIsFrogSplashing(false);
                               setSaltoFailReason(null);
@@ -3957,9 +4083,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                                 </div>
                               )}
                               <button
-                                disabled={saltoGameCompleted}
+                                disabled={saltoGameCompleted || isFlyAutoJumping}
                                 onClick={() => {
-                                if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null) return;
+                                if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null || isFlyAutoJumping) return;
                                 consumeGuidance('saltoTouch');
                                 const isObstacleBlocking =
                                   saltoEnemySteps.includes(saltoIndex + 1) &&
@@ -5593,13 +5719,43 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 <p className="text-xs text-slate-600 mb-3 leading-relaxed">
                   {monumentModal.monument.description}
                 </p>
-                <button
-                  type="button"
-                  onClick={closeMonumentFlowAndMaybeReturnToPraticoCongrats}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
-                >
-                  Chiudi
-                </button>
+                {worldProg.rebuiltMonuments.length >= world.monuments.length && (
+                  <div className="mb-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shadow-sm animate-bounce">
+                    🎉 Hai trovato tutti i 3 indizi!
+                    {WORLDS_DATA.find(w => w.id === world.id + 1) ? (
+                      <div className="mt-1 text-emerald-700 font-extrabold">
+                        ✨ Nuovo regno sbloccato: {WORLDS_DATA.find(w => w.id === world.id + 1)?.locationName || WORLDS_DATA.find(w => w.id === world.id + 1)?.name}!
+                      </div>
+                    ) : (
+                      <div className="mt-1 text-emerald-700 font-extrabold">
+                        🏆 Hai completato tutti gli indizi dell'ultimo regno!
+                      </div>
+                    )}
+                  </div>
+                )}
+                {worldProg.rebuiltMonuments.length >= world.monuments.length ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      closeMonumentFlowAndMaybeReturnToPraticoCongrats();
+                      const nextWorldId = Math.min(9, world.id + 1);
+                      onBack(nextWorldId);
+                    }}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>Continua</span>
+                    <span className="text-base">➔</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={closeMonumentFlowAndMaybeReturnToPraticoCongrats}
+                    className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-colors"
+                  >
+                    Chiudi
+                  </button>
+                )}
               </>
             ) : monumentModal.canAfford ? (
               <>

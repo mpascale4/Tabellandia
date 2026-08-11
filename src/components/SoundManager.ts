@@ -865,6 +865,24 @@ class SoundManager {
     }
   }
 
+  private decodeAudioBuffer(ctx: AudioContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        const copy = arrayBuffer.slice(0);
+        const res = ctx.decodeAudioData(
+          copy,
+          (decoded) => resolve(decoded),
+          (err) => reject(err)
+        );
+        if (res && typeof res.then === 'function') {
+          res.then(resolve).catch(reject);
+        }
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
   private loadSaltoAmbienceAudio(onLoaded?: () => void) {
     if (this.saltoAmbienceBuffer) {
       onLoaded?.();
@@ -878,18 +896,40 @@ class SoundManager {
       .then((arrayBuffer) => {
         this.initContext();
         if (!this.ctx) throw new Error('AudioContext not available');
-        return this.ctx.decodeAudioData(arrayBuffer);
+        return this.decodeAudioBuffer(this.ctx, arrayBuffer);
       })
       .then((decodedBuffer) => {
         this.saltoAmbienceBuffer = decodedBuffer;
         onLoaded?.();
       })
       .catch((error) => {
-        console.error('Error loading Salto ambience audio:', error);
+        console.warn('Could not decode Salto ambience audio, using fallback generator:', error);
+        this.initContext();
+        if (this.ctx && !this.saltoAmbienceBuffer) {
+          this.saltoAmbienceBuffer = this.createSaltoFallbackBuffer();
+          onLoaded?.();
+        }
       })
       .finally(() => {
         this.loadingSaltoAmbienceAudio = false;
       });
+  }
+
+  private createSaltoFallbackBuffer(): AudioBuffer {
+    if (!this.ctx) throw new Error('AudioContext not available');
+    const durationSec = 3.0;
+    const sampleRate = this.ctx.sampleRate;
+    const frameCount = Math.floor(sampleRate * durationSec);
+    const buffer = this.ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frameCount; i++) {
+      const t = i / sampleRate;
+      const env = Math.sin(Math.PI * (i / frameCount));
+      const croak1 = Math.sin(2 * Math.PI * 160 * t + Math.sin(t * 40) * 1.5) * 0.12;
+      const croak2 = Math.sin(2 * Math.PI * 210 * t) * 0.08;
+      data[i] = (croak1 + croak2) * env;
+    }
+    return buffer;
   }
 
   private loadCostruiscoAmbienceAudio(onLoaded?: () => void) {
@@ -905,18 +945,39 @@ class SoundManager {
       .then((arrayBuffer) => {
         this.initContext();
         if (!this.ctx) throw new Error('AudioContext not available');
-        return this.ctx.decodeAudioData(arrayBuffer);
+        return this.decodeAudioBuffer(this.ctx, arrayBuffer);
       })
       .then((decodedBuffer) => {
         this.costruiscoAmbienceBuffer = decodedBuffer;
         onLoaded?.();
       })
       .catch((error) => {
-        console.error('Error loading Costruisco ambience audio:', error);
+        console.warn('Could not decode Costruisco ambience audio, using fallback generator:', error);
+        this.initContext();
+        if (this.ctx && !this.costruiscoAmbienceBuffer) {
+          this.costruiscoAmbienceBuffer = this.createCostruiscoFallbackBuffer();
+          onLoaded?.();
+        }
       })
       .finally(() => {
         this.loadingCostruiscoAmbienceAudio = false;
       });
+  }
+
+  private createCostruiscoFallbackBuffer(): AudioBuffer {
+    if (!this.ctx) throw new Error('AudioContext not available');
+    const durationSec = 2.0;
+    const sampleRate = this.ctx.sampleRate;
+    const frameCount = Math.floor(sampleRate * durationSec);
+    const buffer = this.ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frameCount; i++) {
+      const t = i / sampleRate;
+      const env = Math.sin(Math.PI * (i / frameCount));
+      const sound = Math.sin(2 * Math.PI * (350 + Math.sin(t * 15) * 50) * t) * 0.1;
+      data[i] = sound * env;
+    }
+    return buffer;
   }
 
   private loadTrucchiAmbienceAudio(onLoaded?: () => void) {
@@ -932,18 +993,39 @@ class SoundManager {
       .then((arrayBuffer) => {
         this.initContext();
         if (!this.ctx) throw new Error('AudioContext not available');
-        return this.ctx.decodeAudioData(arrayBuffer);
+        return this.decodeAudioBuffer(this.ctx, arrayBuffer);
       })
       .then((decodedBuffer) => {
         this.trucchiAmbienceBuffer = decodedBuffer;
         onLoaded?.();
       })
       .catch((error) => {
-        console.error('Error loading Trova ambience audio:', error);
+        console.warn('Could not decode Trova ambience audio, using fallback generator:', error);
+        this.initContext();
+        if (this.ctx && !this.trucchiAmbienceBuffer) {
+          this.trucchiAmbienceBuffer = this.createTrucchiFallbackBuffer();
+          onLoaded?.();
+        }
       })
       .finally(() => {
         this.loadingTrucchiAmbienceAudio = false;
       });
+  }
+
+  private createTrucchiFallbackBuffer(): AudioBuffer {
+    if (!this.ctx) throw new Error('AudioContext not available');
+    const durationSec = 1.8;
+    const sampleRate = this.ctx.sampleRate;
+    const frameCount = Math.floor(sampleRate * durationSec);
+    const buffer = this.ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frameCount; i++) {
+      const t = i / sampleRate;
+      const env = Math.sin(Math.PI * (i / frameCount));
+      const sound = (Math.random() * 2 - 1) * 0.05 + Math.sin(2 * Math.PI * 120 * t) * 0.1;
+      data[i] = sound * env;
+    }
+    return buffer;
   }
 
   private loadPraticoAmbienceAudio(onLoaded?: () => void) {
@@ -959,14 +1041,14 @@ class SoundManager {
       .then((arrayBuffer) => {
         this.initContext();
         if (!this.ctx) throw new Error('AudioContext not available');
-        return this.ctx.decodeAudioData(arrayBuffer);
+        return this.decodeAudioBuffer(this.ctx, arrayBuffer);
       })
       .then((decodedBuffer) => {
         this.praticoAmbienceBuffer = decodedBuffer;
         onLoaded?.();
       })
       .catch((error) => {
-        console.error('Error loading Pratico ambience audio:', error);
+        console.warn('Could not decode Pratico ambience audio, using fallback generator:', error);
         this.initContext();
         if (this.ctx && !this.praticoAmbienceBuffer) {
           this.praticoAmbienceBuffer = this.createPraticoFallbackAmbienceBuffer();
@@ -1018,18 +1100,39 @@ class SoundManager {
       .then((arrayBuffer) => {
         this.initContext();
         if (!this.ctx) throw new Error('AudioContext not available');
-        return this.ctx.decodeAudioData(arrayBuffer);
+        return this.decodeAudioBuffer(this.ctx, arrayBuffer);
       })
       .then((decodedBuffer) => {
         this.raccogliBirdsAmbienceBuffer = decodedBuffer;
         onLoaded?.();
       })
       .catch((error) => {
-        console.error('Error loading Raccogli birds ambience audio:', error);
+        console.warn('Could not decode Raccogli birds ambience audio, using fallback generator:', error);
+        this.initContext();
+        if (this.ctx && !this.raccogliBirdsAmbienceBuffer) {
+          this.raccogliBirdsAmbienceBuffer = this.createRaccogliBirdsFallbackBuffer();
+          onLoaded?.();
+        }
       })
       .finally(() => {
         this.loadingRaccogliBirdsAmbienceAudio = false;
       });
+  }
+
+  private createRaccogliBirdsFallbackBuffer(): AudioBuffer {
+    if (!this.ctx) throw new Error('AudioContext not available');
+    const durationSec = 2.5;
+    const sampleRate = this.ctx.sampleRate;
+    const frameCount = Math.floor(sampleRate * durationSec);
+    const buffer = this.ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frameCount; i++) {
+      const t = i / sampleRate;
+      const env = Math.sin(Math.PI * (i / frameCount));
+      const chirp = Math.sin(2 * Math.PI * (1800 + Math.sin(t * 35) * 600) * t) * 0.08;
+      data[i] = chirp * env;
+    }
+    return buffer;
   }
 
   private loadBeeBuzzAudio(onLoaded?: () => void) {
@@ -1045,18 +1148,39 @@ class SoundManager {
       .then((arrayBuffer) => {
         this.initContext();
         if (!this.ctx) throw new Error('AudioContext not available');
-        return this.ctx.decodeAudioData(arrayBuffer);
+        return this.decodeAudioBuffer(this.ctx, arrayBuffer);
       })
       .then((decodedBuffer) => {
         this.beeBuzzBuffer = decodedBuffer;
         onLoaded?.();
       })
       .catch((error) => {
-        console.error('Error loading bee buzz audio:', error);
+        console.warn('Could not decode bee buzz audio, using fallback generator:', error);
+        this.initContext();
+        if (this.ctx && !this.beeBuzzBuffer) {
+          this.beeBuzzBuffer = this.createBeeBuzzFallbackBuffer();
+          onLoaded?.();
+        }
       })
       .finally(() => {
         this.loadingBeeBuzzAudio = false;
       });
+  }
+
+  private createBeeBuzzFallbackBuffer(): AudioBuffer {
+    if (!this.ctx) throw new Error('AudioContext not available');
+    const durationSec = 2.0;
+    const sampleRate = this.ctx.sampleRate;
+    const frameCount = Math.floor(sampleRate * durationSec);
+    const buffer = this.ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frameCount; i++) {
+      const t = i / sampleRate;
+      const env = Math.sin(Math.PI * (i / frameCount));
+      const buzz = Math.sin(2 * Math.PI * 220 * t + Math.sin(t * 100) * 2.5) * 0.1;
+      data[i] = buzz * env;
+    }
+    return buffer;
   }
 
   playError() {
@@ -1196,7 +1320,11 @@ class SoundManager {
       this.loadingFrogAudio = true;
       fetch(frogAudioUrl)
         .then((response) => response.arrayBuffer())
-        .then((arrayBuffer) => this.ctx!.decodeAudioData(arrayBuffer))
+        .then((arrayBuffer) => {
+          this.initContext();
+          if (!this.ctx) throw new Error('AudioContext not available');
+          return this.decodeAudioBuffer(this.ctx, arrayBuffer);
+        })
         .then((decodedBuffer) => {
           this.frogAudioBuffer = decodedBuffer;
           this.loadingFrogAudio = false;
@@ -1204,7 +1332,7 @@ class SoundManager {
         })
         .catch((error) => {
           this.loadingFrogAudio = false;
-          console.error('Error loading frog audio:', error);
+          console.warn('Could not decode frog audio, using fallback croak:', error);
           this.playFrogCroakFallback();
         });
       return;
@@ -1253,13 +1381,17 @@ class SoundManager {
     this.loadingAntagonistsAudio.add(antagonistId);
     fetch(targetUrl)
       .then((response) => response.arrayBuffer())
-      .then((arrayBuffer) => this.ctx!.decodeAudioData(arrayBuffer))
+      .then((arrayBuffer) => {
+        this.initContext();
+        if (!this.ctx) throw new Error('AudioContext not available');
+        return this.decodeAudioBuffer(this.ctx, arrayBuffer);
+      })
       .then((decodedBuffer) => {
         this.antagonistsAudioBuffers[antagonistId] = decodedBuffer;
         this.playAudioBuffer(decodedBuffer);
       })
       .catch((error) => {
-        console.error(`Error loading ${antagonistId} audio:`, error);
+        console.warn(`Could not decode ${antagonistId} audio, playing click fallback:`, error);
         this.playClick();
       })
       .finally(() => {
@@ -1302,15 +1434,30 @@ class SoundManager {
       .then((arrayBuffer) => {
         this.initContext();
         if (!this.ctx) throw new Error('AudioContext not available');
-        return this.ctx.decodeAudioData(arrayBuffer);
+        return this.decodeAudioBuffer(this.ctx, arrayBuffer);
       })
       .then((decodedBuffer) => {
         this.frogAudioBuffer = decodedBuffer;
         this.loadingFrogAudio = false;
       })
       .catch((error) => {
-        console.error('Error loading frog audio:', error);
+        console.warn('Could not decode frog audio, generating synth buffer fallback:', error);
         this.loadingFrogAudio = false;
+        this.initContext();
+        if (this.ctx && !this.frogAudioBuffer) {
+          const durationSec = 0.4;
+          const sampleRate = this.ctx.sampleRate;
+          const frameCount = Math.floor(sampleRate * durationSec);
+          const buffer = this.ctx.createBuffer(1, frameCount, sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < frameCount; i++) {
+            const t = i / sampleRate;
+            const env = Math.sin(Math.PI * (i / frameCount));
+            const croak = Math.sin(2 * Math.PI * (150 + Math.sin(t * 40) * 30) * t) * 0.2;
+            data[i] = croak * env;
+          }
+          this.frogAudioBuffer = buffer;
+        }
       });
   }
 }
