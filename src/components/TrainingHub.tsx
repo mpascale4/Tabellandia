@@ -139,7 +139,6 @@ const getMotivationalCorrectMessages = (gender: PlayerGender) => [
   getGenderedText(gender, 'Bravo! 🌟', 'Brava! 🌟'),
   'Perfetto! ✨',
   'Esatto! 🏆',
-  'Ottimo lavoro! 💪',
   getGenderedText(gender, 'Sei fortissimo! 🚀', 'Sei fortissima! 🚀'),
   'Continua così! 🌈',
 ];
