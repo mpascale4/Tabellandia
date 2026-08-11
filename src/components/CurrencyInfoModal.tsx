@@ -4,9 +4,9 @@
  */
 
 import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Droplets, Coins, Volume2, Sparkles, MapPin, Shirt, Trophy } from 'lucide-react';
 import { useVoice } from '../contexts/VoiceContext';
+import ModalShell from './layout/ModalShell';
 
 interface CurrencyInfoModalProps {
   type: 'drops' | 'coins' | null;
@@ -54,19 +54,17 @@ export default function CurrencyInfoModal({
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 10 }}
-          className={`relative w-full max-w-lg rounded-3xl p-6 shadow-2xl border ${
-            isDrops
-              ? 'bg-gradient-to-b from-sky-50 via-white to-sky-50 border-sky-200'
-              : 'bg-gradient-to-b from-amber-50 via-white to-amber-50 border-amber-200'
-          }`}
-        >
-          {/* Header Icon & Title */}
+    <ModalShell
+      isOpen={isOpen}
+      onBackdropClick={onClose}
+      backdropClassName="bg-slate-900/60 backdrop-blur-sm"
+      cardClassName={`relative w-full max-w-lg rounded-3xl p-6 shadow-2xl border ${
+        isDrops
+          ? 'bg-gradient-to-b from-sky-50 via-white to-sky-50 border-sky-200'
+          : 'bg-gradient-to-b from-amber-50 via-white to-amber-50 border-amber-200'
+      }`}
+    >
+      {/* Header Icon & Title */}
           <div className="flex items-center gap-3 mb-4">
             <div
               className={`p-3.5 rounded-2xl ${
@@ -233,8 +231,6 @@ export default function CurrencyInfoModal({
               Ho capito! 👍
             </button>
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    </ModalShell>
   );
 }

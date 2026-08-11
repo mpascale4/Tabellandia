@@ -1,10 +1,13 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useSaltoFlyCheat } from '../hooks/useSaltoFlyCheat';
+import { shuffleArray, toAscendingOptions, takeRandom } from '../utils/arrayHelpers';
+import { toItalianWord } from '../utils/italianWords';
 import { HelperGuidanceKey, WorldConfig, UserProfile, QuestionAttempt, createDefaultWorldProgress } from '../types';
 import {
   MONUMENT_CLUE_COST,
@@ -19,15 +22,19 @@ import {
   getSfidaUnlockMissingCoinsMessage
 } from '../constants/gameRules';
 import { sound } from './SoundManager';
-import { AlertCircle, Award, Timer, Trophy, Compass } from 'lucide-react';
+import { AlertCircle, Award, Compass } from 'lucide-react';
 import ComprendoBasketGame, { type ComprendoBasketGameHandle } from './ComprendoBasketGame';
+import SaltoExercise from './SaltoExercise';
+import CostruiscoExercise from './CostruiscoExercise';
+import TrucchiExercise from './TrucchiExercise';
+import PraticoQuizCard from './PraticoQuizCard';
+import SfidaQuizCard from './SfidaQuizCard';
 import RewardPopup from './RewardPopup';
 import FireworksOverlay from './FireworksOverlay';
 import InteractionGuidanceHint from './InteractionGuidanceHint';
 import ActionGrid from './layout/ActionGrid';
 import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
-import OperationPromptCard from './layout/OperationPromptCard';
 import RetryButton from './layout/RetryButton';
 import { buildMultiplicationResultSpeech } from '../utils/voiceFeedback';
 import { useVoice } from '../contexts/VoiceContext';
@@ -43,17 +50,6 @@ interface WorldDetailProps {
   initialExercise?: string | null;
 }
 
-// Helper function to shuffle an array randomly (Fisher-Yates)
-const shuffleArray = <T,>(arr: T[]): T[] => {
-  const result = [...arr];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-};
-
-const toAscendingOptions = (values: number[]): number[] => [...values].sort((a, b) => a - b);
 type CorrectRankTracker = {
   counts: [number, number, number, number];
   lastRank: number | null;
@@ -65,11 +61,6 @@ const createCorrectRankTracker = (): CorrectRankTracker => ({
   lastRank: null,
   repeatCount: 0,
 });
-
-const takeRandom = (source: number[], count: number): number[] => {
-  if (count <= 0) return [];
-  return shuffleArray(source).slice(0, count);
-};
 
 const buildAscendingOptionsWithBalancedRank = (
   correct: number,
@@ -157,59 +148,9 @@ const TRUCCHI_REVEAL_MS = 260;
 const TRUCCHI_COLLAPSE_MS = 620;
 const TRUCCHI_HAMMER_START_FACTOR = 1;
 const TRUCCHI_HAMMER_TRAVEL_MS = 520;
-const COSTRUISCO_BALLOON_SPAWN_MIN_MS = 260;
-const COSTRUISCO_BALLOON_SPAWN_MAX_MS = 650;
-const COSTRUISCO_BALLOON_FLIGHT_MIN_MS = 4500;
-const COSTRUISCO_BALLOON_FLIGHT_MAX_MS = 6500;
-const COSTRUISCO_BALLOON_MAX_ACTIVE = 5;
-const COSTRUISCO_BALLOON_EXIT_Y = -340;
-const COSTRUISCO_CORRECT_FAIL_PROGRESS = 0.75;
-const COSTRUISCO_BOMB_START_FACTOR = 1;
-const DIFFICULTY_FACTOR_MIN = 1;
-const DIFFICULTY_FACTOR_MAX = 10;
-const COSTRUISCO_SPAWN_SCALE_MIN = 0.45;
-const COSTRUISCO_FLIGHT_SCALE_MIN = 0.5;
 const TRUCCHI_PREVIEW_SCALE_MIN = 0.48;
-const SALTO_OBSTACLE_START_FACTOR = 1;
 const SFIDA_FIXED_DROPS_REWARD = 15;
-const SALTO_ANTAGONISTS = [
-  { id: 'snake', label: 'serpente', emoji: '🐍' },
-  { id: 'bat', label: 'pipistrello', emoji: '🦇' },
-  { id: 'spider', label: 'ragno', emoji: '🕷️' },
-  { id: 'scorpion', label: 'scorpione', emoji: '🦂' },
-] as const;
 const INTERACTION_GUIDANCE_VISIBLE_MS = 5000;
-const ITALIAN_NUMBER_WORDS: Record<number, string> = {
-  0: 'zero',
-  1: 'uno',
-  2: 'due',
-  3: 'tre',
-  4: 'quattro',
-  5: 'cinque',
-  6: 'sei',
-  7: 'sette',
-  8: 'otto',
-  9: 'nove',
-  10: 'dieci',
-  11: 'undici',
-  12: 'dodici',
-  13: 'tredici',
-  14: 'quattordici',
-  15: 'quindici',
-  16: 'sedici',
-  17: 'diciassette',
-  18: 'diciotto',
-  19: 'diciannove',
-  20: 'venti',
-};
-
-const toItalianWord = (value: number): string => ITALIAN_NUMBER_WORDS[value] ?? value.toString();
-const startsWithLoArticle = (word: string): boolean => /^(z|x|y|ps|pn|gn|s[^aeiou])/i.test(word.trim());
-const withItalianArticle = (word: string): string => {
-  const normalized = word.trim();
-  if (!normalized) return "l'ostacolo";
-  return `${startsWithLoArticle(normalized) ? 'lo' : 'il'} ${normalized}`;
-};
 const STEP_MOTIVATION_MESSAGES = {
   male: [
     'Bravissimo! Stai andando alla grande!',
@@ -252,10 +193,6 @@ const STEP_LABELS = {
 const GAMEPLAY_AUDIO_MESSAGES = {
   saltoFall: 'Oh no, la ranocchia e caduta! Riproviamo.',
   saltoObstacleBlocked: "Oh no! Ti ha fermato l'antagonista.",
-  costruiscoWrong: 'Non questo. Cerca il numero giusto.',
-  costruiscoCorrect: 'Bravo, ma scoppia tutti gli altri palloncini.',
-  costruiscoTooHigh: 'Oh no il palloncino e volato via.',
-  costruiscoBomb: 'Trappola! Il numero era giusto ma era una bomba. Cerca il palloncino colorato!',
   quizWrong: 'Quasi. Riprova con calma.',
   sfidaWrong: 'Ops, risposta sbagliata.',
   trucchiWrong: 'Riprova. Prova un altro numero.',
@@ -268,41 +205,6 @@ const GAMEPLAY_AUDIO_MESSAGES = {
   monumentDiscovered: 'Ottimo! Hai scoperto un nuovo indizio.',
   monumentAlreadyDiscovered: 'Hai già scoperto questo indizio. Rileggiamolo insieme.',
 } as const;
-
-const COSTRUISCO_BALLOON_PALETTES = [
-  {
-    body: 'bg-gradient-to-b from-sky-300 to-sky-500 text-white border-white hover:from-sky-400 hover:to-sky-600',
-    knot: 'bg-sky-600',
-    string: 'bg-sky-300',
-  },
-  {
-    body: 'bg-gradient-to-b from-fuchsia-300 to-fuchsia-500 text-white border-white hover:from-fuchsia-400 hover:to-fuchsia-600',
-    knot: 'bg-fuchsia-600',
-    string: 'bg-fuchsia-300',
-  },
-  {
-    body: 'bg-gradient-to-b from-amber-300 to-orange-500 text-white border-white hover:from-amber-400 hover:to-orange-600',
-    knot: 'bg-orange-600',
-    string: 'bg-amber-300',
-  },
-  {
-    body: 'bg-gradient-to-b from-violet-300 to-violet-500 text-white border-white hover:from-violet-400 hover:to-violet-600',
-    knot: 'bg-violet-600',
-    string: 'bg-violet-300',
-  },
-] as const;
-
-type CostruiscoBalloonPalette = typeof COSTRUISCO_BALLOON_PALETTES[number];
-type SaltoAntagonist = typeof SALTO_ANTAGONISTS[number];
-type CostruiscoActiveBalloon = {
-  id: number;
-  value: number;
-  lane: number;
-  flightMs: number;
-  palette: CostruiscoBalloonPalette;
-  isCorrect: boolean;
-  isTrap?: boolean;
-};
 
 export default function WorldDetail({ world, profile, updateProfile, onBack, compactLayout = false, initialExercise }: WorldDetailProps) {
   const { speak, voiceEnabled } = useVoice();
@@ -348,75 +250,11 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [trucchiSelectedFactor, setTrucchiSelectedFactor] = useState<number | null>(null);
   const [trucchiFlowStage, setTrucchiFlowStage] = useState<'objective' | 'game'>('objective');
   const [showTrucchiCompletionEffect, setShowTrucchiCompletionEffect] = useState<boolean>(false);
-  const [trucchiBrickValues, setTrucchiBrickValues] = useState<number[]>([]);
-  const [trucchiRemovedBricks, setTrucchiRemovedBricks] = useState<Set<number>>(new Set());
-  const [trucchiWrongChoices, setTrucchiWrongChoices] = useState<number>(0);
-  const [trucchiPyramidCollapsed, setTrucchiPyramidCollapsed] = useState<boolean>(false);
-  const [trucchiPreviewActive, setTrucchiPreviewActive] = useState<boolean>(false);
-  const [trucchiRevealedBrickIndex, setTrucchiRevealedBrickIndex] = useState<number | null>(null);
-  const [trucchiHammerActive, setTrucchiHammerActive] = useState<boolean>(false);
-  const [trucchiHammerHitBricks, setTrucchiHammerHitBricks] = useState<Set<number>>(new Set());
-  const [trucchiHammerTargetIndex, setTrucchiHammerTargetIndex] = useState<number | null>(null);
-  const [trucchiHammerTraveling, setTrucchiHammerTraveling] = useState<boolean>(false);
-  const [trucchiHammerHasStruck, setTrucchiHammerHasStruck] = useState<boolean>(false);
-  const [trucchiHammerPose, setTrucchiHammerPose] = useState<{ x: number; y: number; visible: boolean; striking: boolean }>({
-    x: 0,
-    y: 0,
-    visible: false,
-    striking: false,
-  });
-  const [trucchiCollapseReason, setTrucchiCollapseReason] = useState<'wrong' | 'hammer' | null>(null);
-  
-  // For the current game being played
-  const [saltoIndex, setSaltoIndex] = useState<number>(0); // which multiple we are on (0 to 9)
-  const [saltoOptions, setSaltoOptions] = useState<number[]>([]);
-  const [saltoCorrectClicks, setSaltoCorrectClicks] = useState<Set<number>>(new Set());
-  const [isFrogSplashing, setIsFrogSplashing] = useState<boolean>(false);
-  const [saltoFailReason, setSaltoFailReason] = useState<'obstacle' | 'fall' | null>(null);
-  const [saltoEnemySteps, setSaltoEnemySteps] = useState<number[]>([]);
-  const [saltoJumpedEnemySteps, setSaltoJumpedEnemySteps] = useState<Set<number>>(new Set());
-  const [saltoAntagonistsByStep, setSaltoAntagonistsByStep] = useState<Record<number, SaltoAntagonist>>({});
-  const [saltoFrogPosition, setSaltoFrogPosition] = useState<number>(0);
-  const [saltoLeap, setSaltoLeap] = useState<{ from: number; to: number } | null>(null);
-  const [saltoTapHop, setSaltoTapHop] = useState<{ step: number; token: number } | null>(null);
-  const [isFlyAutoJumping, setIsFlyAutoJumping] = useState<boolean>(false);
-  const [saltoFlyVisible, setSaltoFlyVisible] = useState<boolean>(false);
-  const [saltoFlyLane, setSaltoFlyLane] = useState<number>(0);
-  const [saltoFlyDirection, setSaltoFlyDirection] = useState<'leftToRight' | 'rightToLeft'>('leftToRight');
-  const [saltoFlyUsedThisRound, setSaltoFlyUsedThisRound] = useState<boolean>(false);
-  const flyAutoJumpIntervalRef = useRef<number | null>(null);
-  const saltoFlySpawnTimeoutRef = useRef<number | null>(null);
-  const saltoFlyTravelTimeoutRef = useRef<number | null>(null);
-  const SALTO_FLY_TRAVEL_MS = 5800;
+  const [trucchiGameCompleted, setTrucchiGameCompleted] = useState<boolean>(false);
+  // Note: Salto's in-round mechanics (frog position, options, obstacles, fly cheat) live in SaltoExercise.tsx
 
   // Costruisco (Step 3) state
-  const [costruiscoProgress, setCostruiscoProgress] = useState<{ [key: number]: number | null }>({}); // factor -> product or null
-  const [costruiscoBalloonPool, setCostruiscoBalloonPool] = useState<number[]>([]);
-  const [costruiscoActiveBalloons, setCostruiscoActiveBalloons] = useState<CostruiscoActiveBalloon[]>([]);
-  const [costruiscoPopBursts, setCostruiscoPopBursts] = useState<{ id: number; lane: number }[]>([]);
-  const [costruiscoFailed, setCostruiscoFailed] = useState<boolean>(false);
-  const [costruiscoFailReason, setCostruiscoFailReason] = useState<'wrong-tap' | 'correct-escaped' | null>(null);
-  const [costruiscoWrongTappedValue, setCostruiscoWrongTappedValue] = useState<number | null>(null);
   const [completedMonuments, setCompletedMonuments] = useState<string[]>([]); // Track completed monuments
-  const costruiscoBalloonTokenRef = useRef<number>(0);
-  const costruiscoSpawnTimeoutRef = useRef<number | null>(null);
-  const costruiscoBombTimeoutRef = useRef<number | null>(null);
-  const costruiscoEscapeTimeoutsRef = useRef<Record<number, number>>({});
-  const costruiscoActiveBalloonsRef = useRef<CostruiscoActiveBalloon[]>([]);
-  const costruiscoBalloonPoolRef = useRef<number[]>([]);
-  const costruiscoFailedRef = useRef<boolean>(false);
-  const costruiscoGameCompletedRef = useRef<boolean>(false);
-  const trucchiPreviewTimeoutRef = useRef<number | null>(null);
-  const trucchiRevealTimeoutRef = useRef<number | null>(null);
-  const trucchiCollapseTimeoutRef = useRef<number | null>(null);
-  const trucchiHammerStrikeTimeoutRef = useRef<number | null>(null);
-  const trucchiHammerHitClearTimeoutRef = useRef<number | null>(null);
-  const trucchiHammerResolveTimeoutRef = useRef<number | null>(null);
-  const trucchiArenaRef = useRef<HTMLDivElement | null>(null);
-  const trucchiBrickRefs = useRef<Record<number, HTMLButtonElement | null>>({});
-  const trucchiHammerActiveRef = useRef<boolean>(false);
-  const trucchiQuestionSolvedRef = useRef<boolean>(false);
-  const trucchiPyramidCollapsedRef = useRef<boolean>(false);
   const comprendoCompletionOverlayTimeoutRef = useRef<number | null>(null);
   const comprendoBasketGameRef = useRef<ComprendoBasketGameHandle | null>(null);
   const activeStepCardRef = useRef<HTMLButtonElement | null>(null);
@@ -429,35 +267,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const speakSaltoSuccess = (a: number, b: number, result: number) => {
     return speakMultiplicationSuccess(a, b, result);
   };
-
-  const clearSaltoFlySpawnTimer = () => {
-    if (saltoFlySpawnTimeoutRef.current !== null) {
-      window.clearTimeout(saltoFlySpawnTimeoutRef.current);
-      saltoFlySpawnTimeoutRef.current = null;
-    }
-  };
-
-  const clearSaltoFlyTravelTimer = () => {
-    if (saltoFlyTravelTimeoutRef.current !== null) {
-      window.clearTimeout(saltoFlyTravelTimeoutRef.current);
-      saltoFlyTravelTimeoutRef.current = null;
-    }
-  };
-
-  const hideSaltoFly = useCallback(() => {
-    clearSaltoFlySpawnTimer();
-    clearSaltoFlyTravelTimer();
-    setSaltoFlyVisible(false);
-  }, []);
-
-  const clearFlyAutoJump = useCallback(() => {
-    if (flyAutoJumpIntervalRef.current !== null) {
-      window.clearTimeout(flyAutoJumpIntervalRef.current);
-      flyAutoJumpIntervalRef.current = null;
-    }
-    setIsFlyAutoJumping(false);
-    setSaltoLeap(null);
-  }, []);
 
   const speakOperationOnly = (a: number, b: number) => {
     sound.playClick();
@@ -506,7 +315,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }, 0);
     };
 
-    const announceWithFallback = useCallback((message: string, fallbackSound: 'none' | 'success' | 'levelUp' = 'none') => {
+    const announceWithFallback = useCallback((message: string, fallbackSound: 'none' | 'success' | 'levelUp' = 'none'): Promise<void> => {
       if (announcementClearTimeoutRef.current !== null) {
         window.clearTimeout(announcementClearTimeoutRef.current);
         announcementClearTimeoutRef.current = null;
@@ -522,8 +331,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
       const canUseTts = voiceEnabled && typeof window !== 'undefined' && !!window.speechSynthesis;
       if (canUseTts) {
-        void speak(message);
-        return;
+        return speak(message);
       }
 
       if (fallbackSound === 'success') {
@@ -531,6 +339,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
       } else if (fallbackSound === 'levelUp') {
         sound.playLevelUp();
       }
+      return Promise.resolve();
     }, [speak, voiceEnabled]);
 
     useEffect(() => {
@@ -540,101 +349,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         }
       };
     }, []);
-
-  const prefersReducedMotion = typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  const triggerFlyAutoJumpCheat = useCallback(() => {
-    if (
-      saltoGameCompleted
-      || isFrogSplashing
-      || isFlyAutoJumping
-      || saltoSelectedFactor === null
-      || !saltoFlyVisible
-    ) {
-      return;
-    }
-
-    hideSaltoFly();
-    sound.playSuccess();
-    setSaltoFlyUsedThisRound(true);
-    setIsFlyAutoJumping(true);
-
-    const totalSteps = saltoSelectedFactor;
-    let currentStep = saltoFrogPosition;
-
-    const runNextFlyJump = () => {
-      const nextStep = currentStep + 1;
-      if (nextStep > totalSteps) {
-        clearFlyAutoJump();
-        return;
-      }
-
-      if (saltoEnemySteps.includes(nextStep)) {
-        setSaltoJumpedEnemySteps(prev => new Set(prev).add(nextStep));
-      }
-
-      sound.playFrogCroak();
-      setSaltoLeap({ from: currentStep, to: nextStep });
-
-      const leapMs = prefersReducedMotion ? 160 : 520;
-      flyAutoJumpIntervalRef.current = window.setTimeout(() => {
-        const expectedVal = world.id * nextStep;
-        setSaltoCorrectClicks(prev => new Set(prev).add(expectedVal));
-        setSaltoFrogPosition(nextStep);
-        setSaltoLeap(null);
-        setSaltoIndex(nextStep);
-        announceWithFallback(expectedVal.toString());
-
-        if (nextStep >= totalSteps) {
-          clearFlyAutoJump();
-          setSaltoGameCompleted(true);
-          setShowSaltoCompletionEffect(true);
-          setSaltoCompleted(prev => new Set([...prev, totalSteps]));
-          return;
-        }
-
-        currentStep = nextStep;
-        flyAutoJumpIntervalRef.current = window.setTimeout(runNextFlyJump, prefersReducedMotion ? 140 : 220);
-      }, leapMs);
-    };
-
-    runNextFlyJump();
-  }, [
-    announceWithFallback,
-    clearFlyAutoJump,
-    hideSaltoFly,
-    isFlyAutoJumping,
-    isFrogSplashing,
-    prefersReducedMotion,
-    saltoEnemySteps,
-    saltoFlyVisible,
-    saltoFrogPosition,
-    saltoGameCompleted,
-    saltoSelectedFactor,
-    world.id,
-  ]);
-
-  useEffect(() => {
-    costruiscoActiveBalloonsRef.current = costruiscoActiveBalloons;
-  }, [costruiscoActiveBalloons]);
-
-  useEffect(() => {
-    costruiscoBalloonPoolRef.current = costruiscoBalloonPool;
-  }, [costruiscoBalloonPool]);
-
-  useEffect(() => {
-    costruiscoFailedRef.current = costruiscoFailed;
-  }, [costruiscoFailed]);
-
-  useEffect(() => {
-    costruiscoGameCompletedRef.current = costruiscoGameCompleted;
-  }, [costruiscoGameCompleted]);
-
-  // Trucchi (Step 4) state
-  const [trucchiQuestionSolved, setTrucchiQuestionSolved] = useState<boolean>(false);
-  const [trucchiAnswer, setTrucchiAnswer] = useState<string>("");
 
   // Pratico / Quiz (Step 5) state
   const [quizQuestions, setQuizQuestions] = useState<{ a: number; b: number }[]>([]);
@@ -647,18 +361,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
   const [quizInteractionLocked, setQuizInteractionLocked] = useState<boolean>(false);
   const [quizWrongAttempts, setQuizWrongAttempts] = useState<{ [key: string]: number }>({}); // tracks combinations failed in this session
   const [quizHistory, setQuizHistory] = useState<{ a: number; b: number; correct: boolean }[]>([]);
-  
-  useEffect(() => {
-    trucchiHammerActiveRef.current = trucchiHammerActive;
-  }, [trucchiHammerActive]);
-
-  useEffect(() => {
-    trucchiQuestionSolvedRef.current = trucchiQuestionSolved;
-  }, [trucchiQuestionSolved]);
-
-  useEffect(() => {
-    trucchiPyramidCollapsedRef.current = trucchiPyramidCollapsed;
-  }, [trucchiPyramidCollapsed]);
   
   // Visual press feedback for quiz/sfida options (shows while button is held down)
   const [quizPressedFeedback, setQuizPressedFeedback] = useState<{ opt: number; correct: boolean } | null>(null);
@@ -730,11 +432,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     const touchStartXRef = useRef<number | null>(null);
     const currentPraticoQuestion = quizQuestions[currentQuizIdx] ?? null;
     const touchStartYRef = useRef<number | null>(null);
-    const saltoStoneRef = useRef<HTMLDivElement | null>(null);
-    const saltoContainerRef = useRef<HTMLDivElement | null>(null);
-    const saltoFinishRef = useRef<HTMLDivElement | null>(null);
     const guidanceSeen = profile.helperGuidanceSeen ?? {};
     const guidanceTimeoutsRef = useRef<Partial<Record<HelperGuidanceKey, number>>>({});
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const getFactorProgress = (factor: number) => {
+    const clamped = Math.max(1, Math.min(10, factor));
+    return (clamped - 1) / 9;
+  };
+
+  const scaleDurationByFactor = (baseMs: number, factor: number, minScale: number) => {
+    const progress = getFactorProgress(factor);
+    const scale = 1 - ((1 - minScale) * progress);
+    return Math.max(140, Math.floor(baseMs * scale));
+  };
 
   const consumeGuidance = useCallback((key: HelperGuidanceKey) => {
     if (guidanceSeen[key]) return;
@@ -755,161 +468,29 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
   }, [guidanceSeen, updateProfile]);
 
-  // Auto-scroll the stream stones so the frog stays centered in view as it moves
-  useEffect(() => {
-    if (activeStep === 'salto' && saltoFlowStage === 'game') {
-      const timer = setTimeout(() => {
-        if (saltoContainerRef.current) {
-          const container = saltoContainerRef.current;
-          let targetStone: HTMLElement | null = null;
-          
-          if (saltoGameCompleted && saltoFinishRef.current) {
-            targetStone = saltoFinishRef.current;
-          } else if (saltoStoneRef.current) {
-            targetStone = saltoStoneRef.current;
-          } else if (saltoFrogPosition === 0) {
-            // If on Riva (index 0), scroll to start (0)
-            container.scrollTo({ left: 0, behavior: 'smooth' });
-            return;
-          }
+  // Note: Auto-scroll for Salto stones now lives inside SaltoExercise.tsx
 
-          if (targetStone) {
-            const containerWidth = container.clientWidth;
-            const stoneLeft = targetStone.offsetLeft;
-            const stoneWidth = targetStone.offsetWidth;
-            const targetScrollLeft = stoneLeft - containerWidth / 2 + stoneWidth / 2;
-            container.scrollTo({
-              left: Math.max(0, targetScrollLeft),
-              behavior: 'smooth'
-            });
-          }
-        }
-      }, 80);
-      return () => clearTimeout(timer);
-    }
-  }, [saltoIndex, saltoFrogPosition, activeStep, saltoFlowStage, isFrogSplashing, saltoGameCompleted]);
-
-  const saltoExpectedValue = saltoSelectedFactor !== null ? world.id * (saltoIndex + 1) : null;
-  const saltoCurrentObstacleLabel = withItalianArticle(saltoAntagonistsByStep[saltoIndex + 1]?.label ?? 'ostacolo');
-  const saltoObstaclePending = saltoEnemySteps.includes(saltoIndex + 1) && !saltoJumpedEnemySteps.has(saltoIndex + 1);
   const isComprendoFactorOne = comprendoSelectedFactor === 1;
   const isSaltoFactorOne = saltoSelectedFactor === 1;
   const isCostruiscoFactorOne = costruiscoSelectedFactor === 1;
   const isTrucchiFactorOne = trucchiSelectedFactor === 1;
-  const triggerSaltoFrogJump = (fromStep: number) => {
-    if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null || isFlyAutoJumping) return;
-    sound.playFrogCroak();
-    const currentEnemyStep = saltoIndex + 1;
-    const isJumpWindowOpen =
-      saltoEnemySteps.includes(currentEnemyStep) &&
-      !saltoJumpedEnemySteps.has(currentEnemyStep);
-
-    if (isJumpWindowOpen) {
-      consumeGuidance('saltoAvoid');
-      const toStep = currentEnemyStep;
-      const jumpedAntagonist = saltoAntagonistsByStep[currentEnemyStep];
-      const jumpedLabel = withItalianArticle(jumpedAntagonist?.label ?? 'ostacolo');
-      const leapMs = prefersReducedMotion ? 140 : 420;
-      setSaltoLeap({ from: fromStep, to: toStep });
-      speak(`Ottimo! Hai saltato ${jumpedLabel}.`);
-      window.setTimeout(() => {
-        setSaltoJumpedEnemySteps(prev => new Set(prev).add(currentEnemyStep));
-        setSaltoFrogPosition(toStep);
-        setSaltoLeap(null);
-      }, leapMs);
-      return;
-    }
-
-    const token = Date.now();
-    const hopMs = prefersReducedMotion ? 120 : 260;
-    setSaltoTapHop({ step: fromStep, token });
-    window.setTimeout(() => {
-      setSaltoTapHop(current => (current?.token === token ? null : current));
-    }, hopMs);
-  };
-  const hasCostruiscoTouchTarget = costruiscoActiveBalloons.some(balloon => balloon.isCorrect && !balloon.isTrap);
-  const hasCostruiscoAvoidTarget = costruiscoActiveBalloons.some(balloon => balloon.isTrap);
-  const trucchiCorrectValue = trucchiSelectedFactor !== null ? world.id * trucchiSelectedFactor : null;
-  const firstTrucchiWrongIndex = trucchiBrickValues.findIndex((value, index) => {
-    const isRemoved = trucchiRemovedBricks.has(index);
-    return !isRemoved && value !== trucchiCorrectValue;
-  });
-  const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoTouch) && saltoExpectedValue !== null && !saltoObstaclePending;
-  const showSaltoAvoidGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !isFrogSplashing && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoAvoid) && saltoObstaclePending;
-  const showSaltoFrogTouchGuidance = showSaltoAvoidGuidance;
-  const showSaltoFlyTouchGuidance = isSaltoFactorOne && saltoFlyVisible && !saltoGameCompleted && !isFrogSplashing;
-  const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoTouch) && hasCostruiscoTouchTarget;
-  const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoFailed && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoAvoid) && hasCostruiscoAvoidTarget;
-  const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && (isTrucchiFactorOne || !guidanceSeen.trucchiTouch) && trucchiCorrectValue !== null;
-  const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiQuestionSolved && !trucchiPyramidCollapsed && !isTrucchiFactorOne && !guidanceSeen.trucchiAvoid;
+  // Note: Salto frog-jump mechanics (triggerSaltoFrogJump, obstacle detection) now live inside SaltoExercise.tsx
+  const showSaltoTouchGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoTouch);
+  const showSaltoAvoidGuidance = activeStep === 'salto' && saltoFlowStage === 'game' && !saltoGameCompleted && (isSaltoFactorOne || !guidanceSeen.saltoAvoid);
+  const showCostruiscoTouchGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoTouch);
+  const showCostruiscoAvoidGuidance = activeStep === 'costruisco' && costruiscoFlowStage === 'game' && !costruiscoGameCompleted && (isCostruiscoFactorOne || !guidanceSeen.costruiscoAvoid);
+  const showTrucchiTouchGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiGameCompleted && (isTrucchiFactorOne || !guidanceSeen.trucchiTouch);
+  const showTrucchiAvoidGuidance = activeStep === 'trucchi' && trucchiFlowStage === 'game' && !trucchiGameCompleted && (isTrucchiFactorOne || !guidanceSeen.trucchiAvoid);
   const showSfidaStartGuidance = activeStep === 'sfida' && sfidaReady && !sfidaActive && !guidanceSeen.sfidaStart;
 
   useEffect(() => {
     return () => {
-      clearFlyAutoJump();
-      hideSaltoFly();
       (Object.values(guidanceTimeoutsRef.current) as Array<number | undefined>).forEach((timeoutId) => {
         if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       });
       guidanceTimeoutsRef.current = {};
     };
-  }, [clearFlyAutoJump, hideSaltoFly]);
-
-  useEffect(() => {
-    const shouldManageFly =
-      activeStep === 'salto'
-      && saltoFlowStage === 'game'
-      && saltoSelectedFactor !== null
-      && !saltoGameCompleted
-      && !isFrogSplashing
-      && !isFlyAutoJumping
-      && !saltoFlyUsedThisRound;
-
-    if (!shouldManageFly) {
-      hideSaltoFly();
-      return;
-    }
-
-    if (saltoFlyVisible) {
-      return;
-    }
-
-    clearSaltoFlySpawnTimer();
-    saltoFlySpawnTimeoutRef.current = window.setTimeout(() => {
-      setSaltoFlyLane(Math.floor(Math.random() * 3));
-      setSaltoFlyDirection(Math.random() < 0.5 ? 'leftToRight' : 'rightToLeft');
-      setSaltoFlyVisible(true);
-    }, 6000);
-
-    return () => {
-      clearSaltoFlySpawnTimer();
-    };
-  }, [
-    activeStep,
-    hideSaltoFly,
-    isFlyAutoJumping,
-    isFrogSplashing,
-    saltoFlyUsedThisRound,
-    saltoFlyVisible,
-    saltoFlowStage,
-    saltoFrogPosition,
-    saltoGameCompleted,
-    saltoIndex,
-    saltoSelectedFactor,
-  ]);
-
-  useEffect(() => {
-    if (!saltoFlyVisible || isFlyAutoJumping) return;
-    clearSaltoFlyTravelTimer();
-    saltoFlyTravelTimeoutRef.current = window.setTimeout(() => {
-      setSaltoFlyUsedThisRound(true);
-      hideSaltoFly();
-    }, prefersReducedMotion ? 1400 : SALTO_FLY_TRAVEL_MS);
-
-    return () => {
-      clearSaltoFlyTravelTimer();
-    };
-  }, [hideSaltoFly, isFlyAutoJumping, prefersReducedMotion, saltoFlyVisible, SALTO_FLY_TRAVEL_MS]);
+  }, []);
 
   useEffect(() => {
     const rules: Array<{ key: HelperGuidanceKey; show: boolean }> = [
@@ -1023,72 +604,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     }
   }, [world.id, profile.worldProgress]);
 
-  // Generate a fixed option pool for the whole Salto run.
-  const generateSaltoOptions = (factor: number) => {
-    const optionsSet = new Set<number>();
-    const minOptionCount = Math.max(4, factor);
-
-    for (let step = 1; step <= factor; step++) {
-      optionsSet.add(world.id * step);
-    }
-
-    let attempts = 0;
-    while (optionsSet.size < minOptionCount && attempts < 200) {
-      const randomMultiplier = Math.floor(Math.random() * 14) + 1;
-      optionsSet.add(world.id * randomMultiplier);
-      attempts++;
-    }
-
-    let fallbackMultiplier = factor + 1;
-    while (optionsSet.size < minOptionCount) {
-      optionsSet.add(world.id * fallbackMultiplier);
-      fallbackMultiplier++;
-    }
-
-    setSaltoOptions(shuffleArray(Array.from(optionsSet)));
-  };
-
-  const pickRandomSaltoAntagonist = (): SaltoAntagonist => {
-    const index = Math.floor(Math.random() * SALTO_ANTAGONISTS.length);
-    return SALTO_ANTAGONISTS[index];
-  };
-
-  const buildSaltoEnemyLayout = (factor: number): { steps: number[]; antagonistsByStep: Record<number, SaltoAntagonist> } => {
-    if (factor < SALTO_OBSTACLE_START_FACTOR) {
-      return { steps: [], antagonistsByStep: {} };
-    }
-    if (factor === 1) {
-      const antagonist = pickRandomSaltoAntagonist();
-      return { steps: [1], antagonistsByStep: { 1: antagonist } };
-    }
-    const enemyCountTarget =
-      factor >= 8
-        ? 3
-        : factor >= 6
-          ? 2
-          : 1;
-    const availableSteps = Array.from({ length: Math.max(0, factor - 2) }).map((_, idx) => idx + 2);
-    const selectedSteps = shuffleArray(availableSteps)
-      .slice(0, Math.min(enemyCountTarget, availableSteps.length))
-      .sort((a, b) => a - b);
-    const antagonistsByStep: Record<number, SaltoAntagonist> = {};
-    selectedSteps.forEach((step) => {
-      antagonistsByStep[step] = pickRandomSaltoAntagonist();
-    });
-    return { steps: selectedSteps, antagonistsByStep };
-  };
-
-  useEffect(() => {
-    if (
-      activeStep === 'salto' &&
-      saltoSelectedFactor !== null &&
-      saltoFlowStage === 'game' &&
-      !saltoGameCompleted &&
-      saltoOptions.length === 0
-    ) {
-      generateSaltoOptions(saltoSelectedFactor);
-    }
-  }, [saltoSelectedFactor, activeStep, world.id, saltoFlowStage, saltoGameCompleted, saltoOptions.length]);
+  // Note: Salto's option-pool generation now lives inside SaltoExercise.tsx
 
   useEffect(() => {
     if (activeStep === 'salto' && saltoFlowStage === 'game') {
@@ -1162,7 +678,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   useEffect(() => {
     setCostruiscoGameCompleted(false);
-    clearCostruiscoFlightTimeout();
   }, [costruiscoSelectedFactor]);
 
   useEffect(() => {
@@ -1180,395 +695,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     };
   }, []);
 
-  const clearTrucchiRoundTimeouts = () => {
-    if (trucchiPreviewTimeoutRef.current !== null) {
-      window.clearTimeout(trucchiPreviewTimeoutRef.current);
-      trucchiPreviewTimeoutRef.current = null;
-    }
-    if (trucchiRevealTimeoutRef.current !== null) {
-      window.clearTimeout(trucchiRevealTimeoutRef.current);
-      trucchiRevealTimeoutRef.current = null;
-    }
-    if (trucchiCollapseTimeoutRef.current !== null) {
-      window.clearTimeout(trucchiCollapseTimeoutRef.current);
-      trucchiCollapseTimeoutRef.current = null;
-    }
-    if (trucchiHammerStrikeTimeoutRef.current !== null) {
-      window.clearTimeout(trucchiHammerStrikeTimeoutRef.current);
-      trucchiHammerStrikeTimeoutRef.current = null;
-    }
-    if (trucchiHammerHitClearTimeoutRef.current !== null) {
-      window.clearTimeout(trucchiHammerHitClearTimeoutRef.current);
-      trucchiHammerHitClearTimeoutRef.current = null;
-    }
-    if (trucchiHammerResolveTimeoutRef.current !== null) {
-      window.clearTimeout(trucchiHammerResolveTimeoutRef.current);
-      trucchiHammerResolveTimeoutRef.current = null;
-    }
-  };
 
-  const getTrucchiHammerDelayRange = (factor: number): [number, number] => {
-    if (factor >= 8) return [950, 1350];
-    if (factor >= 6) return [1350, 1850];
-    if (factor >= 4) return [1850, 2500];
-    return [3200, 4100];
-  };
-
-  const getTrucchiHammerFirstDelayRange = (factor: number): [number, number] => {
-    if (factor >= 8) return [280, 520];
-    if (factor >= 6) return [420, 700];
-    if (factor >= 4) return [650, 950];
-    return [1200, 1800];
-  };
-
-  const getTrucchiHammerStartPoint = useCallback(() => {
-    const arena = trucchiArenaRef.current;
-    if (!arena) {
-      return { x: 280, y: 34 };
-    }
-    return { x: Math.max(22, arena.clientWidth - 28), y: 34 };
-  }, []);
-
-  const getTrucchiBrickCenter = useCallback((brickIndex: number) => {
-    const arena = trucchiArenaRef.current;
-    const brick = trucchiBrickRefs.current[brickIndex];
-    if (!arena || !brick) {
-      return null;
-    }
-    const arenaRect = arena.getBoundingClientRect();
-    const brickRect = brick.getBoundingClientRect();
-    return {
-      x: (brickRect.left - arenaRect.left) + (brickRect.width / 2),
-      y: (brickRect.top - arenaRect.top) + (brickRect.height / 2),
-    };
-  }, []);
-
-  const generateTrucchiBrickValues = (worldId: number, factor: number) => {
-    const correct = worldId * factor;
-    return shuffleArray([
-      correct,
-      ...ALL_FACTORS.filter(candidate => candidate !== factor).map(candidate => worldId * candidate),
-    ]);
-  };
-
-  const resetTrucchiRound = (factor: number | null = trucchiSelectedFactor) => {
-    clearTrucchiRoundTimeouts();
-
-    if (factor === null) {
-      setTrucchiBrickValues([]);
-      setTrucchiRemovedBricks(new Set());
-      setTrucchiWrongChoices(0);
-      setTrucchiPyramidCollapsed(false);
-      setTrucchiPreviewActive(false);
-      setTrucchiRevealedBrickIndex(null);
-      setTrucchiHammerActive(false);
-      setTrucchiHammerHitBricks(new Set());
-      setTrucchiHammerTargetIndex(null);
-      setTrucchiHammerTraveling(false);
-      setTrucchiHammerHasStruck(false);
-      setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
-      setTrucchiCollapseReason(null);
-      return;
-    }
-
-    setTrucchiBrickValues(generateTrucchiBrickValues(world.id, factor));
-    setTrucchiRemovedBricks(new Set());
-    setTrucchiWrongChoices(0);
-    setTrucchiPyramidCollapsed(false);
-    setTrucchiPreviewActive(true);
-    setTrucchiRevealedBrickIndex(null);
-    setTrucchiQuestionSolved(false);
-    setShowTrucchiCompletionEffect(false);
-    setTrucchiHammerActive(false);
-    setTrucchiHammerHitBricks(new Set());
-    setTrucchiHammerTargetIndex(null);
-    setTrucchiHammerTraveling(false);
-    setTrucchiHammerHasStruck(false);
-    setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
-    setTrucchiCollapseReason(null);
-
-    const previewDurationMs = scaleDurationByFactor(TRUCCHI_PREVIEW_MS, factor, TRUCCHI_PREVIEW_SCALE_MIN);
-    trucchiPreviewTimeoutRef.current = window.setTimeout(() => {
-      setTrucchiPreviewActive(false);
-      trucchiPreviewTimeoutRef.current = null;
-      if (factor >= TRUCCHI_HAMMER_START_FACTOR) {
-        const start = getTrucchiHammerStartPoint();
-        setTrucchiHammerPose({ ...start, visible: true, striking: false });
-        setTrucchiHammerHasStruck(false);
-        setTrucchiHammerActive(true);
-      }
-    }, previewDurationMs);
-  };
-
-  const resolveTrucchiHammerStrike = useCallback((factor: number, targetIndex: number) => {
-    if (!trucchiHammerActiveRef.current || trucchiQuestionSolvedRef.current || trucchiPyramidCollapsedRef.current) {
-      setTrucchiHammerTraveling(false);
-      setTrucchiHammerTargetIndex(null);
-      setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
-      return;
-    }
-    setTrucchiHammerTraveling(false);
-    setTrucchiHammerTargetIndex(null);
-    setTrucchiHammerHasStruck(true);
-    setTrucchiHammerPose(prev => ({ ...prev, striking: false }));
-    setTrucchiHammerHitBricks(new Set([targetIndex]));
-    sound.playHammerBrickHit();
-    if (trucchiHammerHitClearTimeoutRef.current !== null) {
-      window.clearTimeout(trucchiHammerHitClearTimeoutRef.current);
-    }
-    trucchiHammerHitClearTimeoutRef.current = window.setTimeout(() => {
-      setTrucchiHammerHitBricks(new Set());
-      trucchiHammerHitClearTimeoutRef.current = null;
-    }, 420);
-
-    const correctValue = world.id * factor;
-    const hitCorrectBrick = trucchiBrickValues[targetIndex] === correctValue;
-    if (hitCorrectBrick) {
-      setTrucchiHammerActive(false);
-      setTrucchiCollapseReason('hammer');
-      sound.playError();
-      speak(GAMEPLAY_AUDIO_MESSAGES.trucchiHammer);
-      setTrucchiPyramidCollapsed(true);
-      setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
-      trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
-        setTrucchiRemovedBricks(new Set(Array.from({ length: trucchiBrickValues.length }, (_, index) => index)));
-        trucchiCollapseTimeoutRef.current = null;
-      }, TRUCCHI_COLLAPSE_MS);
-      return;
-    }
-
-    setTrucchiRemovedBricks(prev => {
-      const next = new Set(prev);
-      next.add(targetIndex);
-      return next;
-    });
-    setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: trucchiHammerActive, striking: false });
-  }, [
-    getTrucchiHammerStartPoint,
-    speak,
-    trucchiBrickValues,
-    trucchiHammerActive,
-    world.id,
-  ]);
-
-  const strikeTrucchiHammer = useCallback((factor: number) => {
-    if (
-      trucchiPreviewActive
-      || trucchiPyramidCollapsed
-      || trucchiQuestionSolved
-      || trucchiRevealedBrickIndex !== null
-      || trucchiHammerTraveling
-      || !trucchiHammerActive
-    ) {
-      return;
-    }
-    const availableBrickIndexes = trucchiBrickValues
-      .map((_, index) => index)
-      .filter(index => !trucchiRemovedBricks.has(index));
-
-    if (availableBrickIndexes.length === 0) {
-      return;
-    }
-
-    const targetIndex = shuffleArray(availableBrickIndexes)[0];
-    if (targetIndex === undefined) {
-      return;
-    }
-
-    const start = getTrucchiHammerStartPoint();
-    const target = getTrucchiBrickCenter(targetIndex);
-    if (!target) {
-      resolveTrucchiHammerStrike(factor, targetIndex);
-      return;
-    }
-
-    setTrucchiHammerTraveling(true);
-    setTrucchiHammerTargetIndex(targetIndex);
-    setTrucchiHammerHitBricks(new Set());
-    setTrucchiHammerPose({ ...start, visible: true, striking: false });
-    window.requestAnimationFrame(() => {
-      setTrucchiHammerPose({ x: target.x, y: target.y, visible: true, striking: true });
-    });
-    if (trucchiHammerResolveTimeoutRef.current !== null) {
-      window.clearTimeout(trucchiHammerResolveTimeoutRef.current);
-    }
-    trucchiHammerResolveTimeoutRef.current = window.setTimeout(() => {
-      trucchiHammerResolveTimeoutRef.current = null;
-      resolveTrucchiHammerStrike(factor, targetIndex);
-    }, prefersReducedMotion ? 120 : TRUCCHI_HAMMER_TRAVEL_MS);
-  }, [
-    getTrucchiBrickCenter,
-    getTrucchiHammerStartPoint,
-    prefersReducedMotion,
-    resolveTrucchiHammerStrike,
-    trucchiBrickValues,
-    trucchiHammerActive,
-    trucchiHammerTraveling,
-    trucchiPreviewActive,
-    trucchiRevealedBrickIndex,
-    trucchiPyramidCollapsed,
-    trucchiQuestionSolved,
-    trucchiRemovedBricks,
-  ]);
-
-  useEffect(() => {
-    if (
-      !trucchiHammerActive
-      || trucchiSelectedFactor === null
-      || trucchiPreviewActive
-      || trucchiRevealedBrickIndex !== null
-      || trucchiHammerTraveling
-      || trucchiPyramidCollapsed
-      || trucchiQuestionSolved
-    ) {
-      return;
-    }
-    const [minDelayMs, maxDelayMs] = trucchiHammerHasStruck
-      ? getTrucchiHammerDelayRange(trucchiSelectedFactor)
-      : getTrucchiHammerFirstDelayRange(trucchiSelectedFactor);
-    const strikeDelayMs = randomInRange(minDelayMs, maxDelayMs);
-    trucchiHammerStrikeTimeoutRef.current = window.setTimeout(() => {
-      trucchiHammerStrikeTimeoutRef.current = null;
-      strikeTrucchiHammer(trucchiSelectedFactor);
-    }, strikeDelayMs);
-
-    return () => {
-      if (trucchiHammerStrikeTimeoutRef.current !== null) {
-        window.clearTimeout(trucchiHammerStrikeTimeoutRef.current);
-        trucchiHammerStrikeTimeoutRef.current = null;
-      }
-    };
-  }, [
-    strikeTrucchiHammer,
-    trucchiBrickValues,
-    trucchiHammerActive,
-    trucchiHammerTraveling,
-    trucchiHammerHasStruck,
-    trucchiPyramidCollapsed,
-    trucchiPreviewActive,
-    trucchiRevealedBrickIndex,
-    trucchiQuestionSolved,
-    trucchiRemovedBricks,
-    trucchiSelectedFactor,
-  ]);
-
-  useEffect(() => {
-    resetTrucchiRound(trucchiSelectedFactor);
-  }, [trucchiSelectedFactor, world.id]);
-
-  // Helper to generate candidate balloon numbers pool (1 correct answer + many distractors)
-  const generateCostruiscoBalloonPool = (worldId: number, factor: number): number[] => {
-    const correct = worldId * factor;
-    const distractors = new Set<number>();
-    const targetDistractorsCount = 9;
-
-    // Add close multiples and nearby numbers
-    if (factor > 1) distractors.add(worldId * (factor - 1));
-    distractors.add(worldId * (factor + 1));
-    if (factor > 2) distractors.add(worldId * (factor - 2));
-    distractors.add(worldId * (factor + 2));
-    if (factor > 3) distractors.add(worldId * (factor - 3));
-    distractors.add(worldId * (factor + 3));
-
-    distractors.add(correct + 1);
-    if (correct > 1) distractors.add(correct - 1);
-    distractors.add(correct + 2);
-    if (correct > 2) distractors.add(correct - 2);
-    distractors.add(correct + 3);
-    if (correct > 3) distractors.add(correct - 3);
-    distractors.add(correct + worldId);
-    if (correct - worldId > 0) distractors.add(correct - worldId);
-
-    distractors.delete(correct);
-
-    let fillerStep = 1;
-    while (distractors.size < targetDistractorsCount) {
-      const high = correct + fillerStep;
-      const low = correct - fillerStep;
-      if (high !== correct) distractors.add(high);
-      if (low > 0 && low !== correct) distractors.add(low);
-      fillerStep++;
-    }
-
-    const shuffledDistractors = shuffleArray(Array.from(distractors)).slice(0, targetDistractorsCount);
-    return shuffleArray([correct, ...shuffledDistractors]);
-  };
-
-  const clearCostruiscoFlightTimeout = () => {
-    if (costruiscoSpawnTimeoutRef.current !== null) {
-      window.clearTimeout(costruiscoSpawnTimeoutRef.current);
-      costruiscoSpawnTimeoutRef.current = null;
-    }
-    if (costruiscoBombTimeoutRef.current !== null) {
-      window.clearTimeout(costruiscoBombTimeoutRef.current);
-      costruiscoBombTimeoutRef.current = null;
-    }
-    (Object.values(costruiscoEscapeTimeoutsRef.current) as number[]).forEach(timeoutId => {
-      window.clearTimeout(timeoutId);
-    });
-    costruiscoEscapeTimeoutsRef.current = {};
-  };
-
-  const getBombCountForFactor = (factor: number): number => {
-    if (factor < COSTRUISCO_BOMB_START_FACTOR) return 0;
-    if (factor >= 10) return 4;
-    if (factor >= 8) return 3;
-    if (factor >= 6) return 2;
-    return 1;
-  };
-
-  const getBombSpawnDelayMs = (factor: number): [number, number] => {
-    if (factor >= 10) return [600, 1200];
-    if (factor >= 8) return [900, 1800];
-    if (factor >= 6) return [1400, 2800];
-    return [2000, 4000];
-  };
-
-  const queueCostruiscoBombSpawn = (factor: number, bombsLeft: number) => {
-    if (bombsLeft <= 0) return;
-    if (costruiscoBombTimeoutRef.current !== null) return;
-    const [minDelay, maxDelay] = getBombSpawnDelayMs(factor);
-    const delayMs = randomInRange(minDelay, maxDelay);
-    costruiscoBombTimeoutRef.current = window.setTimeout(() => {
-      costruiscoBombTimeoutRef.current = null;
-      if (costruiscoFailedRef.current || costruiscoGameCompletedRef.current) return;
-      const bombId = ++costruiscoBalloonTokenRef.current;
-      const flightMs = randomInRange(
-        scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MIN_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
-        scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MAX_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
-      );
-      const bomb: CostruiscoActiveBalloon = {
-        id: bombId,
-        value: world.id * factor,
-        lane: randomInRange(8, 92),
-        flightMs,
-        palette: COSTRUISCO_BALLOON_PALETTES[Math.floor(Math.random() * COSTRUISCO_BALLOON_PALETTES.length)],
-        isCorrect: false,
-        isTrap: true,
-      };
-      setCostruiscoActiveBalloons(prev => [...prev, bomb]);
-      const escapeMs = Math.floor(flightMs * COSTRUISCO_CORRECT_FAIL_PROGRESS);
-      costruiscoEscapeTimeoutsRef.current[bombId] = window.setTimeout(() => {
-        delete costruiscoEscapeTimeoutsRef.current[bombId];
-        setCostruiscoActiveBalloons(prev => prev.filter(b => b.id !== bombId));
-        if (!bomb.isCorrect || costruiscoFailedRef.current || costruiscoGameCompletedRef.current) {
-          return;
-        }
-        sound.playError();
-        speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoTooHigh);
-        setCostruiscoFailReason('correct-escaped');
-        setCostruiscoWrongTappedValue(null);
-        setCostruiscoFailed(true);
-        setCostruiscoGameCompleted(false);
-        clearCostruiscoFlightTimeout();
-      }, escapeMs);
-
-      // Continue scheduling bomb balloons until the requested quota is exhausted.
-      if (bombsLeft > 1) {
-        queueCostruiscoBombSpawn(factor, bombsLeft - 1);
-      }
-    }, delayMs);
-  };
 
   const clearSfidaFeedbackTimeout = () => {
     if (sfidaFeedbackTimeoutRef.current !== null) {
@@ -1581,183 +708,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
-  const getFactorProgress = (factor: number) => {
-    const clamped = Math.max(DIFFICULTY_FACTOR_MIN, Math.min(DIFFICULTY_FACTOR_MAX, factor));
-    return (clamped - DIFFICULTY_FACTOR_MIN) / (DIFFICULTY_FACTOR_MAX - DIFFICULTY_FACTOR_MIN);
-  };
-
-  const scaleDurationByFactor = (baseMs: number, factor: number, minScale: number) => {
-    const progress = getFactorProgress(factor);
-    const scale = 1 - ((1 - minScale) * progress);
-    return Math.max(140, Math.floor(baseMs * scale));
-  };
-
-  const queueCostruiscoSpawn = (factor: number) => {
-    if (costruiscoSpawnTimeoutRef.current !== null) return;
-    const spawnMinMs = scaleDurationByFactor(COSTRUISCO_BALLOON_SPAWN_MIN_MS, factor, COSTRUISCO_SPAWN_SCALE_MIN);
-    const spawnMaxMs = scaleDurationByFactor(COSTRUISCO_BALLOON_SPAWN_MAX_MS, factor, COSTRUISCO_SPAWN_SCALE_MIN);
-    const delayMs = randomInRange(spawnMinMs, spawnMaxMs);
-    costruiscoSpawnTimeoutRef.current = window.setTimeout(() => {
-      costruiscoSpawnTimeoutRef.current = null;
-
-      if (costruiscoFailedRef.current || costruiscoGameCompletedRef.current) return;
-      if (costruiscoBalloonPoolRef.current.length === 0) return;
-
-      if (costruiscoActiveBalloonsRef.current.length >= COSTRUISCO_BALLOON_MAX_ACTIVE) {
-        queueCostruiscoSpawn(factor);
-        return;
-      }
-
-      const [nextVal, ...remainingPool] = costruiscoBalloonPoolRef.current;
-      costruiscoBalloonPoolRef.current = remainingPool;
-      setCostruiscoBalloonPool(remainingPool);
-
-      const balloonId = ++costruiscoBalloonTokenRef.current;
-      const balloon: CostruiscoActiveBalloon = {
-        id: balloonId,
-        value: nextVal,
-        lane: randomInRange(8, 92),
-        flightMs: randomInRange(
-          scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MIN_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
-          scaleDurationByFactor(COSTRUISCO_BALLOON_FLIGHT_MAX_MS, factor, COSTRUISCO_FLIGHT_SCALE_MIN),
-        ),
-        palette: COSTRUISCO_BALLOON_PALETTES[Math.floor(Math.random() * COSTRUISCO_BALLOON_PALETTES.length)],
-        isCorrect: nextVal === world.id * factor,
-      };
-
-      setCostruiscoActiveBalloons(prev => [...prev, balloon]);
-
-      const correctFailTimeoutMs = Math.floor(balloon.flightMs * COSTRUISCO_CORRECT_FAIL_PROGRESS);
-      costruiscoEscapeTimeoutsRef.current[balloon.id] = window.setTimeout(() => {
-        delete costruiscoEscapeTimeoutsRef.current[balloon.id];
-        setCostruiscoActiveBalloons(prev => prev.filter(active => active.id !== balloon.id));
-        if (!balloon.isCorrect || costruiscoFailedRef.current || costruiscoGameCompletedRef.current) {
-          return;
-        }
-        sound.playError();
-        speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoTooHigh);
-        setCostruiscoFailReason('correct-escaped');
-        setCostruiscoWrongTappedValue(null);
-        setCostruiscoFailed(true);
-        setCostruiscoGameCompleted(false);
-        clearCostruiscoFlightTimeout();
-      }, correctFailTimeoutMs);
-
-      if (remainingPool.length > 0) {
-        queueCostruiscoSpawn(factor);
-      }
-    }, delayMs);
-  };
-
-  const startCostruiscoSingleBalloonGame = (factor?: number) => {
-    const activeFactor = factor ?? costruiscoSelectedFactor ?? 1;
-    clearCostruiscoFlightTimeout();
-    setCostruiscoFlowStage('game');
-    setCostruiscoGameCompleted(false);
-    setCostruiscoFailed(false);
-    setCostruiscoFailReason(null);
-    setCostruiscoWrongTappedValue(null);
-    setShowCostruiscoCompletionEffect(false);
-    setCostruiscoPopBursts([]);
-    setCostruiscoActiveBalloons([]);
-
-    const pool = generateCostruiscoBalloonPool(world.id, activeFactor);
-    costruiscoBalloonPoolRef.current = pool;
-    setCostruiscoBalloonPool(pool);
-
-    queueCostruiscoSpawn(activeFactor);
-    queueCostruiscoBombSpawn(activeFactor, getBombCountForFactor(activeFactor));
-  };
-
-  const handleCostruiscoSingleBalloonTap = (balloon: CostruiscoActiveBalloon) => {
-    if (costruiscoGameCompleted || costruiscoFailed) return;
-    if (balloon.isTrap) {
-      consumeGuidance('costruiscoAvoid');
-    } else if (balloon.isCorrect) {
-      consumeGuidance('costruiscoTouch');
-    }
-
-    sound.playBalloonPop();
-    const timeoutId = costruiscoEscapeTimeoutsRef.current[balloon.id];
-    if (timeoutId !== undefined) {
-      window.clearTimeout(timeoutId);
-      delete costruiscoEscapeTimeoutsRef.current[balloon.id];
-    }
-
-    setCostruiscoActiveBalloons(prev => prev.filter(active => active.id !== balloon.id));
-    setCostruiscoPopBursts(prev => [...prev, { id: balloon.id, lane: balloon.lane }]);
-    window.setTimeout(() => {
-      setCostruiscoPopBursts(prev => prev.filter(burst => burst.id !== balloon.id));
-    }, 380);
-
-    // Bomb trap: immediate fail
-    if (balloon.isTrap) {
-      sound.playBombTrapFailure();
-      speak(GAMEPLAY_AUDIO_MESSAGES.costruiscoBomb);
-      setCostruiscoFailReason('wrong-tap');
-      setCostruiscoWrongTappedValue(null);
-      setCostruiscoFailed(true);
-      setCostruiscoGameCompleted(false);
-      clearCostruiscoFlightTimeout();
-      return;
-    }
-
-    const factor = costruiscoSelectedFactor || 1;
-    const expected = world.id * factor;
-
-    if (balloon.isCorrect) {
-      clearCostruiscoFlightTimeout();
-      sound.playSuccess();
-      speakMultiplicationSuccess(world.id, factor, expected);
-      setCostruiscoGameCompleted(true);
-      setCostruiscoFailed(false);
-      setShowCostruiscoCompletionEffect(true);
-      return;
-    }
-
-    sound.playError();
-    speak('Ops, numero sbagliato! Riprova da capo.');
-    setCostruiscoFailReason('wrong-tap');
-    setCostruiscoWrongTappedValue(balloon.value);
-    setCostruiscoFailed(true);
-    setCostruiscoGameCompleted(false);
-    clearCostruiscoFlightTimeout();
-  };
-
-  const handleCostruiscoRetry = () => {
-    sound.playClick();
-    if (costruiscoSelectedFactor !== null) {
-      startCostruiscoSingleBalloonGame(costruiscoSelectedFactor);
-    }
-  };
-
-  // Initialize Costruisco balloons when a factor is selected or stage changes
-  useEffect(() => {
-    if (activeStep !== 'costruisco' || costruiscoSelectedFactor === null) {
-      clearCostruiscoFlightTimeout();
-      return;
-    }
-    if (costruiscoFlowStage === 'game') {
-      if (!costruiscoGameCompleted && !costruiscoFailed && costruiscoActiveBalloons.length === 0 && costruiscoBalloonPool.length === 0) {
-        startCostruiscoSingleBalloonGame(costruiscoSelectedFactor);
-      }
-      return;
-    }
-    clearCostruiscoFlightTimeout();
-    setCostruiscoActiveBalloons([]);
-    setCostruiscoBalloonPool([]);
-    setCostruiscoPopBursts([]);
-    setCostruiscoFailed(false);
-    setCostruiscoFailReason(null);
-    setCostruiscoWrongTappedValue(null);
-    setCostruiscoGameCompleted(false);
-  }, [costruiscoSelectedFactor, activeStep, world.id, costruiscoFlowStage, costruiscoActiveBalloons.length, costruiscoBalloonPool.length, costruiscoFailed, costruiscoGameCompleted]);
-
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
-      clearTrucchiRoundTimeouts();
-      clearCostruiscoFlightTimeout();
       clearSfidaFeedbackTimeout();
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -1767,18 +720,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Start Sfida when entering sfida step (for training mode)
   useEffect(() => {
-    console.log('[Sfida Init] activeStep:', activeStep, 'sfidaActive:', sfidaActive);
     if (activeStep === 'sfida' && !sfidaActive) {
-      console.log('[Sfida Init] Starting Sfida mode...');
       startSfidaMode();
     }
   }, [activeStep]);
 
   // Generate initial Sfida question when sfidaActive is set
   useEffect(() => {
-    console.log('[Sfida Question] sfidaActive:', sfidaActive, 'sfidaQuestion:', sfidaQuestion);
     if (sfidaActive && !sfidaQuestion) {
-      console.log('[Sfida Question] Generating question...');
       generateSfidaQuestion();
     }
   }, [sfidaActive]);
@@ -1962,43 +911,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
 
   // Reset Costruisco (Step 3)
   const resetCostruisco = () => {
-    const emptyProgress: { [key: number]: null } = {};
-    for (let i = 1; i <= 10; i++) {
-      emptyProgress[i] = null;
-    }
-    setCostruiscoProgress(emptyProgress);
-    clearCostruiscoFlightTimeout();
-    setCostruiscoBalloonPool([]);
-    setCostruiscoActiveBalloons([]);
-    setCostruiscoPopBursts([]);
-    setCostruiscoFailed(false);
-    setCostruiscoFailReason(null);
-    setCostruiscoWrongTappedValue(null);
     setCostruiscoGameCompleted(false);
     setShowCostruiscoCompletionEffect(false);
     setCostruiscoFlowStage('objective');
     setCompletedMonuments([]); // Reset monuments when restarting
-  };
-
-  const handleSaltoSelect = (val: number) => {
-    const correct = world.id * (saltoIndex + 1);
-    if (val === correct) {
-      sound.playSuccess();
-      speakSaltoSuccess(world.id, saltoIndex + 1, val);
-      if (saltoIndex === 9) {
-        // Mastered Salto!
-        sound.playLevelUp();
-        saveStepCompleted('salto');
-        setActiveStep('intro');
-        setSaltoIndex(0);
-      } else {
-        setSaltoIndex(prev => prev + 1);
-      }
-    } else {
-      sound.playError();
-      speak(GAMEPLAY_AUDIO_MESSAGES.saltoFall);
-      // gentle screen wobble or hint
-    }
   };
 
   // Adaptive Learning - handles mistake on Quiz
@@ -3119,20 +2035,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelComprendoExercise();
   };
   const cancelSaltoExercise = () => {
-    clearFlyAutoJump();
     setSaltoFlowStage('objective');
-    setSaltoIndex(0);
-    setSaltoOptions([]);
-    setSaltoCorrectClicks(new Set());
     setSaltoGameCompleted(false);
     setShowSaltoCompletionEffect(false);
-    setIsFrogSplashing(false);
-    setSaltoEnemySteps([]);
-    setSaltoJumpedEnemySteps(new Set());
-    setSaltoAntagonistsByStep({});
-    setSaltoFrogPosition(0);
-    setSaltoLeap(null);
-    setSaltoTapHop(null);
     setSaltoSelectedFactor(null);
   };
   const completeSaltoExercise = () => {
@@ -3144,16 +2049,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelSaltoExercise();
   };
   const cancelCostruiscoExercise = () => {
-    clearCostruiscoFlightTimeout();
     setCostruiscoFlowStage('objective');
     setCostruiscoGameCompleted(false);
     setShowCostruiscoCompletionEffect(false);
-    setCostruiscoBalloonPool([]);
-    setCostruiscoActiveBalloons([]);
-    setCostruiscoPopBursts([]);
-    setCostruiscoFailed(false);
-    setCostruiscoFailReason(null);
-    setCostruiscoWrongTappedValue(null);
     setCostruiscoSelectedFactor(null);
   };
   const completeCostruiscoExercise = () => {
@@ -3165,23 +2063,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     cancelCostruiscoExercise();
   };
   const cancelTrucchiExercise = () => {
-    clearTrucchiRoundTimeouts();
     setTrucchiFlowStage('objective');
-    setTrucchiQuestionSolved(false);
+    setTrucchiGameCompleted(false);
     setShowTrucchiCompletionEffect(false);
-    setTrucchiBrickValues([]);
-    setTrucchiRemovedBricks(new Set());
-    setTrucchiWrongChoices(0);
-    setTrucchiPyramidCollapsed(false);
-    setTrucchiPreviewActive(false);
-    setTrucchiRevealedBrickIndex(null);
-    setTrucchiHammerActive(false);
-    setTrucchiHammerHitBricks(new Set());
-    setTrucchiHammerTargetIndex(null);
-    setTrucchiHammerTraveling(false);
-    setTrucchiHammerHasStruck(false);
-    setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
-    setTrucchiCollapseReason(null);
     setTrucchiSelectedFactor(null);
   };
   const completeTrucchiExercise = () => {
@@ -3301,7 +2185,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     )) ||
     (activeStep === 'trucchi' && trucchiSelectedFactor !== null && (
       trucchiFlowStage === 'objective' ||
-      (trucchiFlowStage === 'game' && trucchiQuestionSolved)
+      (trucchiFlowStage === 'game' && trucchiGameCompleted)
     ));
   const handleSwipeContinue = () => {
     if (!canSwipeRightContinue) return;
@@ -3325,7 +2209,6 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     if (activeStep === 'costruisco' && costruiscoSelectedFactor !== null) {
       if (costruiscoFlowStage === 'objective') {
         setCostruiscoFlowStage('game');
-        startCostruiscoSingleBalloonGame();
       } else if (costruiscoFlowStage === 'game' && costruiscoGameCompleted) {
         completeCostruiscoExercise();
       }
@@ -3334,7 +2217,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
     if (activeStep === 'trucchi' && trucchiSelectedFactor !== null) {
       if (trucchiFlowStage === 'objective') {
         setTrucchiFlowStage('game');
-      } else if (trucchiFlowStage === 'game' && trucchiQuestionSolved) {
+      } else if (trucchiFlowStage === 'game' && trucchiGameCompleted) {
         completeTrucchiExercise();
       }
     }
@@ -3533,9 +2416,9 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         sound.playClick();
                         void speak(`${step.desc}`);
                         if (step.id === 'comprendo') setActiveStep('comprendo');
-                        else if (step.id === 'salto') { setSaltoIndex(0); setActiveStep('salto'); }
+                        else if (step.id === 'salto') { setActiveStep('salto'); }
                         else if (step.id === 'costruisco') { resetCostruisco(); setActiveStep('costruisco'); }
-                        else if (step.id === 'trucchi') { setTrucchiQuestionSolved(false); setTrucchiAnswer(""); setActiveStep('trucchi'); }
+                        else if (step.id === 'trucchi') { setTrucchiGameCompleted(false); setActiveStep('trucchi'); }
                         else if (step.id === 'pratico') startQuizMode();
                       }}
                       className={`relative p-3.5 rounded-2xl border-2 flex flex-col justify-between text-left transition-all cursor-pointer ${
@@ -3828,25 +2711,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             completed: effectiveSaltoCompleted,
             onSelect: (factor) => {
               sound.playClick();
-              clearFlyAutoJump();
-              hideSaltoFly();
-              const enemyLayout = buildSaltoEnemyLayout(factor);
               setSaltoSelectedFactor(factor);
-              setSaltoIndex(0);
-              setSaltoOptions([]);
-              setSaltoCorrectClicks(new Set());
               setSaltoFlowStage('game');
               setSaltoGameCompleted(false);
               setShowSaltoCompletionEffect(false);
-              setIsFrogSplashing(false);
-              setSaltoFailReason(null);
-              setSaltoEnemySteps(enemyLayout.steps);
-              setSaltoJumpedEnemySteps(new Set());
-              setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
-              setSaltoFrogPosition(0);
-              setSaltoLeap(null);
-              setSaltoTapHop(null);
-              setSaltoFlyUsedThisRound(false);
             },
             theme: {
               panel: 'bg-purple-50 border-purple-200',
@@ -3913,400 +2781,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 )}
 
                 {saltoFlowStage === 'game' && (
-                  <div className={`relative bg-white rounded-3xl border border-purple-100 shadow-xl ${compactLayout ? 'p-3 space-y-3' : 'p-5 space-y-5'}`}>
-                    <OperationPromptCard
-                      tone="purple"
-                      icon="🐸"
-                      eyebrow="Completa questa operazione"
-                      operation={`${world.id} × ${saltoSelectedFactor} = ${saltoGameCompleted ? world.id * saltoSelectedFactor : '?'}`}
-                      onSpeakOperation={() => speakOperationOnly(world.id, saltoSelectedFactor)}
-                      operationAriaLabel={`Ascolta operazione ${world.id} per ${saltoSelectedFactor}`}
-                    />
-
-                     {/* River Stream with Stepping Stones & Frog */}
-                    <div className="relative w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-teal-600 border-2 border-sky-300 shadow-inner p-3 min-h-[160px] flex flex-col justify-between overflow-hidden">
-                      <AnimatePresence>
-                        {saltoFlyVisible && !saltoGameCompleted && !isFrogSplashing && (
-                          <motion.button
-                            type="button"
-                            key={`salto-fly-${saltoFlyLane}-${saltoFlyDirection}`}
-                            initial={{
-                              opacity: 0,
-                              scale: 0.95,
-                              x: saltoFlyDirection === 'leftToRight' ? -44 : 316,
-                              y: 0,
-                            }}
-                            animate={prefersReducedMotion
-                              ? {
-                                  opacity: 1,
-                                  x: saltoFlyDirection === 'leftToRight' ? 316 : -44,
-                                  y: 0,
-                                }
-                              : {
-                                  opacity: 1,
-                                  x: saltoFlyDirection === 'leftToRight'
-                                    ? [-44, 8, 54, 100, 146, 192, 238, 284, 316]
-                                    : [316, 264, 218, 172, 126, 80, 34, -12, -44],
-                                  y: [0, -3, 2, -4, 2, -3, 2, -2, 0],
-                                  rotate: [0, -4, 3, -5, 3, -4, 2, -3, 0],
-                                }}
-                            exit={{ opacity: 0 }}
-                            transition={prefersReducedMotion
-                              ? { duration: 1.4, ease: 'linear' }
-                              : {
-                                  duration: SALTO_FLY_TRAVEL_MS / 1000,
-                                  ease: 'linear',
-                                  times: [0, 0.12, 0.24, 0.36, 0.5, 0.64, 0.78, 0.9, 1],
-                                }}
-                            onClick={triggerFlyAutoJumpCheat}
-                            className="absolute z-40 inline-flex h-10 w-10 items-center justify-center border-0 bg-transparent text-3xl transition hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-100"
-                            style={{ top: `${18 + saltoFlyLane * 28}px`, left: 0 }}
-                            aria-label="Tocca la mosca per aiutare la rana a completare tutti i salti rimanenti"
-                            title="Tocca la mosca"
-                          >
-                            {showSaltoFlyTouchGuidance && (
-                              <div className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2">
-                                <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
-                              </div>
-                            )}
-                            <span aria-hidden="true" className="select-none">🪰</span>
-                          </motion.button>
-                        )}
-                      </AnimatePresence>
-
-                      {/* Water sparkles background */}
-                      <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:16px_16px]" />
-                      {/* Removed separate frog button: jump now uses the moving frog on riva/stone */}
-                      {/* River Stream Container */}
-                      <div className="relative z-10 my-1 flex min-w-0 items-center justify-between gap-1 px-2 py-2 bg-sky-900/30 backdrop-blur-xs rounded-2xl border border-sky-200/30">
-                        {/* Stepping Stones Container (Riva + Stones 1 to saltoSelectedFactor) */}
-                        <div
-                          ref={saltoContainerRef}
-                          data-touch-swipe-lock="true"
-                          className="relative flex min-w-0 flex-1 items-center justify-start gap-2.5 overflow-x-auto overflow-y-hidden scroll-smooth px-2 pt-8 pb-2 sm:gap-3.5"
-                          style={{ touchAction: 'pan-x' }}
-                        >
-                          {/* Start Bank (Riva / Partenza) - Frog starts here! */}
-                          <div
-                            ref={saltoFrogPosition === 0 && !saltoGameCompleted ? saltoStoneRef : null}
-                            className="relative flex flex-col items-center justify-end shrink-0 min-w-[50px] pt-8 pb-2 px-1"
-                          >
-                            {/* Frog sitting on Riva when starting (saltoIndex === 0) */}
-                            {saltoFrogPosition === 0 && !saltoGameCompleted && (
-                              <motion.button
-                                type="button"
-                                onClick={() => triggerSaltoFrogJump(0)}
-                                aria-label="Salta con la rana"
-                                key={`frog-start-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
-                                initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
-                                animate={
-                                  isFrogSplashing
-                                    ? { y: [0, 28, 72], rotate: [0, 12, 20], scale: [1, 1.06, 0.96], opacity: [1, 1, 0] }
-                                    : saltoLeap?.from === 0
-                                      ? { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
-                                      : saltoTapHop?.step === 0
-                                        ? { y: [0, -16, 0], scale: [1, 1.08, 1] }
-                                        : { y: [0, -6, 0], scale: 1 }
-                                }
-                                transition={
-                                  isFrogSplashing
-                                    ? { duration: prefersReducedMotion ? 0.2 : 0.42, ease: "easeIn" }
-                                    : saltoLeap?.from === 0
-                                      ? { duration: prefersReducedMotion ? 0.14 : 0.42, ease: "easeInOut" }
-                                      : saltoTapHop?.step === 0
-                                        ? { duration: prefersReducedMotion ? 0.12 : 0.26, ease: "easeOut" }
-                                        : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
-                                }
-                                className="absolute -top-7 z-30 flex flex-col items-center cursor-pointer"
-                              >
-                                <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                {showSaltoFrogTouchGuidance && (
-                                  <span className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-0.5">
-                                    <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
-                                  </span>
-                                )}
-                              </motion.button>
-                            )}
-                            {saltoFrogPosition === 0 && isFrogSplashing && (
-                              <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none" aria-hidden="true">💦</span>
-                            )}
-                            <span className="text-xl">🌱</span>
-                            <span className="text-[9px] font-black text-sky-950 bg-amber-100 px-1.5 py-0.5 rounded shadow-xs font-sans">
-                              Riva
-                            </span>
-                          </div>
-
-                          {/* Stepping Stones (1 to saltoSelectedFactor) */}
-                          {Array.from({ length: saltoSelectedFactor }).map((_, idx) => {
-                            const stoneStep = idx + 1;
-                            const stoneNum = world.id * (idx + 1);
-                            const isLastStone = idx === saltoSelectedFactor - 1;
-                            const isFrogHere = !saltoGameCompleted && saltoFrogPosition === stoneStep;
-                            const isFrogOnFinish = saltoGameCompleted && isLastStone;
-                            const isReached = (stoneStep <= saltoIndex) || saltoGameCompleted;
-                            const hasEnemyStep = saltoEnemySteps.includes(idx + 1);
-                            const isEnemyStepPending = hasEnemyStep && !saltoJumpedEnemySteps.has(stoneStep) && !isReached;
-                            const isNextTarget = !saltoGameCompleted && idx === saltoIndex && !isEnemyStepPending;
-                            const enemyForStep = saltoAntagonistsByStep[idx + 1];
-
-                            return (
-                              <React.Fragment key={idx}>
-                                {hasEnemyStep && (
-                                  <div className="relative flex flex-col items-center justify-end min-w-[40px] shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (!enemyForStep) return;
-                                        consumeGuidance('saltoAvoid');
-                                        sound.playSaltoAntagonistSound(enemyForStep.id);
-                                        speak(enemyForStep.label);
-                                      }}
-                                      className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center shadow-sm transition-all cursor-pointer ${
-                                        isEnemyStepPending
-                                          ? 'bg-rose-100 border-rose-400 ring-4 ring-rose-200 motion-safe:animate-pulse'
-                                          : 'bg-slate-100 border-slate-300 opacity-65'
-                                      } relative`}
-                                      aria-label={enemyForStep ? `Step antagonista ${enemyForStep.label}` : 'Step antagonista'}
-                                    >
-                                      <span className="text-base leading-none" role="img" aria-hidden="true">
-                                        {enemyForStep ? enemyForStep.emoji : '👾'}
-                                      </span>
-                                    </button>
-                                  </div>
-                                )}
-                                <div
-                                  ref={isFrogHere ? saltoStoneRef : isFrogOnFinish ? saltoFinishRef : null}
-                                  className="relative flex flex-col items-center justify-end min-w-[46px] shrink-0"
-                                >
-                                  {/* Frog sitting on current stone during jumps */}
-                                  {isFrogHere && (
-                                    <motion.button
-                                      type="button"
-                                      onClick={() => triggerSaltoFrogJump(stoneStep)}
-                                      aria-label="Salta con la rana"
-                                      key={`frog-${idx}-${isFrogSplashing}-${saltoLeap ? 'leap' : 'idle'}`}
-                                      initial={isFrogSplashing ? { y: -10, rotate: 0 } : { y: -10, scale: 0.8 }}
-                                      animate={
-                                        isFrogSplashing
-                                          ? { y: [0, 28, 72], rotate: [0, 12, 20], scale: [1, 1.06, 0.96], opacity: [1, 1, 0] }
-                                          : saltoLeap?.from === stoneStep
-                                            ? isFlyAutoJumping
-                                              ? { x: [0, 26, 58], y: [0, -34, -12, 0], rotate: [0, -12, 10, 0], scale: [1, 1.08, 1.12, 1], opacity: [1, 1, 1, 0] }
-                                              : { x: [0, 24, 52], y: [0, -20, 0], rotate: [0, -8, 0], opacity: [1, 1, 0] }
-                                            : saltoTapHop?.step === stoneStep
-                                              ? { y: [0, -16, 0], scale: [1, 1.08, 1] }
-                                              : { y: [0, -6, 0], scale: 1 }
-                                      }
-                                      transition={
-                                        isFrogSplashing
-                                          ? { duration: prefersReducedMotion ? 0.2 : 0.42, ease: "easeIn" }
-                                          : saltoLeap?.from === stoneStep
-                                            ? { duration: prefersReducedMotion ? 0.18 : isFlyAutoJumping ? 0.52 : 0.42, ease: "easeInOut" }
-                                            : saltoTapHop?.step === stoneStep
-                                              ? { duration: prefersReducedMotion ? 0.12 : 0.26, ease: "easeOut" }
-                                              : { y: { repeat: Infinity, duration: 1.2, ease: "easeInOut" } }
-                                      }
-                                      className="absolute -top-7 z-30 flex flex-col items-center cursor-pointer"
-                                    >
-                                      <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                      {showSaltoFrogTouchGuidance && (
-                                        <span className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-0.5">
-                                          <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
-                                        </span>
-                                      )}
-                                    </motion.button>
-                                  )}
-                                  {isFrogHere && isFrogSplashing && (
-                                    <span className="pointer-events-none absolute bottom-1 z-20 text-xl select-none" aria-hidden="true">💦</span>
-                                  )}
-
-                                  {/* Frog sitting on final stone on completion */}
-                                  {isFrogOnFinish && (
-                                    <motion.div
-                                      initial={{ scale: 0, y: -15 }}
-                                      animate={{ scale: [1, 1.2, 1], y: [0, -8, 0] }}
-                                      transition={{ repeat: Infinity, duration: 0.9, ease: "easeInOut" }}
-                                      className="absolute -top-7 z-30 flex flex-col items-center pointer-events-none"
-                                    >
-                                      <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                                      <span className="absolute -top-2.5 -right-1.5 text-base animate-bounce">👑</span>
-                                    </motion.div>
-                                  )}
-
-                                  {/* Stepping Stone 🪨 */}
-                                  <motion.button
-                                    type="button"
-                                    onClick={() => {
-                                      if (isLastStone) {
-                                        speak('Traguardo');
-                                        return;
-                                      }
-                                      speak(isReached ? stoneNum.toString() : `Sasso ${idx + 1}`);
-                                    }}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-mono font-black text-xs sm:text-sm border-2 shadow-sm transition-all cursor-pointer relative ${
-                                      isFrogOnFinish
-                                        ? 'bg-amber-300 border-amber-500 text-amber-950 ring-4 ring-amber-300 shadow-lg scale-105'
-                                        : isReached
-                                          ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-md ring-2 ring-emerald-300/50'
-                                          : isNextTarget
-                                            ? 'bg-amber-50 border-amber-400 text-amber-900 ring-4 ring-amber-300/80 shadow-md animate-pulse'
-                                            : 'bg-slate-200/90 border-slate-300 text-slate-600'
-                                    }`}
-                                  >
-                                    {isReached ? stoneNum : isNextTarget ? '?' : '🪨'}
-                                  </motion.button>
-
-                                  {/* Badge below last stone */}
-                                  {isLastStone && (
-                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded mt-1 shadow-2xs ${
-                                      isFrogOnFinish
-                                        ? 'bg-amber-300 text-amber-950 border border-amber-400 font-sans'
-                                        : 'bg-indigo-100 text-indigo-900 border border-indigo-200 font-sans'
-                                    }`}>
-                                      {isFrogOnFinish ? 'Traguardo! 👑' : `Traguardo ${stoneNum}`}
-                                    </span>
-                                  )}
-                                </div>
-                              </React.Fragment>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Options Grid or Splash Retry Button */}
-                      {isFrogSplashing ? (
-                        <motion.div
-                          initial={{ scale: 0.95, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="w-full rounded-2xl border-2 border-rose-200 bg-white/95 px-4 py-4 text-center shadow-lg"
-                        >
-                          <p className="text-sm font-black text-rose-700">
-                            {saltoFailReason === 'obstacle'
-                              ? `Oh no! Ti ha fermato ${saltoCurrentObstacleLabel}.`
-                              : 'Oh no, la ranocchia e caduta!'}
-                          </p>
-                          <RetryButton
-                            tone="rose"
-                            className="mt-3"
-                            onClick={() => {
-                              sound.playClick();
-                              clearFlyAutoJump();
-                              hideSaltoFly();
-                              void speak('Riproviamo.');
-                              setIsFrogSplashing(false);
-                              setSaltoFailReason(null);
-                              setSaltoIndex(0);
-                              setSaltoCorrectClicks(new Set());
-                              setSaltoFlyUsedThisRound(false);
-                              setSaltoFrogPosition(0);
-                              setSaltoLeap(null);
-                              setSaltoTapHop(null);
-                              if (saltoSelectedFactor !== null) {
-                                const enemyLayout = buildSaltoEnemyLayout(saltoSelectedFactor);
-                                setSaltoEnemySteps(enemyLayout.steps);
-                                setSaltoJumpedEnemySteps(new Set());
-                                setSaltoAntagonistsByStep(enemyLayout.antagonistsByStep);
-                              }
-                            }}
-                          />
-                        </motion.div>
-                      ) : (
-                        <div className="w-full space-y-2.5">
-                          <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                        {saltoOptions.map((opt, idx) => {
-                          const solvedNum = world.id * saltoSelectedFactor;
-                          const isSelected = saltoGameCompleted && opt === solvedNum;
-                          const isCorrectlyClicked = saltoCorrectClicks.has(opt);
-
-                          return (
-                            <div key={idx} className="relative">
-                              {showSaltoTouchGuidance && opt === saltoExpectedValue && (
-                                <div className="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 translate-y-1">
-                                  <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
-                                </div>
-                              )}
-                              <button
-                                disabled={saltoGameCompleted || isFlyAutoJumping}
-                                onClick={() => {
-                                if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null || isFlyAutoJumping) return;
-                                consumeGuidance('saltoTouch');
-                                const isObstacleBlocking =
-                                  saltoEnemySteps.includes(saltoIndex + 1) &&
-                                  !saltoJumpedEnemySteps.has(saltoIndex + 1);
-                                if (isObstacleBlocking) {
-                                  consumeGuidance('saltoAvoid');
-                                  sound.playError();
-                                  const blockingAntagonist = saltoAntagonistsByStep[saltoIndex + 1];
-                                  const blockingLabel = withItalianArticle(blockingAntagonist?.label ?? 'ostacolo');
-                                  speak(`Oh no! Ti ha fermato ${blockingLabel}.`);
-                                  setSaltoFailReason('obstacle');
-                                  setIsFrogSplashing(true);
-                                  return;
-                                }
-                                const expected = world.id * (saltoIndex + 1);
-                                if (opt === expected) {
-                                  sound.playSuccess();
-                                  setSaltoCorrectClicks(prev => new Set([...prev, opt]));
-                                  setSaltoFrogPosition(saltoIndex + 1);
-                                  setSaltoLeap(null);
-                                  const landedNumberSpeech = opt.toString();
-                                  announceWithFallback(landedNumberSpeech);
-                                  if (saltoIndex + 1 >= saltoSelectedFactor) {
-                                    window.setTimeout(() => {
-                                      speakSaltoSuccess(world.id, saltoSelectedFactor, opt);
-                                    }, 320);
-                                    setSaltoGameCompleted(true);
-                                    setShowSaltoCompletionEffect(true);
-                                    setSaltoCompleted(prev => new Set([...prev, saltoSelectedFactor]));
-                                  } else {
-                                    setSaltoIndex(prev => prev + 1);
-                                  }
-                                } else {
-                                  sound.playError();
-                                  speak(GAMEPLAY_AUDIO_MESSAGES.saltoFall);
-                                  setSaltoFailReason('fall');
-                                  setIsFrogSplashing(true);
-                                }
-                              }}
-                                className={`py-3 sm:py-3.5 text-base sm:text-xl font-black font-mono w-full px-1 rounded-2xl border-2 bg-white shadow-sm transition-all ${
-                                isSelected
-                                  ? 'border-emerald-700 bg-emerald-200 text-emerald-950 ring-4 ring-emerald-300 shadow-lg scale-105 cursor-default'
-                                  : isCorrectlyClicked
-                                    ? 'border-emerald-700 bg-emerald-100 text-emerald-950 ring-2 ring-emerald-300 shadow-md cursor-pointer'
-                                  : saltoGameCompleted
-                                    ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed opacity-60'
-                                    : 'border-purple-100 hover:border-purple-400 text-purple-950 hover:bg-purple-50 cursor-pointer shadow-xs active:scale-95'
-                              } relative`}
-                                id={`salto-opt-${opt}`}
-                              >
-                                {isCorrectlyClicked && (
-                                  <span
-                                    className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
-                                    aria-hidden="true"
-                                  >
-                                    ✓
-                                  </span>
-                                )}
-                                {opt}
-                              </button>
-                            </div>
-                          );
-                        })}
-                        </div>
-                      </div>
-                    )}
-                    </div>
-
-                    {showSaltoCompletionEffect && (
-                      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
-                        <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
-                          <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <SaltoExercise
+                    key={saltoSelectedFactor}
+                    worldId={world.id}
+                    factor={saltoSelectedFactor}
+                    compactLayout={compactLayout}
+                    saltoGameCompleted={saltoGameCompleted}
+                    showSaltoCompletionEffect={showSaltoCompletionEffect}
+                    showSaltoTouchGuidance={(isSaltoFactorOne || !guidanceSeen.saltoTouch)}
+                    showSaltoAvoidGuidance={(isSaltoFactorOne || !guidanceSeen.saltoAvoid)}
+                    onConsumeTouchGuidance={() => consumeGuidance('saltoTouch')}
+                    onConsumeAvoidGuidance={() => consumeGuidance('saltoAvoid')}
+                    onAnnounce={announceWithFallback}
+                    onSpeakOperation={() => speakOperationOnly(world.id, saltoSelectedFactor)}
+                    setSaltoGameCompleted={setSaltoGameCompleted}
+                    setShowSaltoCompletionEffect={setShowSaltoCompletionEffect}
+                    setSaltoCompleted={setSaltoCompleted}
+                  />
                 )}
               </div>
             </div>
@@ -4378,16 +2869,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
               completed: effectiveCostruiscoCompleted,
               onSelect: (factor) => {
                 sound.playClick();
-              setCostruiscoSelectedFactor(factor);
-              setCostruiscoBalloonPool([]);
-              setCostruiscoActiveBalloons([]);
-              setCostruiscoPopBursts([]);
-              setCostruiscoFailed(false);
-              setCostruiscoFailReason(null);
-              setCostruiscoWrongTappedValue(null);
-              setCostruiscoFlowStage('game');
-              setCostruiscoGameCompleted(false);
-              setShowCostruiscoCompletionEffect(false);
+                setCostruiscoSelectedFactor(factor);
+                setCostruiscoFlowStage('game');
+                setCostruiscoGameCompleted(false);
+                setShowCostruiscoCompletionEffect(false);
             },
             theme: {
               panel: 'bg-emerald-50 border-emerald-200',
@@ -4460,144 +2945,25 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                    </div>
                  )}
 
-                 {costruiscoFlowStage === 'game' && (
-                   <div className="relative bg-white rounded-3xl p-5 border border-emerald-100 shadow-xl space-y-6">
-                     <OperationPromptCard
-                       tone="emerald"
-                       icon="🎈"
-                       eyebrow="Completa questa operazione"
-                       operation={`${world.id} × ${costruiscoSelectedFactor} = ?`}
-                       onSpeakOperation={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
-                       operationAriaLabel={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor}`}
-                     />
-
-                     <div>
-                       <div className="relative mx-auto w-full max-w-md h-64 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50 via-cyan-50 to-sky-100 flex items-center justify-center">
-                         {costruiscoFailed ? (
-                           <div className="text-center p-4 bg-white/95 backdrop-blur-xs rounded-2xl border border-rose-200 shadow-xl mx-4 space-y-2">
-                             <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-2xl">
-                               💥
-                             </div>
-                             <p className="text-xs text-slate-600 leading-relaxed">
-                               {costruiscoFailReason === 'wrong-tap' ? (
-                                 costruiscoWrongTappedValue === null ? (
-                                   <>💣 Palloncino trappola! Il numero era giusto, ma era una bomba.<br />Il palloncino vero aveva lo stesso numero ma era colorato!</>
-                                 ) : (
-                                   <>
-                                     Hai scoppiato il palloncino sbagliato (<b>{costruiscoWrongTappedValue}</b>)!<br />
-                                     Per <b>{world.id} × {costruiscoSelectedFactor}</b> il risultato era un altro.
-                                   </>
-                                 )
-                               ) : (
-                                  <>Oh no il palloncino è volato via!</>
-                               )}
-                             </p>
-                              <RetryButton
-                                tone="rose"
-                                className="mt-2"
-                                onClick={() => {
-                                  void speak('Riproviamo.');
-                                  handleCostruiscoRetry();
-                                }}
-                              />
-                           </div>
-                         ) : costruiscoGameCompleted ? (
-                           <div className="text-center p-4 bg-white/95 backdrop-blur-xs rounded-2xl border border-emerald-200 shadow-xl mx-4 space-y-2">
-                             <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl">
-                               🎉
-                             </div>
-                             <h3 className="text-base font-black text-emerald-800">Successo!</h3>
-                             <p className="text-xs text-slate-600">
-                               {getGenderedText(playerGender, 'Bravo! Risposta esatta:', 'Brava! Risposta esatta:')}<br />
-                                <b className="text-sm text-emerald-900 font-mono">
-                                  <button
-                                    type="button"
-                                    onClick={() => speakOperationOnly(world.id, costruiscoSelectedFactor || 1)}
-                                    className="cursor-pointer rounded px-1 focus-visible:outline-2 focus-visible:outline-emerald-500"
-                                    aria-label={`Ascolta operazione ${world.id} per ${costruiscoSelectedFactor || 1}`}
-                                  >
-                                    {world.id} × {costruiscoSelectedFactor} = {world.id * (costruiscoSelectedFactor || 1)}
-                                  </button>
-                                </b>
-                             </p>
-                           </div>
-                         ) : (
-                           <>
-                             {costruiscoPopBursts.map((burst) => (
-                               <motion.div
-                                 key={`pop-${burst.id}`}
-                                 initial={{ scale: 1, opacity: 1 }}
-                                 animate={{ scale: [1, 1.6, 0], opacity: [1, 1, 0] }}
-                                 transition={{ duration: 0.35, ease: "easeOut" }}
-                                 className="absolute bottom-2 -translate-x-1/2 text-5xl select-none pointer-events-none"
-                                 style={{ left: `${burst.lane}%` }}
-                               >
-                                 💥
-                               </motion.div>
-                             ))}
-                             {costruiscoActiveBalloons.map((balloon) => (
-                               <div
-                                 key={`multi-balloon-${balloon.id}`}
-                                  className={`absolute bottom-2 -translate-x-1/2 ${balloon.isCorrect && !balloon.isTrap ? 'z-40' : balloon.isTrap ? 'z-20' : 'z-10'}`}
-                                 style={{ left: `${balloon.lane}%` }}
-                               >
-                                 {showCostruiscoTouchGuidance && balloon.isCorrect && !balloon.isTrap && (
-                                   <div className="pointer-events-none absolute left-1/2 top-0 z-30">
-                                     <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} />
-                                   </div>
-                                 )}
-                                 <motion.button
-                                 whileHover={{ scale: 1.1 }}
-                                 whileTap={{ scale: 0.95 }}
-                                 initial={{ y: 80, opacity: 1 }}
-                                 animate={prefersReducedMotion ? { y: 0, opacity: 1 } : { y: [80, COSTRUISCO_BALLOON_EXIT_Y], opacity: [1, 1, 0.95] }}
-                                 transition={prefersReducedMotion ? { duration: 0.1 } : { duration: balloon.flightMs / 1000, ease: "linear" }}
-                                 onClick={() => handleCostruiscoSingleBalloonTap(balloon)}
-                                  className={`${compactLayout ? "w-16 h-20 text-base" : "w-20 h-24 text-lg"} rounded-[999px] font-extrabold font-mono flex items-center justify-center shadow-lg border select-none pb-2 pt-1 transition-all cursor-pointer relative ${balloon.palette.body}`}
-                                 id={`balloon-single-${balloon.id}`}
-                                 aria-label={balloon.isTrap ? 'Palloncino bomba — non toccare!' : `Palloncino ${balloon.value}`}
-                               >
-                                 {showCostruiscoAvoidGuidance && balloon.isTrap && (
-                                   <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
-                                 )}
-                                 {balloon.isTrap ? (
-                                   <>
-                                     <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
-                                     <span className="text-xl font-black">{balloon.value}</span>
-                                     <span
-                                       className="absolute top-1.5 right-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-white text-[13px] shadow-lg"
-                                       aria-hidden="true"
-                                     >💣</span>
-                                   </>
-                                 ) : (
-                                   <>
-                                     <span className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full bg-white/60" />
-                                     <span className="text-xl font-black">{balloon.value}</span>
-                                   </>
-                                 )}
-                                 <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rotate-45 rounded-[2px] ${balloon.palette.knot}`} />
-                                 <span className={`absolute -bottom-3 left-1/2 -translate-x-1/2 w-[2px] h-3 rounded-full ${balloon.palette.string}`} />
-                                 </motion.button>
-                               </div>
-                             ))}
-                             {costruiscoActiveBalloons.length === 0 && costruiscoPopBursts.length === 0 && (
-                               <p className="text-[11px] font-bold text-sky-700 bg-white/75 border border-sky-200 rounded-full px-3 py-1">
-                                 Nuovo palloncino in arrivo...
-                               </p>
-                             )}
-                           </>
-                         )}
-                       </div>
-                     </div>
-
-                     {showCostruiscoCompletionEffect && (
-                       <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
-                         <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
-                           <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                         </div>
-                       </div>
-                     )}
-                   </div>
+                 {costruiscoFlowStage === 'game' && costruiscoSelectedFactor !== null && (
+                   <CostruiscoExercise
+                     key={costruiscoSelectedFactor}
+                     worldId={world.id}
+                     factor={costruiscoSelectedFactor}
+                     playerGender={playerGender}
+                     compactLayout={compactLayout}
+                     costruiscoGameCompleted={costruiscoGameCompleted}
+                     showCostruiscoCompletionEffect={showCostruiscoCompletionEffect}
+                     showCostruiscoTouchGuidance={(isCostruiscoFactorOne || !guidanceSeen.costruiscoTouch)}
+                     showCostruiscoAvoidGuidance={(isCostruiscoFactorOne || !guidanceSeen.costruiscoAvoid)}
+                     onConsumeTouchGuidance={() => consumeGuidance('costruiscoTouch')}
+                     onConsumeAvoidGuidance={() => consumeGuidance('costruiscoAvoid')}
+                     onAnnounce={announceWithFallback}
+                     onSpeakOperation={() => speakOperationOnly(world.id, costruiscoSelectedFactor)}
+                     setCostruiscoGameCompleted={setCostruiscoGameCompleted}
+                     setShowCostruiscoCompletionEffect={setShowCostruiscoCompletionEffect}
+                     setCostruiscoCompleted={setCostruiscoCompleted}
+                   />
                  )}
                </div>
              </div>
@@ -4669,11 +3035,10 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
             completed: effectiveTrucchiCompleted,
             onSelect: (factor) => {
               sound.playClick();
-            setTrucchiSelectedFactor(factor);
+              setTrucchiSelectedFactor(factor);
               setTrucchiFlowStage('game');
-              setTrucchiQuestionSolved(false);
+              setTrucchiGameCompleted(false);
               setShowTrucchiCompletionEffect(false);
-              setTrucchiAnswer('');
             },
             theme: {
               panel: 'bg-amber-50 border-amber-200',
@@ -4742,236 +3107,23 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                 )}
 
                 {trucchiFlowStage === 'game' && (
-                  <div ref={trucchiArenaRef} className="relative min-h-[25rem] bg-white rounded-3xl border border-amber-100 shadow-xl p-4 sm:p-5 space-y-5">
-                    {trucchiHammerPose.visible && !trucchiPyramidCollapsed && (
-                      <motion.div
-                        aria-hidden="true"
-                        className="absolute z-30 pointer-events-none select-none"
-                        style={{ left: 0, top: 0 }}
-                        initial={false}
-                        animate={{
-                          x: trucchiHammerPose.x - 16,
-                          y: trucchiHammerPose.y - 16,
-                          rotate: trucchiHammerPose.striking ? 24 : -24,
-                          scale: trucchiHammerPose.striking ? 1.18 : 1,
-                        }}
-                        transition={{
-                          duration: prefersReducedMotion ? 0.08 : TRUCCHI_HAMMER_TRAVEL_MS / 1000,
-                          ease: 'easeInOut',
-                        }}
-                      >
-                        <div className="relative">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-200 bg-white text-xl shadow-lg">🔨</span>
-                          {showTrucchiAvoidGuidance && (
-                            <InteractionGuidanceHint kind="avoid" reducedMotion={prefersReducedMotion} />
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                    <div className="space-y-2">
-                      <OperationPromptCard
-                        tone="amber"
-                        icon="🧱"
-                        eyebrow="Completa questa operazione"
-                        operation={`${world.id} × ${trucchiSelectedFactor} = ?`}
-                        onSpeakOperation={() => speakOperationOnly(world.id, trucchiSelectedFactor)}
-                        operationAriaLabel={`Ascolta operazione ${world.id} per ${trucchiSelectedFactor}`}
-                      />
-                    </div>
-
-                    {(() => {
-                      const correctValue = world.id * trucchiSelectedFactor;
-                      let brickCursor = 0;
-
-                      return (
-                        <div className="mx-auto flex h-[15.5rem] w-full max-w-[22rem] flex-col items-center justify-start gap-1.5 pt-1 sm:gap-2" role="list" aria-label="Piramide di mattoni 4 3 2 1">
-                          {TRUCCHI_PYRAMID_ROWS.map((rowLength, rowIndex) => {
-                            const rowStart = brickCursor;
-                            brickCursor += rowLength;
-
-                            return (
-                              <div key={`trucchi-row-${rowLength}`} className="flex h-12 items-center justify-center gap-1.5 sm:gap-2">
-                                <AnimatePresence mode="popLayout">
-                                  {Array.from({ length: rowLength }).map((_, brickIndex) => {
-                                    const globalIndex = rowStart + brickIndex;
-                                    const hiddenValue = trucchiBrickValues[globalIndex];
-                                    const isRemoved = trucchiRemovedBricks.has(globalIndex);
-
-                                    if (hiddenValue === undefined || isRemoved) {
-                                      return null;
-                                    }
-
-                                    const isCorrectBrick = hiddenValue === correctValue;
-                                    const isRevealed = trucchiPreviewActive || trucchiRevealedBrickIndex === globalIndex || (trucchiQuestionSolved && isCorrectBrick);
-                                    const isBrickLocked = trucchiPreviewActive || trucchiQuestionSolved || trucchiPyramidCollapsed || trucchiRevealedBrickIndex !== null;
-                                    const isHammerHit = trucchiHammerHitBricks.has(globalIndex);
-                                    const isHammerTarget = trucchiHammerTargetIndex === globalIndex;
-                                    const tiltDirection = (brickIndex + rowIndex) % 2 === 0 ? -1 : 1;
-                                    const isBaseRow = rowIndex === TRUCCHI_PYRAMID_ROWS.length - 1;
-                                    const restingRotate = trucchiWrongChoices === 0 ? 0 : tiltDirection * (trucchiWrongChoices * (isBaseRow ? 2.4 : 1.5));
-                                    const collapsedX = tiltDirection * (26 + brickIndex * 10);
-                                    const collapsedY = 80 + (rowIndex * 16) + (brickIndex * 4);
-                                    const collapsedRotate = tiltDirection * (18 + rowIndex * 5);
-                                    const isLightBrick = globalIndex % 3 === 1 || globalIndex % 5 === 4;
-                                    const closedBrickClass = isLightBrick
-                                      ? 'border-orange-500 bg-gradient-to-b from-orange-200 via-orange-300 to-orange-500 text-orange-50'
-                                      : 'border-orange-700 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-700 text-orange-50';
-
-                                    return (
-                                      <div key={`trucchi-brick-${globalIndex}`} className="relative">
-                                      <motion.button
-                                        type="button"
-                                        role="listitem"
-                                        ref={(node) => {
-                                          trucchiBrickRefs.current[globalIndex] = node;
-                                        }}
-                                        initial={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
-                                        exit={{ opacity: 0, scale: 0.72, y: 18 }}
-                                        animate={trucchiPyramidCollapsed
-                                          ? { x: collapsedX, y: collapsedY, rotate: collapsedRotate, opacity: 0 }
-                                          : { x: 0, y: trucchiWrongChoices >= 2 && isBaseRow ? 4 : 0, rotate: restingRotate, opacity: 1, scale: 1 }
-                                        }
-                                        transition={trucchiPyramidCollapsed
-                                          ? { duration: 0.55, ease: 'easeIn' }
-                                          : { duration: 0.22, ease: 'easeOut' }
-                                        }
-                                        disabled={isBrickLocked}
-                                        onClick={() => {
-                                          if (isBrickLocked) return;
-                                          if (isCorrectBrick) {
-                                            consumeGuidance('trucchiTouch');
-                                          } else if (globalIndex === firstTrucchiWrongIndex) {
-                                            consumeGuidance('trucchiAvoid');
-                                          }
-
-                                          setTrucchiRevealedBrickIndex(globalIndex);
-
-                                          if (isCorrectBrick) {
-                                            clearTrucchiRoundTimeouts();
-                                            sound.playSuccess();
-                                            speakMultiplicationSuccess(world.id, trucchiSelectedFactor, hiddenValue);
-                                            setTrucchiHammerActive(false);
-                                            setTrucchiHammerHitBricks(new Set());
-                                            setTrucchiHammerTargetIndex(null);
-                                            setTrucchiHammerTraveling(false);
-                                            setTrucchiHammerHasStruck(false);
-                                            setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
-                                            setTrucchiQuestionSolved(true);
-                                            setShowTrucchiCompletionEffect(true);
-                                            return;
-                                          }
-
-                                          sound.playError();
-                                          const nextWrongChoices = trucchiWrongChoices + 1;
-                                          setTrucchiWrongChoices(nextWrongChoices);
-
-                                          trucchiRevealTimeoutRef.current = window.setTimeout(() => {
-                                            setTrucchiRevealedBrickIndex(current => (current === globalIndex ? null : current));
-
-                                            if (nextWrongChoices >= 3) {
-                                              clearTrucchiRoundTimeouts();
-                                              setTrucchiHammerActive(false);
-                                              setTrucchiHammerHitBricks(new Set());
-                                              setTrucchiHammerTargetIndex(null);
-                                              setTrucchiHammerTraveling(false);
-                                              setTrucchiHammerHasStruck(false);
-                                              setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
-                                              setTrucchiCollapseReason('wrong');
-                                              setTrucchiPyramidCollapsed(true);
-                                              speak(GAMEPLAY_AUDIO_MESSAGES.trucchiCollapse);
-                                              trucchiCollapseTimeoutRef.current = window.setTimeout(() => {
-                                                setTrucchiRemovedBricks(new Set(Array.from({ length: trucchiBrickValues.length }, (_, index) => index)));
-                                                trucchiCollapseTimeoutRef.current = null;
-                                              }, TRUCCHI_COLLAPSE_MS);
-                                            } else {
-                                              setTrucchiRemovedBricks(prev => {
-                                                const next = new Set(prev);
-                                                next.add(globalIndex);
-                                                return next;
-                                              });
-                                              speak(GAMEPLAY_AUDIO_MESSAGES.trucchiWrong);
-                                            }
-
-                                            trucchiRevealTimeoutRef.current = null;
-                                          }, TRUCCHI_REVEAL_MS);
-                                        }}
-                                        className={`relative flex h-12 w-[clamp(3.4rem,17vw,4.9rem)] items-center justify-center overflow-hidden rounded-none border shadow-[0_10px_16px_rgba(15,23,42,0.12)] transition-colors ${isBrickLocked ? 'cursor-not-allowed' : 'cursor-pointer'} ${
-                                          isRevealed
-                                            ? 'border-stone-300 bg-gradient-to-b from-stone-50 via-orange-50 to-stone-100 text-stone-700'
-                                            : closedBrickClass
-                                        } ${isHammerTarget ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
-                                        aria-label={isRevealed ? `Mattone con risultato ${hiddenValue}` : 'Mattone chiuso'}
-                                      >
-                                        {showTrucchiTouchGuidance && isCorrectBrick && (
-                                          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-                                            <InteractionGuidanceHint kind="touch" reducedMotion={prefersReducedMotion} placement="center" />
-                                          </div>
-                                        )}
-                                        {isRevealed ? (
-                                          <>
-                                            {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">🔨</span>}
-                                            <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/60" aria-hidden="true" />
-                                            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/80" aria-hidden="true" />
-                                            <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
-                                            <span className="absolute left-2/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
-                                            <span className="absolute inset-x-0 bottom-[0.38rem] h-px bg-orange-800/35" aria-hidden="true" />
-                                            <span className="text-base font-black sm:text-lg">{hiddenValue}</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            {isHammerHit && <span className="absolute top-1 right-1 text-sm" aria-hidden="true">🔨</span>}
-                                            <span className="absolute inset-x-2 top-2 h-1 rounded-full bg-white/25" aria-hidden="true" />
-                                            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-orange-800/50" aria-hidden="true" />
-                                            <span className="absolute left-1/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
-                                            <span className="absolute left-2/3 top-[0.65rem] bottom-[0.65rem] w-px bg-orange-800/45" aria-hidden="true" />
-                                            <span className="absolute inset-x-0 bottom-[0.38rem] h-px bg-orange-800/35" aria-hidden="true" />
-                                          </>
-                                        )}
-                                      </motion.button>
-                                      </div>
-                                    );
-                                  })}
-                                </AnimatePresence>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-
-                    {trucchiPyramidCollapsed && !trucchiQuestionSolved && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="absolute inset-0 flex items-center justify-center rounded-3xl bg-black/30 backdrop-blur-[1px]"
-                      >
-                        <div className="rounded-2xl border-2 border-rose-200 bg-white/95 px-5 py-4 text-center shadow-xl">
-                          <p className="text-sm font-black text-rose-700">
-                            {trucchiCollapseReason === 'hammer'
-                              ? 'Il martello ha colpito il mattone giusto!'
-                              : 'La piramide e caduta!'}
-                          </p>
-                          <RetryButton
-                            tone="amber"
-                            className="mt-3"
-                            onClick={() => {
-                              sound.playClick();
-                              void speak('Riproviamo.');
-                              resetTrucchiRound();
-                            }}
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {showTrucchiCompletionEffect && (
-                      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-auto">
-                        <div className="rounded-2xl border-2 border-emerald-300 bg-white/95 px-6 py-4 text-center shadow-xl">
-                          <p className="text-sm font-black text-emerald-700">🎉 Ottimo lavoro!</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <TrucchiExercise
+                    key={trucchiSelectedFactor}
+                    worldId={world.id}
+                    factor={trucchiSelectedFactor}
+                    compactLayout={compactLayout}
+                    trucchiGameCompleted={trucchiGameCompleted}
+                    showTrucchiCompletionEffect={showTrucchiCompletionEffect}
+                    showTrucchiTouchGuidance={showTrucchiTouchGuidance}
+                    showTrucchiAvoidGuidance={showTrucchiAvoidGuidance}
+                    onConsumeTouchGuidance={() => consumeGuidance('trucchiTouch')}
+                    onConsumeAvoidGuidance={() => consumeGuidance('trucchiAvoid')}
+                    onAnnounce={announceWithFallback}
+                    onSpeakOperation={() => speakOperationOnly(world.id, trucchiSelectedFactor)}
+                    setTrucchiGameCompleted={setTrucchiGameCompleted}
+                    setShowTrucchiCompletionEffect={setShowTrucchiCompletionEffect}
+                    setTrucchiCompleted={setTrucchiCompleted}
+                  />
                 )}
               </div>
             </div>
@@ -4992,12 +3144,12 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     <button
                       onClick={() => {
                         sound.playClick();
-                        if (!trucchiQuestionSolved) return;
+                        if (!trucchiGameCompleted) return;
                         completeTrucchiExercise();
                       }}
-                      disabled={!trucchiQuestionSolved}
+                      disabled={!trucchiGameCompleted}
                       className={`w-full py-3 rounded-2xl font-bold text-sm shadow-md transition-all motion-safe:animate-pulse ${
-                        trucchiQuestionSolved
+                        trucchiGameCompleted
                           ? 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       }`}
@@ -5037,82 +3189,22 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'pratico' && currentPraticoQuestion && (
           <div className="flex-1 flex flex-col overflow-hidden bg-white">
             <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
-              <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            {/* Progress and help button */}
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs">
-              <div aria-hidden="true" />
-              <div className="w-36 text-center">
-                <motion.div
-                  key={`quiz-streak-${quizCorrectStreak}-${quizStreakJustReset ? 'reset' : 'steady'}`}
-                  initial={quizStreakJustReset ? { scale: 0.92, y: -4 } : false}
-                  animate={quizStreakJustReset ? { scale: [0.92, 1.08, 1], y: [-4, 0, 0] } : { scale: 1, y: 0 }}
-                  transition={{ duration: 0.35, ease: 'easeOut' }}
-                  className={`mb-1 text-lg font-black font-mono leading-none ${
-                    quizStreakJustReset ? 'text-rose-600' : 'text-emerald-600'
-                  }`}
-                  aria-live="polite"
-                >
-                  {quizCorrectStreak}/{targetPraticoStreak}
-                </motion.div>
-                <div
-                  className="h-2 overflow-hidden rounded-full bg-slate-200"
-                  role="progressbar"
-                  aria-label="Progresso pratico"
-                  aria-valuemin={0}
-                  aria-valuemax={targetPraticoStreak}
-                  aria-valuenow={quizCorrectStreak}
-                >
-                  <div
-                    className={`h-full rounded-full transition-[width] duration-300 ${
-                      quizStreakJustReset ? 'bg-rose-500' : 'bg-emerald-500'
-                    }`}
-                    style={{ width: `${Math.min(100, Math.max(0, (quizCorrectStreak / Math.max(1, targetPraticoStreak)) * 100))}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end" />
-            </div>
-
-                <OperationPromptCard
-                  tone="indigo"
-                  icon="🛡️"
-                  eyebrow="Completa questa operazione"
-                  operation={`${currentPraticoQuestion.a} × ${currentPraticoQuestion.b} = ?`}
-                  operationClassName="text-xl sm:text-2xl tracking-wide"
-                  onSpeakOperation={() => speakOperationOnly(currentPraticoQuestion.a, currentPraticoQuestion.b)}
-                  operationAriaLabel={`Ascolta operazione ${currentPraticoQuestion.a} per ${currentPraticoQuestion.b}`}
-                />
-
-            {/* Question options */}
-            <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
-              {quizOptions.map((opt, idx) => {
-                const pressed = quizPressedFeedback?.opt === opt;
-                const isCorrectOpt = opt === currentPraticoQuestion.a * currentPraticoQuestion.b;
-                const feedbackClass = pressed
-                  ? quizPressedFeedback!.correct
-                    ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
-                    : 'bg-rose-100 border-rose-400 text-rose-800 scale-95'
-                  : 'bg-white border-slate-100 hover:border-indigo-400 hover:bg-slate-50 text-slate-800 active:scale-95';
-                return (
-                  <button
-                    key={idx}
-                    disabled={quizInteractionLocked}
-                    onClick={() => {
-                      if (quizInteractionLocked) return;
-                      setQuizPressedFeedback({ opt, correct: isCorrectOpt });
-                      handleQuizAnswer(opt);
-                    }}
-                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${quizInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                    id={`quiz-opt-${opt}`}
-                    aria-label={`Risposta ${opt}`}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-
-              </div>
+              <PraticoQuizCard
+                currentQuestion={currentPraticoQuestion}
+                quizOptions={quizOptions}
+                quizCorrectStreak={quizCorrectStreak}
+                targetPraticoStreak={targetPraticoStreak}
+                quizStreakJustReset={quizStreakJustReset}
+                quizPressedFeedback={quizPressedFeedback}
+                quizInteractionLocked={quizInteractionLocked}
+                compactLayout={compactLayout}
+                onSpeakOperation={() => speakOperationOnly(currentPraticoQuestion.a, currentPraticoQuestion.b)}
+                onAnswerSelect={(opt) => {
+                  if (quizInteractionLocked) return;
+                  setQuizPressedFeedback({ opt, correct: opt === currentPraticoQuestion.a * currentPraticoQuestion.b });
+                  handleQuizAnswer(opt);
+                }}
+              />
             </div>
 
             <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
@@ -5190,62 +3282,21 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
         {activeStep === 'sfida' && sfidaActive && sfidaQuestion && (
           <div className="flex-1 flex flex-col overflow-hidden bg-white">
             <div className={`flex-1 overflow-y-auto ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
-              <div className="max-w-xl mx-auto w-full bg-white rounded-3xl p-5 border border-indigo-100 shadow-xl space-y-6">
-            <div className="flex justify-between items-center">
-              {/* Countdown */}
-              <div className="flex items-center gap-1.5 text-rose-600 font-bold font-mono bg-rose-50 px-3 py-1 rounded-full text-sm">
-                <Timer className="w-4 h-4 animate-spin" />
-                Tempo: {sfidaTimer}s
-              </div>
-
-              {/* Score */}
-              <div className="flex items-center gap-1.5 text-amber-600 font-bold font-mono bg-amber-50 px-3 py-1 rounded-full text-sm">
-                <Trophy className="w-4 h-4" />
-                Punti: {sfidaScore}
-              </div>
-            </div>
-
-                <OperationPromptCard
-                  tone="violet"
-                  icon="⚡"
-                  eyebrow="Completa questa operazione"
-                  operation={`${sfidaQuestion.a} × ${sfidaQuestion.b} = ?`}
-                  operationClassName="text-xl sm:text-2xl tracking-wide"
-                  onSpeakOperation={() => speakOperationOnly(sfidaQuestion.a, sfidaQuestion.b)}
-                  operationAriaLabel={`Ascolta operazione ${sfidaQuestion.a} per ${sfidaQuestion.b}`}
-                />
-
-            {/* Answers options */}
-            <div className={`w-full h-full content-start grid grid-cols-2 ${compactLayout ? 'gap-2.5' : 'gap-3.5'}`}>
-              {sfidaOptions.map((opt, idx) => {
-                const pressed = sfidaPressedFeedback?.opt === opt;
-                const isCorrectOpt = sfidaQuestion && opt === sfidaQuestion.a * sfidaQuestion.b;
-                const feedbackClass = pressed
-                  ? sfidaPressedFeedback!.correct
-                    ? 'bg-emerald-100 border-emerald-400 text-emerald-800 scale-95'
-                    : 'bg-rose-100 border-rose-400 text-rose-800 scale-95'
-                  : 'bg-white border-slate-100 hover:border-amber-400 hover:bg-slate-50 text-slate-800 active:scale-95';
-                return (
-                  <button
-                    key={idx}
-                    disabled={sfidaInteractionLocked}
-                    aria-disabled={sfidaInteractionLocked}
-                    onClick={() => {
-                      if (sfidaInteractionLocked) return;
-                      setSfidaPressedFeedback({ opt, correct: !!isCorrectOpt });
-                      handleSfidaAnswer(opt);
-                    }}
-                    className={`w-full rounded-xl border-2 font-black font-mono shadow-sm transition-all select-none disabled:cursor-not-allowed disabled:opacity-70 ${compactLayout ? 'min-h-11 py-3 px-2 text-base' : 'min-h-14 py-4 px-4 text-lg'} ${feedbackClass} ${sfidaInteractionLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                    id={`sfida-opt-${opt}`}
-                    aria-label={`Risposta ${opt}`}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-
-              </div>
+              <SfidaQuizCard
+                sfidaQuestion={sfidaQuestion}
+                sfidaOptions={sfidaOptions}
+                sfidaTimer={sfidaTimer}
+                sfidaScore={sfidaScore}
+                sfidaPressedFeedback={sfidaPressedFeedback}
+                sfidaInteractionLocked={sfidaInteractionLocked}
+                compactLayout={compactLayout}
+                onSpeakOperation={() => speakOperationOnly(sfidaQuestion.a, sfidaQuestion.b)}
+                onAnswerSelect={(opt) => {
+                  if (sfidaInteractionLocked) return;
+                  setSfidaPressedFeedback({ opt, correct: opt === sfidaQuestion.a * sfidaQuestion.b });
+                  handleSfidaAnswer(opt);
+                }}
+              />
             </div>
 
             <div className={`sticky bottom-0 z-20 flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-xs ${compactLayout ? 'p-3' : 'p-4 md:p-6'}`}>
