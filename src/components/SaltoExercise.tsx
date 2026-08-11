@@ -543,6 +543,7 @@ export default function SaltoExercise({
                       disabled={saltoGameCompleted || isFlyAutoJumping}
                       onClick={() => {
                         if (saltoGameCompleted || isFrogSplashing || saltoLeap !== null || isFlyAutoJumping) return;
+                        if (isCorrectlyClicked) return;
                         onConsumeTouchGuidance();
                         const isObstacleBlocking =
                           saltoEnemySteps.includes(saltoIndex + 1) &&
