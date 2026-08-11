@@ -84,6 +84,8 @@ export default function TrucchiExercise({
   });
   const [trucchiCollapseReason, setTrucchiCollapseReason] = useState<'wrong' | 'hammer' | null>(null);
   const [trucchiQuestionSolved, setTrucchiQuestionSolved] = useState<boolean>(false);
+  const [trucchiMiniRevealBonusRoundActive, setTrucchiMiniRevealBonusRoundActive] = useState<boolean>(false);
+  const [trucchiMiniRevealOn, setTrucchiMiniRevealOn] = useState<boolean>(false);
 
   const trucchiPreviewTimeoutRef = useRef<number | null>(null);
   const trucchiRevealTimeoutRef = useRef<number | null>(null);
@@ -91,6 +93,7 @@ export default function TrucchiExercise({
   const trucchiHammerStrikeTimeoutRef = useRef<number | null>(null);
   const trucchiHammerHitClearTimeoutRef = useRef<number | null>(null);
   const trucchiHammerResolveTimeoutRef = useRef<number | null>(null);
+  const trucchiMiniRevealTimeoutRef = useRef<number | null>(null);
   const trucchiArenaRef = useRef<HTMLDivElement | null>(null);
   const trucchiBrickRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const trucchiHammerActiveRef = useRef<boolean>(false);
@@ -146,6 +149,10 @@ export default function TrucchiExercise({
     if (trucchiHammerResolveTimeoutRef.current !== null) {
       window.clearTimeout(trucchiHammerResolveTimeoutRef.current);
       trucchiHammerResolveTimeoutRef.current = null;
+    }
+    if (trucchiMiniRevealTimeoutRef.current !== null) {
+      window.clearTimeout(trucchiMiniRevealTimeoutRef.current);
+      trucchiMiniRevealTimeoutRef.current = null;
     }
   };
 
@@ -215,6 +222,8 @@ export default function TrucchiExercise({
     setTrucchiHammerHasStruck(false);
     setTrucchiHammerPose({ ...getTrucchiHammerStartPoint(), visible: false, striking: false });
     setTrucchiCollapseReason(null);
+    setTrucchiMiniRevealOn(false);
+    setTrucchiMiniRevealBonusRoundActive(Math.random() < 0.5);
 
     const previewDurationMs = scaleDurationByFactor(TRUCCHI_PREVIEW_MS, currentFactor, TRUCCHI_PREVIEW_SCALE_MIN);
     trucchiPreviewTimeoutRef.current = window.setTimeout(() => {
@@ -350,6 +359,43 @@ export default function TrucchiExercise({
     };
   }, [factor, strikeTrucchiHammer, trucchiHammerActive, trucchiHammerHasStruck, trucchiHammerTraveling, trucchiPreviewActive, trucchiPyramidCollapsed, trucchiQuestionSolved, trucchiRemovedBricks, trucchiRevealedBrickIndex]);
 
+  // Random mini-reveal bonus: when active for this round, periodically flash
+  // the values of all remaining bricks for a short instant (purely visual aid,
+  // independent from the hammer state).
+  useEffect(() => {
+    const shouldSchedule =
+      trucchiMiniRevealBonusRoundActive
+      && !trucchiPreviewActive
+      && !trucchiQuestionSolved
+      && !trucchiPyramidCollapsed
+      && !prefersReducedMotion;
+
+    if (!shouldSchedule) {
+      if (trucchiMiniRevealTimeoutRef.current !== null) {
+        window.clearTimeout(trucchiMiniRevealTimeoutRef.current);
+        trucchiMiniRevealTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    const scheduleNextMiniReveal = () => {
+      const delay = 900 + Math.random() * 2600;
+      trucchiMiniRevealTimeoutRef.current = window.setTimeout(() => {
+        setTrucchiMiniRevealOn(true);
+        window.setTimeout(() => setTrucchiMiniRevealOn(false), 350);
+        scheduleNextMiniReveal();
+      }, delay);
+    };
+    scheduleNextMiniReveal();
+
+    return () => {
+      if (trucchiMiniRevealTimeoutRef.current !== null) {
+        window.clearTimeout(trucchiMiniRevealTimeoutRef.current);
+        trucchiMiniRevealTimeoutRef.current = null;
+      }
+    };
+  }, [trucchiMiniRevealBonusRoundActive, trucchiPreviewActive, trucchiQuestionSolved, trucchiPyramidCollapsed, prefersReducedMotion]);
+
   useEffect(() => {
     resetTrucchiRound(factor);
     return () => {
@@ -421,7 +467,7 @@ export default function TrucchiExercise({
                       if (hiddenValue === undefined || isRemoved) return null;
 
                       const isCorrectBrick = hiddenValue === correctValue;
-                      const isRevealed = trucchiPreviewActive || trucchiRevealedBrickIndex === globalIndex || (trucchiQuestionSolved && isCorrectBrick);
+                      const isRevealed = trucchiPreviewActive || trucchiRevealedBrickIndex === globalIndex || (trucchiQuestionSolved && isCorrectBrick) || trucchiMiniRevealOn;
                       const isBrickLocked = trucchiPreviewActive || trucchiQuestionSolved || trucchiPyramidCollapsed || trucchiRevealedBrickIndex !== null;
                       const isHammerHit = trucchiHammerHitBricks.has(globalIndex);
                       const isHammerTarget = trucchiHammerTargetIndex === globalIndex;
