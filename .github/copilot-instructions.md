@@ -6,6 +6,7 @@
 - When the user's message starts with the prefix `:push`: if currently on a feature branch, ask the user (`ask_user`) whether to finish the feature now. If confirmed: merge the current branch into `develop` with `--no-ff`, push `origin develop`, then delete the feature branch locally, and ask the user whether to also delete it on the remote if it exists there. If currently on `develop` (no active feature branch), just run `git push origin develop` directly, without asking anything.
 - When the user's message starts with the prefix `:c` or `:close`: first commit all pending in-scope work (for any changed files that appear unrelated/out-of-scope for the feature described by the originating `:f`/`:feature` request, summarize them and ask the user for confirmation before including them in the commit). Then run the exact same finishing flow as `:push` (merge current branch into `develop` with `--no-ff`, push `origin develop`, delete the feature branch locally, ask whether to also delete the remote branch).
 - When the user's message starts with the prefix `:h`, `:?`, or `:help`, print the same shortcut recap table described in the "Copilot Session-Start Shortcut Recap" section below, then wait for the next request.
+- When the user's message starts with the prefix `:rundev`: (1) check whether the dev server port (4000) is already in use; if so, ask the user (`ask_user`) whether to stop the existing process and restart it, or leave it running and abort; (2) otherwise, launch `npm run dev` as a detached background process, redirecting output to `logs/dev-server.log`; (3) report the exact log path, a one-line command to follow it (e.g. `Get-Content -Wait logs/dev-server.log`), and the shellId for stop/read control.
 
 ## 🤖 Copilot Session-Start Shortcut Recap
 
@@ -22,6 +23,7 @@ Current shortcuts defined in this repo (keep this list in sync whenever a shortc
 | `:push` | Se su feature branch: chiede conferma, poi merge `--no-ff` su `develop`, push, elimina branch locale (chiede per il remoto). Se già su `develop`: push diretto senza chiedere. |
 | `:c` / `:close` | Committa il lavoro in-scope (chiede conferma su modifiche fuori-scope), poi esegue lo stesso flusso di `:push`. |
 | `:pull` | `git pull` su `develop`, `main` e sul branch corrente (se presente). |
+| `:rundev` | Verifica se la porta 4000 è occupata (chiede se riavviare); altrimenti lancia `npm run dev` in background/detached con log su `logs/dev-server.log`. |
 | `:h` / `:?` / `:help` | Stampa questa tabella riassuntiva degli shortcut. |
 
 ## Accessibility Quick Rules

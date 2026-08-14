@@ -12,6 +12,7 @@ import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 import { getStoryDraftForEquation } from '../utils/storyMarkdown';
 import { useVoice } from '../contexts/VoiceContext';
+import ArcadeMenuModal, { ARCADE_GAMES, GameId } from './arcade/ArcadeMenuModal';
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
 // 0 🥚 Uovo      → ovale chiuso
@@ -108,6 +109,33 @@ function withTableIcon(worldId: number, label: string): string {
   const icon = TRAINING_WORLD_ICON[worldId] ?? '🔢';
   return label.trimEnd().endsWith(icon) ? label : `${label} ${icon}`;
 }
+
+// Premio arcade: sblocca la Sala Giochi fino a 2 errori totali per sessione;
+// al terzo la sessione si interrompe e riparte da capo (vedi TrainingSession).
+const MAX_SESSION_MISTAKES = 2;
+const RESTART_DELAY_MS = 1800;
+
+// Messaggi di lode a fine sessione in base al numero di errori (0, 1 o 2),
+// usati sia per il testo a schermo che per l'annuncio vocale.
+const SESSION_RESULT_MESSAGES: Record<number, { screen: string; speak: string }> = {
+  0: { screen: 'Bravo 10 su 10! 💪', speak: 'Bravo 10 su 10!' },
+  1: { screen: 'Bravo, quasi perfetto! 9 su 10 👍', speak: 'Bravo, quasi perfetto! 9 su 10' },
+  2: { screen: 'Bravo, bene ma non benissimo 😉! 8 su 10', speak: 'Bravo, bene ma non benissimo! 8 su 10' },
+};
+
+// Premio arcade: ogni tabellina (×2..×9) sblocca sempre lo stesso minigioco,
+// cosi il bambino la riconosce a colpo d'occhio; "Simon" resta riservato alla
+// sola estrazione in modalita Casuale (world.id === 0).
+const WORLD_TO_GAME: Record<number, GameId> = {
+  2: 'snake',
+  3: 'bolle',
+  4: 'whack',
+  5: 'canestro',
+  6: 'flappy',
+  7: 'dino',
+  8: 'corsa',
+  9: 'memory',
+};
 
 const RANDOM_WORLD: WorldConfig = {
   id: 0,
@@ -302,12 +330,21 @@ function TrainingSession({
   const [deckIndex, setDeckIndex] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<GameId | null>(null);
   // Conteggio errori della sessione corrente, per operazione (chiave "m x w"),
   // usato per mostrare a fine sessione il numero totale di errori e le
   // operazioni sbagliate più spesso.
   const [sessionMistakes, setSessionMistakes] = useState<Record<string, { multiplier: number; worldId: number; count: number }>>({});
+  // Al 3° errore totale della sessione l'allenamento riparte da capo: si
+  // mostra un breve avviso e poi si rigenera un nuovo mazzo di 10 domande.
+  const mistakesCountRef = useRef(0);
+  const [restarting, setRestarting] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { speak } = useVoice();
+  // Tiene traccia della voce che legge il risultato di una risposta corretta,
+  // cosi l'annuncio della domanda successiva puo attendere che finisca invece
+  // di interromperla (speak() cancella sempre l'utterance in corso).
+  const resultAnnouncementRef = useRef<Promise<void> | null>(null);
 
   // Inizializza il mazzo al montaggio o cambio mondo
   useEffect(() => {
@@ -317,6 +354,8 @@ function TrainingSession({
     setFeedback(null);
     setSessionComplete(false);
     setSessionMistakes({});
+    mistakesCountRef.current = 0;
+    setRestarting(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- il deck va rigenerato solo al cambio mondo, non ad ogni variazione di profile.history
   }, [world.id]);
 
@@ -326,12 +365,14 @@ function TrainingSession({
     setFeedback(null);
     setSessionComplete(false);
     setSessionMistakes({});
+    mistakesCountRef.current = 0;
+    setRestarting(false);
   }, [profile, world.id]);
 
   const currentQuestion: Question | undefined = sessionComplete ? undefined : deck[deckIndex];
 
   const handleAnswer = useCallback((opt: number, optIndex: number) => {
-    if (feedback) return; // blocca doppio click durante feedback
+    if (feedback || restarting) return; // blocca doppio click durante feedback o riavvio
     if (!currentQuestion) return;
 
     const isCorrect = opt === currentQuestion.answer;
@@ -375,6 +416,8 @@ function TrainingSession({
         correct: true,
         optionIndex: optIndex,
       });
+      // Voce che conferma il risultato dell'operazione appena risolta.
+      resultAnnouncementRef.current = speak(`${currentQuestion.multiplier} per ${currentQuestion.worldId} uguale ${currentQuestion.answer}`);
     } else {
       sound.playError();
       setSessionMistakes(prev => {
@@ -393,6 +436,20 @@ function TrainingSession({
         correct: false,
         optionIndex: optIndex,
       });
+
+      // Al 3° errore totale della sessione si interrompe subito e si
+      // ricomincia da capo con un nuovo mazzo, invece di proseguire.
+      mistakesCountRef.current += 1;
+      if (mistakesCountRef.current >= MAX_SESSION_MISTAKES + 1) {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        setRestarting(true);
+        resultAnnouncementRef.current = speak('Hai sbagliato troppo, ricominciamo!');
+        timeoutRef.current = setTimeout(() => {
+          startNewSession();
+        }, RESTART_DELAY_MS);
+        return;
+      }
+
       // Resta sulla stessa domanda finche non viene data la risposta corretta (clear feedback breve dopo 350ms).
       timeoutRef.current = setTimeout(() => {
         setFeedback(null);
@@ -411,7 +468,7 @@ function TrainingSession({
         setDeckIndex(nextIndex);
       }
     }, 150);
-  }, [feedback, currentQuestion, updateProfile, world.id, deckIndex, deck.length]);
+  }, [feedback, restarting, currentQuestion, updateProfile, world.id, deckIndex, deck.length, speak, startNewSession]);
 
   // Cleanup timeout on unmount
   useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
@@ -428,7 +485,10 @@ function TrainingSession({
     const announce = () => {
       if (!cancelled) void speak(`${currentQuestion.multiplier} per ${currentQuestion.worldId}`);
     };
-    Promise.resolve(pendingAnnouncement).then(announce, announce);
+    Promise.all([
+      Promise.resolve(pendingAnnouncement),
+      Promise.resolve(resultAnnouncementRef.current),
+    ]).then(announce, announce);
     return () => {
       cancelled = true;
     };
@@ -439,14 +499,50 @@ function TrainingSession({
     void speak(`${currentQuestion.multiplier} per ${currentQuestion.worldId}`);
   }, [currentQuestion, speak]);
 
+  // Annuncia vocalmente l'esito della sessione appena completata: la Sala
+  // Giochi si sblocca fino a 2 errori totali, con una lode diversa in base
+  // al risultato preciso (10, 9 o 8 su 10).
+  useEffect(() => {
+    if (!sessionComplete) return;
+    const mistakesValues: Array<{ multiplier: number; worldId: number; count: number }> = Object.values(sessionMistakes);
+    const mistakesCount = mistakesValues.reduce((sum, m) => sum + m.count, 0);
+    const message = SESSION_RESULT_MESSAGES[mistakesCount]?.speak
+      ?? 'Sessione completata, allenati ancora un po\'!';
+    void speak(message);
+  }, [sessionComplete, sessionMistakes, deck.length, speak]);
+
+  if (restarting) {
+    return (
+      <div className="flex w-full min-h-full flex-col items-center justify-center gap-3">
+        <SurfaceCard
+          aria-live="assertive"
+          tone="soft"
+          padding="md"
+          className="w-full flex flex-row items-center justify-center gap-2 text-center"
+        >
+          <span className="text-2xl" aria-hidden="true">🔄</span>
+          <p className="text-sm font-bold text-sky-900">Hai sbagliato troppo, ricominciamo!</p>
+        </SurfaceCard>
+      </div>
+    );
+  }
+
   if (!currentQuestion) {
     if (sessionComplete) {
       type Mistake = { multiplier: number; worldId: number; count: number };
       const mistakesList: Mistake[] = Object.values(sessionMistakes);
       mistakesList.sort((a, b) => b.count - a.count);
-      const totalCorrect = deck.length - mistakesList.reduce((sum, m) => sum + m.count, 0);
-      const noMistakes = mistakesList.length === 0;
+      const mistakesCount = mistakesList.reduce((sum, m) => sum + m.count, 0);
+      const unlocked = mistakesCount <= MAX_SESSION_MISTAKES;
+      const resultMessage = SESSION_RESULT_MESSAGES[mistakesCount]?.screen ?? 'Sessione completata!';
+      // Premio arcade: sulla tabellina specifica si sblocca sempre lo stesso
+      // minigioco (icona singola); in Casuale si puo scegliere tra tutti.
+      const assignedGame = WORLD_TO_GAME[world.id];
+      const availableGames = world.id === 0
+        ? ARCADE_GAMES
+        : ARCADE_GAMES.filter(g => g.id === assignedGame);
       return (
+        <>
         <div className="flex w-full min-h-full flex-col gap-4">
           <div className="flex flex-1 flex-col justify-center gap-3">
             <SurfaceCard
@@ -457,11 +553,30 @@ function TrainingSession({
             >
               <span className="text-2xl" aria-hidden="true">🎉</span>
               <p className="text-sm font-bold text-sky-900">
-                {noMistakes
-                  ? `Bravissimo! ${totalCorrect} su ${deck.length} 🌟`
-                  : 'Sessione completata!'}
+                {unlocked ? resultMessage : 'Sessione completata!'}
               </p>
             </SurfaceCard>
+            {unlocked && (
+              <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2.5">
+                {availableGames.map(game => (
+                  <button
+                    key={game.id}
+                    type="button"
+                    role="listitem"
+                    onClick={() => {
+                      sound.playClick();
+                      setSelectedGame(game.id);
+                    }}
+                    className="flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-purple-300/90 bg-gradient-to-r from-purple-500 to-indigo-500 p-3 shadow-md transition-all cursor-pointer hover:shadow-lg hover:scale-[1.03] active:scale-[0.98]
+                               focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+                    aria-label={`Gioca a ${game.name}, premio per il 10 su 10`}
+                  >
+                    <span className="text-3xl" aria-hidden="true">{game.emoji}</span>
+                    <span className="text-xs font-bold text-white text-center">{game.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {mistakesList.length > 0 && (
               <SurfaceCard tone="soft" padding="md" className="w-full text-left">
                 <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest mb-2">
@@ -507,6 +622,14 @@ function TrainingSession({
             </button>
           </div>
         </div>
+        {selectedGame && (
+          <ArcadeMenuModal
+            onExit={() => setSelectedGame(null)}
+            onlyGame={selectedGame}
+            tableId={world.id === 0 ? undefined : world.id}
+          />
+        )}
+        </>
       );
     }
     return (
@@ -526,6 +649,26 @@ function TrainingSession({
   return (
     <div className="flex w-full min-h-full flex-col gap-4">
       <div className="flex flex-1 flex-col gap-4">
+
+      {/* Progress bar sessione */}
+      <div className="w-full flex flex-col gap-1">
+        <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest font-sans text-center">
+          Domanda {deckIndex + 1} di {deck.length}
+        </p>
+        <div
+          className="w-full h-2.5 rounded-full bg-sky-200 overflow-hidden border border-sky-300"
+          role="progressbar"
+          aria-label="Progresso sessione di allenamento"
+          aria-valuemin={0}
+          aria-valuemax={deck.length}
+          aria-valuenow={deckIndex + 1}
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 transition-all duration-300"
+            style={{ width: `${((deckIndex + 1) / deck.length) * 100}%` }}
+          />
+        </div>
+      </div>
 
       {/* Domanda */}
       <SurfaceCard
