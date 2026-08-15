@@ -53,6 +53,14 @@
   animation: arcade-collect-burst 420ms ease-out forwards;
 }
 
+/* Con la Sala Giochi aperta (menu o partita), nasconde la navigazione globale
+   (rail laterale Mappa/Allenamento/Genitori e barra inferiore mobile con lo
+   stesso footer) cosi resta visibile solo "Indietro" del modal arcade. */
+body.arcade-modal-open .app-sidebar-nav,
+body.arcade-modal-open .app-bottom-nav {
+  display: none !important;
+}
+
 
 /* Ensure clear affordance for interactive controls across the app. */
 :where(

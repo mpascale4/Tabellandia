@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { sound } from '../SoundManager';
 import SnakeGame from './SnakeGame';
 import BubbleGame from './BubbleGame';
@@ -58,6 +58,14 @@ function renderGame(id: GameId, onExit: () => void, tableId?: number) {
 export default function ArcadeMenuModal({ onExit, onlyGame, tableId }: ArcadeMenuModalProps) {
   const [selected, setSelected] = useState<GameId | null>(onlyGame ?? null);
   const games = onlyGame ? ARCADE_GAMES.filter(g => g.id === onlyGame) : ARCADE_GAMES;
+
+  // Nasconde la navigazione globale (Mappa/Allenamento/Genitori) per tutta la
+  // vita della Sala Giochi, sia nel menu di scelta che durante una partita:
+  // il body-class evita di dipendere dalla posizione del modal nel DOM.
+  useEffect(() => {
+    document.body.classList.add('arcade-modal-open');
+    return () => document.body.classList.remove('arcade-modal-open');
+  }, []);
 
   const handleSelect = (id: GameId) => {
     sound.playClick();

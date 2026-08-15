@@ -1385,7 +1385,7 @@ export default function App() {
           
           {/* Left Sidebar Navigation (Kid-Friendly Rail) */}
           {selectedWorldId === null && !isPhoneMode && profile && (
-            <div className="w-24 bg-white/20 backdrop-blur-md rounded-[32px] border-4 border-white/40 flex flex-col items-center py-8 gap-8 shadow-2xl z-20 m-4 md:flex hidden">
+            <div className="app-sidebar-nav w-24 bg-white/20 backdrop-blur-md rounded-[32px] border-4 border-white/40 flex flex-col items-center py-8 gap-8 shadow-2xl z-20 m-4 md:flex hidden">
               {APP_SIDEBAR_TABS.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -1802,7 +1802,7 @@ export default function App() {
 
         {/* Global Bottom Navigation bar for mobile screens */}
         {selectedWorldId === null && isPhoneMode && !isParentModeActive && (
-          <nav className="bg-white/25 backdrop-blur-md border-t border-white/40 p-1.5 flex justify-around items-center z-10 shadow-xl shrink-0">
+          <nav className="app-bottom-nav bg-white/25 backdrop-blur-md border-t border-white/40 p-1.5 flex justify-around items-center z-10 shadow-xl shrink-0">
            {APP_SIDEBAR_TABS.map(tab => {
               const isActive = activeTab === tab.id;
               return (

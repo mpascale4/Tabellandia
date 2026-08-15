@@ -29,6 +29,7 @@ const FRUIT_R = 16;
 const GRAVITY = 0.16;
 const BASE_SPAWN_MS = 1300;
 const MIN_SPAWN_MS = 700;
+const FRUIT_BOMB_DELAY_MS = 450; // ritardo minimo tra il lancio del frutto giusto e quello della bomba: non devono mai arrivare insieme.
 const FRUIT_EMOJIS = ['🍉', '🍎', '🍊', '🍇', '🍓', '🍋'];
 const BOMB_EMOJI = '💣';
 const RETICLE_STEP = 34;
@@ -111,6 +112,8 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
     let stopped = false;
     let elapsedSinceSpawn = 0;
     let elapsedTotal = 0;
+    let lastCorrectSpawnAt = -Infinity;
+    let lastBombSpawnAt = -Infinity;
     let lastTs = performance.now();
     const localScore = { v: 0 };
 
@@ -190,11 +193,19 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
 
       if (elapsedSinceSpawn >= spawnInterval) {
         elapsedSinceSpawn = 0;
-        // Garantisce sempre almeno un frutto giusto e una bomba distrattore in campo insieme.
+        // Garantisce sempre almeno un frutto giusto e una bomba distrattore in campo insieme,
+        // ma con un ritardo minimo tra i due lanci: non devono mai partire nello stesso istante,
+        // altrimenti arrivano in basso insieme e non c'e' modo di prendere solo quello giusto.
         const correctPresent = fruitsRef.current.some(f => !f.sliced && f.correct);
         const bombPresent = fruitsRef.current.some(f => !f.sliced && !f.correct);
-        if (!correctPresent) fruitsRef.current.push(spawnFruit(opRef.current, true));
-        if (!bombPresent) fruitsRef.current.push(spawnFruit(opRef.current, false));
+        if (!correctPresent && elapsedTotal - lastBombSpawnAt >= FRUIT_BOMB_DELAY_MS) {
+          fruitsRef.current.push(spawnFruit(opRef.current, true));
+          lastCorrectSpawnAt = elapsedTotal;
+        }
+        if (!bombPresent && elapsedTotal - lastCorrectSpawnAt >= FRUIT_BOMB_DELAY_MS) {
+          fruitsRef.current.push(spawnFruit(opRef.current, false));
+          lastBombSpawnAt = elapsedTotal;
+        }
       }
 
       fruitsRef.current = fruitsRef.current
