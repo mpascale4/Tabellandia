@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { sound } from '../SoundManager';
-import SnakeGame from './SnakeGame';
+import BalloonGame from './BalloonGame';
 import BubbleGame from './BubbleGame';
 import WhackAMoleGame from './WhackAMoleGame';
 import BasketGame from './BasketGame';
@@ -10,7 +10,7 @@ import RunnerGame from './RunnerGame';
 import MemoryGame from './MemoryGame';
 import FruitGame from './FruitGame';
 
-export type GameId = 'snake' | 'bolle' | 'whack' | 'canestro' | 'flappy' | 'dino' | 'corsa' | 'memory' | 'frutta';
+export type GameId = 'palloncini' | 'bolle' | 'whack' | 'canestro' | 'flappy' | 'dino' | 'corsa' | 'memory' | 'frutta';
 
 interface ArcadeMenuModalProps {
   onExit: () => void;
@@ -21,7 +21,7 @@ interface ArcadeMenuModalProps {
 }
 
 export const ARCADE_GAMES: Array<{ id: GameId; emoji: string; name: string }> = [
-  { id: 'snake', emoji: '🐍', name: 'Snake dei Numeri' },
+  { id: 'palloncini', emoji: '🎈', name: 'Palloncini dei Numeri' },
   { id: 'bolle', emoji: '🫧', name: 'Bolle con i Risultati' },
   { id: 'whack', emoji: '🔨', name: 'Acchiappa la Talpa' },
   { id: 'canestro', emoji: '🏀', name: 'Canestro dei Numeri' },
@@ -34,7 +34,7 @@ export const ARCADE_GAMES: Array<{ id: GameId; emoji: string; name: string }> = 
 
 function renderGame(id: GameId, onExit: () => void, tableId?: number) {
   switch (id) {
-    case 'snake': return <SnakeGame onExit={onExit} tableId={tableId} />;
+    case 'palloncini': return <BalloonGame onExit={onExit} tableId={tableId} />;
     case 'bolle': return <BubbleGame onExit={onExit} tableId={tableId} />;
     case 'whack': return <WhackAMoleGame onExit={onExit} tableId={tableId} />;
     case 'canestro': return <BasketGame onExit={onExit} tableId={tableId} />;

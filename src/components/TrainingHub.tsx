@@ -127,7 +127,7 @@ const SESSION_RESULT_MESSAGES: Record<number, { screen: string; speak: string }>
 // cosi il bambino la riconosce a colpo d'occhio; "Simon" resta riservato alla
 // sola estrazione in modalita Casuale (world.id === 0).
 const WORLD_TO_GAME: Record<number, GameId> = {
-  2: 'snake',
+  2: 'palloncini',
   3: 'bolle',
   4: 'whack',
   5: 'canestro',

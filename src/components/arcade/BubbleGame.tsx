@@ -132,6 +132,11 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
             setPopping(false);
             nextRow();
           }, 260);
+        } else {
+          // Fase di lettura: colpendo la stella la riga riparte da capo (nuova stella, step azzerato),
+          // così il bambino ha di nuovo tutto il tempo per leggere l'operazione senza rischiare.
+          setStep(0);
+          starIndexRef.current = Math.floor(Math.random() * row.length);
         }
         return currentStatus;
       }
@@ -156,7 +161,7 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
       }
       return currentStatus;
     });
-  }, [record, nextRow, isReady, triggerCollect, speak]);
+  }, [record, nextRow, isReady, triggerCollect, speak, row]);
 
   // La riga scende di un passo automaticamente ogni secondo, anche durante la fase di allenamento con la ⭐.
   useEffect(() => {
