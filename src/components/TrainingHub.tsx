@@ -775,6 +775,7 @@ function TrainingHome({
   compactLayout?: boolean;
   onSelect: (id: number) => void;
 }) {
+  const [showArcadeDebug, setShowArcadeDebug] = useState(false);
   return (
     <div className={`training-home w-full h-full ${compactLayout ? 'training-home--compact space-y-3' : 'space-y-5'}`}>
       <SurfaceCard tone="soft" padding={compactLayout ? 'sm' : 'md'} className="training-home-head">
@@ -807,6 +808,17 @@ function TrainingHome({
         </div>
       </button>
 
+      {/* TEMPORANEO: accesso diretto alla Sala Giochi per test, da rimuovere a fine collaudo. */}
+      <button
+        type="button"
+        onClick={() => setShowArcadeDebug(true)}
+        className="w-full rounded-2xl border-2 border-dashed border-indigo-300/90 bg-white p-3 shadow-sm hover:shadow-md hover:border-indigo-400 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 text-center focus-visible:outline-4 focus-visible:outline-sky-500"
+        aria-label="Apri la Sala Giochi (accesso temporaneo per test)"
+      >
+        <span className="text-xl" aria-hidden="true">🎮</span>
+        <span className="text-sm font-black text-indigo-900">Giochi (test)</span>
+      </button>
+
       <div
         role="list"
         aria-label="Lista tabelline disponibili"
@@ -824,6 +836,9 @@ function TrainingHome({
           </div>
         ))}
       </div>
+      {showArcadeDebug && (
+        <ArcadeMenuModal onExit={() => setShowArcadeDebug(false)} />
+      )}
     </div>
   );
 }
