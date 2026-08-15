@@ -59,11 +59,19 @@ export interface MathOperation {
   answer: number;
 }
 
-/** Genera una moltiplicazione casuale: se tableId è dato, b è sempre quella tabellina; altrimenti b è casuale 2..9. */
-export function generateOperation(tableId?: number): MathOperation {
-  const a = 1 + Math.floor(Math.random() * 9);
-  const b = tableId && tableId >= 2 ? tableId : 2 + Math.floor(Math.random() * 8);
-  return { a, b, answer: a * b };
+/** Genera una moltiplicazione casuale: se tableId è dato, b è sempre quella tabellina; altrimenti b è casuale 2..9.
+ * Se `avoid` è passato, la nuova operazione non sarà mai identica (stessi a e b) a quella precedente,
+ * cosi lo stesso calcolo non si ripresenta mai due volte di fila. */
+export function generateOperation(tableId?: number, avoid?: MathOperation): MathOperation {
+  let op: MathOperation;
+  let guard = 0;
+  do {
+    const a = 1 + Math.floor(Math.random() * 9);
+    const b = tableId && tableId >= 2 ? tableId : 2 + Math.floor(Math.random() * 8);
+    op = { a, b, answer: a * b };
+    guard += 1;
+  } while (avoid && op.a === avoid.a && op.b === avoid.b && guard < 30);
+  return op;
 }
 
 /** Genera `count` risultati distrattori plausibili (vicini al risultato corretto), diversi tra loro e dal corretto. */

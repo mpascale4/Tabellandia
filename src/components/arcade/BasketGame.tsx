@@ -6,6 +6,10 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeCollectEffect } from './ArcadeCollectEffect';
+import { useArcadeOperationVoice } from './useArcadeOperationVoice';
+import { useVoice } from '../../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../../utils/voiceFeedback';
 import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
@@ -72,6 +76,9 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
   const [record, setRecord] = useState(() => getHighScore('canestro'));
   const [isNewRecord, setIsNewRecord] = useState(false);
   const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
+  const { triggerCollect, CollectEffectOverlay } = useArcadeCollectEffect();
+  const { speak } = useVoice();
+  useArcadeOperationVoice(operation);
 
   const reset = useCallback(() => {
     laneRef.current = 0;
@@ -157,7 +164,7 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
     };
 
     const startNextRound = () => {
-      const nextOp = generateOperation(tableId);
+      const nextOp = generateOperation(tableId, opRef.current);
       opRef.current = nextOp;
       basketsRef.current = buildBaskets(nextOp);
       starIndexRef.current = Math.floor(Math.random() * BASKET_COUNT);
@@ -185,9 +192,13 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
             ? targetIndex >= 0 && basketsRef.current[targetIndex].correct
             : targetIndex === starIndexRef.current;
           if (isHit) {
+            const hitBasket = targetIndex >= 0 ? basketsRef.current[targetIndex] : null;
+            const hitX = hitBasket ? getBasketSwayX(hitBasket, elapsedTotal, swaySpeed) : ballX;
+            triggerCollect(hitX, BASKET_Y, isReadyRef.current ? '🎉' : '⭐');
             if (isReadyRef.current) {
               localScore += 1;
               setScore(localScore);
+              speak(buildMultiplicationResultSpeech(opRef.current.a, opRef.current.b, opRef.current.answer));
             }
             sound.playCorrect();
             if (isReadyRef.current) startNextRound();
@@ -218,7 +229,7 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
       stopped = true;
       cancelAnimationFrame(raf);
     };
-  }, [runId, tableId, record, isReadyRef]);
+  }, [runId, tableId, record, isReadyRef, triggerCollect, speak]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
@@ -232,8 +243,15 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
           className="block"
         />
         <ArcadeInGameScore label={`Punti: ${score} · Vite: ${lives}`} record={record} isNewRecord={isNewRecord} />
+        <CollectEffectOverlay />
         {status === 'over' && (
-          <ArcadeOverlay emoji="🏀" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
+          <ArcadeOverlay
+            emoji="🏀"
+            title="Game Over!"
+            subtitle={`Punteggio: ${score}`}
+            onRetry={reset}
+            reasonSpeech="Game over: hai sbagliato troppi canestri!"
+          />
         )}
       </div>
       <ArcadeControlBar

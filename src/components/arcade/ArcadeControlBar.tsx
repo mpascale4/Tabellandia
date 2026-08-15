@@ -30,21 +30,27 @@ const ACTION_BTN_CLASS =
  * pulsante d'azione), cosi il gioco resta giocabile senza dover toccare
  * l'arena stessa. Usata da tutti i mini-giochi arcade che richiedevano un
  * movimento continuo o uno sparo/salto/taglio con tocco sul canvas.
+ *
+ * Quando sono presenti tutte e 4 le direzioni (D-pad), le frecce sono divise
+ * ai due lati per essere piu' comode da premere con i pollici: sinistra+giu'
+ * a sinistra, destra+su a destra.
  */
 export default function ArcadeControlBar({ onLeft, onRight, onUp, onDown, actionLabel, actionEmoji, onAction }: ArcadeControlBarProps) {
   const hasVertical = onUp || onDown;
 
   return (
-    <div className="flex w-full items-center justify-center gap-2.5" role="group" aria-label="Comandi di gioco">
+    <div className="flex w-full items-center justify-between gap-2.5" role="group" aria-label="Comandi di gioco">
       {hasVertical ? (
-        <div className="grid grid-cols-3 grid-rows-2 gap-1.5" style={{ width: 'fit-content' }}>
-          <div />
-          <button type="button" onClick={onUp} className={DIRECTION_BTN_CLASS} aria-label="Su">▲</button>
-          <div />
-          <button type="button" onClick={onLeft} className={DIRECTION_BTN_CLASS} aria-label="Sinistra">◀</button>
-          <button type="button" onClick={onDown} className={DIRECTION_BTN_CLASS} aria-label="Giù">▼</button>
-          <button type="button" onClick={onRight} className={DIRECTION_BTN_CLASS} aria-label="Destra">▶</button>
-        </div>
+        <>
+          <div className="flex gap-1.5">
+            <button type="button" onClick={onLeft} className={DIRECTION_BTN_CLASS} aria-label="Sinistra">◀</button>
+            <button type="button" onClick={onDown} className={DIRECTION_BTN_CLASS} aria-label="Giù">▼</button>
+          </div>
+          <div className="flex gap-1.5">
+            <button type="button" onClick={onUp} className={DIRECTION_BTN_CLASS} aria-label="Su">▲</button>
+            <button type="button" onClick={onRight} className={DIRECTION_BTN_CLASS} aria-label="Destra">▶</button>
+          </div>
+        </>
       ) : (
         <>
           {onLeft && (
@@ -64,3 +70,4 @@ export default function ArcadeControlBar({ onLeft, onRight, onUp, onDown, action
     </div>
   );
 }
+

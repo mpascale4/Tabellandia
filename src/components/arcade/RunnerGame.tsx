@@ -6,6 +6,10 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeCollectEffect } from './ArcadeCollectEffect';
+import { useArcadeOperationVoice } from './useArcadeOperationVoice';
+import { useVoice } from '../../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../../utils/voiceFeedback';
 import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
@@ -73,6 +77,9 @@ export default function RunnerGame({ onExit, tableId }: ArcadeGameProps) {
   const [record, setRecord] = useState(() => getHighScore('corsa'));
   const [isNewRecord, setIsNewRecord] = useState(false);
   const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
+  const { triggerCollect, CollectEffectOverlay } = useArcadeCollectEffect();
+  const { speak } = useVoice();
+  useArcadeOperationVoice(operation);
 
   const reset = useCallback(() => {
     laneRef.current = 1;
@@ -187,10 +194,12 @@ export default function RunnerGame({ onExit, tableId }: ArcadeGameProps) {
           const picked = row.lanes[laneRef.current];
           if (picked.correct) {
             sound.playCorrect();
+            triggerCollect(laneX(laneRef.current), RUNNER_Y - 10, row.kind === 'sign' ? '🎉' : '⭐');
             if (row.kind === 'sign') {
               localScore += 1;
               setScore(localScore);
-              const nextOp = generateOperation(tableId);
+              speak(buildMultiplicationResultSpeech(opRef.current.a, opRef.current.b, opRef.current.answer));
+              const nextOp = generateOperation(tableId, opRef.current);
               opRef.current = nextOp;
               setOperation(nextOp);
               setRoundId(id => id + 1);
@@ -219,7 +228,7 @@ export default function RunnerGame({ onExit, tableId }: ArcadeGameProps) {
       stopped = true;
       cancelAnimationFrame(raf);
     };
-  }, [runId, tableId, record, isReadyRef]);
+  }, [runId, tableId, record, isReadyRef, triggerCollect, speak]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
@@ -233,8 +242,15 @@ export default function RunnerGame({ onExit, tableId }: ArcadeGameProps) {
           className="block"
         />
         <ArcadeInGameScore label={`Punti: ${score}`} record={record} isNewRecord={isNewRecord} />
+        <CollectEffectOverlay />
         {status === 'over' && (
-          <ArcadeOverlay emoji="🏃" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
+          <ArcadeOverlay
+            emoji="🏃"
+            title="Game Over!"
+            subtitle={`Punteggio: ${score}`}
+            onRetry={reset}
+            reasonSpeech="Game over: hai preso l'ostacolo sbagliato!"
+          />
         )}
       </div>
       <ArcadeControlBar onLeft={() => moveLane(-1)} onRight={() => moveLane(1)} />

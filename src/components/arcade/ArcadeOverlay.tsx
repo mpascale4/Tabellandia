@@ -1,18 +1,32 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useVoice } from '../../contexts/VoiceContext';
 
 interface ArcadeOverlayProps {
   emoji: string;
   title: string;
   subtitle?: string;
   onRetry: () => void;
+  /** Frase pronunciata una volta, al comparire dell'overlay, per spiegare perché la partita è finita. */
+  reasonSpeech?: string;
 }
 
 /**
  * Overlay di fine partita (vittoria o game over) condiviso dai mini-giochi
  * arcade: mostra esito + "Rigioca". Per uscire c'e sempre il pulsante
- * "Indietro" in fondo alla pagina (vedi ArcadeBackButton).
+ * "Indietro" in fondo alla pagina (vedi ArcadeBackButton). Se fornita,
+ * annuncia via voce il motivo del game over (regola generale per tutti i
+ * mini-giochi arcade).
  */
-export default function ArcadeOverlay({ emoji, title, subtitle, onRetry }: ArcadeOverlayProps) {
+export default function ArcadeOverlay({ emoji, title, subtitle, onRetry, reasonSpeech }: ArcadeOverlayProps) {
+  const { speak } = useVoice();
+
+  useEffect(() => {
+    if (reasonSpeech) {
+      speak(reasonSpeech);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div
       className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl bg-slate-950/80 backdrop-blur-sm p-4 text-center"

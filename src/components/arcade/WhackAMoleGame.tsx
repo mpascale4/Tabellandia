@@ -5,6 +5,10 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeCollectEffect } from './ArcadeCollectEffect';
+import { useArcadeOperationVoice } from './useArcadeOperationVoice';
+import { useVoice } from '../../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../../utils/voiceFeedback';
 import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
@@ -19,7 +23,7 @@ import {
 } from './arcadeShared';
 
 const HOLES = 9;
-const SESSION_MS = 25000;
+const SESSION_MS = 55000;
 const MOLE_COUNT = 3; // talpe attive contemporaneamente: 1 corretta + distrattori
 const BASE_MOLE_MIN_MS = 1050;
 const BASE_MOLE_MAX_MS = 1750;
@@ -54,6 +58,9 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
   const [roundId, setRoundId] = useState(0);
   const starHoleRef = useRef(0);
   const { isReady, secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
+  const { triggerCollect, CollectEffectOverlay } = useArcadeCollectEffect();
+  const { speak } = useVoice();
+  useArcadeOperationVoice(operation);
 
   useEffect(() => {
     starHoleRef.current = moles[Math.floor(Math.random() * moles.length)]?.hole ?? 0;
@@ -128,10 +135,16 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
     const isHit = isReadyRef.current ? mole.correct : holeIndex === starHoleRef.current;
     if (isHit) {
       sound.playCorrect();
+      const col = holeIndex % 3;
+      const rowI = Math.floor(holeIndex / 3);
+      const cellW = ARCADE_CANVAS_WIDTH / 3;
+      const cellH = ARCADE_CANVAS_HEIGHT / 3;
+      triggerCollect(cellW * col + cellW / 2, cellH * rowI + cellH / 2, isReadyRef.current ? '🎉' : '⭐');
       if (isReadyRef.current) {
         scoreRef.current += 1;
         setScore(scoreRef.current);
-        const nextOp = generateOperation(tableId);
+        speak(buildMultiplicationResultSpeech(opRef.current.a, opRef.current.b, opRef.current.answer));
+        const nextOp = generateOperation(tableId, opRef.current);
         opRef.current = nextOp;
         setOperation(nextOp);
         const newMoles = spawnMoles(nextOp);
@@ -142,7 +155,7 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
       return;
     }
     sound.playError();
-    const nextOp = generateOperation(tableId);
+    const nextOp = generateOperation(tableId, opRef.current);
     opRef.current = nextOp;
     setOperation(nextOp);
     const newMoles = spawnMoles(nextOp);
@@ -173,7 +186,7 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
                 {mole && (
                   <span className="relative flex items-center justify-center" aria-hidden="true">
                     <span className="text-3xl leading-none">🐹</span>
-                    <span className="absolute flex items-center justify-center h-5 w-5 rounded-full bg-white border-2 border-slate-800 text-[11px] font-black text-slate-900 -translate-y-1">
+                    <span className="absolute flex items-center justify-center h-7 w-7 rounded-full bg-white border-2 border-slate-800 text-base font-black text-slate-900 -translate-y-1">
                       {isReady ? mole.value : (mole.hole === starHoleRef.current ? '⭐' : '✖️')}
                     </span>
                   </span>
@@ -183,12 +196,14 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
           })}
         </div>
         <ArcadeInGameScore label={`Punti: ${score} · ${Math.ceil(timeLeftMs / 1000)}s`} record={record} isNewRecord={isNewRecord} />
+        <CollectEffectOverlay />
         {status === 'ended' && (
           <ArcadeOverlay
             emoji="🎉"
             title="Tempo scaduto!"
             subtitle={`Punteggio: ${score}`}
             onRetry={reset}
+            reasonSpeech="Tempo scaduto!"
           />
         )}
       </div>

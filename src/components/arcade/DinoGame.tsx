@@ -6,6 +6,10 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeCollectEffect } from './ArcadeCollectEffect';
+import { useArcadeOperationVoice } from './useArcadeOperationVoice';
+import { useVoice } from '../../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../../utils/voiceFeedback';
 import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
@@ -24,8 +28,8 @@ const HEIGHT = ARCADE_CANVAS_HEIGHT;
 const GROUND_Y = HEIGHT - 30;
 const DINO_X = 40;
 const DINO_SIZE = 26;
-const GRAVITY = 0.55;
-const JUMP_VY = -9.5;
+const GRAVITY = 0.48;
+const JUMP_VY = -10.5;
 const NUMBERED_W = 26;
 const CACTUS_W = 22;
 const BASE_OBSTACLE_SPEED = 2.6;
@@ -63,6 +67,10 @@ export default function DinoGame({ onExit, tableId }: ArcadeGameProps) {
   const [record, setRecord] = useState(() => getHighScore('dino'));
   const [isNewRecord, setIsNewRecord] = useState(false);
   const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
+  const gameOverReasonRef = useRef('Game over: hai colpito un ostacolo saltando male!');
+  const { triggerCollect, CollectEffectOverlay } = useArcadeCollectEffect();
+  const { speak } = useVoice();
+  useArcadeOperationVoice(operation);
 
   const reset = useCallback(() => {
     dinoYRef.current = GROUND_Y - DINO_SIZE;
@@ -188,6 +196,7 @@ export default function DinoGame({ onExit, tableId }: ArcadeGameProps) {
         .filter(o => o.x > -NUMBERED_W);
 
       let hit = false;
+      let missedCorrect = false;
       obstaclesRef.current.forEach(o => {
         const w = o.kind === 'cactus' ? CACTUS_W : NUMBERED_W;
         const withinX = DINO_X + DINO_SIZE * 0.6 > o.x && DINO_X + DINO_SIZE * 0.2 < o.x + w;
@@ -201,14 +210,25 @@ export default function DinoGame({ onExit, tableId }: ArcadeGameProps) {
               sound.playCorrect();
               localScore += 2;
               setScore(localScore);
-              const nextOp = generateOperation(tableId);
+              triggerCollect(DINO_X + DINO_SIZE / 2, GROUND_Y - NUMBERED_W / 2, '🎉');
+              speak(buildMultiplicationResultSpeech(opRef.current.a, opRef.current.b, opRef.current.answer));
+              const nextOp = generateOperation(tableId, opRef.current);
               opRef.current = nextOp;
               setOperation(nextOp);
               setRoundId(id => id + 1);
             }
           } else {
             hit = true;
+            gameOverReasonRef.current = o.kind === 'cactus'
+              ? 'Game over: hai colpito un cactus!'
+              : 'Game over: hai colpito il risultato sbagliato!';
           }
+        } else if (withinX && !withinY && o.kind === 'numbered' && o.numbered?.correct && !o.scored) {
+          // Il dino era in salto proprio sopra al risultato giusto: va "raccolto" correndoci
+          // sopra, non saltato. Saltarlo per evitarlo e' un errore quanto colpire quello sbagliato.
+          o.scored = true;
+          missedCorrect = true;
+          gameOverReasonRef.current = 'Game over: hai saltato il risultato giusto, dovevi raccoglierlo correndoci sopra!';
         }
         if (!o.scored && o.x + w < DINO_X) {
           o.scored = true;
@@ -218,6 +238,10 @@ export default function DinoGame({ onExit, tableId }: ArcadeGameProps) {
           }
         }
       });
+
+      if (missedCorrect) {
+        hit = true;
+      }
 
       if (hit) {
         sound.playError();
@@ -239,7 +263,7 @@ export default function DinoGame({ onExit, tableId }: ArcadeGameProps) {
       stopped = true;
       cancelAnimationFrame(raf);
     };
-  }, [runId, tableId, isReadyRef]);
+  }, [runId, tableId, isReadyRef, triggerCollect, speak]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
@@ -253,8 +277,15 @@ export default function DinoGame({ onExit, tableId }: ArcadeGameProps) {
           className="block"
         />
         <ArcadeInGameScore label={`Punti: ${score}`} record={record} isNewRecord={isNewRecord} />
+        <CollectEffectOverlay />
         {status === 'over' && (
-          <ArcadeOverlay emoji="🦖" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
+          <ArcadeOverlay
+            emoji="🦖"
+            title="Game Over!"
+            subtitle={`Punteggio: ${score}`}
+            onRetry={reset}
+            reasonSpeech={gameOverReasonRef.current}
+          />
         )}
       </div>
       <ArcadeControlBar actionEmoji="🦖" actionLabel="Salta" onAction={jump} />

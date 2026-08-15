@@ -6,6 +6,10 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeCollectEffect } from './ArcadeCollectEffect';
+import { useArcadeOperationVoice } from './useArcadeOperationVoice';
+import { useVoice } from '../../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../../utils/voiceFeedback';
 import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
@@ -75,6 +79,10 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
   const [record, setRecord] = useState(() => getHighScore('frutta'));
   const [isNewRecord, setIsNewRecord] = useState(false);
   const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
+  const { triggerCollect, CollectEffectOverlay } = useArcadeCollectEffect();
+  const { speak } = useVoice();
+  const gameOverReasonRef = useRef('Game over: hai tagliato il frutto sbagliato!');
+  useArcadeOperationVoice(operation);
 
   const reset = useCallback(() => {
     fruitsRef.current = [];
@@ -126,16 +134,19 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
       target.sliced = true;
       if (target.correct) {
         sound.playCorrect();
+        triggerCollect(target.x, target.y, isReadyRef.current ? '🎉' : '⭐');
         if (isReadyRef.current) {
           localScore.v += 1;
           setScore(localScore.v);
-          const nextOp = generateOperation(tableId);
+          speak(buildMultiplicationResultSpeech(opRef.current.a, opRef.current.b, opRef.current.answer));
+          const nextOp = generateOperation(tableId, opRef.current);
           opRef.current = nextOp;
           setOperation(nextOp);
           setRoundId(id => id + 1);
         }
       } else {
         sound.playError();
+        gameOverReasonRef.current = 'Game over: hai tagliato la bomba!';
         gameOver(localScore.v);
       }
     };
@@ -195,6 +206,7 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
         if (!f.sliced && f.correct && f.y > HEIGHT + FRUIT_R * 2.9) {
           f.sliced = true;
           sound.playError();
+          gameOverReasonRef.current = 'Game over: hai lasciato cadere il frutto giusto!';
           gameOver(localScore.v);
         }
       });
@@ -212,7 +224,7 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
       stopped = true;
       cancelAnimationFrame(raf);
     };
-  }, [runId, tableId, record, isReadyRef]);
+  }, [runId, tableId, record, isReadyRef, triggerCollect, speak]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
@@ -221,8 +233,15 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
       <div className="relative rounded-2xl overflow-hidden border-2 border-slate-700 shadow-md" style={{ width: WIDTH, height: HEIGHT }}>
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="block" />
         <ArcadeInGameScore label={`Punti: ${score}`} record={record} isNewRecord={isNewRecord} />
+        <CollectEffectOverlay />
         {status === 'over' && (
-          <ArcadeOverlay emoji="🍉" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
+          <ArcadeOverlay
+            emoji="🍉"
+            title="Game Over!"
+            subtitle={`Punteggio: ${score}`}
+            onRetry={reset}
+            reasonSpeech={gameOverReasonRef.current}
+          />
         )}
       </div>
       <ArcadeControlBar

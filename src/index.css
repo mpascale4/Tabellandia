@@ -32,6 +32,28 @@
   animation: badge-blink 0.9s ease-in-out infinite;
 }
 
+/* Effetto "raccolta" condiviso dai mini-giochi arcade quando si colpisce/prende
+   il bersaglio giusto (stella in allenamento o risultato corretto). */
+@keyframes arcade-collect-burst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(1.9);
+  }
+}
+
+.arcade-collect-burst {
+  animation: arcade-collect-burst 420ms ease-out forwards;
+}
+
+
 /* Ensure clear affordance for interactive controls across the app. */
 :where(
   button:not(:disabled),

@@ -6,6 +6,10 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeCollectEffect } from './ArcadeCollectEffect';
+import { useArcadeOperationVoice } from './useArcadeOperationVoice';
+import { useVoice } from '../../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../../utils/voiceFeedback';
 import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ArcadeGameProps,
@@ -73,6 +77,10 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
   const [record, setRecord] = useState(() => getHighScore('snake'));
   const [isNewRecord, setIsNewRecord] = useState(false);
   const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
+  const gameOverReasonRef = useRef('Game over: hai sbattuto contro il muro o te stesso!');
+  const { triggerCollect, CollectEffectOverlay } = useArcadeCollectEffect();
+  const { speak } = useVoice();
+  useArcadeOperationVoice(operation);
 
   const reset = useCallback(() => {
     snakeRef.current = [{ x: 4, y: 4 }];
@@ -158,6 +166,9 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
       const hitsSelf = snakeRef.current.some(s => s.x === next.x && s.y === next.y);
       if (hitsWall || hitsSelf) {
         stopped = true;
+        gameOverReasonRef.current = hitsWall
+          ? 'Game over: hai sbattuto contro il muro!'
+          : 'Game over: ti sei morso la coda!';
         sound.playError();
         setGameOver(true);
         const updated = updateHighScore('snake', localScore);
@@ -171,10 +182,12 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
       if (hitApple) {
         if (hitApple.correct) {
           sound.playCorrect();
+          triggerCollect(next.x * CELL + CELL / 2, next.y * CELL + CELL / 2, isReadyRef.current ? '🎉' : '⭐');
           if (isReadyRef.current) {
             localScore += 1;
             setScore(localScore);
-            const nextOp = generateOperation(tableId);
+            speak(buildMultiplicationResultSpeech(opRef.current.a, opRef.current.b, opRef.current.answer));
+            const nextOp = generateOperation(tableId, opRef.current);
             opRef.current = nextOp;
             setOperation(nextOp);
             setRoundId(id => id + 1);
@@ -189,6 +202,7 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
         } else {
           // Mela sbagliata (o 💣 in allenamento): game over, come sbattere contro il muro.
           stopped = true;
+          gameOverReasonRef.current = 'Game over: hai mangiato la mela sbagliata!';
           sound.playError();
           setGameOver(true);
           const updated = updateHighScore('snake', localScore);
@@ -214,7 +228,7 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
       stopped = true;
       window.clearTimeout(timeoutId);
     };
-  }, [runId, tableId, record, isReadyRef]);
+  }, [runId, tableId, record, isReadyRef, triggerCollect, speak]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
@@ -228,12 +242,14 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
           className="block"
         />
         <ArcadeInGameScore label={`Punti: ${score}`} record={record} isNewRecord={isNewRecord} />
+        <CollectEffectOverlay />
         {gameOver && (
           <ArcadeOverlay
             emoji="🐍"
             title="Game Over!"
             subtitle={`Punteggio: ${score}`}
             onRetry={reset}
+            reasonSpeech={gameOverReasonRef.current}
           />
         )}
       </div>

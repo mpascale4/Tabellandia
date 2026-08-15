@@ -6,6 +6,10 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeCollectEffect } from './ArcadeCollectEffect';
+import { useArcadeOperationVoice } from './useArcadeOperationVoice';
+import { useVoice } from '../../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../../utils/voiceFeedback';
 import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
@@ -73,11 +77,16 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
   const [bullet, setBullet] = useState<{ x: number; targetY: number } | null>(null);
   const [roundId, setRoundId] = useState(0);
   const starIndexRef = useRef(0);
+  const opRef = useRef<MathOperation>(operation);
   const arenaRef = useRef<HTMLDivElement>(null);
   const { isReady, secondsLeft } = useArcadeReadyPhase(roundId);
+  const { triggerCollect, CollectEffectOverlay } = useArcadeCollectEffect();
+  const { speak } = useVoice();
+  useArcadeOperationVoice(operation);
 
   const reset = useCallback(() => {
     const nextOp = generateOperation(tableId);
+    opRef.current = nextOp;
     setOperation(nextOp);
     const nextRowValue = buildRow(nextOp);
     setRow(nextRowValue);
@@ -93,7 +102,8 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
   }, [tableId]);
 
   const nextRow = useCallback(() => {
-    const nextOp = generateOperation(tableId);
+    const nextOp = generateOperation(tableId, opRef.current);
+    opRef.current = nextOp;
     setOperation(nextOp);
     const nextRowValue = buildRow(nextOp);
     setRow(nextRowValue);
@@ -106,15 +116,17 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
     setRoundId(id => id + 1);
   }, [tableId]);
 
-  const popBubble = useCallback((bubbleIndex: number, bubble: Bubble) => {
+  const popBubble = useCallback((bubbleIndex: number, bubble: Bubble, hitX: number, hitY: number) => {
     setStatus(currentStatus => {
       if (currentStatus !== 'playing') return currentStatus;
 
       const isHit = isReady ? bubble.correct : bubbleIndex === starIndexRef.current;
       if (isHit) {
         sound.playCorrect();
+        triggerCollect(hitX, hitY, isReady ? '🎉' : '⭐');
         if (isReady) {
           setScore(s => s + 1);
+          speak(buildMultiplicationResultSpeech(opRef.current.a, opRef.current.b, opRef.current.answer));
           setPopping(true);
           window.setTimeout(() => {
             setPopping(false);
@@ -144,11 +156,11 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
       }
       return currentStatus;
     });
-  }, [record, nextRow, isReady]);
+  }, [record, nextRow, isReady, triggerCollect, speak]);
 
-  // La riga scende di un passo automaticamente ogni secondo, ma solo dopo la fase di lettura.
+  // La riga scende di un passo automaticamente ogni secondo, anche durante la fase di allenamento con la ⭐.
   useEffect(() => {
-    if (status !== 'playing' || popping || !isReady) return;
+    if (status !== 'playing' || popping) return;
     const id = window.setInterval(() => {
       setStep(s => {
         const next = s + 1;
@@ -166,7 +178,7 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [status, popping, record, isReady]);
+  }, [status, popping, record]);
 
   const nudgeCannon = useCallback((direction: -1 | 1) => {
     setCannonX(prev => Math.max(CANNON_W / 2, Math.min(WIDTH - CANNON_W / 2, prev + direction * CANNON_STEP)));
@@ -190,7 +202,7 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
     setBullet({ x: cannonX, targetY });
     window.setTimeout(() => {
       setBullet(null);
-      if (targetBubble) popBubble(closestIndex, targetBubble);
+      if (targetBubble) popBubble(closestIndex, targetBubble, colX(closestIndex), targetY);
     }, 160);
   }, [status, bullet, popping, row, cannonX, step, popBubble]);
 
@@ -206,6 +218,7 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
         style={{ width: WIDTH, height: HEIGHT }}
       >
         <ArcadeInGameScore label={`Punti: ${score} · Passi: ${step}/${MAX_STEPS}`} record={record} isNewRecord={isNewRecord} />
+        <CollectEffectOverlay />
 
         {row.map((b, i) => (
           <div
@@ -243,7 +256,13 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
         </div>
 
         {status === 'over' && (
-          <ArcadeOverlay emoji="🫧" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
+          <ArcadeOverlay
+            emoji="🫧"
+            title="Game Over!"
+            subtitle={`Punteggio: ${score}`}
+            onRetry={reset}
+            reasonSpeech="Game over: la fila di bolle ti ha raggiunto!"
+          />
         )}
       </div>
       <ArcadeControlBar

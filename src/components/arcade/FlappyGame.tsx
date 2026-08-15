@@ -6,6 +6,10 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeCollectEffect } from './ArcadeCollectEffect';
+import { useArcadeOperationVoice } from './useArcadeOperationVoice';
+import { useVoice } from '../../contexts/VoiceContext';
+import { buildMultiplicationResultSpeech } from '../../utils/voiceFeedback';
 import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
@@ -26,8 +30,8 @@ const BIRD_R = 10;
 const GRAVITY = 0.22;
 const FLAP_VY = -5.4;
 const PIPE_W = 44;
-const BASE_GAP_H = 78;
-const MIN_GAP_H = 62;
+const BASE_GAP_H = 100;
+const MIN_GAP_H = 80;
 const BASE_PIPE_SPEED = 1.5;
 const MAX_PIPE_SPEED = 2.5;
 const MAX_FALL_VY = 4.2;
@@ -71,6 +75,9 @@ export default function FlappyGame({ onExit, tableId }: ArcadeGameProps) {
   const [record, setRecord] = useState(() => getHighScore('flappy'));
   const [isNewRecord, setIsNewRecord] = useState(false);
   const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
+  const { triggerCollect, CollectEffectOverlay } = useArcadeCollectEffect();
+  const { speak } = useVoice();
+  useArcadeOperationVoice(operation);
 
   const reset = useCallback(() => {
     birdYRef.current = HEIGHT / 2;
@@ -179,11 +186,14 @@ export default function FlappyGame({ onExit, tableId }: ArcadeGameProps) {
           pipeActive = false;
           if (p.isPractice) {
             sound.playTick();
+            triggerCollect(BIRD_X, birdYRef.current, '⭐');
           } else {
             localScore += 1;
             setScore(localScore);
             sound.playCorrect();
-            const nextOp = generateOperation(tableId);
+            triggerCollect(BIRD_X, birdYRef.current, '🎉');
+            speak(buildMultiplicationResultSpeech(opRef.current.a, opRef.current.b, opRef.current.answer));
+            const nextOp = generateOperation(tableId, opRef.current);
             opRef.current = nextOp;
             setOperation(nextOp);
             setRoundId(id => id + 1);
@@ -211,7 +221,7 @@ export default function FlappyGame({ onExit, tableId }: ArcadeGameProps) {
       stopped = true;
       cancelAnimationFrame(raf);
     };
-  }, [runId, tableId, record, isReadyRef]);
+  }, [runId, tableId, record, isReadyRef, triggerCollect, speak]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
@@ -225,8 +235,15 @@ export default function FlappyGame({ onExit, tableId }: ArcadeGameProps) {
           className="block"
         />
         <ArcadeInGameScore label={`Punti: ${score}`} record={record} isNewRecord={isNewRecord} />
+        <CollectEffectOverlay />
         {status === 'over' && (
-          <ArcadeOverlay emoji="🐤" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
+          <ArcadeOverlay
+            emoji="🐤"
+            title="Game Over!"
+            subtitle={`Punteggio: ${score}`}
+            onRetry={reset}
+            reasonSpeech="Game over: hai toccato un tubo o il risultato sbagliato!"
+          />
         )}
       </div>
       <ArcadeControlBar actionEmoji="🐤" actionLabel="Vola" onAction={flap} />
