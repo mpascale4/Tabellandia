@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sound } from '../SoundManager';
 import ArcadeBackButton from './ArcadeBackButton';
+import ArcadeControlBar from './ArcadeControlBar';
 import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
   ARCADE_CANVAS_WIDTH,
@@ -19,30 +21,32 @@ import {
 
 const WIDTH = ARCADE_CANVAS_WIDTH;
 const HEIGHT = ARCADE_CANVAS_HEIGHT;
+const BASKET_COUNT = 2;
 const BASKET_Y = 56;
-const BASKET_W = 62;
+const BASKET_W = 66;
 const BASKET_H = 22;
 const SHOOTER_Y = HEIGHT - 26;
 const BALL_R = 7;
 const BASE_BALL_SPEED = 4.2;
 const MAX_BALL_SPEED = 6.4;
 const MAX_LIVES = 3;
-const BASE_SWAY_SPEED = 0.015;
-const MAX_SWAY_SPEED = 0.04;
+const BASE_SWAY_SPEED = 0.022;
+const MAX_SWAY_SPEED = 0.055;
+const SWAY_AMPLITUDE = 14;
 
 interface Basket { value: number; correct: boolean; centerX: number; phase: number; }
 interface Ball { x: number; y: number; vy: number; }
 
 /** Posizione X attuale del canestro tenendo conto dell'oscillazione (sway). */
 function getBasketSwayX(basket: Basket, elapsed: number, swaySpeed: number): number {
-  return basket.centerX + Math.sin(elapsed * 0.001 * swaySpeed + basket.phase) * 8;
+  return basket.centerX + Math.sin(elapsed * 0.001 * swaySpeed + basket.phase) * SWAY_AMPLITUDE;
 }
 
-/** Costruisce i 3 canestri (1 corretto + 2 distrattori) equidistanti. */
+/** Costruisce i 2 canestri (1 corretto + 1 distrattore) equidistanti. */
 function buildBaskets(op: MathOperation): Basket[] {
-  const distractors = generateDistractors(op.answer, 2);
+  const distractors = generateDistractors(op.answer, BASKET_COUNT - 1);
   const values = [op.answer, ...distractors].sort(() => Math.random() - 0.5);
-  const slotW = WIDTH / 3;
+  const slotW = WIDTH / BASKET_COUNT;
   return values.map((value, i) => ({
     value,
     correct: value === op.answer,
@@ -54,22 +58,26 @@ function buildBaskets(op: MathOperation): Basket[] {
 /** Mini-gioco arcade: Canestro dei Numeri, tira la palla nel canestro col risultato giusto. */
 export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const shooterXRef = useRef(WIDTH / 2);
+  const laneRef = useRef(0); // 0 = canestro sinistro, 1 = canestro destro
   const basketsRef = useRef<Basket[]>([]);
   const ballRef = useRef<Ball | null>(null);
   const opRef = useRef<MathOperation>(generateOperation(tableId));
+  const starIndexRef = useRef(0);
   const [operation, setOperation] = useState(opRef.current);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
   const [status, setStatus] = useState<'playing' | 'over'>('playing');
   const [runId, setRunId] = useState(0);
+  const [roundId, setRoundId] = useState(0);
   const [record, setRecord] = useState(() => getHighScore('canestro'));
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
 
   const reset = useCallback(() => {
-    shooterXRef.current = WIDTH / 2;
+    laneRef.current = 0;
     opRef.current = generateOperation(tableId);
     basketsRef.current = buildBaskets(opRef.current);
+    starIndexRef.current = Math.floor(Math.random() * BASKET_COUNT);
     ballRef.current = null;
     setOperation(opRef.current);
     setScore(0);
@@ -77,21 +85,25 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
     setStatus('playing');
     setIsNewRecord(false);
     setRunId(id => id + 1);
+    setRoundId(id => id + 1);
   }, [tableId]);
 
-  const moveShooter = useCallback((clientX: number, rect: DOMRect) => {
-    const x = clientX - rect.left;
-    shooterXRef.current = Math.max(10, Math.min(WIDTH - 10, x));
+  const nudgeShooter = useCallback((direction: -1 | 1) => {
+    laneRef.current = Math.max(0, Math.min(BASKET_COUNT - 1, laneRef.current + direction));
   }, []);
 
-  const shoot = useCallback((currentSpeed: number) => {
+  const ballSpeedRef = useRef(BASE_BALL_SPEED);
+  const shoot = useCallback(() => {
     if (ballRef.current) return; // una palla per volta
-    ballRef.current = { x: shooterXRef.current, y: SHOOTER_Y, vy: -currentSpeed };
-    sound.playTick();
+    const slotW = WIDTH / BASKET_COUNT;
+    const launchX = slotW * laneRef.current + slotW / 2;
+    ballRef.current = { x: launchX, y: SHOOTER_Y, vy: -ballSpeedRef.current };
+    sound.playShoot();
   }, []);
 
   useEffect(() => {
     basketsRef.current = buildBaskets(opRef.current);
+    starIndexRef.current = Math.floor(Math.random() * BASKET_COUNT);
   }, []);
 
   useEffect(() => {
@@ -105,7 +117,6 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
     let lastTs = performance.now();
     let localScore = 0;
     let localLives = MAX_LIVES;
-    let speedForCurrentBall = BASE_BALL_SPEED;
 
     const draw = () => {
       ctx.fillStyle = '#1e293b';
@@ -114,7 +125,7 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
       ctx.font = 'bold 16px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      basketsRef.current.forEach(b => {
+      basketsRef.current.forEach((b, i) => {
         const cx = getBasketSwayX(b, elapsedTotal, getSwaySpeed(elapsedTotal));
         ctx.fillStyle = '#b45309';
         ctx.fillRect(cx - BASKET_W / 2, BASKET_Y - BASKET_H / 2, BASKET_W, BASKET_H);
@@ -122,12 +133,15 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
         ctx.lineWidth = 2;
         ctx.strokeRect(cx - BASKET_W / 2, BASKET_Y - BASKET_H / 2, BASKET_W, BASKET_H);
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(String(b.value), cx, BASKET_Y + 1);
+        const label = isReadyRef.current ? String(b.value) : (i === starIndexRef.current ? '⭐' : '✖️');
+        ctx.fillText(label, cx, BASKET_Y + 1);
       });
 
-      // Tiratore
+      // Tiratore: si sposta subito sulla corsia scelta con ◀ ▶ (nessuno spostamento a piccoli passi).
+      const slotW = WIDTH / BASKET_COUNT;
+      const shooterX = slotW * laneRef.current + slotW / 2;
       ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(shooterXRef.current - 14, SHOOTER_Y, 28, 8);
+      ctx.fillRect(shooterX - 14, SHOOTER_Y, 28, 8);
 
       if (ballRef.current) {
         ctx.beginPath();
@@ -142,30 +156,41 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
       return BASE_SWAY_SPEED + (level / 4) * (MAX_SWAY_SPEED - BASE_SWAY_SPEED) * 60;
     };
 
+    const startNextRound = () => {
+      const nextOp = generateOperation(tableId);
+      opRef.current = nextOp;
+      basketsRef.current = buildBaskets(nextOp);
+      starIndexRef.current = Math.floor(Math.random() * BASKET_COUNT);
+      setOperation(nextOp);
+      setRoundId(id => id + 1);
+    };
+
     const step = (ts: number) => {
       if (stopped) return;
       const dt = ts - lastTs;
       lastTs = ts;
       elapsedTotal += dt;
       const level = getDifficultyLevel(elapsedTotal);
-      speedForCurrentBall = Math.min(MAX_BALL_SPEED, BASE_BALL_SPEED + level * 0.5);
+      ballSpeedRef.current = Math.min(MAX_BALL_SPEED, BASE_BALL_SPEED + level * 0.5);
 
       if (ballRef.current) {
         ballRef.current.y += ballRef.current.vy;
         if (ballRef.current.y <= BASKET_Y) {
           const swaySpeed = getSwaySpeed(elapsedTotal);
           const ballX = ballRef.current.x;
-          const target = basketsRef.current.find(
+          const targetIndex = basketsRef.current.findIndex(
             b => Math.abs(ballX - getBasketSwayX(b, elapsedTotal, swaySpeed)) <= BASKET_W / 2
           );
-          if (target?.correct) {
-            localScore += 1;
-            setScore(localScore);
+          const isHit = isReadyRef.current
+            ? targetIndex >= 0 && basketsRef.current[targetIndex].correct
+            : targetIndex === starIndexRef.current;
+          if (isHit) {
+            if (isReadyRef.current) {
+              localScore += 1;
+              setScore(localScore);
+            }
             sound.playCorrect();
-            const nextOp = generateOperation(tableId);
-            opRef.current = nextOp;
-            basketsRef.current = buildBaskets(nextOp);
-            setOperation(nextOp);
+            if (isReadyRef.current) startNextRound();
           } else {
             localLives -= 1;
             setLives(localLives);
@@ -189,37 +214,40 @@ export default function BasketGame({ onExit, tableId }: ArcadeGameProps) {
 
     draw();
     raf = requestAnimationFrame(step);
-    const shootHandler = () => shoot(speedForCurrentBall);
-    canvas.addEventListener('pointerdown', shootHandler);
     return () => {
       stopped = true;
       cancelAnimationFrame(raf);
-      canvas.removeEventListener('pointerdown', shootHandler);
     };
-  }, [runId, tableId, shoot, record]);
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    moveShooter(e.clientX, e.currentTarget.getBoundingClientRect());
-  };
+  }, [runId, tableId, record, isReadyRef]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
       <ArcadeGameHeader emoji="🏀" title="Canestro dei Numeri" />
-      <ArcadeOperationBanner a={operation.a} b={operation.b} />
+      <ArcadeOperationBanner a={operation.a} b={operation.b} secondsLeft={secondsLeft} />
       <div className="relative rounded-2xl overflow-hidden border-2 border-slate-700 shadow-md" style={{ width: WIDTH, height: HEIGHT }}>
         <canvas
           ref={canvasRef}
           width={WIDTH}
           height={HEIGHT}
-          className="block touch-none cursor-pointer"
-          onPointerMove={handlePointerMove}
+          className="block"
         />
         <ArcadeInGameScore label={`Punti: ${score} · Vite: ${lives}`} record={record} isNewRecord={isNewRecord} />
         {status === 'over' && (
           <ArcadeOverlay emoji="🏀" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
         )}
       </div>
-      <p className="text-xs font-bold text-sky-700/70 text-center">Muovi il tiratore e tocca per lanciare nel canestro col risultato giusto!</p>
+      <ArcadeControlBar
+        onLeft={() => nudgeShooter(-1)}
+        onRight={() => nudgeShooter(1)}
+        actionEmoji="🏀"
+        actionLabel="Spara"
+        onAction={shoot}
+      />
+      <p className="text-xs font-bold text-sky-700/70 text-center">
+        {secondsLeft > 0
+          ? 'Allenati: colpisci la ⭐ per prendere il ritmo!'
+          : 'Muovi il tiratore con ◀ ▶ e premi Spara per lanciare nel canestro col risultato giusto!'}
+      </p>
       <ArcadeBackButton onExit={onExit} />
     </div>
   );

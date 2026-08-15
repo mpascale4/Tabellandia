@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sound } from '../SoundManager';
 import ArcadeBackButton from './ArcadeBackButton';
+import ArcadeControlBar from './ArcadeControlBar';
 import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ArcadeGameProps,
   generateDistractors,
@@ -67,8 +69,10 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
   const [operation, setOperation] = useState(opRef.current);
   const [gameOver, setGameOver] = useState(false);
   const [runId, setRunId] = useState(0);
+  const [roundId, setRoundId] = useState(0);
   const [record, setRecord] = useState(() => getHighScore('snake'));
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
 
   const reset = useCallback(() => {
     snakeRef.current = [{ x: 4, y: 4 }];
@@ -81,6 +85,7 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
     setGameOver(false);
     setIsNewRecord(false);
     setRunId(id => id + 1);
+    setRoundId(id => id + 1);
   }, [tableId]);
 
   const setDirection = useCallback((dir: Direction) => {
@@ -88,23 +93,7 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
     nextDirRef.current = dir;
   }, []);
 
-  const handleArenaPointer = useCallback((clientX: number, clientY: number, rect: DOMRect) => {
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    const head = snakeRef.current[0];
-    const headCx = head.x * CELL + CELL / 2;
-    const headCy = head.y * CELL + CELL / 2;
-    const dx = x - headCx;
-    const dy = y - headCy;
-    // Sceglie la direzione in base all'asse dominante rispetto alla testa del serpente.
-    if (Math.abs(dx) > Math.abs(dy)) {
-      setDirection(dx > 0 ? 'right' : 'left');
-    } else {
-      setDirection(dy > 0 ? 'down' : 'up');
-    }
-  }, [setDirection]);
-
-  // Frecce da tastiera come alternativa accessibile al tocco sull'arena.
+  // Frecce da tastiera come alternativa accessibile al D-pad su schermo.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowUp') setDirection('up');
@@ -144,7 +133,7 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
         ctx.strokeStyle = '#ffffff';
         ctx.stroke();
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(String(apple.value), cx, cy + 1);
+        ctx.fillText(isReadyRef.current ? String(apple.value) : (apple.correct ? '🍎' : '💣'), cx, cy + 1);
       });
 
       snakeRef.current.forEach((seg, i) => {
@@ -182,14 +171,23 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
       if (hitApple) {
         if (hitApple.correct) {
           sound.playCorrect();
-          localScore += 1;
-          setScore(localScore);
-          const nextOp = generateOperation(tableId);
-          opRef.current = nextOp;
-          setOperation(nextOp);
-          applesRef.current = spawnApples(nextOp, newSnake);
+          if (isReadyRef.current) {
+            localScore += 1;
+            setScore(localScore);
+            const nextOp = generateOperation(tableId);
+            opRef.current = nextOp;
+            setOperation(nextOp);
+            setRoundId(id => id + 1);
+            applesRef.current = spawnApples(nextOp, newSnake);
+            snakeRef.current = newSnake;
+          } else {
+            // Fase di lettura: mangiare la mela 🍎 e' un semplice allenamento, il serpente non cresce.
+            newSnake.pop();
+            applesRef.current = spawnApples(opRef.current, newSnake);
+            snakeRef.current = newSnake;
+          }
         } else {
-          // Mela sbagliata: game over, come sbattere contro il muro.
+          // Mela sbagliata (o 💣 in allenamento): game over, come sbattere contro il muro.
           stopped = true;
           sound.playError();
           setGameOver(true);
@@ -200,8 +198,8 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
         }
       } else {
         newSnake.pop();
+        snakeRef.current = newSnake;
       }
-      snakeRef.current = newSnake;
       draw();
 
       // Difficolta progressiva: il serpente accelera col passare del tempo.
@@ -216,19 +214,18 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
       stopped = true;
       window.clearTimeout(timeoutId);
     };
-  }, [runId, tableId]);
+  }, [runId, tableId, record, isReadyRef]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
       <ArcadeGameHeader emoji="🐍" title="Snake dei Numeri" />
-      <ArcadeOperationBanner a={operation.a} b={operation.b} />
+      <ArcadeOperationBanner a={operation.a} b={operation.b} secondsLeft={secondsLeft} />
       <div className="relative rounded-2xl overflow-hidden border-2 border-slate-700 shadow-md" style={{ width: WIDTH, height: HEIGHT }}>
         <canvas
           ref={canvasRef}
           width={WIDTH}
           height={HEIGHT}
-          className="block cursor-pointer touch-none"
-          onPointerDown={e => handleArenaPointer(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect())}
+          className="block"
         />
         <ArcadeInGameScore label={`Punti: ${score}`} record={record} isNewRecord={isNewRecord} />
         {gameOver && (
@@ -240,7 +237,17 @@ export default function SnakeGame({ onExit, tableId }: ArcadeGameProps) {
           />
         )}
       </div>
-      <p className="text-xs font-bold text-sky-700/70 text-center">Tocca l'arena nella direzione in cui vuoi andare. Mangia solo la mela col risultato giusto!</p>
+      <ArcadeControlBar
+        onUp={() => setDirection('up')}
+        onDown={() => setDirection('down')}
+        onLeft={() => setDirection('left')}
+        onRight={() => setDirection('right')}
+      />
+      <p className="text-xs font-bold text-sky-700/70 text-center">
+        {secondsLeft > 0
+          ? 'Allenati: mangia la 🍎 ed evita la 💣 per prendere il ritmo!'
+          : 'Usa il D-pad (o le frecce da tastiera) per cambiare direzione. Mangia solo la mela col risultato giusto!'}
+      </p>
       <ArcadeBackButton onExit={onExit} />
     </div>
   );

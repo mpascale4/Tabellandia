@@ -1309,6 +1309,115 @@ class SoundManager {
     osc.stop(this.ctx.currentTime + 0.03);
   }
 
+  /** "Pew" secco per lo sparo (Canestro, Bolle): pitch discendente rapido. */
+  playShoot() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(900, now);
+    osc.frequency.exponentialRampToValueAtTime(220, now + 0.12);
+
+    gain.gain.setValueAtTime(0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.13);
+  }
+
+  /** Balzo elastico per il salto (Dino Run): pitch ascendente breve. */
+  playJump() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(280, now);
+    osc.frequency.exponentialRampToValueAtTime(620, now + 0.14);
+
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.17);
+  }
+
+  /** Battito d'ali morbido per il volo (Flappy): doppio blip breve. */
+  playFlap() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    [520, 700].forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.03);
+
+      gain.gain.setValueAtTime(0.07, now + idx * 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.03 + 0.07);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(now + idx * 0.03);
+      osc.stop(now + idx * 0.03 + 0.08);
+    });
+  }
+
+  /** Fruscio rapido per il taglio (Frutta Matematica): rumore filtrato che si spegne veloce. */
+  playSlice() {
+    if (!this.effectsEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+    this.ensureBackgroundMusic();
+
+    const now = this.ctx.currentTime;
+    const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.09), this.ctx.sampleRate);
+    const channelData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < channelData.length; i += 1) {
+      channelData[i] = (Math.random() * 2 - 1) * (1 - i / channelData.length);
+    }
+
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const highpass = this.ctx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.setValueAtTime(1800, now);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+    noiseSource.connect(highpass);
+    highpass.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    noiseSource.start(now);
+    noiseSource.stop(now + 0.09);
+  }
+
   playFrogCroak() {
     if (!this.effectsEnabled) return;
     this.initContext();

@@ -5,6 +5,7 @@ import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
   ARCADE_CANVAS_WIDTH,
@@ -50,17 +51,28 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
   const [runId, setRunId] = useState(0);
   const [record, setRecord] = useState(() => getHighScore('whack'));
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const [roundId, setRoundId] = useState(0);
+  const starHoleRef = useRef(0);
+  const { isReady, secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
+
+  useEffect(() => {
+    starHoleRef.current = moles[Math.floor(Math.random() * moles.length)]?.hole ?? 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const reset = useCallback(() => {
     opRef.current = generateOperation(tableId);
     setOperation(opRef.current);
-    setMoles(spawnMoles(opRef.current));
+    const newMoles = spawnMoles(opRef.current);
+    setMoles(newMoles);
+    starHoleRef.current = newMoles[Math.floor(Math.random() * newMoles.length)].hole;
     setScore(0);
     scoreRef.current = 0;
     setTimeLeftMs(SESSION_MS);
     setStatus('playing');
     setIsNewRecord(false);
     setRunId(id => id + 1);
+    setRoundId(id => id + 1);
   }, [tableId]);
 
   useEffect(() => {
@@ -73,7 +85,9 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
       if (stopped) return;
       // le talpe cambiano posizione, ma l'operazione resta la stessa finché non si
       // colpisce quella giusta (o quella sbagliata): cambia solo dopo errore o successo.
-      setMoles(spawnMoles(opRef.current));
+      const newMoles = spawnMoles(opRef.current);
+      setMoles(newMoles);
+      starHoleRef.current = newMoles[Math.floor(Math.random() * newMoles.length)].hole;
       const level = getDifficultyLevel(elapsedTotal);
       const moleMin = Math.max(MIN_MOLE_MIN_MS, BASE_MOLE_MIN_MS - level * 90);
       const moleMax = Math.max(MIN_MOLE_MAX_MS, BASE_MOLE_MAX_MS - level * 140);
@@ -83,6 +97,7 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
     popMoles();
 
     const countdown = window.setInterval(() => {
+      if (!isReadyRef.current) return; // il tempo resta fermo durante la fase di lettura
       elapsedTotal += 200;
       setTimeLeftMs(prev => {
         const next = prev - 200;
@@ -105,32 +120,41 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
       if (moleTimeout) window.clearTimeout(moleTimeout);
       window.clearInterval(countdown);
     };
-  }, [runId, status, tableId]);
+  }, [runId, status, tableId, record, isReadyRef]);
 
   const whack = (holeIndex: number) => {
     const mole = moles.find(m => m.hole === holeIndex);
     if (!mole) return;
-    if (mole.correct) {
+    const isHit = isReadyRef.current ? mole.correct : holeIndex === starHoleRef.current;
+    if (isHit) {
       sound.playCorrect();
-      scoreRef.current += 1;
-      setScore(scoreRef.current);
-      const nextOp = generateOperation(tableId);
-      opRef.current = nextOp;
-      setOperation(nextOp);
-      setMoles(spawnMoles(nextOp));
-    } else {
-      sound.playError();
-      const nextOp = generateOperation(tableId);
-      opRef.current = nextOp;
-      setOperation(nextOp);
-      setMoles(spawnMoles(nextOp));
+      if (isReadyRef.current) {
+        scoreRef.current += 1;
+        setScore(scoreRef.current);
+        const nextOp = generateOperation(tableId);
+        opRef.current = nextOp;
+        setOperation(nextOp);
+        const newMoles = spawnMoles(nextOp);
+        setMoles(newMoles);
+        starHoleRef.current = newMoles[Math.floor(Math.random() * newMoles.length)].hole;
+        setRoundId(id => id + 1);
+      }
+      return;
     }
+    sound.playError();
+    const nextOp = generateOperation(tableId);
+    opRef.current = nextOp;
+    setOperation(nextOp);
+    const newMoles = spawnMoles(nextOp);
+    setMoles(newMoles);
+    starHoleRef.current = newMoles[Math.floor(Math.random() * newMoles.length)].hole;
+    setRoundId(id => id + 1);
   };
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
       <ArcadeGameHeader emoji="🔨" title="Acchiappa la Talpa" />
-      <ArcadeOperationBanner a={operation.a} b={operation.b} />
+      <ArcadeOperationBanner a={operation.a} b={operation.b} secondsLeft={secondsLeft} />
       <div
         className="relative rounded-2xl border-2 border-amber-800/60 bg-gradient-to-b from-amber-100 to-amber-200 p-3 shadow-md"
         style={{ width: ARCADE_CANVAS_WIDTH, height: ARCADE_CANVAS_HEIGHT }}
@@ -144,13 +168,13 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
                 type="button"
                 onClick={() => whack(i)}
                 className="relative aspect-square rounded-full bg-amber-900/80 border-2 border-amber-950 shadow-inner overflow-hidden cursor-pointer flex items-center justify-center"
-                aria-label={mole ? `Talpa con il numero ${mole.value}` : 'Buca vuota'}
+                aria-label={mole ? (isReady ? `Talpa con il numero ${mole.value}` : (mole.hole === starHoleRef.current ? 'Talpa con la stella' : 'Talpa senza stella')) : 'Buca vuota'}
               >
                 {mole && (
                   <span className="relative flex items-center justify-center" aria-hidden="true">
                     <span className="text-3xl leading-none">🐹</span>
                     <span className="absolute flex items-center justify-center h-5 w-5 rounded-full bg-white border-2 border-slate-800 text-[11px] font-black text-slate-900 -translate-y-1">
-                      {mole.value}
+                      {isReady ? mole.value : (mole.hole === starHoleRef.current ? '⭐' : '✖️')}
                     </span>
                   </span>
                 )}
@@ -168,7 +192,9 @@ export default function WhackAMoleGame({ onExit, tableId }: ArcadeGameProps) {
           />
         )}
       </div>
-      <p className="text-xs font-bold text-sky-700/70 text-center">Colpisci solo la talpa col risultato giusto!</p>
+      <p className="text-xs font-bold text-sky-700/70 text-center">
+        {secondsLeft > 0 ? 'Allenati: colpisci la ⭐ per prendere il ritmo!' : 'Colpisci solo la talpa col risultato giusto!'}
+      </p>
       <ArcadeBackButton onExit={onExit} />
     </div>
   );

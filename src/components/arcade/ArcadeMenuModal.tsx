@@ -72,9 +72,27 @@ export default function ArcadeMenuModal({ onExit, onlyGame, tableId }: ArcadeMen
     }
   };
 
+  // Durante una partita l'overlay deve essere davvero a schermo intero e opaco
+  // (niente sfondo semi-trasparente che lascia intravedere l'interfaccia sotto,
+  // footer Mappa/Allenamento/Genitori incluso): nel menù di scelta resta invece
+  // il riquadro centrato come prima.
+  const isPlaying = selected !== null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-md bg-white rounded-2xl border-2 border-indigo-300 shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+    <div
+      className={
+        isPlaying
+          ? 'fixed inset-0 z-50 flex bg-slate-50 overflow-y-auto'
+          : 'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md overflow-y-auto'
+      }
+    >
+      <div
+        className={
+          isPlaying
+            ? 'relative flex w-full flex-col bg-white'
+            : 'relative w-full max-w-md bg-white rounded-2xl border-2 border-indigo-300 shadow-2xl overflow-hidden flex flex-col max-h-[95vh]'
+        }
+      >
         <div className="bg-gradient-to-r from-indigo-600 via-sky-600 to-purple-600 p-3.5 sm:p-4 text-white flex items-center gap-2 shadow-md shrink-0">
           <h2 className="text-base sm:text-lg font-black tracking-tight font-sans flex items-center gap-2">
             <span aria-hidden="true">🎮</span> Sala Giochi

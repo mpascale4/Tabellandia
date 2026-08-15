@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sound } from '../SoundManager';
 import ArcadeBackButton from './ArcadeBackButton';
+import ArcadeControlBar from './ArcadeControlBar';
 import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
   ARCADE_CANVAS_WIDTH,
@@ -27,6 +29,7 @@ const STEP_Y = 22;
 const MAX_STEPS = 8; // dopo 8 passi (1 al secondo, o prima se si sbaglia) la riga raggiunge il cannone: game over
 const CANNON_Y = HEIGHT - 26;
 const CANNON_W = 34;
+const CANNON_STEP = SLOT_W;
 
 interface Bubble { value: number; correct: boolean; }
 
@@ -50,8 +53,8 @@ function buildRow(op: MathOperation): Bubble[] {
   return values.map(value => ({ value, correct: value === op.answer }));
 }
 
-/** Mini-gioco arcade: Bolle con i Risultati. Un cannone in fondo all'arena segue il mouse/dito;
- * tocca/clicca per sparare verso la bolla più vicina alla posizione del cannone. Una sola riga di
+/** Mini-gioco arcade: Bolle con i Risultati. I pulsanti ◀ ▶ muovono il cannone in fondo all'arena;
+ * il pulsante Spara colpisce la bolla più vicina alla posizione del cannone. Una sola riga di
  * bolle scende dall'alto (un passo ogni secondo, fino a un massimo di 5): colpisci quella col
  * risultato giusto per farla disgregare (arriva una nuova riga con colore e operazione nuovi);
  * se colpisci quella sbagliata la riga scende subito di un passo verso di te; se ti raggiunge, game over. */
@@ -68,12 +71,17 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
   const [popping, setPopping] = useState(false);
   const [cannonX, setCannonX] = useState(WIDTH / 2);
   const [bullet, setBullet] = useState<{ x: number; targetY: number } | null>(null);
+  const [roundId, setRoundId] = useState(0);
+  const starIndexRef = useRef(0);
   const arenaRef = useRef<HTMLDivElement>(null);
+  const { isReady, secondsLeft } = useArcadeReadyPhase(roundId);
 
   const reset = useCallback(() => {
     const nextOp = generateOperation(tableId);
     setOperation(nextOp);
-    setRow(buildRow(nextOp));
+    const nextRowValue = buildRow(nextOp);
+    setRow(nextRowValue);
+    starIndexRef.current = Math.floor(Math.random() * nextRowValue.length);
     setRowColor(ROW_COLORS[Math.floor(Math.random() * ROW_COLORS.length)]);
     setStep(0);
     setScore(0);
@@ -81,31 +89,38 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
     setIsNewRecord(false);
     setBullet(null);
     setPopping(false);
+    setRoundId(id => id + 1);
   }, [tableId]);
 
   const nextRow = useCallback(() => {
     const nextOp = generateOperation(tableId);
     setOperation(nextOp);
-    setRow(buildRow(nextOp));
+    const nextRowValue = buildRow(nextOp);
+    setRow(nextRowValue);
+    starIndexRef.current = Math.floor(Math.random() * nextRowValue.length);
     setRowColor(prev => {
       const others = ROW_COLORS.filter(c => c !== prev);
       return others[Math.floor(Math.random() * others.length)];
     });
     setStep(0);
+    setRoundId(id => id + 1);
   }, [tableId]);
 
-  const popBubble = useCallback((bubble: Bubble) => {
+  const popBubble = useCallback((bubbleIndex: number, bubble: Bubble) => {
     setStatus(currentStatus => {
       if (currentStatus !== 'playing') return currentStatus;
 
-      if (bubble.correct) {
+      const isHit = isReady ? bubble.correct : bubbleIndex === starIndexRef.current;
+      if (isHit) {
         sound.playCorrect();
-        setScore(s => s + 1);
-        setPopping(true);
-        window.setTimeout(() => {
-          setPopping(false);
-          nextRow();
-        }, 260);
+        if (isReady) {
+          setScore(s => s + 1);
+          setPopping(true);
+          window.setTimeout(() => {
+            setPopping(false);
+            nextRow();
+          }, 260);
+        }
         return currentStatus;
       }
 
@@ -129,11 +144,11 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
       }
       return currentStatus;
     });
-  }, [record, nextRow]);
+  }, [record, nextRow, isReady]);
 
-  // La riga scende di un passo automaticamente ogni secondo (fino al massimo consentito).
+  // La riga scende di un passo automaticamente ogni secondo, ma solo dopo la fase di lettura.
   useEffect(() => {
-    if (status !== 'playing' || popping) return;
+    if (status !== 'playing' || popping || !isReady) return;
     const id = window.setInterval(() => {
       setStep(s => {
         const next = s + 1;
@@ -151,12 +166,10 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [status, popping, record]);
+  }, [status, popping, record, isReady]);
 
-  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(CANNON_W / 2, Math.min(WIDTH - CANNON_W / 2, e.clientX - rect.left));
-    setCannonX(x);
+  const nudgeCannon = useCallback((direction: -1 | 1) => {
+    setCannonX(prev => Math.max(CANNON_W / 2, Math.min(WIDTH - CANNON_W / 2, prev + direction * CANNON_STEP)));
   }, []);
 
   const fire = useCallback(() => {
@@ -173,10 +186,11 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
     });
     const targetBubble = row[closestIndex];
     const targetY = TOP_Y + step * STEP_Y;
+    sound.playShoot();
     setBullet({ x: cannonX, targetY });
     window.setTimeout(() => {
       setBullet(null);
-      if (targetBubble) popBubble(targetBubble);
+      if (targetBubble) popBubble(closestIndex, targetBubble);
     }, 160);
   }, [status, bullet, popping, row, cannonX, step, popBubble]);
 
@@ -185,13 +199,11 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
   return (
     <div className="flex w-full flex-col items-center gap-3">
       <ArcadeGameHeader emoji="🫧" title="Bolle con i Risultati" />
-      <ArcadeOperationBanner a={operation.a} b={operation.b} />
+      <ArcadeOperationBanner a={operation.a} b={operation.b} secondsLeft={secondsLeft} />
       <div
         ref={arenaRef}
-        className={`relative rounded-2xl overflow-hidden border-2 border-slate-700 shadow-md bg-sky-950 touch-none cursor-crosshair ${shake ? 'animate-pulse' : ''}`}
+        className={`relative rounded-2xl overflow-hidden border-2 border-slate-700 shadow-md bg-sky-950 ${shake ? 'animate-pulse' : ''}`}
         style={{ width: WIDTH, height: HEIGHT }}
-        onPointerMove={handlePointerMove}
-        onPointerDown={fire}
       >
         <ArcadeInGameScore label={`Punti: ${score} · Passi: ${step}/${MAX_STEPS}`} record={record} isNewRecord={isNewRecord} />
 
@@ -208,7 +220,7 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
             }}
             aria-hidden="true"
           >
-            {b.value}
+            {isReady ? b.value : (i === starIndexRef.current ? '⭐' : '✖️')}
           </div>
         ))}
 
@@ -220,7 +232,7 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
           />
         )}
 
-        {/* Cannone in fondo, segue il mouse/dito */}
+        {/* Cannone in fondo, mosso dai pulsanti ◀ ▶ */}
         <div
           className="absolute pointer-events-none"
           style={{ left: cannonX - CANNON_W / 2, top: CANNON_Y, width: CANNON_W, height: 22 }}
@@ -234,7 +246,18 @@ export default function BubbleGame({ onExit, tableId }: ArcadeGameProps) {
           <ArcadeOverlay emoji="🫧" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
         )}
       </div>
-      <p className="text-xs font-bold text-sky-700/70 text-center">Muovi il cannone e tocca per sparare al risultato giusto! Se sbagli la riga scende di un passo: attento a non farti raggiungere.</p>
+      <ArcadeControlBar
+        onLeft={() => nudgeCannon(-1)}
+        onRight={() => nudgeCannon(1)}
+        actionEmoji="🫧"
+        actionLabel="Spara"
+        onAction={fire}
+      />
+      <p className="text-xs font-bold text-sky-700/70 text-center">
+        {secondsLeft > 0
+          ? 'Allenati: colpisci la ⭐ per prendere il ritmo!'
+          : 'Muovi il cannone con ◀ ▶ e premi Spara al risultato giusto! Se sbagli la riga scende di un passo: attento a non farti raggiungere.'}
+      </p>
       <ArcadeBackButton onExit={onExit} />
     </div>
   );

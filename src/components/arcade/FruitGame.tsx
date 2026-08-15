@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sound } from '../SoundManager';
 import ArcadeBackButton from './ArcadeBackButton';
+import ArcadeControlBar from './ArcadeControlBar';
 import ArcadeGameHeader from './ArcadeGameHeader';
 import ArcadeInGameScore from './ArcadeInGameScore';
 import ArcadeOperationBanner from './ArcadeOperationBanner';
 import ArcadeOverlay from './ArcadeOverlay';
+import { useArcadeReadyPhase } from '../../hooks/useArcadeReadyPhase';
 import {
   ARCADE_CANVAS_HEIGHT,
   ARCADE_CANVAS_WIDTH,
@@ -25,6 +27,7 @@ const BASE_SPAWN_MS = 1300;
 const MIN_SPAWN_MS = 700;
 const FRUIT_EMOJIS = ['🍉', '🍎', '🍊', '🍇', '🍓', '🍋'];
 const BOMB_EMOJI = '💣';
+const RETICLE_STEP = 34;
 
 interface Fruit {
   id: number;
@@ -62,44 +65,34 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fruitsRef = useRef<Fruit[]>([]);
   const opRef = useRef<MathOperation>(generateOperation(tableId));
+  const reticleXRef = useRef(WIDTH / 2);
+  const sliceActionRef = useRef<() => void>(() => {});
   const [operation, setOperation] = useState(opRef.current);
   const [score, setScore] = useState(0);
   const [status, setStatus] = useState<'playing' | 'over'>('playing');
   const [runId, setRunId] = useState(0);
+  const [roundId, setRoundId] = useState(0);
   const [record, setRecord] = useState(() => getHighScore('frutta'));
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const { secondsLeft, isReadyRef } = useArcadeReadyPhase(roundId);
 
   const reset = useCallback(() => {
     fruitsRef.current = [];
+    reticleXRef.current = WIDTH / 2;
     opRef.current = generateOperation(tableId);
     setOperation(opRef.current);
     setScore(0);
     setStatus('playing');
     setIsNewRecord(false);
     setRunId(id => id + 1);
+    setRoundId(id => id + 1);
   }, [tableId]);
 
-  const sliceAt = useCallback(
-    (clientX: number, clientY: number, rect: DOMRect, onGameOver: (finalScore: number) => void, currentScoreRef: { v: number }) => {
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-      const hit = fruitsRef.current.find(f => !f.sliced && Math.hypot(f.x - x, f.y - y) < FRUIT_R + 6);
-      if (!hit) return;
-      hit.sliced = true;
-      if (hit.correct) {
-        currentScoreRef.v += 1;
-        setScore(currentScoreRef.v);
-        sound.playCorrect();
-        const nextOp = generateOperation(tableId);
-        opRef.current = nextOp;
-        setOperation(nextOp);
-      } else {
-        sound.playError();
-        onGameOver(currentScoreRef.v);
-      }
-    },
-    [tableId]
-  );
+  const nudgeReticle = useCallback((direction: -1 | 1) => {
+    reticleXRef.current = Math.max(FRUIT_R, Math.min(WIDTH - FRUIT_R, reticleXRef.current + direction * RETICLE_STEP));
+  }, []);
+
+  const taglia = useCallback(() => sliceActionRef.current(), []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -121,6 +114,32 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
       setRecord(updated);
     };
 
+    // Affetta il frutto/bomba attivo più vicino alla posizione X del mirino (spostato con ◀ ▶).
+    sliceActionRef.current = () => {
+      if (stopped) return;
+      const candidates = fruitsRef.current.filter(f => !f.sliced);
+      if (candidates.length === 0) return;
+      const target = candidates.reduce((nearest, f) =>
+        Math.abs(f.x - reticleXRef.current) < Math.abs(nearest.x - reticleXRef.current) ? f : nearest
+      );
+      sound.playSlice();
+      target.sliced = true;
+      if (target.correct) {
+        sound.playCorrect();
+        if (isReadyRef.current) {
+          localScore.v += 1;
+          setScore(localScore.v);
+          const nextOp = generateOperation(tableId);
+          opRef.current = nextOp;
+          setOperation(nextOp);
+          setRoundId(id => id + 1);
+        }
+      } else {
+        sound.playError();
+        gameOver(localScore.v);
+      }
+    };
+
     const draw = () => {
       ctx.fillStyle = '#0c4a6e';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -133,9 +152,20 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
         ctx.fillText(f.emoji, f.x, f.y);
         ctx.font = 'bold 11px sans-serif';
         ctx.fillStyle = f.correct ? '#bbf7d0' : '#fecaca';
-        ctx.fillText(String(f.value), f.x, f.y + 18);
+        const label = f.correct && !isReadyRef.current ? '⭐' : String(f.value);
+        ctx.fillText(label, f.x, f.y + 18);
         ctx.font = '26px sans-serif';
       });
+
+      // Mirino: linea verticale mossa con ◀ ▶, per indicare cosa verrà affettato con "Taglia".
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(reticleXRef.current, 0);
+      ctx.lineTo(reticleXRef.current, HEIGHT);
+      ctx.stroke();
+      ctx.setLineDash([]);
     };
 
     const step = (ts: number) => {
@@ -178,33 +208,35 @@ export default function FruitGame({ onExit, tableId }: ArcadeGameProps) {
     draw();
     raf = requestAnimationFrame(step);
 
-    const pointerHandler = (e: PointerEvent) => {
-      sliceAt(e.clientX, e.clientY, canvas.getBoundingClientRect(), gameOver, localScore);
-    };
-    canvas.addEventListener('pointerdown', pointerHandler);
-    canvas.addEventListener('pointermove', e => {
-      if (e.buttons > 0) pointerHandler(e);
-    });
-
     return () => {
       stopped = true;
       cancelAnimationFrame(raf);
-      canvas.removeEventListener('pointerdown', pointerHandler);
     };
-  }, [runId, sliceAt, record]);
+  }, [runId, tableId, record, isReadyRef]);
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
       <ArcadeGameHeader emoji="🍉" title="Frutta Matematica" />
-      <ArcadeOperationBanner a={operation.a} b={operation.b} />
+      <ArcadeOperationBanner a={operation.a} b={operation.b} secondsLeft={secondsLeft} />
       <div className="relative rounded-2xl overflow-hidden border-2 border-slate-700 shadow-md" style={{ width: WIDTH, height: HEIGHT }}>
-        <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="block touch-none cursor-crosshair" />
+        <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="block" />
         <ArcadeInGameScore label={`Punti: ${score}`} record={record} isNewRecord={isNewRecord} />
         {status === 'over' && (
           <ArcadeOverlay emoji="🍉" title="Game Over!" subtitle={`Punteggio: ${score}`} onRetry={reset} />
         )}
       </div>
-      <p className="text-xs font-bold text-sky-700/70 text-center">Affetta solo la frutta col risultato giusto, evita le bombe sbagliate!</p>
+      <ArcadeControlBar
+        onLeft={() => nudgeReticle(-1)}
+        onRight={() => nudgeReticle(1)}
+        actionEmoji="🔪"
+        actionLabel="Taglia"
+        onAction={taglia}
+      />
+      <p className="text-xs font-bold text-sky-700/70 text-center">
+        {secondsLeft > 0
+          ? 'Allenati: affetta la frutta con la ⭐!'
+          : 'Muovi il mirino con ◀ ▶ e premi Taglia sul risultato giusto, evita le bombe sbagliate!'}
+      </p>
       <ArcadeBackButton onExit={onExit} />
     </div>
   );
