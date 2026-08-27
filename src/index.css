@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@mp/app-kit/theme.css";
 
 @keyframes monument-glow {
   0%, 100% {

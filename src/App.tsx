@@ -29,6 +29,7 @@ import { Settings, User, Volume2, Smartphone, RefreshCw, Music2, X, Map } from '
 import { getGenderedText, getPlayerGender, PlayerGender } from './utils/playerCopy';
 import { useVoice } from './contexts/VoiceContext';
 import { useParentPinAuth } from './hooks/useParentPinAuth';
+import { MpBranding } from '@mp/app-kit';
 
 const LOCAL_STORAGE_KEY = "tabellandia_save_data_v1";
 const PROFILE_STORE_KEY = "tabellandia_profile_store_v1";
@@ -1207,7 +1208,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full bg-slate-900 flex flex-col items-center justify-center p-2 md:p-4 select-none">
-      
+      <MpBranding />
+
       {/* Device frame toggle for responsive showcase */}
       <div className="mb-2 text-xs font-bold text-slate-400 flex items-center gap-3">
         <span>{isPhoneMode ? 'Vista smartphone' : 'Dimostratore Android "Tabellandia"'}</span>
@@ -1275,6 +1277,10 @@ export default function App() {
           aria-hidden={!isHeaderVisible}
         >
           <div className={`w-full flex items-center ${isPhoneMode ? 'gap-1.5' : 'gap-3'} bg-white/40 backdrop-blur-sm ${isPhoneMode ? 'px-3 py-2' : 'px-5 py-2.5'} rounded-full border-2 border-white/60 shadow-md overflow-visible flex-nowrap`}>
+            {/* Icona app = favicon (regola "Icona header = favicon") */}
+            <div className={`${isPhoneMode ? 'w-8 h-8' : 'w-9 h-9'} rounded-xl overflow-hidden shadow-sm border border-white shrink-0`}>
+              <img src="/icon.svg" alt="Tabellandia" className="h-full w-full object-cover" />
+            </div>
             {profile && (
               <>
                 {/* Profile Avatar */}

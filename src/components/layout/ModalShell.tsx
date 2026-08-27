@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useSwipeToDismiss } from '@mp/app-kit';
 
 interface ModalShellProps {
   isOpen: boolean;
@@ -34,6 +35,13 @@ export default function ModalShell({
   paddingClassName = 'p-4',
   children,
 }: ModalShellProps) {
+  // Swipe-down dismiss è solo una scorciatoia: il backdrop/tasto di chiusura
+  // del chiamante resta il modo primario, sempre visibile, per chiudere.
+  const { offset, isDragging, handlers } = useSwipeToDismiss({
+    onDismiss: () => onBackdropClick?.(),
+    disabled: !onBackdropClick,
+  });
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -48,8 +56,10 @@ export default function ModalShell({
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
+            style={{ y: offset, transition: isDragging ? 'none' : undefined }}
             className={cardClassName}
             onClick={(event) => event.stopPropagation()}
+            {...handlers}
           >
             {children}
           </motion.div>
