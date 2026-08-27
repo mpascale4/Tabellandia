@@ -782,7 +782,7 @@ export default function ParentDashboard({
                         } else if (combAccuracy !== null && combAccuracy >= 0.6) {
                           bgClass = 'bg-amber-400 text-slate-900 font-bold';
                         } else {
-                          bgClass = 'bg-rose-500 text-white font-bold animate-pulse';
+                          bgClass = 'bg-rose-500 text-white font-bold motion-safe:animate-pulse';
                         }
                         title = `${rowNum}x${colNum}: ${Math.round((combAccuracy || 0) * 100)}% di esattezza (${combCorrect}/${combTotal})`;
                       }

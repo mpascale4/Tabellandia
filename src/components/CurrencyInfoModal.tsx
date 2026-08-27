@@ -109,7 +109,7 @@ export default function CurrencyInfoModal({
                 : 'bg-amber-100/80 hover:bg-amber-200/80 border-amber-300 text-amber-900'
             }`}
           >
-            <Volume2 className="w-4 h-4 animate-pulse" />
+            <Volume2 className="w-4 h-4 motion-safe:animate-pulse" />
             <span>Ascolta spiegazione vocale</span>
           </button>
 

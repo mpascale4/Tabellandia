@@ -450,7 +450,7 @@ export default function SaltoExercise({
                         className="absolute -top-7 z-30 flex flex-col items-center pointer-events-none"
                       >
                         <span className="text-3xl sm:text-4xl filter drop-shadow-lg select-none">🐸</span>
-                        <span className="absolute -top-2.5 -right-1.5 text-base animate-bounce">👑</span>
+                        <span className="absolute -top-2.5 -right-1.5 text-base motion-safe:animate-bounce">👑</span>
                       </motion.div>
                     )}
 
@@ -472,7 +472,7 @@ export default function SaltoExercise({
                           : isReached
                             ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-md ring-2 ring-emerald-300/50'
                             : isNextTarget
-                              ? 'bg-amber-50 border-amber-400 text-amber-900 ring-4 ring-amber-300/80 shadow-md animate-pulse'
+                              ? 'bg-amber-50 border-amber-400 text-amber-900 ring-4 ring-amber-300/80 shadow-md motion-safe:animate-pulse'
                               : 'bg-slate-200/90 border-slate-300 text-slate-600'
                       }`}
                     >

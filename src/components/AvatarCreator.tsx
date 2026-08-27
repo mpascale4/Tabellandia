@@ -162,8 +162,8 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
           >
             {/* Eyes */}
             <div className="flex gap-4 mb-1">
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-800 animate-pulse"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-800 animate-pulse"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-800 motion-safe:animate-pulse"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-800 motion-safe:animate-pulse"></div>
             </div>
             {/* Smile */}
             <div className="w-6 h-2.5 border-b-2 border-slate-700 rounded-b-full"></div>
@@ -237,7 +237,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
           <div className="text-center p-1 rounded-xl group">
             <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium font-sans group-hover:text-amber-800">Monete</span>
             <span className="text-xl font-black text-amber-600 font-mono flex items-center gap-1 justify-center">
-              <Coins className="w-5 h-5 text-amber-500 fill-amber-500 animate-bounce" />
+              <Coins className="w-5 h-5 text-amber-500 fill-amber-500 motion-safe:animate-bounce" />
               {totalCoins}
             </span>
           </div>
@@ -319,7 +319,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                     <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Base del profilo</h4>
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-600 leading-relaxed">
                       La base del profilo si sceglie all'ingresso. Qui puoi solo vedere il modello attivo.
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
                         <div className={`p-3 rounded-xl border-2 text-center font-bold ${profile.avatar.gender === 'kid1' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500'}`}>
                           🧒 Bimbo 1
                         </div>
@@ -346,7 +346,10 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                           id={`free-hair-color-${color}`}
                         >
                           {profile.avatar.hairColor === color && (
-                            <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">✓</span>
+                            <span
+                              className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
+                              aria-hidden="true"
+                            >✓</span>
                           )}
                         </button>
                       ))}
@@ -355,7 +358,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
 
                   <div>
                     <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Taglio Capelli Sbloccato</h4>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
                       <button
                         onClick={() => handleEquipItem('hairStyle', 'Nessuno')}
                         className={`p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
@@ -372,7 +375,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                             key={item.id}
                             disabled={!isUnlocked}
                             onClick={() => handleEquipItem('hairStyle', item.name)}
-                            className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
+                            className={`relative p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
                               !isUnlocked 
                                 ? 'opacity-50 border-gray-100 bg-gray-50/50 cursor-not-allowed' 
                                 : profile.avatar.hairStyle === item.name 
@@ -382,7 +385,12 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                             id={`equip-${item.id}`}
                           >
                             <span>{item.previewEmoji} {item.name}</span>
-                            {!isUnlocked && <span className="text-[10px] text-amber-600 font-bold font-mono">🔒 Shop</span>}
+                            {!isUnlocked && (
+                              <span
+                                className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] shadow-md"
+                                aria-hidden="true"
+                              >🔒</span>
+                            )}
                           </button>
                         );
                       })}
@@ -405,7 +413,10 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                           id={`free-shirt-color-${color}`}
                         >
                           {profile.avatar.shirtColor === color && (
-                            <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">✓</span>
+                            <span
+                              className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
+                              aria-hidden="true"
+                            >✓</span>
                           )}
                         </button>
                       ))}
@@ -414,7 +425,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
 
                   <div>
                     <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Abiti Speciali Sbloccati</h4>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
                       <button
                         onClick={() => handleEquipItem('shirtColor', '#3b82f6')}
                         className={`p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
@@ -431,7 +442,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                             key={item.id}
                             disabled={!isUnlocked}
                             onClick={() => handleEquipItem('shirtColor', item.value)}
-                            className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
+                            className={`relative p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
                               !isUnlocked 
                                 ? 'opacity-50 border-gray-100 bg-gray-50/50 cursor-not-allowed' 
                                 : profile.avatar.shirtColor === item.value 
@@ -441,7 +452,12 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                             id={`equip-${item.id}`}
                           >
                             <span>{item.previewEmoji} {item.name}</span>
-                            {!isUnlocked && <span className="text-[10px] text-amber-600 font-bold font-mono">🔒 Shop</span>}
+                            {!isUnlocked && (
+                              <span
+                                className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] shadow-md"
+                                aria-hidden="true"
+                              >🔒</span>
+                            )}
                           </button>
                         );
                       })}
@@ -464,7 +480,10 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                           id={`free-pants-color-${color}`}
                         >
                           {profile.avatar.pantsColor === color && (
-                            <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">✓</span>
+                            <span
+                              className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
+                              aria-hidden="true"
+                            >✓</span>
                           )}
                         </button>
                       ))}
@@ -473,7 +492,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
 
                   <div>
                     <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Abiti Inferiori Speciali</h4>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
                       <button
                         onClick={() => handleEquipItem('pantsColor', '#4b5563')}
                         className={`p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
@@ -490,7 +509,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                             key={item.id}
                             disabled={!isUnlocked}
                             onClick={() => handleEquipItem('pantsColor', item.value)}
-                            className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
+                            className={`relative p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
                               !isUnlocked 
                                 ? 'opacity-50 border-gray-100 bg-gray-50/50 cursor-not-allowed' 
                                 : profile.avatar.pantsColor === item.value 
@@ -500,7 +519,12 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                             id={`equip-${item.id}`}
                           >
                             <span>{item.previewEmoji} {item.name}</span>
-                            {!isUnlocked && <span className="text-[10px] text-amber-600 font-bold font-mono">🔒 Shop</span>}
+                            {!isUnlocked && (
+                              <span
+                                className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] shadow-md"
+                                aria-hidden="true"
+                              >🔒</span>
+                            )}
                           </button>
                         );
                       })}
@@ -512,7 +536,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
               {custCategory === 'hat' && (
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Copricapo Equipaggiato</h4>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
                     <button
                       onClick={() => handleEquipItem('hat', 'Nessuno')}
                       className={`p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
@@ -529,7 +553,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                           key={item.id}
                           disabled={!isUnlocked}
                           onClick={() => handleEquipItem('hat', item.name)}
-                          className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
+                          className={`relative p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
                             !isUnlocked 
                               ? 'opacity-50 border-gray-100 bg-gray-50/50 cursor-not-allowed' 
                               : profile.avatar.hat === item.name 
@@ -539,7 +563,12 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                           id={`equip-${item.id}`}
                         >
                           <span>{item.previewEmoji} {item.name}</span>
-                          {!isUnlocked && <span className="text-[10px] text-amber-600 font-bold font-mono">🔒 Shop</span>}
+                          {!isUnlocked && (
+                              <span
+                                className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] shadow-md"
+                                aria-hidden="true"
+                              >🔒</span>
+                            )}
                         </button>
                       );
                     })}
@@ -550,7 +579,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
               {custCategory === 'backpack' && (
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Zaino Equipaggiato</h4>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
                     <button
                       onClick={() => handleEquipItem('backpack', 'Nessuno')}
                       className={`p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
@@ -567,7 +596,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                           key={item.id}
                           disabled={!isUnlocked}
                           onClick={() => handleEquipItem('backpack', item.name)}
-                          className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
+                          className={`relative p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
                             !isUnlocked 
                               ? 'opacity-50 border-gray-100 bg-gray-50/50 cursor-not-allowed' 
                               : profile.avatar.backpack === item.name 
@@ -577,7 +606,12 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                           id={`equip-${item.id}`}
                         >
                           <span>{item.previewEmoji} {item.name}</span>
-                          {!isUnlocked && <span className="text-[10px] text-amber-600 font-bold font-mono">🔒 Shop</span>}
+                          {!isUnlocked && (
+                              <span
+                                className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] shadow-md"
+                                aria-hidden="true"
+                              >🔒</span>
+                            )}
                         </button>
                       );
                     })}
@@ -591,7 +625,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                   <p className="text-[11px] text-slate-500">
                     Sblocca nuove creature magiche imparando le tabelline! Esse ti seguiranno in volo.
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
                     <button
                       onClick={() => handleEquipItem('mascot', 'Nessuna')}
                       className={`p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
@@ -612,7 +646,7 @@ export default function AvatarCreator({ profile, updateProfile, compactLayout = 
                           key={world.id}
                           disabled={!isUnlocked}
                           onClick={() => handleEquipItem('mascot', world.creatureName)}
-                          className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
+                          className={`relative p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition-colors ${
                             !isUnlocked 
                               ? 'opacity-40 border-gray-100 bg-gray-50/50 cursor-not-allowed' 
                               : activeMascot 

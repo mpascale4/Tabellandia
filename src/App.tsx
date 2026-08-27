@@ -1142,7 +1142,7 @@ export default function App() {
                 eyebrow="Benvenuto a Tabellandia"
                 title={`Ecco le 10 Cifre Magiche, ${draftProfile?.name || heroNameInput || getGenderedText(newProfileAvatarGender, 'Eroe', 'Eroina')}!`}
                 description="All'inizio del gioco impariamo ogni cifra con la sua associazione visiva e il motivo per ricordarla facilmente:"
-                icon={<span className="text-4xl animate-bounce" aria-hidden="true">🔢✨</span>}
+                icon={<span className="text-4xl motion-safe:animate-bounce" aria-hidden="true">🔢✨</span>}
               />
 
               {/* Digit selector grid */}
@@ -1975,7 +1975,7 @@ export default function App() {
                   const nextWorld = WORLDS_DATA.find(w => w.id === targetWId + 1);
                   if (!isAllClues) return null;
                   return (
-                    <div className="mb-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shadow-sm animate-bounce">
+                    <div className="mb-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shadow-sm motion-safe:animate-bounce">
                       🎉 Hai trovato tutti i 3 indizi!
                       {nextWorld ? (
                         <div className="mt-1 text-emerald-700 font-extrabold">
