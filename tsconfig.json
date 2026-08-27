@@ -23,5 +23,10 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["vite/client"]
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "src/components/arcade-backup-2026-08-14",
+    "src/components/arcade-backup-2026-08-27"
+  ]
 }

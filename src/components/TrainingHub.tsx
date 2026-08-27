@@ -12,7 +12,6 @@ import SectionHeader from './layout/SectionHeader';
 import SurfaceCard from './layout/SurfaceCard';
 import { getStoryDraftForEquation } from '../utils/storyMarkdown';
 import { useVoice } from '../contexts/VoiceContext';
-import ArcadeMenuModal, { ARCADE_GAMES, GameId } from './arcade/ArcadeMenuModal';
 
 // ─── Emoji mnemoniche per cifra — basate sulla forma visiva della cifra ────────
 // 0 🥚 Uovo      → ovale chiuso
@@ -110,8 +109,6 @@ function withTableIcon(worldId: number, label: string): string {
   return label.trimEnd().endsWith(icon) ? label : `${label} ${icon}`;
 }
 
-// Premio arcade: sblocca la Sala Giochi fino a 2 errori totali per sessione;
-// al terzo la sessione si interrompe e riparte da capo (vedi TrainingSession).
 const MAX_SESSION_MISTAKES = 2;
 const RESTART_DELAY_MS = 1800;
 
@@ -121,20 +118,6 @@ const SESSION_RESULT_MESSAGES: Record<number, { screen: string; speak: string }>
   0: { screen: 'Bravo 10 su 10! 💪', speak: 'Bravo 10 su 10!' },
   1: { screen: 'Bravo, quasi perfetto! 9 su 10 👍', speak: 'Bravo, quasi perfetto! 9 su 10' },
   2: { screen: 'Bravo, bene ma non benissimo 😉! 8 su 10', speak: 'Bravo, bene ma non benissimo! 8 su 10' },
-};
-
-// Premio arcade: ogni tabellina (×2..×9) sblocca sempre lo stesso minigioco,
-// cosi il bambino la riconosce a colpo d'occhio; "Simon" resta riservato alla
-// sola estrazione in modalita Casuale (world.id === 0).
-const WORLD_TO_GAME: Record<number, GameId> = {
-  2: 'palloncini',
-  3: 'bolle',
-  4: 'whack',
-  5: 'canestro',
-  6: 'flappy',
-  7: 'dino',
-  8: 'corsa',
-  9: 'memory',
 };
 
 const RANDOM_WORLD: WorldConfig = {
@@ -330,7 +313,6 @@ function TrainingSession({
   const [deckIndex, setDeckIndex] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [sessionComplete, setSessionComplete] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<GameId | null>(null);
   // Conteggio errori della sessione corrente, per operazione (chiave "m x w"),
   // usato per mostrare a fine sessione il numero totale di errori e le
   // operazioni sbagliate più spesso.
@@ -535,12 +517,6 @@ function TrainingSession({
       const mistakesCount = mistakesList.reduce((sum, m) => sum + m.count, 0);
       const unlocked = mistakesCount <= MAX_SESSION_MISTAKES;
       const resultMessage = SESSION_RESULT_MESSAGES[mistakesCount]?.screen ?? 'Sessione completata!';
-      // Premio arcade: sulla tabellina specifica si sblocca sempre lo stesso
-      // minigioco (icona singola); in Casuale si puo scegliere tra tutti.
-      const assignedGame = WORLD_TO_GAME[world.id];
-      const availableGames = world.id === 0
-        ? ARCADE_GAMES
-        : ARCADE_GAMES.filter(g => g.id === assignedGame);
       return (
         <>
         <div className="flex w-full min-h-full flex-col gap-4">
@@ -556,27 +532,6 @@ function TrainingSession({
                 {unlocked ? resultMessage : 'Sessione completata!'}
               </p>
             </SurfaceCard>
-            {unlocked && (
-              <div role="list" className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2.5">
-                {availableGames.map(game => (
-                  <button
-                    key={game.id}
-                    type="button"
-                    role="listitem"
-                    onClick={() => {
-                      sound.playClick();
-                      setSelectedGame(game.id);
-                    }}
-                    className="flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-purple-300/90 bg-gradient-to-r from-purple-500 to-indigo-500 p-3 shadow-md transition-all cursor-pointer hover:shadow-lg hover:scale-[1.03] active:scale-[0.98]
-                               focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-                    aria-label={`Gioca a ${game.name}, premio per il 10 su 10`}
-                  >
-                    <span className="text-3xl" aria-hidden="true">{game.emoji}</span>
-                    <span className="text-xs font-bold text-white text-center">{game.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
             {mistakesList.length > 0 && (
               <SurfaceCard tone="soft" padding="md" className="w-full text-left">
                 <p className="text-xs font-bold text-sky-700/70 uppercase tracking-widest mb-2">
@@ -622,13 +577,6 @@ function TrainingSession({
             </button>
           </div>
         </div>
-        {selectedGame && (
-          <ArcadeMenuModal
-            onExit={() => setSelectedGame(null)}
-            onlyGame={selectedGame}
-            tableId={world.id === 0 ? undefined : world.id}
-          />
-        )}
         </>
       );
     }
@@ -775,7 +723,6 @@ function TrainingHome({
   compactLayout?: boolean;
   onSelect: (id: number) => void;
 }) {
-  const [showArcadeDebug, setShowArcadeDebug] = useState(false);
   return (
     <div className={`training-home w-full h-full ${compactLayout ? 'training-home--compact space-y-3' : 'space-y-5'}`}>
       <SurfaceCard tone="soft" padding={compactLayout ? 'sm' : 'md'} className="training-home-head">
@@ -808,17 +755,6 @@ function TrainingHome({
         </div>
       </button>
 
-      {/* TEMPORANEO: accesso diretto alla Sala Giochi per test, da rimuovere a fine collaudo. */}
-      <button
-        type="button"
-        onClick={() => setShowArcadeDebug(true)}
-        className="w-full rounded-2xl border-2 border-dashed border-indigo-300/90 bg-white p-3 shadow-sm hover:shadow-md hover:border-indigo-400 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 text-center focus-visible:outline-4 focus-visible:outline-sky-500"
-        aria-label="Apri la Sala Giochi (accesso temporaneo per test)"
-      >
-        <span className="text-xl" aria-hidden="true">🎮</span>
-        <span className="text-sm font-black text-indigo-900">Giochi (test)</span>
-      </button>
-
       <div
         role="list"
         aria-label="Lista tabelline disponibili"
@@ -836,9 +772,6 @@ function TrainingHome({
           </div>
         ))}
       </div>
-      {showArcadeDebug && (
-        <ArcadeMenuModal onExit={() => setShowArcadeDebug(false)} />
-      )}
     </div>
   );
 }
