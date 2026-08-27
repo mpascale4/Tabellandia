@@ -1,12 +1,12 @@
 # GitHub Copilot – Istruzioni per il progetto
 
 - When the user's message starts with the prefix `:interview` (alias `:i`), force plan mode: do not take any action (no code/file/command changes) on the text after the prefix until requirements are gathered. Instead, interview the user one question at a time (via `ask_user`, preferring multiple choice) to clarify goal, scope, affected files/tests, edge cases, and acceptance criteria. Only after the user confirms the gathered requirements, propose a plan and ask for explicit confirmation before executing.
-- The `:interview`/`:i` flow requires autopilot mode to be off (autopilot is a CLI-level session mode toggled by the user with `/autopilot` in the terminal - it cannot be switched programmatically from within a conversation/instruction). Before starting the interview, ask the user to confirm autopilot is currently disabled; if they indicate it is on, ask them to run `/autopilot` to turn it off before continuing.
 - When the user's message starts with the prefix `:f` or `:feature`, run this flow on the text after the prefix: (1) analyze it and propose a clear problem description, ask the user (`ask_user`) to confirm it; (2) once confirmed, propose a solution — using one-question-at-a-time interview clarifications if needed — and ask the user to confirm it; (3) once confirmed, `git checkout develop`, `git pull origin develop`, create a branch named `feature/<short-slug-of-the-request>` off that updated `develop`, switch to it, and start implementing the confirmed solution on that branch.
 - When the user's message starts with the prefix `:push`: if currently on a feature branch, ask the user (`ask_user`) whether to finish the feature now. If confirmed: merge the current branch into `develop` with `--no-ff`, push `origin develop`, then delete the feature branch locally, and ask the user whether to also delete it on the remote if it exists there. If currently on `develop` (no active feature branch), just run `git push origin develop` directly, without asking anything.
 - When the user's message starts with the prefix `:c` or `:close`: first commit all pending in-scope work (for any changed files that appear unrelated/out-of-scope for the feature described by the originating `:f`/`:feature` request, summarize them and ask the user for confirmation before including them in the commit). Then run the exact same finishing flow as `:push` (merge current branch into `develop` with `--no-ff`, push `origin develop`, delete the feature branch locally, ask whether to also delete the remote branch).
 - When the user's message starts with the prefix `:h`, `:?`, or `:help`, print the same shortcut recap table described in the "Copilot Session-Start Shortcut Recap" section below, then wait for the next request.
 - When the user's message starts with the prefix `:rundev`: (1) check whether the dev server port (4000) is already in use; if so, ask the user (`ask_user`) whether to stop the existing process and restart it, or leave it running and abort; (2) otherwise, launch `npm run dev` as a detached background process, redirecting output to `logs/dev-server.log`; (3) report the exact log path, a one-line command to follow it (e.g. `Get-Content -Wait logs/dev-server.log`), and the shellId for stop/read control.
+- When the user's message is exactly `:dev`, immediately run `npm run dev` in this repo (async mode, attached to the current session — not detached, so it stops when the session ends), with no confirmation needed. Report the shellId and the URL http://localhost:4000.
 
 ## 🤖 Copilot Session-Start Shortcut Recap
 
@@ -24,6 +24,7 @@ Current shortcuts defined in this repo (keep this list in sync whenever a shortc
 | `:c` / `:close` | Committa il lavoro in-scope (chiede conferma su modifiche fuori-scope), poi esegue lo stesso flusso di `:push`. |
 | `:pull` | `git pull` su `develop`, `main` e sul branch corrente (se presente). |
 | `:rundev` | Verifica se la porta 4000 è occupata (chiede se riavviare); altrimenti lancia `npm run dev` in background/detached con log su `logs/dev-server.log`. |
+| `:dev` | Lancia subito `npm run dev` (async, attaccato alla sessione corrente, si ferma a fine sessione) su http://localhost:4000, senza chiedere conferma. |
 | `:h` / `:?` / `:help` | Stampa questa tabella riassuntiva degli shortcut. |
 
 ## Accessibility Quick Rules
@@ -64,20 +65,6 @@ git pull origin <branch-corrente>
 - La prima vista dell'app deve essere sempre la **selezione del profilo**.
 - Non introdurre schermate di benvenuto, intro o bypass iniziali prima del profile picker.
 - Se il flusso di apertura cambia, il picker profilo resta comunque la prima schermata visibile.
-
----
-
-## Accessibility Standards
-
-Le quick rules sopra sono vincolanti. In caso di dubbio, applica sempre:
-
-- WCAG 2.2 AA e WAI-ARIA APG
-- contrasto corretto in tutti i temi e in grayscale
-- navigazione da tastiera, screen reader e focus visibile
-- supporto a prefers-reduced-motion senza flash, strobo o animazioni distraenti
-- HTML semantico, ARIA valido, niente colore come unico canale informativo
-- Lighthouse accessibility >= 95 e nessun critical axe-core issue
-
 
 ---
 
@@ -205,6 +192,17 @@ Quando le card si impilano verticalmente invece di distribuirsi su più colonne:
 - Mantieni semantica accessibile tramite ruoli ARIA (`role="list"`, `role="listitem"`).
 
 ---
+
+## Icona header = favicon (Mandatory)
+
+L'header in-app deve mostrare la stessa immagine icona usata come favicon
+(`/icon.svg`), non un'emoji generica o un placeholder diverso. Regola e
+razionale completi allineati a `@mp/app-kit` (vedi `BRANDING.md` in
+`C:\works\mp-app-kit`, sezione "Header icon consistency rule").
+
+```tsx
+<img src="/icon.svg" alt="..." className="h-8 w-8 rounded-xl object-cover shadow-sm" />
+```
 
 ## Badge di stato (Mandatory)
 

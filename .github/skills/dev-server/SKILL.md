@@ -1,3 +1,9 @@
+---
+name: dev-server
+description: "Skill per avviare il dev server locale di Tabellandia (vite --port=4000). Usare quando l'utente chiede di avviare/testare l'app in locale, verificare a runtime una modifica, o fare una verifica visiva/manuale nel browser."
+license: MIT
+---
+
 # Skill: Avviare il dev server (Tabellandia)
 
 Skill di riferimento per avviare il server di sviluppo locale di Tabellandia.
