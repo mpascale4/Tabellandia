@@ -176,9 +176,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
       </div>
 
       {/* Floating Islands Grid */}
-      <div className={`w-full grid gap-2.5 sm:gap-3 ${
-        a <= 3 ? 'grid-cols-1 sm:grid-cols-3' : a <= 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
-      }`}>
+      <div className={`w-full grid gap-2.5 sm:gap-3 grid-cols-[repeat(auto-fit,minmax(6rem,1fr))]`}>
         {Array.from({ length: a }).map((_, groupIdx) => {
           const isSummoned = groupIdx < activeGroups;
 
@@ -237,7 +235,7 @@ export default function GroupVisualizer({ a, b, itemEmoji, onCompletionChange }:
                   })
                 ) : (
                   <div className="flex flex-col items-center justify-center text-slate-300 py-1.5">
-                    <Wand2 className="w-4 h-4 mb-0.5 animate-bounce opacity-50" />
+                    <Wand2 className="w-4 h-4 mb-0.5 motion-safe:animate-bounce opacity-50" />
                     <span className="text-[9px] font-bold text-slate-400">Tocca per evocare</span>
                   </div>
                 )}

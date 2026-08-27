@@ -264,7 +264,7 @@ function WorldCard({ world, stars, isWeak, onSelect, compactLayout }: {
       >
         {isTrained && (
           <span
-            className="absolute top-1 right-1 inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] sm:text-xs font-black shadow-md z-10"
+            className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md z-10"
             aria-hidden="true"
           >
             ✓
@@ -758,7 +758,7 @@ function TrainingHome({
       <div
         role="list"
         aria-label="Lista tabelline disponibili"
-        className={`training-home-grid w-full grid grid-cols-2 sm:grid-cols-4 ${compactLayout ? 'gap-2' : 'gap-3 sm:gap-4'}`}
+        className={`training-home-grid w-full grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] ${compactLayout ? 'gap-2' : 'gap-3 sm:gap-4'}`}
       >
         {WORLDS_DATA.map(world => (
           <div key={world.id} role="listitem">

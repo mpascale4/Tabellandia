@@ -1845,7 +1845,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                               : isLocked
                                 ? 'bg-slate-100/90 border-slate-200 text-slate-400 opacity-60 hover:border-slate-300'
                                 : isNextFactor
-                                  ? 'bg-amber-50 border-amber-500 ring-4 ring-amber-300 ring-inset text-amber-950 shadow-md animate-pulse'
+                                  ? 'bg-amber-50 border-amber-500 ring-4 ring-amber-300 ring-inset text-amber-950 shadow-md motion-safe:animate-pulse'
                                   : theme.todo
                           }`}
               aria-label={`${world.id} per ${factor}${isCompleted ? ', completata' : isLocked ? ', bloccata' : ', da completare'}`}
@@ -2425,7 +2425,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                         isLocked
                           ? 'opacity-60 bg-slate-100 border-slate-200'
                           : isNext
-                            ? 'bg-amber-50/90 border-amber-500 ring-4 ring-amber-300 shadow-md animate-pulse'
+                            ? 'bg-amber-50/90 border-amber-500 ring-4 ring-amber-300 shadow-md motion-safe:animate-pulse'
                             : isDone
                               ? 'bg-emerald-50/90 border-emerald-300 shadow-sm hover:border-emerald-400'
                               : 'bg-white border-indigo-100 hover:border-indigo-300 shadow-xs'
@@ -2485,6 +2485,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   <button
                     ref={isSfidaNext ? activeStepCardRef : null}
                     type="button"
+                    aria-disabled={isSfidaLocked}
                     onClick={() => {
                       if (isSfidaLocked) {
                         sound.playError();
@@ -2496,14 +2497,14 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                       void speak('Hai scelto 6. Sfida Finale. Preparati alla prova a tempo.');
                       startSfidaMode();
                     }}
-                    className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between text-left transition-all cursor-pointer ${
+                    className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between text-left transition-all ${
                       isSfidaLocked
-                        ? 'opacity-60 bg-slate-100 border-slate-200'
+                        ? 'opacity-60 bg-slate-100 border-slate-200 cursor-not-allowed'
                         : isSfidaNext
-                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-amber-400 ring-4 ring-amber-300 text-white shadow-xl animate-pulse'
+                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-amber-400 ring-4 ring-amber-300 text-white shadow-xl motion-safe:animate-pulse cursor-pointer'
                           : isSfidaDone
-                            ? 'bg-gradient-to-r from-emerald-100 via-amber-50 to-emerald-50 border-emerald-400 shadow-md'
-                            : 'bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-500 text-white shadow-lg hover:brightness-105'
+                            ? 'bg-gradient-to-r from-emerald-100 via-amber-50 to-emerald-50 border-emerald-400 shadow-md cursor-pointer'
+                            : 'bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-500 text-white shadow-lg hover:brightness-105 cursor-pointer'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -2519,7 +2520,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                     <span className={`text-xs font-black px-3 py-2 rounded-xl whitespace-nowrap shadow-xs font-sans ${
                       isSfidaLocked ? 'bg-slate-200 text-slate-600' : 'bg-amber-400 text-amber-950 hover:bg-amber-300'
                     }`}>
-                      {isSfidaDone ? `▶ Rigioca (${SFIDA_UNLOCK_COST} 🪙)` : `▶ Avvia Sfida (${SFIDA_UNLOCK_COST} 🪙)`}
+                      {isSfidaLocked ? '🔒 Bloccata' : isSfidaDone ? `▶ Rigioca (${SFIDA_UNLOCK_COST} 🪙)` : `▶ Avvia Sfida (${SFIDA_UNLOCK_COST} 🪙)`}
                     </span>
                   </button>
                 );
@@ -3851,7 +3852,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                             }}
                             className={`rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md transition-all cursor-pointer ${
                               canAfford
-                                ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 text-white animate-bounce ring-2 ring-amber-300'
+                                ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 text-white motion-safe:animate-bounce ring-2 ring-amber-300'
                                 : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
                             }`}
                           >
@@ -3920,7 +3921,7 @@ export default function WorldDetail({ world, profile, updateProfile, onBack, com
                   {monumentModal.monument.description}
                 </p>
                 {worldProg.rebuiltMonuments.length >= world.monuments.length && (
-                  <div className="mb-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shadow-sm animate-bounce">
+                  <div className="mb-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shadow-sm motion-safe:animate-bounce">
                     🎉 Hai trovato tutti i 3 indizi!
                     {WORLDS_DATA.find(w => w.id === world.id + 1) ? (
                       <div className="mt-1 text-emerald-700 font-extrabold">

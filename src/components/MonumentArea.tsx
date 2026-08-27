@@ -96,7 +96,7 @@ export default function MonumentArea({
                   isCompleted
                     ? 'bg-white/90 border-emerald-300 shadow-xs hover:bg-emerald-50/50'
                     : userDrops >= monument.cost
-                      ? 'bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-50 border-amber-500 shadow-md ring-2 ring-amber-400/80 animate-monument-glow'
+                      ? 'bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-50 border-amber-500 shadow-md ring-2 ring-amber-400/80 motion-safe:animate-monument-glow'
                       : 'bg-white/60 border-slate-200 opacity-80 hover:bg-white/80'
                 }`}
               >
@@ -128,7 +128,7 @@ export default function MonumentArea({
                       isCompleted
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                         : userDrops >= monument.cost
-                          ? 'bg-amber-300 text-amber-950 border border-amber-500 animate-badge-blink shadow-2xs'
+                          ? 'bg-amber-300 text-amber-950 border border-amber-500 motion-safe:animate-badge-blink shadow-2xs'
                           : 'bg-slate-100 text-slate-600 border border-slate-200'
                     }`}>
                       {isCompleted ? (
@@ -145,16 +145,22 @@ export default function MonumentArea({
                 {/* Right Action Badge */}
                 <div className="shrink-0 flex flex-col items-end gap-1">
                   {isCompleted ? (
-                    <span className="w-6 h-6 rounded-full bg-emerald-500 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                    <span
+                      className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500 text-white text-[10px] font-black shadow-md"
+                      aria-hidden="true"
+                    >
                       ✓
                     </span>
                   ) : userDrops >= monument.cost ? (
-                    <span className="text-[11px] font-black text-white bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 border border-amber-300 px-2.5 py-1 rounded-xl shadow-md animate-bounce hover:scale-105">
+                    <span className="text-[11px] font-black text-white bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 border border-amber-300 px-2.5 py-1 rounded-xl shadow-md motion-safe:animate-bounce hover:scale-105">
                       Sblocca 🔓 ✨
                     </span>
                   ) : (
-                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg">
-                      🔒 {monument.cost}💧
+                    <span
+                      className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] shadow-md"
+                      aria-hidden="true"
+                    >
+                      🔒
                     </span>
                   )}
                 </div>
