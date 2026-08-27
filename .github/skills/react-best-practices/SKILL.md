@@ -1,3 +1,9 @@
+---
+name: react-best-practices
+description: "Checklist di best practice React 19 + TypeScript + Vite + Tailwind per Tabellandia. Usare prima di creare/rifattorizzare componenti o hook, prima di introdurre state management o side-effect, o come checklist finale prima di proporre una modifica come conclusa."
+license: MIT
+---
+
 # Skill: React Best Practices (Tabellandia)
 
 Skill di riferimento per applicare best practice React/TypeScript/Vite quando si
